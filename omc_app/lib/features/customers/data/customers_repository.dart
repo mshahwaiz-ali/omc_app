@@ -7,25 +7,24 @@ import '../../../core/network/frappe_client.dart';
 import '../domain/customer_item.dart';
 
 final customersRepositoryProvider = Provider<CustomersRepository>((ref) {
+  ref.watch(sessionEpochProvider);
   final frappeClient = ref.watch(frappeClientProvider);
 
   return CustomersRepository(frappeClient);
 });
 
-final customersProvider = FutureProvider<List<CustomerItem>>((ref) {
+final customersProvider = FutureProvider.autoDispose<List<CustomerItem>>((ref) {
   final repository = ref.watch(customersRepositoryProvider);
 
   return repository.fetchCustomers();
 });
 
-final customerDetailProvider = FutureProvider.family<CustomerItem?, String>((
-  ref,
-  customerId,
-) {
-  final repository = ref.watch(customersRepositoryProvider);
+final customerDetailProvider = FutureProvider.autoDispose
+    .family<CustomerItem?, String>((ref, customerId) {
+      final repository = ref.watch(customersRepositoryProvider);
 
-  return repository.fetchCustomerDetail(customerId);
-});
+      return repository.fetchCustomerDetail(customerId);
+    });
 
 class CustomersRepository {
   const CustomersRepository(this._frappeClient);

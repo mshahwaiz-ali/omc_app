@@ -8,15 +8,15 @@ import '../../../core/network/frappe_client.dart';
 final homeDashboardRepositoryProvider = Provider<HomeDashboardRepository>((
   ref,
 ) {
+  ref.watch(sessionEpochProvider);
   return HomeDashboardRepository(frappeClient: ref.watch(frappeClientProvider));
 });
 
-final homeDashboardSummaryProvider = FutureProvider<HomeDashboardSummary>((
-  ref,
-) async {
-  final repository = ref.watch(homeDashboardRepositoryProvider);
-  return repository.fetchSummary();
-});
+final homeDashboardSummaryProvider =
+    FutureProvider.autoDispose<HomeDashboardSummary>((ref) async {
+      final repository = ref.watch(homeDashboardRepositoryProvider);
+      return repository.fetchSummary();
+    });
 
 class HomeDashboardSummary {
   const HomeDashboardSummary({
@@ -260,7 +260,9 @@ class HomeDashboardServiceSnapshot {
           : effectiveOperationalStatus;
     }
     return lifecycleState.isEmpty
-        ? (effectiveOperationalStatus.isEmpty ? 'Open' : effectiveOperationalStatus)
+        ? (effectiveOperationalStatus.isEmpty
+              ? 'Open'
+              : effectiveOperationalStatus)
         : lifecycleState;
   }
 

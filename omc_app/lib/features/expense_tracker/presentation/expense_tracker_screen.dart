@@ -24,7 +24,7 @@ final expenseTrackerConfigProvider = FutureProvider<ExpenseTrackerConfig>((
 });
 
 final expenseTransactionsProvider =
-    AsyncNotifierProvider<
+    AsyncNotifierProvider.autoDispose<
       ExpenseTransactionsController,
       List<ExpenseTransaction>
     >(ExpenseTransactionsController.new);
@@ -35,7 +35,7 @@ class ExpenseTransactionsController
 
   @override
   Future<List<ExpenseTransaction>> build() async {
-    _repository = ref.read(expenseTrackerRepositoryProvider);
+    _repository = ref.watch(expenseTrackerRepositoryProvider);
     return _sort(await _repository.readTransactions());
   }
 

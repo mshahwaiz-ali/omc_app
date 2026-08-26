@@ -33,9 +33,14 @@ class AuthRepository {
   const AuthRepository({
     required FrappeClient frappeClient,
     required SecureStorageService secureStorageService,
-  }) : this._(frappeClient, secureStorageService);
+    bool isWeb = kIsWeb,
+  }) : this._(frappeClient, secureStorageService, isWeb);
 
-  const AuthRepository._(this._frappeClient, this._secureStorageService);
+  const AuthRepository._(
+    this._frappeClient,
+    this._secureStorageService,
+    this._isWeb,
+  );
 
   static const _registrationVerificationStatusMethod =
       'omc_app.api.pending_registration.get_registration_verification_status';
@@ -44,6 +49,7 @@ class AuthRepository {
 
   final FrappeClient _frappeClient;
   final SecureStorageService _secureStorageService;
+  final bool _isWeb;
 
   Future<AuthSession?> readStoredSession() async {
     final userId = await _secureStorageService.readUserId();
@@ -122,7 +128,7 @@ class AuthRepository {
     final sessionCookie = result.sessionCookie;
 
     if (sessionCookie == null || sessionCookie.isEmpty) {
-      if (!kIsWeb) {
+      if (!_isWeb) {
         throw ApiError(
           message: 'Login succeeded but the server did not return a session.',
           details: result.data,
@@ -133,29 +139,25 @@ class AuthRepository {
       // If the Frappe login call reached this point without throwing, login was
       // accepted and the browser owns the session cookie.
       await _secureStorageService.saveSessionCookie('browser-managed-session');
+    } else {
+      await _secureStorageService.saveSessionCookie(sessionCookie);
+    }
 
+    try {
       final serverSession = await _getSessionAfterAcceptedLogin(result.data);
-      if (serverSession != null) {
-        await updateGuestActivity(convertedUser: serverSession.userId);
-        return serverSession;
+      if (serverSession == null) {
+        throw const ApiError(
+          message:
+              'Login could not verify an authenticated server session. Please sign in again.',
+        );
       }
 
-      await _secureStorageService.saveUserId(email);
-      await updateGuestActivity(convertedUser: email);
-      return AuthSession(userId: email);
-    }
-
-    await _secureStorageService.saveSessionCookie(sessionCookie);
-
-    final serverSession = await _getSessionAfterAcceptedLogin(result.data);
-    if (serverSession != null) {
       await updateGuestActivity(convertedUser: serverSession.userId);
       return serverSession;
+    } catch (_) {
+      await clearSession();
+      rethrow;
     }
-
-    await _secureStorageService.saveUserId(email);
-    await updateGuestActivity(convertedUser: email);
-    return AuthSession(userId: email);
   }
 
   AuthCapabilities _capabilitiesFromResponse(Map<String, dynamic> data) {

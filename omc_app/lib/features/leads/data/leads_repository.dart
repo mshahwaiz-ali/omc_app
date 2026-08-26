@@ -8,25 +8,25 @@ import '../../../core/network/mutation_intent.dart';
 import '../domain/lead_item.dart';
 
 final leadsRepositoryProvider = Provider<LeadsRepository>((ref) {
+  ref.watch(sessionEpochProvider);
   final frappeClient = ref.watch(frappeClientProvider);
 
   return LeadsRepository(frappeClient);
 });
 
-final leadsProvider = FutureProvider<List<LeadItem>>((ref) {
+final leadsProvider = FutureProvider.autoDispose<List<LeadItem>>((ref) {
   final repository = ref.watch(leadsRepositoryProvider);
 
   return repository.fetchLeads();
 });
 
-final leadDetailProvider = FutureProvider.family<LeadItem?, String>((
-  ref,
-  leadId,
-) {
-  final repository = ref.watch(leadsRepositoryProvider);
+final leadDetailProvider = FutureProvider.autoDispose.family<LeadItem?, String>(
+  (ref, leadId) {
+    final repository = ref.watch(leadsRepositoryProvider);
 
-  return repository.fetchLeadDetail(leadId);
-});
+    return repository.fetchLeadDetail(leadId);
+  },
+);
 
 class LeadsRepository {
   LeadsRepository(this._frappeClient);

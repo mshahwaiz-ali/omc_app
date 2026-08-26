@@ -7,22 +7,22 @@ import '../../../core/network/frappe_client.dart';
 import 'task_item.dart';
 
 final tasksRepositoryProvider = Provider<TasksRepository>((ref) {
+  ref.watch(sessionEpochProvider);
   final frappeClient = ref.watch(frappeClientProvider);
   return TasksRepository(frappeClient);
 });
 
 /// Compatibility/refresh provider for the default first page.
 /// The Tasks screen performs filtered pagination through fetchTasksPage.
-final tasksProvider = FutureProvider<TaskPage>((ref) {
+final tasksProvider = FutureProvider.autoDispose<TaskPage>((ref) {
   return ref.watch(tasksRepositoryProvider).fetchTasksPage();
 });
 
-final taskDetailProvider = FutureProvider.family<TaskItem?, String>((
-  ref,
-  taskId,
-) {
-  return ref.watch(tasksRepositoryProvider).fetchTaskDetail(taskId);
-});
+final taskDetailProvider = FutureProvider.autoDispose.family<TaskItem?, String>(
+  (ref, taskId) {
+    return ref.watch(tasksRepositoryProvider).fetchTaskDetail(taskId);
+  },
+);
 
 class TaskPage {
   const TaskPage({

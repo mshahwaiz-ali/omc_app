@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/providers/core_providers.dart';
 import '../data/commission_repository.dart';
 
-final commissionDetailProvider =
-    FutureProvider.family<CommissionEarning, String>((ref, id) {
+final commissionDetailProvider = FutureProvider.autoDispose
+    .family<CommissionEarning, String>((ref, id) {
+      ref.watch(sessionEpochProvider);
       return ref.watch(commissionRepositoryProvider).fetchOne(id);
     });
 

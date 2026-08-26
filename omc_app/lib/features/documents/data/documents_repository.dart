@@ -42,18 +42,21 @@ class DocumentPage {
 }
 
 final documentsRepositoryProvider = Provider<DocumentsRepository>((ref) {
+  ref.watch(sessionEpochProvider);
   final frappeClient = ref.watch(frappeClientProvider);
 
   return DocumentsRepository(frappeClient);
 });
 
-final documentPageProvider = FutureProvider<DocumentPage>((ref) async {
+final documentPageProvider = FutureProvider.autoDispose<DocumentPage>((
+  ref,
+) async {
   final repository = ref.watch(documentsRepositoryProvider);
   return repository.fetchDocumentPage();
 });
 
-final assistedDocumentPageProvider =
-    FutureProvider.family<DocumentPage, String>((ref, serviceRequest) async {
+final assistedDocumentPageProvider = FutureProvider.autoDispose
+    .family<DocumentPage, String>((ref, serviceRequest) async {
       final repository = ref.watch(documentsRepositoryProvider);
       return repository.fetchDocumentPage(
         serviceRequest: serviceRequest,
@@ -63,31 +66,28 @@ final assistedDocumentPageProvider =
 
 // Compatibility providers for callers that do not need pagination controls.
 // New list screens should consume DocumentPage so has_more is never discarded.
-final documentsProvider = FutureProvider<List<DocumentItem>>((ref) async {
+final documentsProvider = FutureProvider.autoDispose<List<DocumentItem>>((
+  ref,
+) async {
   return (await ref.watch(documentPageProvider.future)).items;
 });
 
-final assistedDocumentsProvider =
-    FutureProvider.family<List<DocumentItem>, String>((
-      ref,
-      serviceRequest,
-    ) async {
+final assistedDocumentsProvider = FutureProvider.autoDispose
+    .family<List<DocumentItem>, String>((ref, serviceRequest) async {
       return (await ref.watch(
         assistedDocumentPageProvider(serviceRequest).future,
       )).items;
     });
 
-final documentDetailProvider = FutureProvider.family<DocumentItem?, String>((
-  ref,
-  documentId,
-) {
-  final repository = ref.watch(documentsRepositoryProvider);
+final documentDetailProvider = FutureProvider.autoDispose
+    .family<DocumentItem?, String>((ref, documentId) {
+      final repository = ref.watch(documentsRepositoryProvider);
 
-  return repository.fetchDocumentDetail(documentId);
-});
+      return repository.fetchDocumentDetail(documentId);
+    });
 
-final assistedDocumentDetailProvider =
-    FutureProvider.family<DocumentItem?, String>((ref, documentId) {
+final assistedDocumentDetailProvider = FutureProvider.autoDispose
+    .family<DocumentItem?, String>((ref, documentId) {
       final repository = ref.watch(documentsRepositoryProvider);
 
       return repository.fetchDocumentDetail(documentId, assisted: true);

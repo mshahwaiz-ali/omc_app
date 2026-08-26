@@ -13,7 +13,9 @@ final referralRepositoryProvider = Provider<ReferralRepository>((ref) {
   return ReferralRepository(ref.watch(frappeClientProvider));
 });
 
-final referralSummaryProvider = FutureProvider<ReferralSummary?>((ref) async {
+final referralSummaryProvider = FutureProvider.autoDispose<ReferralSummary?>((
+  ref,
+) async {
   final auth = ref.watch(authControllerProvider);
   if (auth.status != AuthStatus.authenticated ||
       !auth.capabilities.canOwnReferrals) {

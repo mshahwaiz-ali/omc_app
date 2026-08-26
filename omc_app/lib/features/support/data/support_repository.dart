@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
@@ -104,6 +106,10 @@ class SupportSyncNotifier extends Notifier<SupportSyncState> {
   @override
   SupportSyncState build() => const SupportSyncState();
 
+  void clearSessionResources() {
+    state = SupportSyncState(config: state.config);
+  }
+
   void report(
     SupportSyncTarget target,
     SupportResourceFreshness freshness, {
@@ -139,43 +145,72 @@ typedef SupportSyncReporter =
       SupportSyncTarget target,
       SupportResourceFreshness freshness, {
       String? ticketId,
+      int? sessionGeneration,
     });
 
 final supportRepositoryProvider = Provider<SupportRepository>((ref) {
-  return SupportRepository(
+  var disposed = false;
+  ref.onDispose(() => disposed = true);
+
+  late final SupportRepository repository;
+  repository = SupportRepository(
     frappeClient: ref.watch(frappeClientProvider),
-    reportSync: (target, freshness, {ticketId}) {
-      ref
-          .read(supportSyncStateProvider.notifier)
-          .report(target, freshness, ticketId: ticketId);
+    reportSync: (target, freshness, {ticketId, sessionGeneration}) {
+      // A FutureProvider can call into the repository synchronously while it
+      // is initializing. Defer freshness notifications so that provider does
+      // not mutate another provider during Riverpod's build phase.
+      scheduleMicrotask(() {
+        if (disposed ||
+            (sessionGeneration != null &&
+                !repository.isCurrentSessionGeneration(sessionGeneration))) {
+          return;
+        }
+        ref
+            .read(supportSyncStateProvider.notifier)
+            .report(target, freshness, ticketId: ticketId);
+      });
     },
   );
+
+  ref.listen<int>(sessionEpochProvider, (previous, next) {
+    repository.clearSessionResources();
+    ref.read(supportSyncStateProvider.notifier).clearSessionResources();
+  });
+
+  return repository;
 });
 
 final supportConfigProvider = FutureProvider<SupportConfigData>((ref) {
   return ref.watch(supportRepositoryProvider).fetchSupportConfig();
 });
 
-final supportTicketPageProvider = FutureProvider<legacy.SupportTicketPage>((
-  ref,
-) {
-  return ref.watch(supportRepositoryProvider).fetchSupportTicketPage();
-});
+final supportTicketPageProvider =
+    FutureProvider.autoDispose<legacy.SupportTicketPage>((ref) {
+      ref.watch(sessionEpochProvider);
+      return ref.watch(supportRepositoryProvider).fetchSupportTicketPage();
+    });
 
-final supportTicketsProvider = FutureProvider<List<SupportTicket>>((ref) async {
+final supportTicketsProvider = FutureProvider.autoDispose<List<SupportTicket>>((
+  ref,
+) async {
   return (await ref.watch(supportTicketPageProvider.future)).items;
 });
 
-final supportTicketDetailProvider =
-    FutureProvider.family<SupportTicket?, String>((ref, ticketId) {
+final supportTicketDetailProvider = FutureProvider.autoDispose
+    .family<SupportTicket?, String>((ref, ticketId) {
+      ref.watch(sessionEpochProvider);
       return ref.watch(supportRepositoryProvider).fetchSupportTicket(ticketId);
     });
 
-final activeSupportTicketProvider = FutureProvider<SupportTicket?>((ref) {
+final activeSupportTicketProvider = FutureProvider.autoDispose<SupportTicket?>((
+  ref,
+) {
+  ref.watch(sessionEpochProvider);
   return ref.watch(supportRepositoryProvider).fetchActiveSupportTicket();
 });
 
-final supportUnreadCountProvider = FutureProvider<int>((ref) {
+final supportUnreadCountProvider = FutureProvider.autoDispose<int>((ref) {
+  ref.watch(sessionEpochProvider);
   return ref.watch(supportRepositoryProvider).fetchSupportUnreadCount();
 });
 
@@ -191,6 +226,11 @@ class SupportRepository extends legacy.SupportRepository {
   int? _unreadCache;
   DateTime? _unreadCachedAt;
   final Map<String, _TicketCacheEntry> _ticketCache = {};
+  int _sessionGeneration = 0;
+
+  bool isCurrentSessionGeneration(int generation) {
+    return generation == _sessionGeneration;
+  }
 
   @override
   Future<SupportConfigData> fetchSupportConfig() async {
@@ -224,11 +264,13 @@ class SupportRepository extends legacy.SupportRepository {
     int start = 0,
     int limit = 20,
   }) async {
+    final generation = _sessionGeneration;
     final isFirstPage = start <= 0;
     if (isFirstPage) {
       reportSync(
         SupportSyncTarget.feed,
         _refreshing(_freshnessFor(_feedCachedAt)),
+        sessionGeneration: generation,
       );
     }
 
@@ -237,18 +279,28 @@ class SupportRepository extends legacy.SupportRepository {
         start: start,
         limit: limit,
       );
+      _assertCurrentSessionGeneration(generation);
       if (isFirstPage) {
         final now = DateTime.now();
         _feedCache = page;
         _feedCachedAt = now;
-        reportSync(SupportSyncTarget.feed, _fresh(now));
+        reportSync(
+          SupportSyncTarget.feed,
+          _fresh(now),
+          sessionGeneration: generation,
+        );
       }
       return page;
     } catch (error) {
+      if (!isCurrentSessionGeneration(generation)) rethrow;
       if (isFirstPage &&
           _feedCache != null &&
           SupportRefreshPolicy.canReuseStale(error)) {
-        reportSync(SupportSyncTarget.feed, _stale(_feedCachedAt, error));
+        reportSync(
+          SupportSyncTarget.feed,
+          _stale(_feedCachedAt, error),
+          sessionGeneration: generation,
+        );
         return _feedCache!;
       }
       if (isFirstPage) {
@@ -256,7 +308,11 @@ class SupportRepository extends legacy.SupportRepository {
           _feedCache = null;
           _feedCachedAt = null;
         }
-        reportSync(SupportSyncTarget.feed, _stale(_feedCachedAt, error));
+        reportSync(
+          SupportSyncTarget.feed,
+          _stale(_feedCachedAt, error),
+          sessionGeneration: generation,
+        );
       }
       rethrow;
     }
@@ -264,6 +320,7 @@ class SupportRepository extends legacy.SupportRepository {
 
   @override
   Future<SupportTicket?> fetchSupportTicket(String ticketId) async {
+    final generation = _sessionGeneration;
     final cleanId = ticketId.trim();
     if (cleanId.isEmpty) return super.fetchSupportTicket(ticketId);
 
@@ -285,13 +342,20 @@ class SupportRepository extends legacy.SupportRepository {
       SupportSyncTarget.ticket,
       _refreshing(previous),
       ticketId: cleanId,
+      sessionGeneration: generation,
     );
 
     try {
       final ticket = await super.fetchSupportTicket(cleanId);
+      _assertCurrentSessionGeneration(generation);
       if (ticket == null) {
         _ticketCache.remove(cleanId);
-        reportSync(SupportSyncTarget.ticket, _fresh(now), ticketId: cleanId);
+        reportSync(
+          SupportSyncTarget.ticket,
+          _fresh(now),
+          ticketId: cleanId,
+          sessionGeneration: generation,
+        );
         return null;
       }
       final fetchedAt = DateTime.now();
@@ -301,14 +365,17 @@ class SupportRepository extends legacy.SupportRepository {
         SupportSyncTarget.ticket,
         _fresh(fetchedAt),
         ticketId: cleanId,
+        sessionGeneration: generation,
       );
       return ticket;
     } catch (error) {
+      if (!isCurrentSessionGeneration(generation)) rethrow;
       if (cached != null && SupportRefreshPolicy.canReuseStale(error)) {
         reportSync(
           SupportSyncTarget.ticket,
           _stale(cached.cachedAt, error),
           ticketId: cleanId,
+          sessionGeneration: generation,
         );
         return cached.ticket;
       }
@@ -319,6 +386,7 @@ class SupportRepository extends legacy.SupportRepository {
         SupportSyncTarget.ticket,
         _stale(cached?.cachedAt, error),
         ticketId: cleanId,
+        sessionGeneration: generation,
       );
       rethrow;
     }
@@ -326,6 +394,7 @@ class SupportRepository extends legacy.SupportRepository {
 
   @override
   Future<int> fetchSupportUnreadCount() async {
+    final generation = _sessionGeneration;
     final now = DateTime.now();
     if (_unreadCache != null &&
         _unreadCachedAt != null &&
@@ -337,24 +406,39 @@ class SupportRepository extends legacy.SupportRepository {
     reportSync(
       SupportSyncTarget.unread,
       _refreshing(_freshnessFor(_unreadCachedAt)),
+      sessionGeneration: generation,
     );
     try {
       final count = await super.fetchSupportUnreadCount();
+      _assertCurrentSessionGeneration(generation);
       final fetchedAt = DateTime.now();
       _unreadCache = count;
       _unreadCachedAt = fetchedAt;
-      reportSync(SupportSyncTarget.unread, _fresh(fetchedAt));
+      reportSync(
+        SupportSyncTarget.unread,
+        _fresh(fetchedAt),
+        sessionGeneration: generation,
+      );
       return count;
     } catch (error) {
+      if (!isCurrentSessionGeneration(generation)) rethrow;
       if (_unreadCache != null && SupportRefreshPolicy.canReuseStale(error)) {
-        reportSync(SupportSyncTarget.unread, _stale(_unreadCachedAt, error));
+        reportSync(
+          SupportSyncTarget.unread,
+          _stale(_unreadCachedAt, error),
+          sessionGeneration: generation,
+        );
         return _unreadCache!;
       }
       if (!SupportRefreshPolicy.canReuseStale(error)) {
         _unreadCache = null;
         _unreadCachedAt = null;
       }
-      reportSync(SupportSyncTarget.unread, _stale(_unreadCachedAt, error));
+      reportSync(
+        SupportSyncTarget.unread,
+        _stale(_unreadCachedAt, error),
+        sessionGeneration: generation,
+      );
       rethrow;
     }
   }
@@ -452,9 +536,25 @@ class SupportRepository extends legacy.SupportRepository {
 
   void clearAllReadCaches() {
     clearConfigCache();
+    clearSessionResources();
+  }
+
+  void clearSessionResources() {
+    _sessionGeneration++;
+    clearSessionMutationState();
     clearFeedCache();
     clearUnreadCache();
     _ticketCache.clear();
+  }
+
+  void _assertCurrentSessionGeneration(int generation) {
+    if (!isCurrentSessionGeneration(generation)) {
+      throw const ApiError(
+        message: 'The account session changed while support data was loading.',
+        code: 'support_session_changed',
+        category: ApiFailureCategory.authentication,
+      );
+    }
   }
 
   SupportResourceFreshness _freshnessFor(DateTime? cachedAt) {

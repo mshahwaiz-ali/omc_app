@@ -5,29 +5,26 @@ import '../../../core/config/api_config.dart';
 import '../../../core/network/frappe_client.dart';
 
 final adminControlRepositoryProvider = Provider<AdminControlRepository>((ref) {
+  ref.watch(sessionEpochProvider);
   return AdminControlRepository(ref.watch(frappeClientProvider));
 });
 
-final adminOverviewProvider = FutureProvider<AdminOverview>((ref) {
+final adminOverviewProvider = FutureProvider.autoDispose<AdminOverview>((ref) {
   return ref.watch(adminControlRepositoryProvider).fetchOverview();
 });
 
-final adminBusinessSettingsProvider = FutureProvider<Map<String, dynamic>>((
-  ref,
-) {
-  return ref.watch(adminControlRepositoryProvider).fetchBusinessSettings();
-});
+final adminBusinessSettingsProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
+      return ref.watch(adminControlRepositoryProvider).fetchBusinessSettings();
+    });
 
-final adminOperationsProvider =
-    FutureProvider.family<AdminOperationsPage, AdminOperationsQuery>((
-      ref,
-      query,
-    ) {
+final adminOperationsProvider = FutureProvider.autoDispose
+    .family<AdminOperationsPage, AdminOperationsQuery>((ref, query) {
       return ref.watch(adminControlRepositoryProvider).fetchOperations(query);
     });
 
-final adminCaseOptionsProvider =
-    FutureProvider.family<AdminCaseOptions, String>((ref, caseId) {
+final adminCaseOptionsProvider = FutureProvider.autoDispose
+    .family<AdminCaseOptions, String>((ref, caseId) {
       return ref.watch(adminControlRepositoryProvider).fetchCaseOptions(caseId);
     });
 

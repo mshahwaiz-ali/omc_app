@@ -6,18 +6,18 @@ import '../../../core/network/frappe_client.dart';
 import 'settings_preferences.dart';
 
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
+  ref.watch(sessionEpochProvider);
   final frappeClient = ref.watch(frappeClientProvider);
 
   return SettingsRepository(frappeClient: frappeClient);
 });
 
-final settingsPreferencesProvider = FutureProvider<SettingsPreferences?>((
-  ref,
-) async {
-  final repository = ref.watch(settingsRepositoryProvider);
+final settingsPreferencesProvider =
+    FutureProvider.autoDispose<SettingsPreferences?>((ref) async {
+      final repository = ref.watch(settingsRepositoryProvider);
 
-  return repository.fetchPreferences();
-});
+      return repository.fetchPreferences();
+    });
 
 class SettingsRepository {
   const SettingsRepository({required this.frappeClient});

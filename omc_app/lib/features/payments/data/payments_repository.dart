@@ -14,33 +14,34 @@ import '../../documents/data/document_attachment.dart';
 import 'payment_item.dart';
 
 final paymentsRepositoryProvider = Provider<PaymentsRepository>((ref) {
+  ref.watch(sessionEpochProvider);
   final frappeClient = ref.watch(frappeClientProvider);
 
   return PaymentsRepository(frappeClient: frappeClient);
 });
 
-final paymentsProvider = FutureProvider<List<PaymentItem>>((ref) async {
+final paymentsProvider = FutureProvider.autoDispose<List<PaymentItem>>((
+  ref,
+) async {
   final repository = ref.watch(paymentsRepositoryProvider);
   return repository.fetchPayments();
 });
 
-final paymentPageProvider =
-    FutureProvider.family<PaymentPage, PaymentPageQuery>(
+final paymentPageProvider = FutureProvider.autoDispose
+    .family<PaymentPage, PaymentPageQuery>(
       (ref, query) =>
           ref.watch(paymentsRepositoryProvider).fetchPaymentPage(query),
     );
 
-final paymentDetailProvider = FutureProvider.family<PaymentItem?, String>((
-  ref,
-  paymentId,
-) {
-  final repository = ref.watch(paymentsRepositoryProvider);
+final paymentDetailProvider = FutureProvider.autoDispose
+    .family<PaymentItem?, String>((ref, paymentId) {
+      final repository = ref.watch(paymentsRepositoryProvider);
 
-  return repository.fetchPaymentDetail(paymentId);
-});
+      return repository.fetchPaymentDetail(paymentId);
+    });
 
-final assistedPaymentDetailProvider =
-    FutureProvider.family<PaymentItem?, String>((ref, paymentId) {
+final assistedPaymentDetailProvider = FutureProvider.autoDispose
+    .family<PaymentItem?, String>((ref, paymentId) {
       final repository = ref.watch(paymentsRepositoryProvider);
 
       return repository.fetchPaymentDetail(paymentId, assisted: true);

@@ -37,7 +37,9 @@ String _cacheNamespace(String? userId) {
   return base64Url.encode(utf8.encode(value)).replaceAll('=', '');
 }
 
-final serviceCasesProvider = FutureProvider<List<ServiceCase>>((ref) async {
+final serviceCasesProvider = FutureProvider.autoDispose<List<ServiceCase>>((
+  ref,
+) async {
   final repository = ref.watch(serviceCaseRepositoryProvider);
 
   if (Env.useServicePreview) {
@@ -47,8 +49,8 @@ final serviceCasesProvider = FutureProvider<List<ServiceCase>>((ref) async {
   return repository.fetchServiceCases();
 });
 
-final serviceCasePageProvider =
-    FutureProvider.family<ServiceCasePage, ServiceCasePageQuery>((ref, query) async {
+final serviceCasePageProvider = FutureProvider.autoDispose
+    .family<ServiceCasePage, ServiceCasePageQuery>((ref, query) async {
       final repository = ref.watch(serviceCaseRepositoryProvider);
       if (Env.useServicePreview) {
         final items = repository.sampleCasesForUiPreview();
@@ -63,26 +65,24 @@ final serviceCasePageProvider =
       return repository.fetchServiceCasePage(query);
     });
 
-final serviceCaseDetailProvider = FutureProvider.family<ServiceCase?, String>((
-  ref,
-  caseId,
-) async {
-  final repository = ref.watch(serviceCaseRepositoryProvider);
+final serviceCaseDetailProvider = FutureProvider.autoDispose
+    .family<ServiceCase?, String>((ref, caseId) async {
+      final repository = ref.watch(serviceCaseRepositoryProvider);
 
-  if (Env.useServicePreview) {
-    final cases = repository.sampleCasesForUiPreview();
+      if (Env.useServicePreview) {
+        final cases = repository.sampleCasesForUiPreview();
 
-    for (final serviceCase in cases) {
-      if (serviceCase.id == caseId || serviceCase.reference == caseId) {
-        return serviceCase;
+        for (final serviceCase in cases) {
+          if (serviceCase.id == caseId || serviceCase.reference == caseId) {
+            return serviceCase;
+          }
+        }
+
+        return null;
       }
-    }
 
-    return null;
-  }
-
-  return repository.fetchServiceCaseDetail(caseId);
-});
+      return repository.fetchServiceCaseDetail(caseId);
+    });
 
 class ServiceCaseRepository {
   const ServiceCaseRepository({
@@ -112,7 +112,9 @@ class ServiceCaseRepository {
     )).items;
   }
 
-  Future<ServiceCasePage> fetchServiceCasePage(ServiceCasePageQuery query) async {
+  Future<ServiceCasePage> fetchServiceCasePage(
+    ServiceCasePageQuery query,
+  ) async {
     try {
       final response = await _frappeClient.getMethod(
         ApiConfig.serviceCasesMethod,
@@ -401,14 +403,18 @@ class ServiceCaseRepository {
             _nullableString(receipt['status'] ?? json['receipt_status']) ??
             'Not Submitted',
         paymentStatus:
-            _nullableString(receipt['payment_status'] ?? json['payment_status']) ??
+            _nullableString(
+              receipt['payment_status'] ?? json['payment_status'],
+            ) ??
             '',
         paymentId:
             _nullableString(receipt['payment_id'] ?? json['payment_id']) ?? '',
       ),
       settlement: ServiceCaseSettlement(
         status:
-            _nullableString(settlement['status'] ?? json['accounting_status']) ??
+            _nullableString(
+              settlement['status'] ?? json['accounting_status'],
+            ) ??
             'Unmatched',
         allocatedAmount: _moneyValue(settlement['allocated_amount']),
         payableAmount: _moneyValue(settlement['payable_amount']),
@@ -419,7 +425,8 @@ class ServiceCaseRepository {
       activation: ServiceCaseActivation(
         state:
             _nullableString(activation['state'] ?? json['request_state']) ?? '',
-        bridgeState: _nullableString(activation['bridge_state']) ?? 'Not Started',
+        bridgeState:
+            _nullableString(activation['bridge_state']) ?? 'Not Started',
         attemptCount: _nullableIntValue(activation['attempt_count']) ?? 0,
         activated: _boolValue(activation['activated']),
         evidenceComplete: _boolValue(activation['evidence_complete']),
@@ -429,7 +436,8 @@ class ServiceCaseRepository {
       hold: ServiceCaseHold(
         active: _boolValue(hold['active']),
         reason:
-            _nullableString(hold['reason'] ?? json['financial_hold_reason']) ?? '',
+            _nullableString(hold['reason'] ?? json['financial_hold_reason']) ??
+            '',
       ),
       createdAtLabel: _displayDate(
         json['created_at_label'] ??
@@ -495,9 +503,7 @@ class ServiceCaseRepository {
       canCancel: _boolValue(json['can_cancel']),
       documentsComplete: _boolValue(json['documents_complete']),
       paymentEligible: _boolValue(json['payment_eligible']),
-      paymentId: _nullableString(
-        json['payment_id'] ?? receipt['payment_id'],
-      ),
+      paymentId: _nullableString(json['payment_id'] ?? receipt['payment_id']),
       paymentStatus: _nullableString(
         json['payment_status'] ?? receipt['payment_status'],
       ),

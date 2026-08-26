@@ -6,7 +6,10 @@ import 'admin_control_repository.dart';
 const String scopedAdminOverviewMethod =
     'omc_app.api.admin_read.get_admin_overview';
 
-final scopedAdminOverviewProvider = FutureProvider<AdminOverview>((ref) async {
+final scopedAdminOverviewProvider = FutureProvider.autoDispose<AdminOverview>((
+  ref,
+) async {
+  ref.watch(sessionEpochProvider);
   final client = ref.watch(frappeClientProvider);
   final response = await client.getMethod(scopedAdminOverviewMethod);
   final message = response['message'];

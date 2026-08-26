@@ -10,15 +10,19 @@ const _decideSettlementReviewMethod =
 
 final financeReconciliationRepositoryProvider =
     Provider<FinanceReconciliationRepository>((ref) {
+      ref.watch(sessionEpochProvider);
       return FinanceReconciliationRepository(ref.watch(frappeClientProvider));
     });
 
-final financeReconciliationPageProvider = FutureProvider.family<
-  FinanceReconciliationPage,
-  FinanceReconciliationQuery
->((ref, query) {
-  return ref.watch(financeReconciliationRepositoryProvider).fetchPage(query);
-});
+final financeReconciliationPageProvider = FutureProvider.autoDispose
+    .family<FinanceReconciliationPage, FinanceReconciliationQuery>((
+      ref,
+      query,
+    ) {
+      return ref
+          .watch(financeReconciliationRepositoryProvider)
+          .fetchPage(query);
+    });
 
 class FinanceReconciliationRepository {
   const FinanceReconciliationRepository(this._client);

@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../../auth/application/auth_controller.dart';
-import '../../auth/application/auth_state.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/frappe_client.dart';
 import '../domain/expense_transaction.dart';
@@ -14,22 +13,25 @@ import '../domain/expense_transaction.dart';
 final expenseTrackerRepositoryProvider = Provider<ExpenseTrackerRepository>((
   ref,
 ) {
+  final authIdentity = ref.watch(
+    authControllerProvider.select(
+      (state) => (status: state.status, userId: state.userId),
+    ),
+  );
   return ExpenseTrackerRepository(
     frappeClient: ref.watch(frappeClientProvider),
-    storageNamespace: _expenseStorageNamespace(
-      ref.watch(authControllerProvider),
-    ),
+    storageNamespace: _expenseStorageNamespace(authIdentity.userId),
   );
 });
 
-String _expenseStorageNamespace(AuthState state) {
-  final userId = state.userId?.trim().toLowerCase();
+String _expenseStorageNamespace(String? rawUserId) {
+  final userId = rawUserId?.trim().toLowerCase();
   final identity = userId == null || userId.isEmpty ? 'guest-device' : userId;
   return base64Url.encode(utf8.encode(identity)).replaceAll('=', '');
 }
 
 final expenseTrackerStorageModeProvider =
-    AsyncNotifierProvider<
+    AsyncNotifierProvider.autoDispose<
       ExpenseTrackerStorageModeController,
       ExpenseTrackerStorageMode
     >(ExpenseTrackerStorageModeController.new);
@@ -40,7 +42,7 @@ class ExpenseTrackerStorageModeController
 
   @override
   Future<ExpenseTrackerStorageMode> build() async {
-    _repository = ref.read(expenseTrackerRepositoryProvider);
+    _repository = ref.watch(expenseTrackerRepositoryProvider);
     return _repository.readStorageMode();
   }
 

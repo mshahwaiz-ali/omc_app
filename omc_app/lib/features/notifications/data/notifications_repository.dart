@@ -47,8 +47,8 @@ final unreadNotificationsProvider = FutureProvider.autoDispose<int>((
   return repository.fetchUnreadCount();
 });
 
-final notificationDetailProvider =
-    FutureProvider.family<NotificationItem?, String>((ref, notificationId) {
+final notificationDetailProvider = FutureProvider.autoDispose
+    .family<NotificationItem?, String>((ref, notificationId) {
       final canViewNotifications = ref.watch(
         effectiveCapabilitiesProvider.select(
           (capabilities) => capabilities.canViewNotifications,

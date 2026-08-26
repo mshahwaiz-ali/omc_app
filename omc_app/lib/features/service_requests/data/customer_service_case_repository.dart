@@ -7,16 +7,14 @@ import '../../../core/network/frappe_client.dart';
 
 final customerServiceCaseRepositoryProvider =
     Provider<CustomerServiceCaseRepository>((ref) {
+      ref.watch(sessionEpochProvider);
       return CustomerServiceCaseRepository(
         frappeClient: ref.watch(frappeClientProvider),
       );
     });
 
-final customerServiceCaseDetailProvider =
-    FutureProvider.family<CustomerServiceCaseDetail?, String>((
-      ref,
-      caseId,
-    ) async {
+final customerServiceCaseDetailProvider = FutureProvider.autoDispose
+    .family<CustomerServiceCaseDetail?, String>((ref, caseId) async {
       return ref
           .watch(customerServiceCaseRepositoryProvider)
           .fetchDetail(caseId);

@@ -36,12 +36,7 @@ class AuthController extends Notifier<AuthState> {
       capabilities: session.capabilities,
     );
 
-    // Auth state changes can cause GoRouter to mount a new screen immediately.
-    // Defer dependent-provider refreshes so Riverpod is not invalidated while
-    // that widget tree is still building.
-    await Future<void>.delayed(Duration.zero);
-    ref.read(sessionEpochProvider.notifier).advance();
-    ref.invalidate(activeDirtyFormProvider);
+    await _advanceSessionBoundary();
   }
 
   Future<void> checkSession() async {
@@ -54,8 +49,8 @@ class AuthController extends Notifier<AuthState> {
 
       await _activateSession(session);
     } catch (_) {
-      await _authRepository.clearSession();
       state = const AuthState.unauthenticated();
+      await _clearSessionBestEffort();
     }
   }
 
@@ -75,11 +70,9 @@ class AuthController extends Notifier<AuthState> {
 
       await _activateSession(session);
     } catch (error) {
-      await _authRepository.clearSession();
-
       ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
-
       state = AuthState.unauthenticated(message: _safeLoginMessage(error));
+      await _clearSessionBestEffort();
     }
   }
 
@@ -118,8 +111,8 @@ class AuthController extends Notifier<AuthState> {
       return true;
     } catch (error) {
       ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
-
       state = AuthState.unauthenticated(message: _safeLoginMessage(error));
+      await _clearSessionBestEffort();
       return false;
     }
   }
@@ -168,12 +161,18 @@ class AuthController extends Notifier<AuthState> {
 
   Future<bool> continueAsGuest() async {
     try {
-      await _authRepository.clearSession();
-      ref.read(sessionEpochProvider.notifier).advance();
+      // Drop protected UI ownership before any network cleanup. On Web the
+      // logout call is also required to clear the browser-managed Frappe
+      // cookie; clearing local storage alone is not a Guest transition.
+      state = const AuthState.unauthenticated();
+      ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
+      await _authRepository.logout();
       await _authRepository.createGuestSession();
       state = const AuthState.guest();
+
       return true;
     } catch (error) {
+      await _clearSessionBestEffort();
       state = AuthState.unauthenticated(
         message: AppFailureClassifier.classify(
           error,
@@ -182,22 +181,25 @@ class AuthController extends Notifier<AuthState> {
               'Guest access could not be started right now. Please try again.',
         ).message,
       );
+
       return false;
+    } finally {
+      await _advanceSessionBoundary();
     }
   }
 
   Future<void> logout() async {
-    await _authRepository.logout();
-
-    // Remove authenticated ownership first. Locking while still authenticated
-    // can briefly mount DeviceLockGate during logout and destabilize overlays.
+    // Remove authenticated ownership before starting remote cleanup. This
+    // prevents protected providers from issuing refreshes while logout is in
+    // flight and avoids mounting DeviceLockGate during the transition.
     state = const AuthState.unauthenticated();
-
     ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
 
-    await Future<void>.delayed(Duration.zero);
-    ref.read(sessionEpochProvider.notifier).advance();
-    ref.invalidate(activeDirtyFormProvider);
+    try {
+      await _authRepository.logout();
+    } finally {
+      await _advanceSessionBoundary();
+    }
   }
 
   Future<void> _expireSession() async {
@@ -206,20 +208,31 @@ class AuthController extends Notifier<AuthState> {
     }
     _sessionExpiryInFlight = true;
     try {
-      await _authRepository.clearSession();
-
       state = const AuthState.unauthenticated(
         message: 'Your session has expired. Please sign in again.',
       );
-
       ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
-
-      await Future<void>.delayed(Duration.zero);
-      ref.read(sessionEpochProvider.notifier).advance();
-      ref.invalidate(activeDirtyFormProvider);
+      await _clearSessionBestEffort();
+      await _advanceSessionBoundary();
     } finally {
       _sessionExpiryInFlight = false;
     }
+  }
+
+  Future<void> _clearSessionBestEffort() async {
+    try {
+      await _authRepository.clearSession();
+    } catch (_) {
+      // AuthState remains fail-closed even when device storage is unavailable.
+    }
+  }
+
+  Future<void> _advanceSessionBoundary() async {
+    // Auth state changes can cause GoRouter to replace a screen immediately.
+    // Defer dependent-provider refreshes until the current build is complete.
+    await Future<void>.delayed(Duration.zero);
+    ref.read(sessionEpochProvider.notifier).advance();
+    ref.invalidate(activeDirtyFormProvider);
   }
 
   String _safeLoginMessage(Object error) {

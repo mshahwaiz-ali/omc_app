@@ -18,7 +18,9 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
   return ProfileRepository(frappeClient: frappeClient);
 });
 
-final profileSummaryProvider = FutureProvider<ProfileSummary?>((ref) async {
+final profileSummaryProvider = FutureProvider.autoDispose<ProfileSummary?>((
+  ref,
+) async {
   // Only observe session identity. Profile metadata is synchronised back into
   // AuthState below, so watching the complete state would re-run this provider
   // after every sync and continuously call get_profile.

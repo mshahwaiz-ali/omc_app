@@ -48,7 +48,9 @@ final supportConfigProvider = FutureProvider<SupportConfigData>((ref) async {
   return repository.fetchSupportConfig();
 });
 
-final supportTicketPageProvider = FutureProvider<SupportTicketPage>((ref) async {
+final supportTicketPageProvider = FutureProvider<SupportTicketPage>((
+  ref,
+) async {
   final repository = ref.watch(supportRepositoryProvider);
   return repository.fetchSupportTicketPage();
 });
@@ -82,6 +84,11 @@ class SupportRepository {
   final UploadCoordinator _uploadCoordinator;
   final MutationIntent _createIntent = MutationIntent();
   final Map<String, MutationIntent> _replyIntents = {};
+
+  void clearSessionMutationState() {
+    _createIntent.complete();
+    _replyIntents.clear();
+  }
 
   Future<SupportConfigData> fetchSupportConfig() async {
     try {

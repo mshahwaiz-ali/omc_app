@@ -7,13 +7,14 @@ import '../domain/internal_workspace_summary.dart';
 
 final internalWorkspaceRepositoryProvider =
     Provider<InternalWorkspaceRepository>((ref) {
+      ref.watch(sessionEpochProvider);
       final frappeClient = ref.watch(frappeClientProvider);
 
       return InternalWorkspaceRepository(frappeClient);
     });
 
 final internalWorkspaceSummaryProvider =
-    FutureProvider<InternalWorkspaceSummary>((ref) {
+    FutureProvider.autoDispose<InternalWorkspaceSummary>((ref) {
       final repository = ref.watch(internalWorkspaceRepositoryProvider);
 
       return repository.getSummary();
@@ -37,15 +38,14 @@ class InternalServiceCaseFiltersNotifier
   }
 }
 
-final internalServiceCasesProvider = FutureProvider<InternalServiceCaseQueue>((
-  ref,
-) {
-  final repository = ref.watch(internalWorkspaceRepositoryProvider);
-  final filters = ref.watch(internalServiceCaseFiltersProvider);
+final internalServiceCasesProvider =
+    FutureProvider.autoDispose<InternalServiceCaseQueue>((ref) {
+      final repository = ref.watch(internalWorkspaceRepositoryProvider);
+      final filters = ref.watch(internalServiceCaseFiltersProvider);
 
-  return repository.getServiceCases(
-    search: filters.search,
-    status: filters.status,
-    documentStatus: filters.documentStatus,
-  );
-});
+      return repository.getServiceCases(
+        search: filters.search,
+        status: filters.status,
+        documentStatus: filters.documentStatus,
+      );
+    });

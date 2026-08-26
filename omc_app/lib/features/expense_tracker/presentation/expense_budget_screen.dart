@@ -10,20 +10,18 @@ import '../../auth/application/auth_controller.dart';
 import '../data/expense_tracker_repository.dart';
 import '../domain/expense_transaction.dart';
 
-final expenseBudgetsProvider = FutureProvider<List<ExpenseBudgetItem>>((
-  ref,
-) async {
-  final repository = ref.watch(expenseTrackerRepositoryProvider);
-  final rows = await repository.fetchBudgets();
-  return rows.map(ExpenseBudgetItem.fromJson).toList(growable: false);
-});
+final expenseBudgetsProvider =
+    FutureProvider.autoDispose<List<ExpenseBudgetItem>>((ref) async {
+      final repository = ref.watch(expenseTrackerRepositoryProvider);
+      final rows = await repository.fetchBudgets();
+      return rows.map(ExpenseBudgetItem.fromJson).toList(growable: false);
+    });
 
-final expenseBudgetEntriesProvider = FutureProvider<List<ExpenseTransaction>>((
-  ref,
-) async {
-  final repository = ref.watch(expenseTrackerRepositoryProvider);
-  return repository.fetchSyncedTransactions();
-});
+final expenseBudgetEntriesProvider =
+    FutureProvider.autoDispose<List<ExpenseTransaction>>((ref) async {
+      final repository = ref.watch(expenseTrackerRepositoryProvider);
+      return repository.fetchSyncedTransactions();
+    });
 
 class ExpenseBudgetItem {
   const ExpenseBudgetItem({

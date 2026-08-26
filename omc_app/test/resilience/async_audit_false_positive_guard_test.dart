@@ -45,14 +45,15 @@ void main() {
       contains('return OnboardingSlide.fallbackSlides'),
     );
 
-    // Provider declarations are backed by explicit screen recovery.
+    // Session-owned provider declarations dispose between personas and are
+    // backed by explicit screen recovery.
     expect(
       workspaceProviders,
-      contains('FutureProvider<InternalWorkspaceSummary>'),
+      contains('FutureProvider.autoDispose<InternalWorkspaceSummary>'),
     );
     expect(
       workspaceProviders,
-      contains('FutureProvider<InternalServiceCaseQueue>'),
+      contains('FutureProvider.autoDispose<InternalServiceCaseQueue>'),
     );
     expect(workspaceScreen, contains('summaryAsync.when('));
     expect(workspaceScreen, contains('queueAsync.when('));

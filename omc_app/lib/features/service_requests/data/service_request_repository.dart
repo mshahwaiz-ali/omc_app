@@ -13,6 +13,7 @@ import '../../service_catalogue/data/service_item.dart';
 final serviceRequestRepositoryProvider = Provider<ServiceRequestRepository>((
   ref,
 ) {
+  ref.watch(sessionEpochProvider);
   return ServiceRequestRepository(
     frappeClient: ref.watch(frappeClientProvider),
   );

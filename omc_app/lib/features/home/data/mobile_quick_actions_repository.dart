@@ -5,15 +5,17 @@ import '../../../core/config/api_config.dart';
 import '../../../core/network/frappe_client.dart';
 
 final mobileQuickActionsRepositoryProvider =
-    Provider<MobileQuickActionsRepository>(
-      (ref) => MobileQuickActionsRepository(ref.watch(frappeClientProvider)),
-    );
+    Provider<MobileQuickActionsRepository>((ref) {
+      ref.watch(sessionEpochProvider);
+      return MobileQuickActionsRepository(ref.watch(frappeClientProvider));
+    });
 
-final mobileQuickActionsProvider = FutureProvider<List<MobileQuickAction>>((
-  ref,
-) {
-  return ref.watch(mobileQuickActionsRepositoryProvider).fetchQuickActions();
-});
+final mobileQuickActionsProvider =
+    FutureProvider.autoDispose<List<MobileQuickAction>>((ref) {
+      return ref
+          .watch(mobileQuickActionsRepositoryProvider)
+          .fetchQuickActions();
+    });
 
 class MobileQuickActionsRepository {
   const MobileQuickActionsRepository(this._frappeClient);

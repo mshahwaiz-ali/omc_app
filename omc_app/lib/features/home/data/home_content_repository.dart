@@ -7,10 +7,15 @@ import '../../../core/network/frappe_client.dart';
 import 'home_content.dart';
 
 final homeContentRepositoryProvider = Provider<HomeContentRepository>((ref) {
+  // Home content is public, but the backend filters it by the current
+  // guest/customer audience. Do not retain one audience's cards across login.
+  ref.watch(sessionEpochProvider);
   return HomeContentRepository(frappeClient: ref.watch(frappeClientProvider));
 });
 
-final homeContentProvider = FutureProvider<HomeContent>((ref) async {
+final homeContentProvider = FutureProvider.autoDispose<HomeContent>((
+  ref,
+) async {
   final repository = ref.watch(homeContentRepositoryProvider);
   return repository.fetchHomeContent();
 });
