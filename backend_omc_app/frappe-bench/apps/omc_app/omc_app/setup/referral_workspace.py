@@ -60,7 +60,7 @@ def ensure_referral_workspace_links() -> None:
         (
             index + 1
             for index, row in enumerate(preserved)
-            if str(row.get("label") or "").strip() == "Announcements"
+            if str(row.get("label") or "").strip() == "Referrals & Commissions"
         ),
         None,
     )
@@ -69,7 +69,7 @@ def ensure_referral_workspace_links() -> None:
             (
                 index
                 for index, row in enumerate(preserved)
-                if str(row.get("label") or "").strip() == "Mobile Content"
+                if str(row.get("label") or "").strip() == "Finance & Reconciliation"
             ),
             len(preserved),
         )
