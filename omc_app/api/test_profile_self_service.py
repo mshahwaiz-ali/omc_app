@@ -3,7 +3,7 @@ import json
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from omc_app.api import mobile, profile_self_service
+from omc_app.api import mobile, profile as profile_api, profile_self_service
 
 
 class TestProfileSelfService(FrappeTestCase):
@@ -169,6 +169,44 @@ class TestProfileSelfService(FrappeTestCase):
     def test_rejects_cnic_change(self):
         with self.assertRaises(frappe.ValidationError):
             profile_self_service.update_profile(cnic="1111111111111")
+
+    def test_allows_cnic_to_be_added_once_when_blank_then_locks_it(self):
+        frappe.db.set_value("OMC Customer Profile", self.profile.name, "cnic", "")
+
+        first = profile_self_service.update_profile(cnic="3520212345671")
+        self.assertTrue(first["updated"])
+        self.assertIn("cnic", first["updated_fields"])
+
+        with self.assertRaises(frappe.ValidationError):
+            profile_self_service.update_profile(cnic="1111111111111")
+
+    def test_allows_company_name_to_be_added_once_then_locks_it(self):
+        first = profile_self_service.update_profile(company_name="First Company")
+        self.assertTrue(first["updated"])
+        self.assertIn("company_name", first["updated_fields"])
+
+        with self.assertRaises(frappe.ValidationError):
+            profile_self_service.update_profile(company_name="Second Company")
+
+    def test_profile_edit_policy_exposes_add_only_for_blank_set_once_fields(self):
+        payload = profile_api.get_profile()
+        policy = payload["profile_edit_policy"]
+
+        self.assertEqual(policy["email"], {"can_edit": False, "mode": "locked"})
+        self.assertEqual(policy["cnic"], {"can_edit": False, "mode": "locked"})
+        self.assertEqual(policy["ntn"], {"can_edit": True, "mode": "add"})
+        self.assertEqual(
+            policy["company_name"],
+            {"can_edit": True, "mode": "add"},
+        )
+
+    def test_ignores_frappe_cmd_transport_metadata(self):
+        result = profile_self_service.update_profile(
+            cmd="omc_app.api.profile_self_service.update_profile",
+            address="Test Address Lahore",
+        )
+        self.assertTrue(result["updated"])
+        self.assertIn("address", result["updated_fields"])
 
     def test_rejects_email_change(self):
         with self.assertRaises(frappe.ValidationError):
