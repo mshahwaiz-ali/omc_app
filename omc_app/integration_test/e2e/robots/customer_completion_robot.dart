@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omc_app/core/diagnostics/omc_widget_keys.dart';
 
+import '../support/e2e_record_finders.dart';
 import '../support/e2e_waits.dart';
 
 class CustomerCompletionRobot {
@@ -23,10 +24,10 @@ class CustomerCompletionRobot {
     await tester.pump(const Duration(milliseconds: 500));
     await waits.waitForNetworkIdle(description: 'Filtered completed request');
 
-    final reference = find.text(requestId.trim());
+    final requestCard = E2eRecordFinders.requestCard(requestId);
     await waits.waitFor(
-      reference,
-      description: 'Completed request $requestId',
+      requestCard,
+      description: 'Completed request card $requestId',
       timeout: const Duration(seconds: 20),
     );
     expect(
@@ -35,10 +36,8 @@ class CustomerCompletionRobot {
       reason: 'ERP Task completion must propagate to customer tracking.',
     );
 
-    final viewDetails = find.text('View details');
-    await waits.waitFor(viewDetails, description: 'Open completed request detail');
-    await tester.ensureVisible(viewDetails.first);
-    await tester.tap(viewDetails.first.hitTestable());
+    await tester.ensureVisible(requestCard.first);
+    await tester.tap(requestCard.first.hitTestable());
     await tester.pump();
 
     await waits.waitFor(
