@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/document_attachment.dart';
@@ -19,11 +22,26 @@ class DocumentAttachmentController {
     'docx',
   ];
 
+  static const bool _e2eFixtureRequested = bool.fromEnvironment(
+    'OMC_E2E_FILE_PICKER',
+    defaultValue: false,
+  );
+
+  static bool get e2eFixtureEnabled => _e2eFixtureRequested && !kReleaseMode;
+
   Future<DocumentPickResult> pickDocuments({
     List<DocumentAttachment> existingAttachments = const [],
     List<String> allowedExtensionsOverride = allowedExtensions,
     int? maxFiles,
   }) async {
+    if (e2eFixtureEnabled) {
+      return _pickE2eFixture(
+        existingAttachments: existingAttachments,
+        allowedExtensionsOverride: allowedExtensionsOverride,
+        maxFiles: maxFiles,
+      );
+    }
+
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: allowedExtensionsOverride,
@@ -71,6 +89,55 @@ class DocumentAttachmentController {
     );
   }
 
+  DocumentPickResult _pickE2eFixture({
+    required List<DocumentAttachment> existingAttachments,
+    required List<String> allowedExtensionsOverride,
+    required int? maxFiles,
+  }) {
+    final normalizedExtensions = allowedExtensionsOverride
+        .map((extension) => extension.trim().toLowerCase())
+        .where((extension) => extension.isNotEmpty)
+        .toSet();
+
+    if (!normalizedExtensions.contains('png')) {
+      return const DocumentPickResult(
+        accepted: [],
+        rejectedMessages: [
+          'The E2E attachment fixture requires PNG to be allowed by this upload.',
+        ],
+      );
+    }
+
+    if (maxFiles != null && existingAttachments.length >= maxFiles) {
+      return DocumentPickResult(
+        accepted: const [],
+        rejectedMessages: [
+          'Only $maxFiles file${maxFiles == 1 ? '' : 's'} can be selected.',
+        ],
+      );
+    }
+
+    final attachment = DocumentAttachment(
+      id: 'omc-e2e-fixture.png|${_e2ePngBytes.length}',
+      name: 'omc-e2e-fixture.png',
+      sizeInBytes: _e2ePngBytes.length,
+      bytes: Uint8List.fromList(_e2ePngBytes),
+      extension: 'png',
+    );
+
+    if (existingAttachments.any((item) => item.id == attachment.id)) {
+      return const DocumentPickResult(
+        accepted: [],
+        rejectedMessages: ['omc-e2e-fixture.png is already attached.'],
+      );
+    }
+
+    return DocumentPickResult(
+      accepted: [attachment],
+      rejectedMessages: const [],
+    );
+  }
+
   String formatFileSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
 
@@ -98,4 +165,77 @@ class DocumentAttachmentController {
       extension: extension,
     );
   }
+
+  static const List<int> _e2ePngBytes = [
+    137,
+    80,
+    78,
+    71,
+    13,
+    10,
+    26,
+    10,
+    0,
+    0,
+    0,
+    13,
+    73,
+    72,
+    68,
+    82,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    1,
+    8,
+    6,
+    0,
+    0,
+    0,
+    31,
+    21,
+    196,
+    137,
+    0,
+    0,
+    0,
+    13,
+    73,
+    68,
+    65,
+    84,
+    8,
+    215,
+    99,
+    248,
+    207,
+    192,
+    240,
+    31,
+    0,
+    5,
+    0,
+    1,
+    255,
+    137,
+    153,
+    61,
+    29,
+    0,
+    0,
+    0,
+    0,
+    73,
+    69,
+    78,
+    68,
+    174,
+    66,
+    96,
+    130,
+  ];
 }
