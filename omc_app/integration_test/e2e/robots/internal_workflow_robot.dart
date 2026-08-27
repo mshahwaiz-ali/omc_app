@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omc_app/core/diagnostics/omc_widget_keys.dart';
 
+import '../support/e2e_record_finders.dart';
 import '../support/e2e_waits.dart';
 import '../support/internal_e2e_config.dart';
 
@@ -43,14 +44,14 @@ class InternalWorkflowRobot {
     await tester.pump(const Duration(milliseconds: 650));
     await waits.waitForNetworkIdle(description: 'Filtered internal task list');
 
-    final taskReference = find.text(config.taskId.trim());
+    final taskCard = E2eRecordFinders.taskCard(config.taskId);
     await waits.waitFor(
-      taskReference,
-      description: 'Linked ERP Task ${config.taskId}',
+      taskCard,
+      description: 'Linked ERP Task card ${config.taskId}',
       timeout: const Duration(seconds: 20),
     );
-    await tester.ensureVisible(taskReference.first);
-    await tester.tap(taskReference.first.hitTestable());
+    await tester.ensureVisible(taskCard.first);
+    await tester.tap(taskCard.first.hitTestable());
     await tester.pump();
 
     await waits.waitFor(
