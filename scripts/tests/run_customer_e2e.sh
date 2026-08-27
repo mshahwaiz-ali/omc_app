@@ -108,9 +108,13 @@ run_flutter_leg() {
   local target="$1"
   local web_port="$2"
   local request_id="${3:-}"
-  local request_define=()
+  local payment_id="${4:-}"
+  local marker_defines=()
   if [ -n "$request_id" ]; then
-    request_define=(--dart-define="E2E_REQUEST_ID=$request_id")
+    marker_defines+=(--dart-define="E2E_REQUEST_ID=$request_id")
+  fi
+  if [ -n "$payment_id" ]; then
+    marker_defines+=(--dart-define="E2E_PAYMENT_ID=$payment_id")
   fi
 
   (
@@ -134,7 +138,7 @@ run_flutter_leg() {
       --dart-define="E2E_USERNAME=$E2E_USERNAME" \
       --dart-define="E2E_PASSWORD=$E2E_PASSWORD" \
       --dart-define="E2E_SERVICE_TITLE=$E2E_SERVICE_TITLE" \
-      "${request_define[@]}"
+      "${marker_defines[@]}"
   )
 }
 
@@ -162,13 +166,18 @@ printf '%s\n' "$settlement_output"
 
 request_id="$(printf '%s\n' "$settlement_output" | \
   sed -n 's/.*OMC_E2E_REQUEST_ID=\([A-Za-z0-9._-]*\).*/\1/p' | tail -n 1)"
+payment_id="$(printf '%s\n' "$settlement_output" | \
+  sed -n 's/.*OMC_E2E_PAYMENT_ID=\([A-Za-z0-9._-]*\).*/\1/p' | tail -n 1)"
 [ -n "$request_id" ] || fail "Finance settlement did not return an E2E request ID marker."
+[ -n "$payment_id" ] || fail "Finance settlement did not return an E2E payment ID marker."
 
 echo "=== CUSTOMER E2E LEG B: CUSTOMER SETTLEMENT + NOTIFICATION VERIFICATION ==="
 run_flutter_leg \
   integration_test/e2e/customer_journey_verify_test.dart \
   "$VERIFY_WEB_PORT" \
-  "$request_id"
+  "$request_id" \
+  "$payment_id"
 
 echo "=== CUSTOMER E2E COMPLETE ==="
 echo "Request verified: $request_id"
+echo "Payment verified: $payment_id"
