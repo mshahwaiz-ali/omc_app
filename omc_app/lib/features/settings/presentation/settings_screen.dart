@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -52,6 +53,7 @@ class SettingsScreen extends ConsumerWidget {
     final approvalStatus = profile?.approvalStatus ?? authState.approvalStatus;
 
     return Scaffold(
+      key: OmcWidgetKeys.settingsScreen,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),

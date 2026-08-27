@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -37,6 +38,7 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
     final capabilities = ref.watch(effectiveCapabilitiesProvider);
 
     return Scaffold(
+      key: OmcWidgetKeys.trackScreen,
       body: SafeArea(
         top: true,
         child: casesAsync.when(

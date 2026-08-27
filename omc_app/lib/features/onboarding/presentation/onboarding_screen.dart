@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/providers/core_providers.dart';
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/omc_logo.dart';
 import '../data/onboarding_repository.dart';
@@ -70,6 +71,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final isLast = _index >= slides.length - 1;
 
     return Scaffold(
+      key: OmcWidgetKeys.onboardingScreen,
       backgroundColor: const Color(0xFFFBFCFE),
       body: SafeArea(
         child: Center(
@@ -84,6 +86,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       const OmcLogo.symbol(size: 42, borderRadius: 0),
                       const Spacer(),
                       TextButton(
+                        key: OmcWidgetKeys.onboardingSkip,
                         onPressed: _isFinishing ? null : _finish,
                         child: const Text('Skip'),
                       ),

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/omc_premium.dart';
@@ -22,6 +23,7 @@ class ProfileScreen extends ConsumerWidget {
     final profileAsync = ref.watch(profileSummaryProvider);
 
     return Scaffold(
+      key: OmcWidgetKeys.profileScreen,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => _refreshProfile(context, ref, showSuccess: false),

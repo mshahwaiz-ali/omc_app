@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/providers/effective_capabilities_provider.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_state.dart';
@@ -75,6 +76,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
     final capabilities = ref.watch(effectiveCapabilitiesProvider);
 
     return Scaffold(
+      key: OmcWidgetKeys.taxScreen,
       backgroundColor: const Color(0xFFF6F7F9),
       appBar: AppBar(
         backgroundColor: const Color(0xFFF6F7F9),
@@ -262,12 +264,8 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                     authState: authState,
                     capabilities: capabilities,
                     isStartingService: _isStartingService,
-                    onCtaPressed: () => _handleCta(
-                      repository,
-                      config,
-                      authState,
-                      capabilities,
-                    ),
+                    onCtaPressed: () =>
+                        _handleCta(repository, config, authState, capabilities),
                   ),
                 ],
               ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/config/api_config.dart';
+import '../../core/diagnostics/omc_widget_keys.dart';
 import '../../core/widgets/omc_premium.dart';
 import '../../features/app_config/data/mobile_app_config.dart';
 import '../../features/auth/application/auth_state.dart';
@@ -135,6 +136,7 @@ class _MoreSheetContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
     return ConstrainedBox(
+      key: OmcWidgetKeys.moreScreen,
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(context).height * 0.82,
       ),
@@ -250,6 +252,7 @@ class _NavigationRow extends StatelessWidget {
         : 0;
 
     return Material(
+      key: OmcWidgetKeys.moreAction(item.id.name),
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
@@ -63,6 +64,7 @@ class _ServiceCatalogueScreenState
     ref.watch(authControllerProvider);
 
     return SafeArea(
+      key: OmcWidgetKeys.servicesScreen,
       child: servicesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => PremiumEmptyState(

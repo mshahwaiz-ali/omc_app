@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/payment_item.dart';
@@ -16,6 +17,7 @@ class PaymentsScreen extends ConsumerWidget {
     final paymentsAsync = ref.watch(paymentsProvider);
 
     return Scaffold(
+      key: OmcWidgetKeys.paymentsScreen,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {

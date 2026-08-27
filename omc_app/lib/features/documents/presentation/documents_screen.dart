@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/omc_premium.dart';
@@ -45,6 +46,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         : ref.watch(documentPageProvider);
 
     return Scaffold(
+      key: OmcWidgetKeys.documentsScreen,
       backgroundColor: OmcPremium.canvas,
       body: SafeArea(
         child: RefreshIndicator(
@@ -58,7 +60,10 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                 _hasMore = page.hasMore;
               }
 
-              final documents = _mergeDocuments(page.items, _additionalDocuments);
+              final documents = _mergeDocuments(
+                page.items,
+                _additionalDocuments,
+              );
               return Stack(
                 children: [
                   _DocumentsWorkspace(
@@ -94,10 +99,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
               );
             },
             loading: () => const _DocumentsLoadingView(),
-            error: (error, _) => _DocumentsErrorView(
-              error: error,
-              onRetry: _retry,
-            ),
+            error: (error, _) =>
+                _DocumentsErrorView(error: error, onRetry: _retry),
           ),
         ),
       ),

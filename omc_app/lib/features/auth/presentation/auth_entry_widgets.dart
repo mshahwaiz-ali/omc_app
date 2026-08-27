@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/widgets/omc_logo.dart';
 
 class AuthEntryScaffold extends StatelessWidget {
@@ -150,6 +151,7 @@ class AuthErrorBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      key: key ?? OmcWidgetKeys.loginError,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF1F2),

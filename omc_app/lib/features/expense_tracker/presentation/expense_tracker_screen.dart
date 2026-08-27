@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/providers/effective_capabilities_provider.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../app/theme.dart';
 import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/widgets/app_back_header.dart';
@@ -190,6 +191,7 @@ class ExpenseTrackerScreen extends ConsumerWidget {
 
     if (accessMode == ExpenseTrackerAccessMode.internalHidden) {
       return Scaffold(
+        key: OmcWidgetKeys.expenseScreen,
         appBar: AppBar(title: const Text('Tax-Ready Expense Tracker')),
         body: const SafeArea(
           child: PremiumEmptyState(
@@ -203,6 +205,7 @@ class ExpenseTrackerScreen extends ConsumerWidget {
     }
 
     return Scaffold(
+      key: OmcWidgetKeys.expenseScreen,
       backgroundColor: const Color(0xFFF7F8FB),
       appBar: AppBackHeader(
         title: 'Expense Tracker',

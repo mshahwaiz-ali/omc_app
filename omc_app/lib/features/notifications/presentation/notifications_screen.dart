@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../home/data/home_dashboard_repository.dart';
@@ -31,6 +32,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   Widget build(BuildContext context) {
     final asyncNotifications = ref.watch(notificationPageProvider);
     return Scaffold(
+      key: OmcWidgetKeys.notificationsScreen,
       body: SafeArea(
         child: RefreshIndicator.adaptive(
           onRefresh: _refresh,

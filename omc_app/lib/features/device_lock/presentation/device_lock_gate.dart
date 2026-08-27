@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../data/device_lock_service.dart';
@@ -148,6 +149,7 @@ class _DeviceLockGateState extends ConsumerState<DeviceLockGate> {
         if (mustLock)
           Positioned.fill(
             child: Material(
+              key: OmcWidgetKeys.deviceLockScreen,
               color: const Color(0xFFF8FAFC),
               child: SafeArea(
                 child: Center(
@@ -246,6 +248,7 @@ class _DeviceLockGateState extends ConsumerState<DeviceLockGate> {
                           ),
                           const SizedBox(height: 10),
                           TextButton(
+                            key: OmcWidgetKeys.deviceLockUseAnotherAccount,
                             onPressed: _authenticating
                                 ? null
                                 : _useAnotherAccount,

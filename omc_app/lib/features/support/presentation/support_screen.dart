@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/effective_capabilities_provider.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/widgets/data_freshness_banner.dart';
 import '../data/support_repository.dart';
 import 'support_screen_legacy.dart' as legacy;
@@ -49,7 +50,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen>
     final capabilities = ref.watch(effectiveCapabilitiesProvider);
     final sync = ref.watch(supportSyncStateProvider);
     final canReadTickets =
-        capabilities.canCreateSupportTicket || capabilities.canUseSupportWorkspace;
+        capabilities.canCreateSupportTicket ||
+        capabilities.canUseSupportWorkspace;
     final configStale = sync.config.isStale;
     final feedStale = canReadTickets && sync.feed.isStale;
     final unreadStale = canReadTickets && sync.unread.isStale;
@@ -61,6 +63,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen>
     ]);
 
     return SafeArea(
+      key: OmcWidgetKeys.supportScreen,
       bottom: false,
       child: Column(
         children: [
@@ -92,7 +95,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen>
     if (!mounted || !_isForeground) return;
     final capabilities = ref.read(effectiveCapabilitiesProvider);
     final canReadTickets =
-        capabilities.canCreateSupportTicket || capabilities.canUseSupportWorkspace;
+        capabilities.canCreateSupportTicket ||
+        capabilities.canUseSupportWorkspace;
     if (!canReadTickets) return;
 
     ref.invalidate(supportTicketPageProvider);
@@ -107,7 +111,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen>
       final sync = ref.read(supportSyncStateProvider);
       final capabilities = ref.read(effectiveCapabilitiesProvider);
       final canReadTickets =
-          capabilities.canCreateSupportTicket || capabilities.canUseSupportWorkspace;
+          capabilities.canCreateSupportTicket ||
+          capabilities.canUseSupportWorkspace;
       final futures = <Future<Object?>>[];
 
       if (sync.config.isStale) {

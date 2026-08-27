@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/support_config.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../application/auth_controller.dart';
@@ -136,6 +137,7 @@ class _UnderReviewScreenState extends ConsumerState<UnderReviewScreen> {
     final busy = _refreshing || _loggingOut;
 
     return Scaffold(
+      key: OmcWidgetKeys.underReviewScreen,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -210,6 +212,7 @@ class _UnderReviewScreenState extends ConsumerState<UnderReviewScreen> {
                   ),
                   const SizedBox(height: 6),
                   TextButton.icon(
+                    key: OmcWidgetKeys.underReviewLogout,
                     onPressed: busy ? null : _logout,
                     icon: _loggingOut
                         ? const SizedBox(

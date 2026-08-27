@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
 import '../../core/interaction/app_feedback.dart';
+import '../../core/diagnostics/omc_widget_keys.dart';
 import '../../core/widgets/omc_premium.dart';
 import '../design_tokens.dart';
 import '../theme.dart';
@@ -250,6 +251,11 @@ class _NavTab extends StatelessWidget {
       sortKey: OrdinalSortKey(semanticsOrder),
       excludeSemantics: true,
       child: Material(
+        key: switch (item.shellIndex) {
+          0 => OmcWidgetKeys.navHome,
+          1 => OmcWidgetKeys.navServices,
+          _ => OmcWidgetKeys.navTrack,
+        },
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
@@ -337,6 +343,7 @@ class _MoreTab extends StatelessWidget {
       sortKey: const OrdinalSortKey(4),
       excludeSemantics: true,
       child: Material(
+        key: OmcWidgetKeys.navMore,
         color: Colors.transparent,
         child: InkWell(
           onTap: () {

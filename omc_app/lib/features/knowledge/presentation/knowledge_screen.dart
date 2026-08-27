@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_list_header.dart';
@@ -18,6 +19,7 @@ class KnowledgeScreen extends ConsumerWidget {
     final articlesState = ref.watch(knowledgeArticlesProvider);
 
     return Scaffold(
+      key: OmcWidgetKeys.knowledgeScreen,
       body: SafeArea(
         child: articlesState.when(
           loading: () => const _KnowledgeLoadingView(),

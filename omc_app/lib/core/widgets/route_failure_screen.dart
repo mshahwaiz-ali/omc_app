@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/route_failure_recovery.dart';
 import '../../app/theme.dart';
+import '../diagnostics/omc_widget_keys.dart';
 
 class RouteFailureScreen extends StatelessWidget {
   const RouteFailureScreen({
@@ -20,6 +21,7 @@ class RouteFailureScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: OmcWidgetKeys.routeFailure,
       backgroundColor: const Color(0xFFFBFCFE),
       body: SafeArea(
         child: Center(

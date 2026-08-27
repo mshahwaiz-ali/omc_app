@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/effective_capabilities_provider.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import 'approved_customer_home_view.dart';
 import 'home_screen_role_aware.dart' as legacy;
 
@@ -29,20 +30,26 @@ class HomeScreen extends ConsumerWidget {
             capabilities.canAccessCustomerDashboard);
 
     if (useLifecycleCustomerHome) {
-      return ApprovedCustomerHomeView(
-        onOpenServices: onOpenServices,
-        onOpenCalculator: onOpenCalculator,
-        onOpenSupport: onOpenSupport,
-        onOpenNotifications: onOpenNotifications,
+      return KeyedSubtree(
+        key: OmcWidgetKeys.homeScreen,
+        child: ApprovedCustomerHomeView(
+          onOpenServices: onOpenServices,
+          onOpenCalculator: onOpenCalculator,
+          onOpenSupport: onOpenSupport,
+          onOpenNotifications: onOpenNotifications,
+        ),
       );
     }
 
     // Preserve the established guest, pending/rejected and internal home paths.
-    return legacy.HomeScreen(
-      onOpenServices: onOpenServices,
-      onOpenCalculator: onOpenCalculator,
-      onOpenSupport: onOpenSupport,
-      onOpenNotifications: onOpenNotifications,
+    return KeyedSubtree(
+      key: OmcWidgetKeys.homeScreen,
+      child: legacy.HomeScreen(
+        onOpenServices: onOpenServices,
+        onOpenCalculator: onOpenCalculator,
+        onOpenSupport: onOpenSupport,
+        onOpenNotifications: onOpenNotifications,
+      ),
     );
   }
 }

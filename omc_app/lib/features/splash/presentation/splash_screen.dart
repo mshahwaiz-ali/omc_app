@@ -6,6 +6,7 @@ import '../../../app/design_tokens.dart';
 import '../../../app/providers/core_providers.dart';
 import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/omc_logo.dart';
 import '../../auth/application/auth_controller.dart';
@@ -79,6 +80,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: OmcWidgetKeys.splashScreen,
       backgroundColor: const Color(0xFFFBFCFE),
       body: SafeArea(
         child: Center(
@@ -103,6 +105,7 @@ class _SplashFailure extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
+      key: OmcWidgetKeys.startupError,
       padding: const EdgeInsets.all(28),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),

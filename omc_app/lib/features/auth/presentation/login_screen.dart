@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/config/support_config.dart';
 import '../../../core/widgets/app_button.dart';
 import '../application/auth_controller.dart';
@@ -308,6 +309,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final loginErrorMessage = _loginError ?? authState.message;
 
     return AuthEntryScaffold(
+      key: OmcWidgetKeys.loginScreen,
       title: 'Welcome back',
       subtitle: 'Sign in to continue to your OMC workspace.',
       footer: _AuthFooter(
@@ -321,6 +323,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             TextFormField(
+              key: OmcWidgetKeys.loginIdentifier,
               controller: _emailController,
               keyboardType: TextInputType.text,
               textInputAction: TextInputAction.next,
@@ -341,6 +344,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             const SizedBox(height: 14),
             TextFormField(
+              key: OmcWidgetKeys.loginPassword,
               controller: _passwordController,
               obscureText: _obscurePassword,
               textInputAction: TextInputAction.done,
@@ -392,6 +396,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 16),
             ],
             AppButton(
+              key: OmcWidgetKeys.loginSubmit,
               label: 'Sign in',
               isLoading: isLoading && !_biometricSubmissionInFlight,
               onPressed: isLoading ? null : _submit,

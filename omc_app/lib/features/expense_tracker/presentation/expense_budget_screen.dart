@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_empty_state.dart';
@@ -82,6 +83,7 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
 
     if (!canManageBudgets) {
       return Scaffold(
+        key: OmcWidgetKeys.budgetScreen,
         appBar: AppBar(title: const Text('Monthly Budgets')),
         body: const SafeArea(
           child: PremiumEmptyState(
@@ -98,6 +100,7 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
     final entriesAsync = ref.watch(expenseBudgetEntriesProvider);
 
     return Scaffold(
+      key: OmcWidgetKeys.budgetScreen,
       backgroundColor: const Color(0xFFF7F8FB),
       appBar: AppBackHeader(
         title: 'Monthly Budgets',

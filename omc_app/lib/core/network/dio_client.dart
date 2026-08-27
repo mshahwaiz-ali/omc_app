@@ -6,6 +6,7 @@ import 'dio_web_credentials_stub.dart'
 
 import '../config/api_config.dart';
 import '../config/env.dart';
+import '../diagnostics/e2e_network_audit.dart';
 import '../storage/secure_storage_service.dart';
 import 'api_error.dart';
 
@@ -62,9 +63,15 @@ class DioClient {
             options.headers['Authorization'] = 'token $apiKey:$apiSecret';
           }
 
+          E2eNetworkAudit.recordRequest(options);
           handler.next(options);
         },
+        onResponse: (response, handler) {
+          E2eNetworkAudit.recordResponse(response);
+          handler.next(response);
+        },
         onError: (error, handler) {
+          E2eNetworkAudit.recordError(error);
           if (error.response?.statusCode == 401) {
             _onUnauthorized?.call();
           }

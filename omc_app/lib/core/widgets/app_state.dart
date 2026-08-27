@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/design_tokens.dart';
 import '../../app/theme.dart';
 import '../resilience/app_failure.dart';
+import '../diagnostics/omc_widget_keys.dart';
 import 'app_button.dart';
 
 class AppEmptyState extends StatelessWidget {
@@ -82,6 +83,7 @@ class AppErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppStateView(
+      key: key ?? OmcWidgetKeys.appError,
       title: title,
       message: message,
       icon: icon,
@@ -217,27 +219,29 @@ class AppStateView extends StatelessWidget {
               child: Text(
                 title,
                 textAlign: TextAlign.center,
-                style: (compact
-                        ? theme.textTheme.titleMedium
-                        : theme.textTheme.titleLarge)
-                    ?.copyWith(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.w900,
-                    ),
+                style:
+                    (compact
+                            ? theme.textTheme.titleMedium
+                            : theme.textTheme.titleLarge)
+                        ?.copyWith(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w900,
+                        ),
               ),
             ),
             const SizedBox(height: 6),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: (compact
-                      ? theme.textTheme.bodySmall
-                      : theme.textTheme.bodyMedium)
-                  ?.copyWith(
-                    color: AppTheme.textSecondary,
-                    height: 1.4,
-                    fontWeight: FontWeight.w600,
-                  ),
+              style:
+                  (compact
+                          ? theme.textTheme.bodySmall
+                          : theme.textTheme.bodyMedium)
+                      ?.copyWith(
+                        color: AppTheme.textSecondary,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                      ),
             ),
             if (actionLabel != null && onAction != null) ...[
               SizedBox(height: compact ? 14 : 18),
