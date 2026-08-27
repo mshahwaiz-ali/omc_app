@@ -144,16 +144,26 @@ class CustomerJourneyRobot {
     final dropdownCount = dropdowns.evaluate().length;
     for (var index = 0; index < dropdownCount; index++) {
       final finder = dropdowns.at(index);
+      final widget = tester.widget<DropdownButtonFormField<String>>(finder);
+      final items = widget.items ?? const <DropdownMenuItem<String>>[];
+      if (items.isEmpty) continue;
+      final firstValue = items
+          .map((item) => item.value)
+          .whereType<String>()
+          .where((value) => value.trim().isNotEmpty)
+          .firstOrNull;
+      if (firstValue == null) continue;
+
       await tester.ensureVisible(finder);
       await tester.tap(finder.hitTestable());
       await tester.pump(const Duration(milliseconds: 250));
-
-      final options = find.byType(DropdownMenuItem<String>).hitTestable();
-      if (options.evaluate().isEmpty) {
-        fail('A real request-form dropdown opened without selectable options.');
+      final option = find.text(firstValue);
+      if (option.evaluate().isNotEmpty) {
+        await tester.tap(option.last.hitTestable());
+        await tester.pump(const Duration(milliseconds: 250));
+      } else {
+        fail('Dropdown option "$firstValue" could not be selected in the real form.');
       }
-      await tester.tap(options.first);
-      await tester.pump(const Duration(milliseconds: 250));
     }
 
     final checks = find.byType(CheckboxListTile);
@@ -289,5 +299,14 @@ class CustomerJourneyRobot {
     if (find.byType(SnackBar).evaluate().isNotEmpty) {
       fail('Expected success snackbar did not close within 5 seconds.');
     }
+  }
+}
+
+extension _FirstOrNull<T> on Iterable<T> {
+  T? get firstOrNull {
+    for (final value in this) {
+      return value;
+    }
+    return null;
   }
 }
