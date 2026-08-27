@@ -5,6 +5,7 @@ import 'package:omc_app/main.dart' as app;
 
 import 'robots/auth_robot.dart';
 import 'robots/customer_journey_robot.dart';
+import 'robots/customer_notification_robot.dart';
 import 'support/e2e_config.dart';
 import 'support/e2e_waits.dart';
 
@@ -21,10 +22,12 @@ void main() {
     final waits = E2eWaits(tester);
     final auth = AuthRobot(tester, waits);
     final customer = CustomerJourneyRobot(tester, waits);
+    final notifications = CustomerNotificationRobot(tester, waits);
 
     await auth.ensureLoggedOut();
     await auth.login(config);
     await customer.verifySettledActivatedRequest(config);
+    await notifications.verifyAcceptedReceiptNotification();
     await auth.logoutAndVerifyProtection();
   });
 }
