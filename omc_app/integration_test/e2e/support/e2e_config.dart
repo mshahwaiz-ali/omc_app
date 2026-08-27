@@ -7,6 +7,7 @@ class E2eConfig {
     required this.password,
     this.serviceTitle = '',
     this.requestId = '',
+    this.paymentId = '',
   });
 
   factory E2eConfig.fromEnvironment() {
@@ -17,11 +18,15 @@ class E2eConfig {
     return const E2eConfig(username: username, password: password);
   }
 
-  factory E2eConfig.customerJourney({bool requireRequestId = false}) {
+  factory E2eConfig.customerJourney({
+    bool requireRequestId = false,
+    bool requirePaymentId = false,
+  }) {
     const username = String.fromEnvironment('E2E_USERNAME');
     const password = String.fromEnvironment('E2E_PASSWORD');
     const serviceTitle = String.fromEnvironment('E2E_SERVICE_TITLE');
     const requestId = String.fromEnvironment('E2E_REQUEST_ID');
+    const paymentId = String.fromEnvironment('E2E_PAYMENT_ID');
 
     _validateBase(username: username, password: password);
     if (serviceTitle.trim().isEmpty) {
@@ -36,11 +41,18 @@ class E2eConfig {
         'authorized backend settlement step.',
       );
     }
+    if (requirePaymentId && paymentId.trim().isEmpty) {
+      fail(
+        'Customer verification E2E requires E2E_PAYMENT_ID from the '
+        'authorized backend settlement step.',
+      );
+    }
     return const E2eConfig(
       username: username,
       password: password,
       serviceTitle: serviceTitle,
       requestId: requestId,
+      paymentId: paymentId,
     );
   }
 
@@ -67,4 +79,5 @@ class E2eConfig {
   final String password;
   final String serviceTitle;
   final String requestId;
+  final String paymentId;
 }
