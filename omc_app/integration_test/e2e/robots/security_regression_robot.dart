@@ -4,6 +4,7 @@ import 'package:omc_app/core/diagnostics/e2e_network_audit.dart';
 import 'package:omc_app/core/diagnostics/omc_widget_keys.dart';
 
 import '../support/edge_e2e_config.dart';
+import '../support/e2e_record_finders.dart';
 import '../support/e2e_waits.dart';
 
 class SecurityRegressionRobot {
@@ -102,9 +103,9 @@ class SecurityRegressionRobot {
     waits.assertHealthy('Other customer isolation search');
 
     expect(
-      find.text(config.requestId.trim()),
+      E2eRecordFinders.requestCard(config.requestId),
       findsNothing,
-      reason: 'A different customer must not see the primary customer request.',
+      reason: 'A different customer must not see the primary customer request card.',
     );
 
     await waits.tapAndWait(
