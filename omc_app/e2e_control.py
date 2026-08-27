@@ -166,7 +166,7 @@ def _latest_receipt_request(context: dict):
 
     request = frappe.get_doc("OMC Service Request", rows[0].name)
     payment_name = frappe.db.get_value(
-        "OMC Payment",
+        payments.PAYMENT_DOCTYPE,
         {
             "service_request": request.name,
             "status": ["in", ["Receipt Submitted", "Under Review", "Paid"]],
@@ -178,7 +178,7 @@ def _latest_receipt_request(context: dict):
         frappe.throw(
             "The latest E2E request does not have submitted customer payment proof."
         )
-    payment = frappe.get_doc("OMC Payment", payment_name)
+    payment = frappe.get_doc(payments.PAYMENT_DOCTYPE, payment_name)
     if not str(payment.receipt_attachment or "").strip():
         frappe.throw("The E2E payment has no real uploaded receipt attachment.")
     return request, payment
