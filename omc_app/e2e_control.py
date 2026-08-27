@@ -235,8 +235,11 @@ def _create_payment_entry(context: dict, invoice):
     return payment_entry
 
 
-def _request_marker(request_name: str) -> str:
-    return f"OMC_E2E_REQUEST_ID={request_name}"
+def _markers(request_name: str, payment_name: str) -> str:
+    return (
+        f"OMC_E2E_REQUEST_ID={request_name}"
+        f"|OMC_E2E_PAYMENT_ID={payment_name}"
+    )
 
 
 def settle_latest_customer_request() -> str:
@@ -250,7 +253,7 @@ def settle_latest_customer_request() -> str:
         "name",
     )
     if settled_link and request.request_state == "Activated":
-        return _request_marker(request.name)
+        return _markers(request.name, payment.name)
 
     frappe.set_user(context["finance_user"])
 
@@ -333,4 +336,4 @@ def settle_latest_customer_request() -> str:
     if not request.erp_service or not request.erp_task:
         frappe.throw("Activated E2E request is missing ERP Service/Task links.")
 
-    return _request_marker(request.name)
+    return _markers(request.name, payment.name)
