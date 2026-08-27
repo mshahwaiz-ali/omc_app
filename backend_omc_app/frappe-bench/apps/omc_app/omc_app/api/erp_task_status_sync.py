@@ -17,6 +17,7 @@ CUSTOMER_STATUS_MAP = {
     "under review": "In Review",
     "pending review": "In Review",
     "overdue": "Overdue",
+    "pending at client": "Waiting for Customer",
     "waiting for customer": "Waiting for Customer",
     "customer action required": "Waiting for Customer",
     "awaiting customer": "Waiting for Customer",
