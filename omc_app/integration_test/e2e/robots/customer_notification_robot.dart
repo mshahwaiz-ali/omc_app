@@ -40,14 +40,8 @@ class CustomerNotificationRobot {
       description: 'Open customer notifications',
     );
 
-    final paymentNotificationRow = find.ancestor(
-      of: find.textContaining(cleanPaymentId),
-      matching: find.byType(InkWell),
-    );
-    await waits.waitFor(
-      paymentNotificationRow,
-      description: 'Current payment notification row $cleanPaymentId',
-      timeout: const Duration(seconds: 20),
+    final paymentNotificationRow = await _findPaymentNotificationRow(
+      cleanPaymentId,
     );
 
     expect(
@@ -68,5 +62,36 @@ class CustomerNotificationRobot {
       await tester.pump();
     }
     await waits.waitFor(homeNav, description: 'Return to protected shell');
+  }
+
+  Future<Finder> _findPaymentNotificationRow(String paymentId) async {
+    for (var page = 0; page < 5; page++) {
+      final row = find.ancestor(
+        of: find.textContaining(paymentId),
+        matching: find.byType(InkWell),
+      );
+      if (row.evaluate().isNotEmpty) return row;
+
+      final loadMore = find.text('Load more');
+      if (loadMore.evaluate().isEmpty) break;
+
+      await tester.ensureVisible(loadMore.first);
+      final tappableLoadMore = loadMore.hitTestable();
+      if (tappableLoadMore.evaluate().isEmpty) {
+        fail('Notifications has more pages but the Load more action is not tappable.');
+      }
+      await tester.tap(tappableLoadMore.first);
+      await tester.pump();
+      await waits.waitForNetworkIdle(
+        description: 'Load more notifications page ${page + 2}',
+        timeout: const Duration(seconds: 20),
+      );
+      await tester.pump(const Duration(milliseconds: 250));
+    }
+
+    fail(
+      'Current payment notification for $paymentId was not found in the '
+      'loaded customer notification pages.',
+    );
   }
 }
