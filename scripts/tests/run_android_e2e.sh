@@ -44,9 +44,11 @@ case "${SITE,,}" in
   *) fail "Android E2E fixture lookup is restricted to a local site; got $SITE." ;;
 esac
 
-if ! "$FLUTTER_BIN" devices --machine | grep -Fq "\"id\":\"$ANDROID_DEVICE_ID\""; then
+devices_json="$("$FLUTTER_BIN" devices --machine)"
+compact_devices_json="$(printf '%s' "$devices_json" | tr -d '[:space:]')"
+if ! printf '%s' "$compact_devices_json" | grep -Fq "\"id\":\"$ANDROID_DEVICE_ID\""; then
   echo "Available Flutter devices:" >&2
-  "$FLUTTER_BIN" devices >&2 || true
+  printf '%s\n' "$devices_json" >&2
   fail "Android device $ANDROID_DEVICE_ID is not currently available to Flutter."
 fi
 
