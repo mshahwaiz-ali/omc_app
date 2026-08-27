@@ -13,7 +13,10 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('real customer sees ERP-settled activated request', (tester) async {
-    final config = E2eConfig.customerJourney(requireRequestId: true);
+    final config = E2eConfig.customerJourney(
+      requireRequestId: true,
+      requirePaymentId: true,
+    );
     E2eNetworkAudit.clear();
 
     await app.main();
@@ -27,7 +30,7 @@ void main() {
     await auth.ensureLoggedOut();
     await auth.login(config);
     await customer.verifySettledActivatedRequest(config);
-    await notifications.verifyAcceptedReceiptNotification();
+    await notifications.verifyAcceptedReceiptNotification(config.paymentId);
     await auth.logoutAndVerifyProtection();
   });
 }
