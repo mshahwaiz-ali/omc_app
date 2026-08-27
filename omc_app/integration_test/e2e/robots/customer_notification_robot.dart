@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omc_app/core/diagnostics/omc_widget_keys.dart';
 
@@ -9,7 +10,12 @@ class CustomerNotificationRobot {
   final WidgetTester tester;
   final E2eWaits waits;
 
-  Future<void> verifyAcceptedReceiptNotification() async {
+  Future<void> verifyAcceptedReceiptNotification(String paymentId) async {
+    final cleanPaymentId = paymentId.trim();
+    if (cleanPaymentId.isEmpty) {
+      fail('Payment notification verification requires the current payment ID.');
+    }
+
     await tester.pageBack();
     await tester.pump();
     await waits.waitFor(
@@ -34,12 +40,25 @@ class CustomerNotificationRobot {
       description: 'Open customer notifications',
     );
 
+    final paymentNotificationRow = find.ancestor(
+      of: find.text(cleanPaymentId),
+      matching: find.byType(InkWell),
+    );
     await waits.waitFor(
-      find.text('Payment Receipt Accepted'),
-      description: 'Payment receipt accepted customer notification',
+      paymentNotificationRow,
+      description: 'Current payment notification row $cleanPaymentId',
       timeout: const Duration(seconds: 20),
     );
-    waits.assertHealthy('Customer settlement notification');
+
+    expect(
+      find.descendant(
+        of: paymentNotificationRow.first,
+        matching: find.text('Payment Receipt Accepted'),
+      ),
+      findsOneWidget,
+      reason: 'The current E2E payment must own the accepted-receipt notification.',
+    );
+    waits.assertHealthy('Current customer settlement notification');
 
     await tester.pageBack();
     await tester.pump();
