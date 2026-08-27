@@ -41,7 +41,7 @@ class CustomerNotificationRobot {
     );
 
     final paymentNotificationRow = find.ancestor(
-      of: find.text(cleanPaymentId),
+      of: find.textContaining(cleanPaymentId),
       matching: find.byType(InkWell),
     );
     await waits.waitFor(
