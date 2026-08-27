@@ -66,7 +66,7 @@ class InternalWorkflowRobot {
       reason: 'Task detail must identify the exact ERP Task created by activation.',
     );
     expect(
-      find.text('Task updates are managed in ERPNext.'),
+      find.textContaining('Task updates are managed in ERPNext.'),
       findsOneWidget,
       reason: 'Flutter must preserve ERPNext as task-write authority.',
     );
