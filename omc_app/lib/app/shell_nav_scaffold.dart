@@ -157,7 +157,10 @@ class ShellNavScaffold extends ConsumerWidget {
       onOpenInternalWorkspace: () => context.go('/internal-workspace'),
       onOpenCommissionOperations: () => _openWhenAllowed(
         context: context,
-        allowed: canAccessRoute('/internal-workspace/commissions', capabilities),
+        allowed: canAccessRoute(
+          '/internal-workspace/commissions',
+          capabilities,
+        ),
         path: '/internal-workspace/commissions',
         capabilities: capabilities,
       ),
@@ -250,7 +253,10 @@ class ShellNavScaffold extends ConsumerWidget {
       ),
       onOpenCommissionOperations: () => _openWhenAllowed(
         context: context,
-        allowed: canAccessRoute('/internal-workspace/commissions', capabilities),
+        allowed: canAccessRoute(
+          '/internal-workspace/commissions',
+          capabilities,
+        ),
         path: '/internal-workspace/commissions',
         capabilities: capabilities,
       ),

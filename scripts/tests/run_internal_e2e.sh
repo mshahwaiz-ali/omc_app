@@ -22,6 +22,10 @@ fail() {
   exit 1
 }
 
+source "$SCRIPT_DIR/e2e_web_runtime.sh"
+e2e_configure_web_runtime "$API_BASE_URL" "$SCRIPT_DIR" || \
+  fail "Unable to configure the local Chrome E2E runtime."
+
 required_env() {
   local name="$1"
   [ -n "${!name:-}" ] || fail "$name is required."
@@ -37,7 +41,7 @@ required_env E2E_INTERNAL_PASSWORD
 [ -d "$BENCH_DIR" ] || fail "Frappe bench folder not found: $BENCH_DIR"
 command -v "$FLUTTER_BIN" >/dev/null 2>&1 || fail "Flutter executable not found: $FLUTTER_BIN"
 command -v "$BENCH_BIN" >/dev/null 2>&1 || fail "Bench executable not found: $BENCH_BIN"
-curl -fsS --max-time 5 "$API_BASE_URL/api/method/ping" >/dev/null 2>&1 || \
+curl "${E2E_API_CURL_ARGS[@]}" "$API_BASE_URL/api/method/ping" >/dev/null 2>&1 || \
   fail "OMC backend ping failed at $API_BASE_URL."
 
 case "$HEADLESS" in
@@ -123,16 +127,19 @@ run_flutter() {
   (
     cd -- "$FLUTTER_APP_DIR"
     "$FLUTTER_BIN" drive \
-      --device-id=chrome \
+      --device-id=web-server \
+      --browser-name=chrome \
       --driver=test_driver/e2e_test.dart \
       --target="$target" \
-      --web-hostname=localhost \
+      --web-hostname="$E2E_WEB_BIND_HOST" \
       --web-port="$web_port" \
+      --web-launch-url="http://$E2E_WEB_ORIGIN_HOST:$web_port/" \
       --driver-port="$DRIVER_PORT" \
       "$headless_flag" \
+      "${E2E_CHROME_ARGS[@]}" \
       --dart-define=OMC_ENV=development \
       --dart-define=OMC_API_BASE_URL="$API_BASE_URL" \
-      --dart-define=OMC_LINK_BASE_URL="http://localhost:$web_port" \
+      --dart-define=OMC_LINK_BASE_URL="http://$E2E_WEB_ORIGIN_HOST:$web_port" \
       --dart-define=OMC_USE_MOCK_AUTH=false \
       --dart-define=OMC_USE_SERVICE_PREVIEW=false \
       --dart-define=OMC_ALLOW_SERVICE_CATALOGUE_FALLBACK=false \

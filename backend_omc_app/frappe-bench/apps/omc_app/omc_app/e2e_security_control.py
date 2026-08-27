@@ -184,7 +184,7 @@ def assert_terminal_and_idempotency() -> str:
 
     accounting_links = frappe.get_all(
         "OMC Accounting Link",
-        filters={"service_request": request.name},
+        filters={"base_request_key": request.name},
         fields=["name", "accounting_status"],
         order_by="creation asc",
     )

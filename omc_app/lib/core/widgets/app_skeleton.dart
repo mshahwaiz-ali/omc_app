@@ -34,9 +34,10 @@ class _AppSkeletonState extends State<AppSkeleton>
       vsync: this,
       duration: AppMotion.loadingPulse,
     );
-    _opacity = Tween<double>(begin: 0.58, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _opacity = Tween<double>(
+      begin: 0.58,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override

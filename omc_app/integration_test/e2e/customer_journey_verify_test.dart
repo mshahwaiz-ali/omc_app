@@ -12,7 +12,9 @@ import 'support/e2e_waits.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('real customer sees ERP-settled activated request', (tester) async {
+  testWidgets('real customer sees ERP-settled activated request', (
+    tester,
+  ) async {
     final config = E2eConfig.customerJourney(
       requireRequestId: true,
       requirePaymentId: true,

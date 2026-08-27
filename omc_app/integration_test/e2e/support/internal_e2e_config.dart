@@ -44,11 +44,8 @@ class InternalE2eConfig {
     );
   }
 
-  E2eConfig get authConfig => E2eConfig(
-    username: username,
-    password: password,
-    requestId: requestId,
-  );
+  E2eConfig get authConfig =>
+      E2eConfig(username: username, password: password, requestId: requestId);
 
   final String username;
   final String password;

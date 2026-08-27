@@ -33,9 +33,7 @@ void main() {
 
     test('retired Home compatibility alias stays removed', () {
       expect(
-        File(
-          'lib/features/home/presentation/home_screen_v2.dart',
-        ).existsSync(),
+        File('lib/features/home/presentation/home_screen_v2.dart').existsSync(),
         isFalse,
       );
     });
@@ -57,7 +55,10 @@ void main() {
       ).readAsStringSync();
 
       expect(source, isNot(contains('use Desk for customer review')));
-      expect(source, contains('use the internal workspace for customer review'));
+      expect(
+        source,
+        contains('use the internal workspace for customer review'),
+      );
     });
   });
 }

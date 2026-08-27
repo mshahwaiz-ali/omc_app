@@ -11,22 +11,23 @@ import 'support/edge_e2e_config.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('different customer cannot see request or internal work surfaces', (
-    tester,
-  ) async {
-    final config = EdgeE2eConfig.fromEnvironment();
-    E2eNetworkAudit.clear();
+  testWidgets(
+    'different customer cannot see request or internal work surfaces',
+    (tester) async {
+      final config = EdgeE2eConfig.fromEnvironment();
+      E2eNetworkAudit.clear();
 
-    await app.main();
-    await tester.pump();
+      await app.main();
+      await tester.pump();
 
-    final waits = E2eWaits(tester);
-    final auth = AuthRobot(tester, waits);
-    final security = SecurityRegressionRobot(tester, waits);
+      final waits = E2eWaits(tester);
+      final auth = AuthRobot(tester, waits);
+      final security = SecurityRegressionRobot(tester, waits);
 
-    await auth.ensureLoggedOut();
-    await auth.login(config.otherAuth);
-    await security.verifyOtherCustomerIsolation(config);
-    await auth.logoutAndVerifyProtection();
-  });
+      await auth.ensureLoggedOut();
+      await auth.login(config.otherAuth);
+      await security.verifyOtherCustomerIsolation(config);
+      await auth.logoutAndVerifyProtection();
+    },
+  );
 }

@@ -29,6 +29,8 @@ esac
 
 echo "=== E2E STATIC: SHELL SYNTAX ==="
 for script in \
+  "$REPO_ROOT/scripts/tests/e2e_web_runtime.sh" \
+  "$REPO_ROOT/scripts/tests/chrome_e2e_binary.sh" \
   "$REPO_ROOT/scripts/tests/run_flutter_e2e.sh" \
   "$REPO_ROOT/scripts/tests/run_customer_e2e.sh" \
   "$REPO_ROOT/scripts/tests/run_internal_e2e.sh" \
@@ -74,10 +76,23 @@ echo "=== E2E STATIC: GIT WHITESPACE CHECK ==="
 
 if [ "$RUN_BACKEND_SUITE" = true ]; then
   echo "=== E2E STATIC: BACKEND OMC SUITE ==="
-  (
+  backend_log="$(mktemp "${TMPDIR:-/tmp}/omc-e2e-backend.XXXXXX.log")"
+  if ! (
     cd -- "$BENCH_DIR"
     "$BENCH_BIN" --site "$SITE" run-tests --app omc_app --skip-test-records
-  )
+  ) 2>&1 | tee "$backend_log"; then
+    rm -f -- "$backend_log"
+    fail "Backend OMC suite command failed."
+  fi
+  if grep -Eq '^(FAILED|FAILED \(|ERROR:)' "$backend_log"; then
+    rm -f -- "$backend_log"
+    fail "Backend OMC suite reported test failures despite a zero command exit."
+  fi
+  if ! grep -Eq '^OK( \(|$)' "$backend_log"; then
+    rm -f -- "$backend_log"
+    fail "Backend OMC suite did not report a final OK result."
+  fi
+  rm -f -- "$backend_log"
 else
   echo "=== E2E STATIC: BACKEND OMC SUITE SKIPPED BY EXPLICIT FLAG ==="
 fi

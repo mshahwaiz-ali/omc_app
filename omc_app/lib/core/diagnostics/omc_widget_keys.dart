@@ -27,7 +27,9 @@ abstract final class OmcWidgetKeys {
   static const servicesScreen = ValueKey<String>('screen.services');
   static const serviceSearch = ValueKey<String>('service.catalogue.search');
   static const serviceDetailScreen = ValueKey<String>('screen.service_detail');
-  static const serviceStartRequest = ValueKey<String>('service.detail.start_request');
+  static const serviceStartRequest = ValueKey<String>(
+    'service.detail.start_request',
+  );
 
   static const requestDraftScreen = ValueKey<String>('screen.request_draft');
   static const requestContactName = ValueKey<String>('request.contact.name');

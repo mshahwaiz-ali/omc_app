@@ -69,7 +69,9 @@ class _FinanceCommissionsScreenState
     }
 
     try {
-      final page = await ref.read(financeCommissionRepositoryProvider).fetchPage(
+      final page = await ref
+          .read(financeCommissionRepositoryProvider)
+          .fetchPage(
             start: refresh ? 0 : (_nextStart ?? 0),
             limit: 20,
             status: _status,
@@ -111,15 +113,15 @@ class _FinanceCommissionsScreenState
     try {
       await action();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(success)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(success)));
       await _load(refresh: true);
     } on ApiError catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -153,10 +155,9 @@ class _FinanceCommissionsScreenState
     if (!mounted || reason == null) return;
     await _runMutation(
       allocation: allocation,
-      action: () => ref.read(financeCommissionRepositoryProvider).reject(
-            allocationId: allocation.id,
-            reason: reason,
-          ),
+      action: () => ref
+          .read(financeCommissionRepositoryProvider)
+          .reject(allocationId: allocation.id, reason: reason),
       success: 'Commission rejected.',
     );
   }
@@ -188,7 +189,9 @@ class _FinanceCommissionsScreenState
     if (!mounted || input == null) return;
     await _runMutation(
       allocation: allocation,
-      action: () => ref.read(financeCommissionRepositoryProvider).markPaid(
+      action: () => ref
+          .read(financeCommissionRepositoryProvider)
+          .markPaid(
             allocationId: allocation.id,
             settlementReference: input.reference,
             settledOn: input.settledOn,
@@ -256,9 +259,8 @@ class _FinanceCommissionsScreenState
             FilledButton(
               onPressed: controller.text.trim().isEmpty
                   ? null
-                  : () => Navigator.of(dialogContext).pop(
-                        controller.text.trim(),
-                      ),
+                  : () =>
+                        Navigator.of(dialogContext).pop(controller.text.trim()),
               child: const Text('Reject'),
             ),
           ],
@@ -326,12 +328,18 @@ class _FinanceCommissionsScreenState
               ),
               items: const [
                 DropdownMenuItem(value: '', child: Text('All evidence states')),
-                DropdownMenuItem(value: 'Matched', child: Text('Accounting ready')),
+                DropdownMenuItem(
+                  value: 'Matched',
+                  child: Text('Accounting ready'),
+                ),
                 DropdownMenuItem(
                   value: 'Review Required',
                   child: Text('Needs reconciliation review'),
                 ),
-                DropdownMenuItem(value: 'Missing', child: Text('Evidence missing')),
+                DropdownMenuItem(
+                  value: 'Missing',
+                  child: Text('Evidence missing'),
+                ),
                 DropdownMenuItem(
                   value: 'Quarantined',
                   child: Text('Reconciliation blocked'),
@@ -384,7 +392,9 @@ class _FinanceCommissionsScreenState
                       )
                     : const Icon(Icons.expand_more_rounded),
                 label: Text(
-                  _loadingMore ? 'Loading allocations' : 'Load more allocations',
+                  _loadingMore
+                      ? 'Loading allocations'
+                      : 'Load more allocations',
                 ),
               ),
             ],
@@ -705,13 +715,13 @@ class _SettlementSheetState extends State<_SettlementSheet> {
                 onPressed: _referenceController.text.trim().isEmpty
                     ? null
                     : () => Navigator.of(context).pop(
-                          _SettlementInput(
-                            reference: _referenceController.text.trim(),
-                            settledOn: _date == null
-                                ? null
-                                : DateFormat('yyyy-MM-dd').format(_date!),
-                          ),
+                        _SettlementInput(
+                          reference: _referenceController.text.trim(),
+                          settledOn: _date == null
+                              ? null
+                              : DateFormat('yyyy-MM-dd').format(_date!),
                         ),
+                      ),
                 child: const Text('Record commission paid'),
               ),
             ),

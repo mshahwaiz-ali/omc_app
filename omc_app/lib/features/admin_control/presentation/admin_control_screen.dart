@@ -374,7 +374,11 @@ class _ApplicationsCard extends ConsumerWidget {
       );
     } catch (error) {
       if (context.mounted) {
-        _showFailure(context, error, fallback: 'Could not review this application.');
+        _showFailure(
+          context,
+          error,
+          fallback: 'Could not review this application.',
+        );
       }
     }
   }
@@ -401,7 +405,8 @@ class _StaffCard extends ConsumerWidget {
             style: TextStyle(fontSize: 12.5, height: 1.4),
           ),
           const SizedBox(height: 10),
-          if (data.staff.isEmpty) const Text('No OMC staff access records found.'),
+          if (data.staff.isEmpty)
+            const Text('No OMC staff access records found.'),
           for (final staff in data.staff)
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -442,7 +447,11 @@ class _StaffCard extends ConsumerWidget {
       ref.invalidate(scopedAdminOverviewProvider);
     } catch (error) {
       if (context.mounted) {
-        _showFailure(context, error, fallback: 'Could not update staff access.');
+        _showFailure(
+          context,
+          error,
+          fallback: 'Could not update staff access.',
+        );
       }
     }
   }
@@ -551,12 +560,8 @@ class _BusinessSettingsCard extends ConsumerWidget {
                 contentPadding: EdgeInsets.zero,
                 title: Text(entry.value),
                 value: settings[entry.key] == true || settings[entry.key] == 1,
-                onChanged: (value) => _updateSetting(
-                  context,
-                  ref,
-                  entry.key,
-                  value ? 1 : 0,
-                ),
+                onChanged: (value) =>
+                    _updateSetting(context, ref, entry.key, value ? 1 : 0),
               ),
           if (settings.containsKey('discount_auto_approval_percent'))
             ListTile(
@@ -597,13 +602,17 @@ class _BusinessSettingsCard extends ConsumerWidget {
     Object value,
   ) async {
     try {
-      await ref
-          .read(adminControlRepositoryProvider)
-          .updateBusinessSettings({key: value});
+      await ref.read(adminControlRepositoryProvider).updateBusinessSettings({
+        key: value,
+      });
       ref.invalidate(adminBusinessSettingsProvider);
     } catch (error) {
       if (context.mounted) {
-        _showFailure(context, error, fallback: 'Could not update business settings.');
+        _showFailure(
+          context,
+          error,
+          fallback: 'Could not update business settings.',
+        );
       }
     }
   }
@@ -630,7 +639,9 @@ class _BusinessSettingsCard extends ConsumerWidget {
             content: TextField(
               controller: controller,
               autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(labelText: 'Value'),
               onChanged: (_) => setDialogState(() {}),
             ),
@@ -716,7 +727,7 @@ void _showFailure(
     error,
     fallbackMessage: fallback,
   );
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(failure.message)),
-  );
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(failure.message)));
 }

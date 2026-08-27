@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
+import '../../../core/diagnostics/e2e_network_audit.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_skeleton.dart';
@@ -47,6 +50,7 @@ class _CustomerServiceCaseDetailScreenState
     }
 
     return Scaffold(
+      key: OmcWidgetKeys.customerCaseDetailScreen,
       backgroundColor: AppTheme.background,
       body: Column(
         children: [
@@ -116,6 +120,7 @@ class _CustomerServiceCaseDetailScreenState
                         ),
                         const SizedBox(height: 14),
                         _PaymentCard(
+                          key: OmcWidgetKeys.customerCasePayment,
                           detail: detail,
                           canViewPayments: capabilities.canViewPayments,
                         ),

@@ -369,6 +369,28 @@ def _upsert_link(request, invoice, *, payment_entry=None, reference=None, state=
     return doc
 
 
+def _project_link_state(request_name: str, state: str, reason: str = "") -> None:
+    """Keep base and allocation evidence on one authoritative request state."""
+    names = frappe.get_all(
+        "OMC Accounting Link",
+        filters={"service_request": request_name},
+        pluck="name",
+        limit_page_length=1000,
+    )
+    reconciled_at = now_datetime()
+    for name in names:
+        frappe.db.set_value(
+            "OMC Accounting Link",
+            name,
+            {
+                "accounting_status": state,
+                "reconciled_at": reconciled_at,
+                "reconciliation_error": reason,
+            },
+            update_modified=False,
+        )
+
+
 @frappe.whitelist(methods=["POST"])
 def link_sales_invoice(service_request=None, sales_invoice=None):
     capabilities.require("can_reconcile_settlement")
@@ -649,6 +671,7 @@ def reconcile_request(request_name: str) -> dict:
         issue = _invoice_reconciliation_issue(request, invoice)
         if issue:
             issues.append(issue)
+        _upsert_link(request, invoice)
         invoices.append(invoice)
 
     allocated = 0.0
@@ -724,17 +747,7 @@ def reconcile_request(request_name: str) -> dict:
     if not reason and reversal_issues:
         reason = reversal_issues[0]["message"]
 
-    for link in base_links:
-        frappe.db.set_value(
-            "OMC Accounting Link",
-            link.name,
-            {
-                "accounting_status": state,
-                "reconciled_at": now_datetime(),
-                "reconciliation_error": reason,
-            },
-            update_modified=False,
-        )
+    _project_link_state(request.name, state, reason)
     _project_receipt_compatibility(request.name, state, latest_payment)
     _apply_accounting_lifecycle(request, state, reason)
 

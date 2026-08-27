@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:omc_app/features/auth/presentation/signup_steps.dart';
 
 void main() {
-  testWidgets('staff role cards describe an access application', (tester) async {
+  testWidgets('staff role cards describe an access application', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -44,7 +46,9 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining('protected staff permissions are never enabled automatically'),
+      find.textContaining(
+        'protected staff permissions are never enabled automatically',
+      ),
       findsOneWidget,
     );
   });

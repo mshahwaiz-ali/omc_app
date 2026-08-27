@@ -33,6 +33,9 @@ class _Cache:
     def expire(self, key, seconds):
         return None
 
+    def delete(self, key):
+        self.values.pop(key, None)
+
 
 class TestBackendRedesignSecurity(TestCase):
     def test_system_manager_has_no_implicit_omc_capability(self):
@@ -110,6 +113,20 @@ class TestBackendRedesignSecurity(TestCase):
         self.assertTrue(cache.values)
         self.assertTrue(all("private@example.com" not in key for key in cache.values))
 
+    def test_successful_operation_clears_only_the_actor_rate_limit(self):
+        cache = _Cache()
+        fixed = datetime(2026, 8, 19, 12, 0, 0)
+        with (
+            patch.object(security.frappe, "cache", return_value=cache),
+            patch.object(security, "now_datetime", return_value=fixed),
+            patch.object(security, "_request_ip", return_value="127.0.0.1"),
+        ):
+            security.enforce_rate_limit("login", actor="person@example.com")
+            security.clear_actor_rate_limit("login", actor="person@example.com")
+
+        self.assertEqual(len(cache.values), 1)
+        self.assertIn(":ip:", next(iter(cache.values)))
+
     def test_profile_mass_assignment_is_rejected(self):
         with self.assertRaises(frappe.ValidationError):
             profile_self_service._clean_payload({"full_name": "Ayesha", "is_active": 1})
@@ -160,6 +177,41 @@ class TestBackendRedesignSecurity(TestCase):
 
 
 class TestBackendRedesignFinance(TestCase):
+    def test_reconciliation_projects_state_to_base_and_allocation_evidence(self):
+        with (
+            patch.object(
+                accounting_reconciliation.frappe,
+                "get_all",
+                return_value=["BASE-LINK", "ALLOCATION-LINK"],
+            ),
+            patch.object(
+                accounting_reconciliation.frappe.db,
+                "set_value",
+            ) as set_value,
+            patch.object(
+                accounting_reconciliation,
+                "now_datetime",
+                return_value="2026-08-27 14:00:00",
+            ),
+        ):
+            accounting_reconciliation._project_link_state(
+                "OMC-SR-1",
+                "Settled",
+            )
+
+        self.assertEqual(set_value.call_count, 2)
+        for link_name in ("BASE-LINK", "ALLOCATION-LINK"):
+            set_value.assert_any_call(
+                "OMC Accounting Link",
+                link_name,
+                {
+                    "accounting_status": "Settled",
+                    "reconciled_at": "2026-08-27 14:00:00",
+                    "reconciliation_error": "",
+                },
+                update_modified=False,
+            )
+
     def test_settlement_matrix_caps_overpayment_and_supports_multiple_allocations(self):
         cases = (
             ({"required": 100, "invoice_basis": 100, "allocated": 40}, ("Partially Settled", 40)),
@@ -228,6 +280,11 @@ class TestBackendRedesignFinance(TestCase):
         source = Path(bridge_outbox.__file__).read_text(encoding="utf-8")
         self.assertIn("frappe.db.savepoint(bridge_savepoint)", source)
         self.assertIn("frappe.db.rollback(save_point=bridge_savepoint)", source)
+
+    def test_bridge_audit_uses_a_valid_session_user(self):
+        source = Path(bridge_outbox.__file__).read_text(encoding="utf-8")
+        self.assertNotIn('actor="bridge"', source)
+        self.assertIn("actor=frappe.session.user", source)
         self.assertNotIn("frappe.db.commit()", source)
 
     def test_commission_rounding_is_decimal_half_up(self):

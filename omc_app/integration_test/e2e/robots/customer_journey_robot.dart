@@ -35,19 +35,24 @@ class CustomerJourneyRobot {
     await waits.waitForNetworkIdle(description: 'Service detail screen');
     waits.assertHealthy('Service detail screen');
 
-    final startRequest = find.text('Start request');
+    final startRequest = find.byKey(OmcWidgetKeys.serviceStartRequest);
+    await tester.scrollUntilVisible(
+      startRequest,
+      350,
+      scrollable: find.descendant(
+        of: find.byKey(OmcWidgetKeys.serviceDetailScreen),
+        matching: find.byType(Scrollable),
+      ),
+    );
     await waits.waitFor(startRequest, description: 'Start request action');
     await tester.ensureVisible(startRequest.first);
     await tester.tap(startRequest.first.hitTestable());
     await tester.pump();
 
-    final startState = await waits.waitForAny(
-      {
-        'draft': find.text('Client details'),
-        'duplicate': find.text('Service already in progress'),
-      },
-      description: 'Start request destination',
-    );
+    final startState = await waits.waitForAny({
+      'draft': find.text('Client details'),
+      'duplicate': find.text('Service already in progress'),
+    }, description: 'Start request destination');
     if (startState == 'duplicate') {
       fail(
         'The selected E2E customer already has an active '
@@ -98,6 +103,20 @@ class CustomerJourneyRobot {
       findsWidgets,
       reason: 'The request detail must identify the exact settled E2E case.',
     );
+
+    final paymentCard = find.byKey(OmcWidgetKeys.customerCasePayment);
+    await tester.scrollUntilVisible(
+      paymentCard,
+      350,
+      scrollable: find.descendant(
+        of: find.byKey(OmcWidgetKeys.customerCaseDetailScreen),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await waits.waitFor(
+      paymentCard.first,
+      description: 'Settled customer payment card',
+    );
     expect(
       find.text('Paid'),
       findsWidgets,
@@ -119,33 +138,66 @@ class CustomerJourneyRobot {
   Future<void> _fillRequestForm(E2eConfig config) async {
     await tester.pump(const Duration(milliseconds: 800));
 
-    final textFields = find.byType(TextFormField);
-    final count = textFields.evaluate().length;
-    for (var index = 0; index < count; index++) {
-      final finder = textFields.at(index);
-      final widget = tester.widget<TextFormField>(finder);
-      final label = widget.decoration?.labelText?.trim() ?? '';
-      final current = widget.controller?.text.trim() ?? '';
-      if (current.isNotEmpty) continue;
+    for (var pass = 0; pass < 50; pass++) {
+      final textFields = find.byType(TextFormField);
+      Finder? nextRequiredField;
+      var nextRequiredLabel = '';
 
-      final required =
-          label == 'Full name' ||
-          label == 'Phone or WhatsApp number' ||
-          label == 'Email' ||
-          label.endsWith('*');
-      if (!required) continue;
+      for (var index = 0; index < textFields.evaluate().length; index++) {
+        final finder = textFields.at(index);
+        final widget = tester.widget<TextFormField>(finder);
+        final decorator = find.descendant(
+          of: finder,
+          matching: find.byType(InputDecorator),
+        );
+        final label = decorator.evaluate().isEmpty
+            ? ''
+            : tester
+                      .widget<InputDecorator>(decorator.first)
+                      .decoration
+                      .labelText
+                      ?.trim() ??
+                  '';
+        final current = widget.controller?.text.trim() ?? '';
+        if (current.isNotEmpty) continue;
 
-      await tester.ensureVisible(finder);
-      await tester.enterText(finder, _valueForTextField(label, config));
+        final required =
+            label == 'Full name' ||
+            label == 'Phone or WhatsApp number' ||
+            label == 'Email' ||
+            label.endsWith('*');
+        if (!required) continue;
+
+        nextRequiredField = finder;
+        nextRequiredLabel = label;
+        break;
+      }
+
+      if (nextRequiredField == null) break;
+      await tester.ensureVisible(nextRequiredField);
+      await tester.enterText(
+        nextRequiredField,
+        _valueForTextField(nextRequiredLabel, config),
+      );
       await tester.pump(const Duration(milliseconds: 100));
+
+      if (pass == 49) {
+        fail('More than 50 dynamic required fields were requested; aborting.');
+      }
     }
 
     final dropdowns = find.byType(DropdownButtonFormField<String>);
     final dropdownCount = dropdowns.evaluate().length;
     for (var index = 0; index < dropdownCount; index++) {
       final finder = dropdowns.at(index);
-      final widget = tester.widget<DropdownButtonFormField<String>>(finder);
-      final items = widget.items ?? const <DropdownMenuItem<String>>[];
+      final dropdown = find.descendant(
+        of: finder,
+        matching: find.byType(DropdownButton<String>),
+      );
+      if (dropdown.evaluate().isEmpty) continue;
+      final items =
+          tester.widget<DropdownButton<String>>(dropdown.first).items ??
+          const <DropdownMenuItem<String>>[];
       if (items.isEmpty) continue;
       final firstValue = items
           .map((item) => item.value)
@@ -162,7 +214,9 @@ class CustomerJourneyRobot {
         await tester.tap(option.last.hitTestable());
         await tester.pump(const Duration(milliseconds: 250));
       } else {
-        fail('Dropdown option "$firstValue" could not be selected in the real form.');
+        fail(
+          'Dropdown option "$firstValue" could not be selected in the real form.',
+        );
       }
     }
 
@@ -187,7 +241,9 @@ class CustomerJourneyRobot {
           ? config.username.trim()
           : 'omc-e2e@example.com';
     }
-    if (normalized.contains('phone') || normalized.contains('whatsapp')) {
+    if (normalized.contains('phone') ||
+        normalized.contains('mobile') ||
+        normalized.contains('whatsapp')) {
       return '03001234567';
     }
     if (normalized.contains('name')) return 'OMC E2E Customer';
@@ -211,12 +267,63 @@ class CustomerJourneyRobot {
     await tester.tap(submit.first.hitTestable());
     await tester.pump();
 
-    await waits.waitFor(
-      find.text('Required documents'),
-      description: 'Submitted customer request detail',
+    final validation = find.textContaining(
+      RegExp(r'(is required|Enter a valid)'),
+    );
+    final submitState = await waits.waitForAny(
+      {
+        'submitted': find.text('Required documents'),
+        'accepted': find.text('Service request submitted to OMC.'),
+        'duplicate': find.text(
+          'An active request already exists for this customer and service.',
+        ),
+        'snackbar': find.byType(SnackBar),
+        'validation': validation,
+      },
+      description: 'Submitted customer request result',
       timeout: const Duration(seconds: 30),
     );
-    await _allowExpectedSuccessSnackbarToClose();
+    if (submitState == 'duplicate') {
+      fail(
+        'The backend returned an existing active request after submission; '
+        'the E2E requires a newly created request.',
+      );
+    }
+    if (submitState == 'accepted') {
+      await waits.waitFor(
+        find.text('Required documents'),
+        description: 'Newly submitted customer request detail',
+        timeout: const Duration(seconds: 30),
+      );
+    }
+    if (submitState != 'submitted') {
+      if (submitState == 'accepted') {
+        await _allowExpectedSuccessSnackbarToClose();
+      } else {
+        final source = submitState == 'snackbar'
+            ? find.descendant(
+                of: find.byType(SnackBar),
+                matching: find.byType(Text),
+              )
+            : validation;
+        final messages = source
+            .evaluate()
+            .map((element) => element.widget)
+            .whereType<Text>()
+            .map((widget) => widget.data)
+            .whereType<String>()
+            .where((message) => message.trim().isNotEmpty)
+            .toSet()
+            .join(' | ');
+        fail(
+          'Customer request submission failed with $submitState'
+          '${messages.isEmpty ? '.' : ': $messages'}',
+        );
+      }
+    }
+    if (find.byType(SnackBar).evaluate().isNotEmpty) {
+      await _allowExpectedSuccessSnackbarToClose();
+    }
     await waits.waitForNetworkIdle(
       description: 'Submitted customer request detail',
       timeout: const Duration(seconds: 20),
@@ -226,17 +333,46 @@ class CustomerJourneyRobot {
 
   Future<void> _uploadAllRequiredDocuments() async {
     for (var uploadIndex = 0; uploadIndex < 20; uploadIndex++) {
-      final upload = find.text('Upload');
+      final upload = find.byWidgetPredicate((widget) {
+        final key = widget.key;
+        return key is ValueKey<String> &&
+            key.value.startsWith('case.document.') &&
+            key.value.endsWith('.upload');
+      });
       if (upload.evaluate().isEmpty) break;
 
       await tester.ensureVisible(upload.first);
-      await tester.tap(upload.first.hitTestable());
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
       await waits.waitFor(
-        find.textContaining('uploaded successfully.'),
+        upload.hitTestable(),
+        description: 'Tappable required document ${uploadIndex + 1}',
+      );
+      await tester.tap(upload.hitTestable().first);
+      await tester.pump();
+      final uploadState = await waits.waitForAny(
+        {
+          'uploaded': find.textContaining('uploaded successfully.'),
+          'snackbar': find.byType(SnackBar),
+        },
         description: 'Required document upload ${uploadIndex + 1}',
         timeout: const Duration(seconds: 30),
       );
+      if (uploadState != 'uploaded') {
+        final messages = find
+            .descendant(of: find.byType(SnackBar), matching: find.byType(Text))
+            .evaluate()
+            .map((element) => element.widget)
+            .whereType<Text>()
+            .map((widget) => widget.data)
+            .whereType<String>()
+            .where((message) => message.trim().isNotEmpty)
+            .toSet()
+            .join(' | ');
+        fail(
+          'Required document upload ${uploadIndex + 1} failed'
+          '${messages.isEmpty ? '.' : ': $messages'}',
+        );
+      }
       await _allowExpectedSuccessSnackbarToClose();
       await waits.waitForNetworkIdle(
         description: 'Required document upload ${uploadIndex + 1}',
@@ -244,7 +380,13 @@ class CustomerJourneyRobot {
       );
     }
 
-    if (find.text('Upload').evaluate().isNotEmpty) {
+    final remainingUpload = find.byWidgetPredicate((widget) {
+      final key = widget.key;
+      return key is ValueKey<String> &&
+          key.value.startsWith('case.document.') &&
+          key.value.endsWith('.upload');
+    });
+    if (remainingUpload.evaluate().isNotEmpty) {
       fail('More than 20 required document uploads were requested; aborting.');
     }
 
@@ -263,25 +405,72 @@ class CustomerJourneyRobot {
     await tester.tap(openPayments.first.hitTestable());
     await tester.pump();
 
-    await waits.waitFor(
-      find.text('Payment actions'),
+    await waits.waitForScreen(
+      find.byKey(OmcWidgetKeys.paymentDetailScreen),
       description: 'Customer payment detail',
       timeout: const Duration(seconds: 20),
     );
-    await waits.waitForNetworkIdle(description: 'Customer payment detail');
-    waits.assertHealthy('Customer payment detail');
 
-    final uploadProof = find.text('Upload payment proof');
-    await waits.waitFor(uploadProof, description: 'Upload payment proof action');
+    final uploadProof = find.byKey(OmcWidgetKeys.paymentUploadReceipt);
+    await tester.scrollUntilVisible(
+      uploadProof,
+      350,
+      scrollable: find
+          .descendant(
+            of: find.byKey(OmcWidgetKeys.paymentDetailScreen),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await waits.waitFor(
+      uploadProof,
+      description: 'Upload payment proof action',
+    );
     await tester.ensureVisible(uploadProof.first);
     await tester.tap(uploadProof.first.hitTestable());
     await tester.pump();
 
-    await waits.waitFor(
-      find.text('Receipt Submitted'),
+    final receiptState = await waits.waitForAny(
+      {
+        'submitted': find.text('Receipt Submitted'),
+        'accepted': find.text('Receipt uploaded for OMC review.'),
+        'snackbar': find.byType(SnackBar),
+      },
       description: 'Receipt submitted payment status',
       timeout: const Duration(seconds: 30),
     );
+    if (receiptState == 'accepted') {
+      await tester.scrollUntilVisible(
+        find.text('Receipt Submitted'),
+        -350,
+        scrollable: find
+            .descendant(
+              of: find.byKey(OmcWidgetKeys.paymentDetailScreen),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await waits.waitFor(
+        find.text('Receipt Submitted'),
+        description: 'Refreshed receipt submitted payment status',
+        timeout: const Duration(seconds: 30),
+      );
+    } else if (receiptState != 'submitted') {
+      final messages = find
+          .descendant(of: find.byType(SnackBar), matching: find.byType(Text))
+          .evaluate()
+          .map((element) => element.widget)
+          .whereType<Text>()
+          .map((widget) => widget.data)
+          .whereType<String>()
+          .where((message) => message.trim().isNotEmpty)
+          .toSet()
+          .join(' | ');
+      fail(
+        'Payment receipt upload failed'
+        '${messages.isEmpty ? '.' : ': $messages'}',
+      );
+    }
     await _allowExpectedSuccessSnackbarToClose();
     await waits.waitForNetworkIdle(
       description: 'Receipt submitted payment status',
@@ -299,14 +488,5 @@ class CustomerJourneyRobot {
     if (find.byType(SnackBar).evaluate().isNotEmpty) {
       fail('Expected success snackbar did not close within 5 seconds.');
     }
-  }
-}
-
-extension _FirstOrNull<T> on Iterable<T> {
-  T? get firstOrNull {
-    for (final value in this) {
-      return value;
-    }
-    return null;
   }
 }

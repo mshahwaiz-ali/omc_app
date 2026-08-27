@@ -10,6 +10,7 @@ import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import '../../../core/storage/json_cache_service.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
 import 'service_case.dart';
 
 final serviceCaseCacheProvider = FutureProvider<JsonCacheService>((ref) {
@@ -40,6 +41,10 @@ String _cacheNamespace(String? userId) {
 final serviceCasesProvider = FutureProvider.autoDispose<List<ServiceCase>>((
   ref,
 ) async {
+  final authState = ref.watch(authControllerProvider);
+  if (authState.status != AuthStatus.authenticated) {
+    return const <ServiceCase>[];
+  }
   final repository = ref.watch(serviceCaseRepositoryProvider);
 
   if (Env.useServicePreview) {

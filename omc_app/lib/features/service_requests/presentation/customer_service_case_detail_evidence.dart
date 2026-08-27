@@ -165,8 +165,11 @@ class _DocumentsCardState extends ConsumerState<_DocumentsCard> {
         fallbackMessage:
             'The document could not be uploaded right now. Please try again.',
       );
+      final message = E2eNetworkAudit.enabled && error is ApiError
+          ? error.message
+          : failure.message;
 
-      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+      messenger.showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) {
         setState(() => _uploading.remove(identity));
@@ -229,6 +232,7 @@ class _DocumentRow extends StatelessWidget {
           };
 
     return Container(
+      key: OmcWidgetKeys.caseRequiredDocument(document.uploadIdentity),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: background,
@@ -303,6 +307,9 @@ class _DocumentRow extends StatelessWidget {
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: InkWell(
+                        key: OmcWidgetKeys.caseRequiredDocumentUpload(
+                          document.uploadIdentity,
+                        ),
                         onTap: isUploading ? null : onUpload,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -340,7 +347,11 @@ class _DocumentRow extends StatelessWidget {
 }
 
 class _PaymentCard extends StatelessWidget {
-  const _PaymentCard({required this.detail, required this.canViewPayments});
+  const _PaymentCard({
+    super.key,
+    required this.detail,
+    required this.canViewPayments,
+  });
 
   final CustomerServiceCaseDetail detail;
   final bool canViewPayments;

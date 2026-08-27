@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme.dart';
+import '../../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../../core/widgets/premium_card.dart';
 import '../../data/payment_item.dart';
 
@@ -98,6 +99,7 @@ class PaymentActionCard extends StatelessWidget {
           ],
           if (canUploadReceipt || isUploadingReceipt) ...[
             _ActionTile(
+              key: OmcWidgetKeys.paymentUploadReceipt,
               icon: isUploadingReceipt
                   ? Icons.hourglass_top_rounded
                   : Icons.upload_file_rounded,
@@ -222,6 +224,7 @@ class _ActionHeaderIcon extends StatelessWidget {
 
 class _ActionTile extends StatelessWidget {
   const _ActionTile({
+    super.key,
     required this.icon,
     required this.title,
     required this.subtitle,

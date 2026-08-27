@@ -13,7 +13,9 @@ class CustomerNotificationRobot {
   Future<void> verifyAcceptedReceiptNotification(String paymentId) async {
     final cleanPaymentId = paymentId.trim();
     if (cleanPaymentId.isEmpty) {
-      fail('Payment notification verification requires the current payment ID.');
+      fail(
+        'Payment notification verification requires the current payment ID.',
+      );
     }
 
     await tester.pageBack();
@@ -50,18 +52,17 @@ class CustomerNotificationRobot {
         matching: find.text('Payment Receipt Accepted'),
       ),
       findsOneWidget,
-      reason: 'The current E2E payment must own the accepted-receipt notification.',
+      reason:
+          'The current E2E payment must own the accepted-receipt notification.',
     );
     waits.assertHealthy('Current customer settlement notification');
 
-    await tester.pageBack();
-    await tester.pump();
     final homeNav = find.byKey(OmcWidgetKeys.navHome);
-    if (homeNav.evaluate().isEmpty) {
-      await tester.pageBack();
-      await tester.pump();
-    }
-    await waits.waitFor(homeNav, description: 'Return to protected shell');
+    await waits.tapAndWait(
+      target: homeNav,
+      destination: find.byKey(OmcWidgetKeys.homeScreen),
+      description: 'Notifications -> Home',
+    );
   }
 
   Future<Finder> _findPaymentNotificationRow(String paymentId) async {
@@ -78,7 +79,9 @@ class CustomerNotificationRobot {
       await tester.ensureVisible(loadMore.first);
       final tappableLoadMore = loadMore.hitTestable();
       if (tappableLoadMore.evaluate().isEmpty) {
-        fail('Notifications has more pages but the Load more action is not tappable.');
+        fail(
+          'Notifications has more pages but the Load more action is not tappable.',
+        );
       }
       await tester.tap(tappableLoadMore.first);
       await tester.pump();

@@ -107,6 +107,15 @@ def _runtime_context() -> dict:
         frappe.throw(
             "The E2E customer must be linked to a real ERPNext Customer before settlement."
         )
+    if not frappe.has_permission(
+        "Customer",
+        "read",
+        doc=erp_customer,
+        user=finance_user,
+    ):
+        frappe.throw(
+            "E2E finance user cannot read the selected ERPNext Customer."
+        )
     if not frappe.db.exists("Item", invoice_item):
         frappe.throw(f"E2E invoice item does not exist: {invoice_item}")
 
@@ -249,7 +258,10 @@ def settle_latest_customer_request() -> str:
 
     settled_link = frappe.db.get_value(
         "OMC Accounting Link",
-        {"service_request": request.name, "accounting_status": "Settled"},
+        {
+            "base_request_key": request.name,
+            "accounting_status": "Settled",
+        },
         "name",
     )
     if settled_link and request.request_state == "Activated":
@@ -271,7 +283,7 @@ def settle_latest_customer_request() -> str:
 
     link = frappe.db.get_value(
         "OMC Accounting Link",
-        {"service_request": request.name},
+        {"base_request_key": request.name},
         ["name", "sales_invoice", "accounting_status"],
         as_dict=True,
     )
@@ -291,7 +303,7 @@ def settle_latest_customer_request() -> str:
 
     current_link_state = frappe.db.get_value(
         "OMC Accounting Link",
-        {"service_request": request.name},
+        {"base_request_key": request.name},
         "accounting_status",
     )
     if current_link_state != "Settled":
@@ -302,7 +314,7 @@ def settle_latest_customer_request() -> str:
     payment.reload()
     current_link_state = frappe.db.get_value(
         "OMC Accounting Link",
-        {"service_request": request.name},
+        {"base_request_key": request.name},
         "accounting_status",
     )
     if current_link_state != "Settled":

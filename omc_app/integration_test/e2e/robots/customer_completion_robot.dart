@@ -48,6 +48,20 @@ class CustomerCompletionRobot {
     await waits.waitForNetworkIdle(description: 'Completed request detail');
     expect(find.text(requestId.trim()), findsWidgets);
     expect(find.text('Completed'), findsWidgets);
+
+    final paymentCard = find.byKey(OmcWidgetKeys.customerCasePayment);
+    await tester.scrollUntilVisible(
+      paymentCard,
+      350,
+      scrollable: find.descendant(
+        of: find.byKey(OmcWidgetKeys.customerCaseDetailScreen),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await waits.waitFor(
+      paymentCard.first,
+      description: 'Completed customer payment card',
+    );
     expect(
       find.text('Paid'),
       findsWidgets,

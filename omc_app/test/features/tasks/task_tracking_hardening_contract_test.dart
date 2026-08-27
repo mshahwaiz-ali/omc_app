@@ -35,21 +35,13 @@ void main() {
       'lib/features/tasks/presentation/task_detail_screen.dart',
     ).readAsStringSync();
 
-    final policy = File(
-      'lib/app/route_access_policy.dart',
-    ).readAsStringSync();
+    final policy = File('lib/app/route_access_policy.dart').readAsStringSync();
 
     expect(detail, contains("'/my-services/"));
-    expect(
-      detail,
-      isNot(contains("'/internal-workspace/service-cases/'")),
-    );
+    expect(detail, isNot(contains("'/internal-workspace/service-cases/'")));
 
     expect(policy, contains("if (location == '/my-services')"));
-    expect(
-      policy,
-      contains("if (location.startsWith('/my-services/'))"),
-    );
+    expect(policy, contains("if (location.startsWith('/my-services/'))"));
     expect(
       policy,
       contains(
@@ -64,17 +56,8 @@ void main() {
       'lib/features/tasks/presentation/tasks_screen.dart',
     ).readAsStringSync();
 
-    expect(
-      screen,
-      anyOf(
-        contains('SliverList'),
-        contains('ListView.builder'),
-      ),
-    );
+    expect(screen, anyOf(contains('SliverList'), contains('ListView.builder')));
 
-    expect(
-      screen,
-      isNot(contains('for (final task in tasks)')),
-    );
+    expect(screen, isNot(contains('for (final task in tasks)')));
   });
 }

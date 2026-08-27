@@ -64,7 +64,8 @@ class InternalWorkflowRobot {
     expect(
       find.text(config.taskId.trim()),
       findsWidgets,
-      reason: 'Task detail must identify the exact ERP Task created by activation.',
+      reason:
+          'Task detail must identify the exact ERP Task created by activation.',
     );
     expect(
       find.textContaining('Task updates are managed in ERPNext.'),
@@ -90,14 +91,20 @@ class InternalWorkflowRobot {
   }
 
   Future<void> returnToShell() async {
+    final activeHomeNav = find.byKey(OmcWidgetKeys.navHome).hitTestable();
     for (var attempt = 0; attempt < 3; attempt++) {
-      if (find.byKey(OmcWidgetKeys.navHome).evaluate().isNotEmpty) return;
+      if (activeHomeNav.evaluate().isNotEmpty) break;
       await tester.pageBack();
       await tester.pump(const Duration(milliseconds: 250));
     }
-    await waits.waitFor(
-      find.byKey(OmcWidgetKeys.navHome),
+    await waits.tapAndWait(
+      target: activeHomeNav,
+      destination: find.byKey(OmcWidgetKeys.homeScreen),
+      description: 'Internal Task detail -> Home',
+    );
+    await waits.waitForNetworkIdle(
       description: 'Return from internal Task detail to protected shell',
     );
+    waits.assertHealthy('Return from internal Task detail to protected shell');
   }
 }

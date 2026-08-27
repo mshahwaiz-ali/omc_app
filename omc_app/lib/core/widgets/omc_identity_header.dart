@@ -132,9 +132,7 @@ class _NotificationButton extends StatelessWidget {
                         border: Border.all(color: Colors.white, width: 1.5),
                       ),
                       child: Text(
-                        unreadNotifications > 9
-                            ? '9+'
-                            : '$unreadNotifications',
+                        unreadNotifications > 9 ? '9+' : '$unreadNotifications',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 9.5,

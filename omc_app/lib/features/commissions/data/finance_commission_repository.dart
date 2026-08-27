@@ -4,9 +4,10 @@ import '../../../app/providers/core_providers.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 
-final financeCommissionRepositoryProvider = Provider<FinanceCommissionRepository>(
-  (ref) => FinanceCommissionRepository(ref.watch(frappeClientProvider)),
-);
+final financeCommissionRepositoryProvider =
+    Provider<FinanceCommissionRepository>(
+      (ref) => FinanceCommissionRepository(ref.watch(frappeClientProvider)),
+    );
 
 class FinanceCommissionRepository {
   const FinanceCommissionRepository(this._client);
@@ -75,10 +76,7 @@ class FinanceCommissionRepository {
   }
 
   Future<void> approve(String allocationId) async {
-    await _review(
-      allocationId: allocationId,
-      decision: 'approve',
-    );
+    await _review(allocationId: allocationId, decision: 'approve');
   }
 
   Future<void> reject({
@@ -120,10 +118,7 @@ class FinanceCommissionRepository {
     if (id.isEmpty) {
       throw const ApiError(message: 'Commission allocation is required.');
     }
-    await _client.postMethod(
-      _markPayableMethod,
-      data: {'allocation': id},
-    );
+    await _client.postMethod(_markPayableMethod, data: {'allocation': id});
   }
 
   Future<void> markPaid({
@@ -255,7 +250,9 @@ class FinanceCommissionAllocation {
       customerName: _text(json['customer_name']),
       service: _text(json['service']),
       serviceTitle: _text(json['service_title']),
-      currency: _text(json['currency']).isEmpty ? 'PKR' : _text(json['currency']),
+      currency: _text(json['currency']).isEmpty
+          ? 'PKR'
+          : _text(json['currency']),
       basisAmount: _double(json['basis_amount']),
       commissionPercent: _double(json['commission_percent']),
       commissionAmount: _double(json['commission_amount']),

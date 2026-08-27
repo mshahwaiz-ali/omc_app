@@ -115,10 +115,7 @@ ThemeData _withAccentTheme(ThemeData base, OmcAppColors colors) {
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
-        minimumSize: const Size(
-          AppTouchTarget.minimum,
-          AppTouchTarget.minimum,
-        ),
+        minimumSize: const Size(AppTouchTarget.minimum, AppTouchTarget.minimum),
         foregroundColor: colors.accent,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
         textStyle: const TextStyle(fontWeight: FontWeight.w800),

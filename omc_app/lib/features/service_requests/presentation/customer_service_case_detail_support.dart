@@ -19,11 +19,7 @@ class _LoadingView extends StatelessWidget {
 }
 
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({
-    required this.title,
-    required this.message,
-    this.onRetry,
-  });
+  const _ErrorView({required this.title, required this.message, this.onRetry});
 
   final String title;
   final String message;
@@ -34,11 +30,7 @@ class _ErrorView extends StatelessWidget {
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(22),
-        child: AppErrorState(
-          title: title,
-          message: message,
-          onRetry: onRetry,
-        ),
+        child: AppErrorState(title: title, message: message, onRetry: onRetry),
       ),
     );
   }

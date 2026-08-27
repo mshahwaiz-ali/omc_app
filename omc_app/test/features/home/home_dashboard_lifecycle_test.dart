@@ -34,10 +34,7 @@ void main() {
     });
 
     test('cancelled lifecycle wins over operational Open', () {
-      final item = build(
-        requestState: 'Cancelled',
-        displayStatus: 'Cancelled',
-      );
+      final item = build(requestState: 'Cancelled', displayStatus: 'Cancelled');
 
       expect(item.statusLabel, 'Cancelled');
       expect(item.isTerminal, isTrue);
@@ -48,10 +45,7 @@ void main() {
         requestState: 'Ready for Activation',
         status: 'Completed',
       );
-      final completed = build(
-        requestState: 'Activated',
-        status: 'Completed',
-      );
+      final completed = build(requestState: 'Activated', status: 'Completed');
 
       expect(premature.isCompleted, isFalse);
       expect(completed.isCompleted, isTrue);

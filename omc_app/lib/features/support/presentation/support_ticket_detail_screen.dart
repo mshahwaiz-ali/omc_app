@@ -41,9 +41,7 @@ class SupportTicketDetailScreen extends ConsumerWidget {
                     : () => _retryNow(ref, cleanId),
               ),
             ),
-          Expanded(
-            child: legacy.SupportTicketDetailScreen(ticketId: ticketId),
-          ),
+          Expanded(child: legacy.SupportTicketDetailScreen(ticketId: ticketId)),
         ],
       ),
     );

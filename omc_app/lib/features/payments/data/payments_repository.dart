@@ -192,7 +192,11 @@ class PaymentsRepository {
           maxSizeBytes: 10 * 1024 * 1024,
         ),
         method: ApiConfig.uploadPaymentReceiptMultipartMethod,
-        extraFields: {'payment_id': cleanPaymentId, 'name': cleanPaymentId},
+        extraFields: {
+          'payment_id': cleanPaymentId,
+          'name': cleanPaymentId,
+          'idempotency_key': key,
+        },
         idempotencyKey: key,
         onProgress: onProgress,
         cancelToken: cancelToken,

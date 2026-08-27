@@ -334,7 +334,9 @@ class _RequiredDocumentsCard extends StatelessWidget {
                         width: 25,
                         height: 25,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF16A34A).withValues(alpha: 0.09),
+                          color: const Color(
+                            0xFF16A34A,
+                          ).withValues(alpha: 0.09),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
@@ -431,11 +433,7 @@ class _SubmitRequestBar extends StatelessWidget {
               if (useStackedLayout) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    status,
-                    const SizedBox(height: 8),
-                    button,
-                  ],
+                  children: [status, const SizedBox(height: 8), button],
                 );
               }
 

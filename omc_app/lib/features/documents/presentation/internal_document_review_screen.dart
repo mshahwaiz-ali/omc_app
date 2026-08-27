@@ -122,10 +122,7 @@ class _InternalDocumentReviewScreenState
     try {
       final page = await ref
           .read(documentsRepositoryProvider)
-          .fetchDocumentPage(
-            queue: _selectedFilter.queue,
-            start: start,
-          );
+          .fetchDocumentPage(queue: _selectedFilter.queue, start: start);
       if (!mounted) return;
 
       final firstPage = await _documentsFuture;

@@ -69,7 +69,9 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
                         width: AppTouchTarget.minimum,
                         height: AppTouchTarget.minimum,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(AppRadius.small + 2),
+                          borderRadius: BorderRadius.circular(
+                            AppRadius.small + 2,
+                          ),
                           border: Border.all(color: colors.outlineVariant),
                           boxShadow: const [
                             BoxShadow(

@@ -11,21 +11,22 @@ import 'support/edge_e2e_config.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('blank and wrong credentials are rejected, then valid login recovers', (
-    tester,
-  ) async {
-    final config = EdgeE2eConfig.fromEnvironment();
-    E2eNetworkAudit.clear();
+  testWidgets(
+    'blank and wrong credentials are rejected, then valid login recovers',
+    (tester) async {
+      final config = EdgeE2eConfig.fromEnvironment();
+      E2eNetworkAudit.clear();
 
-    await app.main();
-    await tester.pump();
+      await app.main();
+      await tester.pump();
 
-    final waits = E2eWaits(tester);
-    final auth = AuthRobot(tester, waits);
-    final security = SecurityRegressionRobot(tester, waits);
+      final waits = E2eWaits(tester);
+      final auth = AuthRobot(tester, waits);
+      final security = SecurityRegressionRobot(tester, waits);
 
-    await auth.ensureLoggedOut();
-    await security.verifyLoginValidationAndRecovery(config);
-    await auth.logoutAndVerifyProtection();
-  });
+      await auth.ensureLoggedOut();
+      await security.verifyLoginValidationAndRecovery(config);
+      await auth.logoutAndVerifyProtection();
+    },
+  );
 }

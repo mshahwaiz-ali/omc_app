@@ -64,7 +64,9 @@ class _InternalServiceCasesScreenState
   }
 
   Future<InternalServiceCasePage> _fetchPage({int start = 0}) {
-    return ref.read(internalServiceCasePageRepositoryProvider).fetchPage(
+    return ref
+        .read(internalServiceCasePageRepositoryProvider)
+        .fetchPage(
           start: start,
           limit: _pageSize,
           search: _search,
@@ -146,19 +148,21 @@ class _InternalServiceCasesScreenState
   List<InternalServiceCase> _applyPrimaryFilter(
     List<InternalServiceCase> cases,
   ) {
-    return cases.where((item) {
-      return switch (_primaryFilter) {
-        _CasePrimaryFilter.all => true,
-        _CasePrimaryFilter.active => item.isActive,
-        _CasePrimaryFilter.waiting =>
-          item.isWaitingCustomer || item.isWaitingPayment,
-        _CasePrimaryFilter.review =>
-          item.isInReview ||
-              item.uploadedDocuments > 0 ||
-              item.rejectedDocuments > 0,
-        _CasePrimaryFilter.completed => item.isCompleted,
-      };
-    }).toList(growable: false);
+    return cases
+        .where((item) {
+          return switch (_primaryFilter) {
+            _CasePrimaryFilter.all => true,
+            _CasePrimaryFilter.active => item.isActive,
+            _CasePrimaryFilter.waiting =>
+              item.isWaitingCustomer || item.isWaitingPayment,
+            _CasePrimaryFilter.review =>
+              item.isInReview ||
+                  item.uploadedDocuments > 0 ||
+                  item.rejectedDocuments > 0,
+            _CasePrimaryFilter.completed => item.isCompleted,
+          };
+        })
+        .toList(growable: false);
   }
 
   Future<void> _openFilters() async {
@@ -289,9 +293,11 @@ class _InternalServiceCasesScreenState
                       primaryFilter: _primaryFilter,
                     )
                   else ...[
-                    for (var index = 0;
-                        index < visibleCases.length;
-                        index++) ...[
+                    for (
+                      var index = 0;
+                      index < visibleCases.length;
+                      index++
+                    ) ...[
                       _ServiceCaseCard(serviceCase: visibleCases[index]),
                       if (index != visibleCases.length - 1)
                         const SizedBox(height: 10),
@@ -306,7 +312,9 @@ class _InternalServiceCasesScreenState
                         icon: _loadingMore
                             ? const SizedBox.square(
                                 dimension: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Icon(Icons.expand_more_rounded),
                         label: Text(
@@ -501,9 +509,10 @@ class _ServiceCaseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = _caseStatusColor(serviceCase);
-    final progress = (serviceCase.progressPercent ?? _derivedProgress(serviceCase))
-        .clamp(0, 100)
-        .toDouble() /
+    final progress =
+        (serviceCase.progressPercent ?? _derivedProgress(serviceCase))
+            .clamp(0, 100)
+            .toDouble() /
         100;
 
     return PremiumCard(
@@ -563,10 +572,7 @@ class _ServiceCaseCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _StatusPill(
-                  label: serviceCase.statusLabel,
-                  color: statusColor,
-                ),
+                _StatusPill(label: serviceCase.statusLabel, color: statusColor),
               ],
             ),
             const SizedBox(height: 13),
@@ -599,10 +605,7 @@ class _ServiceCaseCard extends StatelessWidget {
               spacing: 7,
               runSpacing: 7,
               children: [
-                _InfoChip(
-                  icon: Icons.tag_rounded,
-                  label: serviceCase.id,
-                ),
+                _InfoChip(icon: Icons.tag_rounded, label: serviceCase.id),
                 if (serviceCase.priority.trim().isNotEmpty &&
                     serviceCase.priority != '-')
                   _InfoChip(
@@ -831,8 +834,9 @@ class _CaseFilterSheetState extends State<_CaseFilterSheet> {
                 DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
               ],
               onChanged: (value) => setState(
-                () => _documentStatus =
-                    value == null || value.isEmpty ? null : value,
+                () => _documentStatus = value == null || value.isEmpty
+                    ? null
+                    : value,
               ),
             ),
             const SizedBox(height: 18),

@@ -16,7 +16,11 @@ abstract final class E2eRecordFinders {
   }) {
     final cleanId = recordId.trim();
     if (cleanId.isEmpty) {
-      throw ArgumentError.value(recordId, 'recordId', '$description ID is empty');
+      throw ArgumentError.value(
+        recordId,
+        'recordId',
+        '$description ID is empty',
+      );
     }
 
     // Both Track request cards and ERP Task cards render their authoritative

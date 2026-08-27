@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # Required: E2E_USERNAME and E2E_PASSWORD for a valid approved customer.
-# Optional: OMC_API_BASE_URL, FLUTTER_BIN, CHROMEDRIVER_BIN, E2E_WEB_PORT,
-#           E2E_DRIVER_PORT, and E2E_HEADLESS (true or false).
+# Optional: OMC_API_BASE_URL, OMC_E2E_RESOLVE_IP, E2E_CHROME_BINARY,
+#           OMC_E2E_REAL_CHROME_BIN, FLUTTER_BIN, CHROMEDRIVER_BIN,
+#           E2E_WEB_PORT, E2E_DRIVER_PORT, and E2E_HEADLESS (true or false).
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd -P)"
@@ -22,11 +23,15 @@ fail() {
   exit 1
 }
 
+source "$SCRIPT_DIR/e2e_web_runtime.sh"
+e2e_configure_web_runtime "$API_BASE_URL" "$SCRIPT_DIR" || \
+  fail "Unable to configure the local Chrome E2E runtime."
+
 [ -d "$FLUTTER_APP_DIR" ] || fail "Flutter app folder not found: $FLUTTER_APP_DIR"
 [ -n "${E2E_USERNAME:-}" ] || fail "E2E_USERNAME is required."
 [ -n "${E2E_PASSWORD:-}" ] || fail "E2E_PASSWORD is required."
 command -v "$FLUTTER_BIN" >/dev/null 2>&1 || fail "Flutter executable not found: $FLUTTER_BIN"
-curl -fsS --max-time 5 "$API_BASE_URL/api/method/ping" >/dev/null 2>&1 || \
+curl "${E2E_API_CURL_ARGS[@]}" "$API_BASE_URL/api/method/ping" >/dev/null 2>&1 || \
   fail "OMC backend ping failed at $API_BASE_URL. Start the selected backend and verify the URL."
 
 case "$HEADLESS" in
@@ -78,16 +83,19 @@ if [ "$HEADLESS" = false ]; then
 fi
 
 "$FLUTTER_BIN" drive \
-  --device-id=chrome \
+  --device-id=web-server \
+  --browser-name=chrome \
   --driver=test_driver/e2e_test.dart \
   --target=integration_test/e2e/smoke_test.dart \
-  --web-hostname=localhost \
+  --web-hostname="$E2E_WEB_BIND_HOST" \
   --web-port="$WEB_PORT" \
+  --web-launch-url="http://$E2E_WEB_ORIGIN_HOST:$WEB_PORT/" \
   --driver-port="$DRIVER_PORT" \
   "$headless_flag" \
+  "${E2E_CHROME_ARGS[@]}" \
   --dart-define=OMC_ENV=development \
   --dart-define=OMC_API_BASE_URL="$API_BASE_URL" \
-  --dart-define=OMC_LINK_BASE_URL="http://localhost:$WEB_PORT" \
+  --dart-define=OMC_LINK_BASE_URL="http://$E2E_WEB_ORIGIN_HOST:$WEB_PORT" \
   --dart-define=OMC_USE_MOCK_AUTH=false \
   --dart-define=OMC_USE_SERVICE_PREVIEW=false \
   --dart-define=OMC_ALLOW_SERVICE_CATALOGUE_FALLBACK=false \

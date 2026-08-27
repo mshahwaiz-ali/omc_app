@@ -1237,7 +1237,9 @@ class _ServiceHeroCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _StatusPill(
-                label: service.statusLabel.isEmpty ? 'In Progress' : service.statusLabel,
+                label: service.statusLabel.isEmpty
+                    ? 'In Progress'
+                    : service.statusLabel,
                 color: tone,
               ),
             ],

@@ -40,7 +40,9 @@ class EdgeE2eConfig {
       fail('E2E_OTHER_USERNAME must identify a different customer.');
     }
     if (invalidPassword.isEmpty || invalidPassword == primaryPassword) {
-      fail('E2E_INVALID_PASSWORD must be non-empty and different from the real password.');
+      fail(
+        'E2E_INVALID_PASSWORD must be non-empty and different from the real password.',
+      );
     }
     if (requestId.trim().isEmpty || taskId.trim().isEmpty) {
       fail('Phase 4 requires request/task markers from its backend preflight.');

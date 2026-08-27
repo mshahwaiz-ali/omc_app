@@ -65,9 +65,7 @@ class _LeadDetailBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusLabel = _leadStatusLabel(lead.status);
-    final leadRows = <CrmInfoRow>[
-      CrmInfoRow(label: 'Lead ID', value: lead.id),
-    ];
+    final leadRows = <CrmInfoRow>[CrmInfoRow(label: 'Lead ID', value: lead.id)];
 
     if (lead.serviceInterest != null) {
       leadRows.add(
@@ -75,9 +73,7 @@ class _LeadDetailBody extends StatelessWidget {
       );
     }
     if (lead.assignedTo != null) {
-      leadRows.add(
-        CrmInfoRow(label: 'Assigned to', value: lead.assignedTo!),
-      );
+      leadRows.add(CrmInfoRow(label: 'Assigned to', value: lead.assignedTo!));
     }
     if (lead.customerProfile != null) {
       leadRows.add(

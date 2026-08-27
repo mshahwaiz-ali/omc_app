@@ -140,6 +140,11 @@ class ServiceCatalogueRepository {
         completionTime: service.completionTime,
         basePrice: service.basePrice,
         currency: service.currency,
+        serviceVersion: service.serviceVersion,
+        pricingVersion: service.pricingVersion,
+        taxPolicy: service.taxPolicy,
+        taxRate: service.taxRate,
+        activationPolicy: service.activationPolicy,
         iconKey: service.iconKey,
         colorFamily: service.colorFamily,
         requirements: templateRequirements.isNotEmpty

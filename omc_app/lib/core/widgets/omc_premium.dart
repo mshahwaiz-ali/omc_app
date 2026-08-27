@@ -140,11 +140,7 @@ class OmcSurface extends StatelessWidget {
         borderRadius: borderRadius,
         child: onTap == null
             ? padded
-            : InkWell(
-                onTap: onTap,
-                borderRadius: borderRadius,
-                child: padded,
-              ),
+            : InkWell(onTap: onTap, borderRadius: borderRadius, child: padded),
       ),
     );
 
@@ -302,10 +298,7 @@ class OmcSectionHeader extends StatelessWidget {
         ),
         if (actionLabel != null) ...[
           const SizedBox(width: AppSpacing.xs),
-          TextButton(
-            onPressed: onAction,
-            child: Text(actionLabel!),
-          ),
+          TextButton(onPressed: onAction, child: Text(actionLabel!)),
         ],
       ],
     );
@@ -436,10 +429,6 @@ class OmcLockedOverlay extends StatelessWidget {
     );
 
     if (!locked) return content;
-    return Semantics(
-      container: true,
-      label: 'Locked',
-      child: content,
-    );
+    return Semantics(container: true, label: 'Locked', child: content);
   }
 }

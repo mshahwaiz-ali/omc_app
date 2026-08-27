@@ -30,10 +30,7 @@ void main() {
         requestState: 'Cancelled',
         displayStatus: 'Cancelled',
       );
-      final expired = build(
-        requestState: 'Expired',
-        displayStatus: 'Expired',
-      );
+      final expired = build(requestState: 'Expired', displayStatus: 'Expired');
 
       expect(cancelled.isCancelled, isTrue);
       expect(cancelled.isActive, isFalse);
@@ -59,10 +56,7 @@ void main() {
         requestState: 'Ready for Activation',
         status: 'Completed',
       );
-      final completed = build(
-        requestState: 'Activated',
-        status: 'Completed',
-      );
+      final completed = build(requestState: 'Activated', status: 'Completed');
 
       expect(premature.isCompleted, isFalse);
       expect(premature.isActive, isTrue);

@@ -10,7 +10,6 @@ void main() {
     );
   });
 
-
   test('referral analytics use canonical backend endpoints', () {
     expect(
       ApiConfig.getMyReferralSummaryMethod,

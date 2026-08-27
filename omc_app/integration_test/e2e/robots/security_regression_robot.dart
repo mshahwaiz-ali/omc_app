@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omc_app/core/diagnostics/e2e_network_audit.dart';
 import 'package:omc_app/core/diagnostics/omc_widget_keys.dart';
+import 'package:omc_app/core/widgets/app_button.dart';
 
 import '../support/edge_e2e_config.dart';
 import '../support/e2e_record_finders.dart';
@@ -77,13 +78,57 @@ class SecurityRegressionRobot {
     E2eNetworkAudit.clear();
 
     await tester.enterText(
+      find.byKey(OmcWidgetKeys.loginIdentifier),
+      config.primaryUsername,
+    );
+    await tester.enterText(
       find.byKey(OmcWidgetKeys.loginPassword),
       config.primaryPassword,
     );
-    await waits.tapAndWait(
-      target: find.byKey(OmcWidgetKeys.loginSubmit),
-      destination: find.byKey(OmcWidgetKeys.homeScreen),
+    final enabledSubmit = find.byWidgetPredicate(
+      (widget) =>
+          widget is AppButton &&
+          widget.key == OmcWidgetKeys.loginSubmit &&
+          !widget.isLoading &&
+          widget.onPressed != null,
+    );
+    await waits.waitFor(
+      enabledSubmit,
+      description: 'Login recovery action ready',
+      timeout: const Duration(seconds: 20),
+    );
+    await tester.ensureVisible(enabledSubmit.first);
+    await tester.tap(enabledSubmit.first);
+    await tester.pump();
+    final retryDeadline = DateTime.now().add(const Duration(seconds: 10));
+    while (find.byKey(OmcWidgetKeys.loginError).evaluate().isNotEmpty &&
+        find.byKey(OmcWidgetKeys.homeScreen).evaluate().isEmpty &&
+        E2eNetworkAudit.failures.isEmpty &&
+        DateTime.now().isBefore(retryDeadline)) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    final recoveryState = await waits.waitForAny(
+      {
+        'home': find.byKey(OmcWidgetKeys.homeScreen),
+        'login-error': find.byKey(OmcWidgetKeys.loginError),
+        'device-lock': find.byKey(OmcWidgetKeys.deviceLockScreen),
+        'under-review': find.byKey(OmcWidgetKeys.underReviewScreen),
+        'startup-error': find.byKey(OmcWidgetKeys.startupError),
+        'route-failure': find.byKey(OmcWidgetKeys.routeFailure),
+      },
       description: 'Valid login recovery after rejected password',
+      timeout: const Duration(seconds: 30),
+    );
+    if (recoveryState != 'home') {
+      fail(
+        'Valid login recovery reached $recoveryState. '
+        'API failures: ${E2eNetworkAudit.failures.join(', ')}',
+      );
+    }
+    await waits.waitForScreen(
+      find.byKey(OmcWidgetKeys.homeScreen),
+      description: 'Valid login recovery after rejected password',
+      timeout: const Duration(seconds: 30),
     );
     waits.assertHealthy('Valid login recovery after rejected password');
   }
@@ -96,16 +141,24 @@ class SecurityRegressionRobot {
     );
 
     final search = find.byType(TextField);
-    await waits.waitFor(search, description: 'Other customer request search');
-    await tester.enterText(search.first, config.requestId.trim());
-    await tester.pump(const Duration(milliseconds: 500));
-    await waits.waitForNetworkIdle(description: 'Other customer isolation search');
+    final trackState = await waits.waitForAny({
+      'search': search,
+      'empty': find.text('No service requests yet'),
+    }, description: 'Other customer request list state');
+    if (trackState == 'search') {
+      await tester.enterText(search.first, config.requestId.trim());
+      await tester.pump(const Duration(milliseconds: 500));
+      await waits.waitForNetworkIdle(
+        description: 'Other customer isolation search',
+      );
+    }
     waits.assertHealthy('Other customer isolation search');
 
     expect(
       E2eRecordFinders.requestCard(config.requestId),
       findsNothing,
-      reason: 'A different customer must not see the primary customer request card.',
+      reason:
+          'A different customer must not see the primary customer request card.',
     );
 
     await waits.tapAndWait(
@@ -126,7 +179,8 @@ class SecurityRegressionRobot {
       expect(
         find.byKey(OmcWidgetKeys.moreAction(actionId)),
         findsNothing,
-        reason: 'Normal customer must not receive internal More action $actionId.',
+        reason:
+            'Normal customer must not receive internal More action $actionId.',
       );
     }
     waits.assertHealthy('Other customer internal-menu isolation');

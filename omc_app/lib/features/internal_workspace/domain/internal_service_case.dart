@@ -182,7 +182,9 @@ class InternalServiceCase {
           : effectiveOperationalStatus;
     }
     return lifecycleState.isEmpty
-        ? (effectiveOperationalStatus.isEmpty ? 'Open' : effectiveOperationalStatus)
+        ? (effectiveOperationalStatus.isEmpty
+              ? 'Open'
+              : effectiveOperationalStatus)
         : lifecycleState;
   }
 

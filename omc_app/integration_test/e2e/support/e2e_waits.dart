@@ -50,7 +50,7 @@ class E2eWaits {
     required String description,
   }) async {
     await waitFor(target, description: '$description: action');
-    await tester.ensureVisible(target);
+    await tester.ensureVisible(target.first);
     await tester.pump(const Duration(milliseconds: 100));
     final hitTarget = target.hitTestable();
     if (hitTarget.evaluate().isEmpty) {

@@ -40,22 +40,25 @@ void main() {
       );
     });
 
-    test('keeps request draft controller separate from presentation sections', () {
-      final file = File(
-        'lib/features/service_requests/presentation/service_request_draft_screen.dart',
-      );
-      final source = file.readAsStringSync();
+    test(
+      'keeps request draft controller separate from presentation sections',
+      () {
+        final file = File(
+          'lib/features/service_requests/presentation/service_request_draft_screen.dart',
+        );
+        final source = file.readAsStringSync();
 
-      expect(file.lengthSync(), lessThan(30000));
-      expect(
-        source,
-        contains("part 'service_request_draft_form_sections.dart';"),
-      );
-      expect(
-        source,
-        contains("part 'service_request_draft_service_sections.dart';"),
-      );
-    });
+        expect(file.lengthSync(), lessThan(30000));
+        expect(
+          source,
+          contains("part 'service_request_draft_form_sections.dart';"),
+        );
+        expect(
+          source,
+          contains("part 'service_request_draft_service_sections.dart';"),
+        );
+      },
+    );
   });
 
   group('user-facing terminology', () {

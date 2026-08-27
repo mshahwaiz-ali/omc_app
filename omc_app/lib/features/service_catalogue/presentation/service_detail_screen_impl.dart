@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
@@ -109,6 +110,7 @@ class ServiceDetailScreen extends ConsumerWidget {
                 _normalizedServiceCopy(heroSubtitle);
 
         return Scaffold(
+          key: OmcWidgetKeys.serviceDetailScreen,
           body: Column(
             children: [
               AppBackHeader(
@@ -185,6 +187,7 @@ class ServiceDetailScreen extends ConsumerWidget {
                         width: double.infinity,
                         height: 52,
                         child: FilledButton.icon(
+                          key: OmcWidgetKeys.serviceStartRequest,
                           style: FilledButton.styleFrom(
                             backgroundColor: primaryColor,
                             foregroundColor: primaryForeground,

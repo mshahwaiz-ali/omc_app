@@ -378,18 +378,19 @@ class _MoreHeader extends StatelessWidget {
               CircleAvatar(
                 radius: 23,
                 backgroundColor: AppTheme.primarySoft,
-                backgroundImage: resolvedAvatarUrl == null
-                    ? null
-                    : NetworkImage(resolvedAvatarUrl),
-                child: resolvedAvatarUrl == null
-                    ? Text(
-                        _initials(cleanName),
-                        style: const TextStyle(
-                          color: AppTheme.primary,
-                          fontWeight: FontWeight.w900,
+                child: ClipOval(
+                  child: resolvedAvatarUrl == null
+                      ? _MoreAvatarFallback(name: cleanName)
+                      : Image.network(
+                          resolvedAvatarUrl,
+                          width: 46,
+                          height: 46,
+                          fit: BoxFit.cover,
+                          webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+                          errorBuilder: (_, _, _) =>
+                              _MoreAvatarFallback(name: cleanName),
                         ),
-                      )
-                    : null,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -426,6 +427,28 @@ class _MoreHeader extends StatelessWidget {
                   color: AppTheme.textSecondary,
                 ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MoreAvatarFallback extends StatelessWidget {
+  const _MoreAvatarFallback({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: 46,
+      child: Center(
+        child: Text(
+          _initials(name),
+          style: const TextStyle(
+            color: AppTheme.primary,
+            fontWeight: FontWeight.w900,
           ),
         ),
       ),

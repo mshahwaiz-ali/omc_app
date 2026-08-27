@@ -57,7 +57,10 @@ def eligibility(request) -> dict:
     settled = bool(
         frappe.db.exists(
             "OMC Accounting Link",
-            {"service_request": request.name, "accounting_status": "Settled"},
+            {
+                "base_request_key": request.name,
+                "accounting_status": "Settled",
+            },
         )
     )
     return {
@@ -194,7 +197,7 @@ def process_operation(operation_name: str) -> dict:
             request.name,
             "Activation Failed",
             reason="A stale bridge processing lease was recovered for a safe retry.",
-            actor="bridge",
+            actor=frappe.session.user,
             idempotency_key=f"stale-lease-recovered:{operation.operation_key}",
         )
         request = recovered.request
@@ -212,13 +215,16 @@ def process_operation(operation_name: str) -> dict:
     # Re-check settlement under the request row lock immediately before any ERP write.
     if request.payment_policy_snapshot == "Full Settlement" and not frappe.db.exists(
         "OMC Accounting Link",
-        {"service_request": request.name, "accounting_status": "Settled"},
+        {
+            "base_request_key": request.name,
+            "accounting_status": "Settled",
+        },
     ):
         request_lifecycle.transition_request_state(
             request.name,
             "Financial Hold",
             reason="Settlement was reversed before activation.",
-            actor="bridge",
+            actor=frappe.session.user,
             idempotency_key=f"hold:{operation.operation_key}",
         )
         frappe.db.set_value(
@@ -240,7 +246,7 @@ def process_operation(operation_name: str) -> dict:
         request.name,
         "Activating",
         reason="Durable ERP activation started.",
-        actor="bridge",
+        actor=frappe.session.user,
         idempotency_key=f"activating:{operation.operation_key}:{attempts}",
     )
 
@@ -251,7 +257,10 @@ def process_operation(operation_name: str) -> dict:
         # Final eligibility check while the request lock is still held.
         if request.payment_policy_snapshot == "Full Settlement" and not frappe.db.exists(
             "OMC Accounting Link",
-            {"service_request": request.name, "accounting_status": "Settled"},
+            {
+                "base_request_key": request.name,
+                "accounting_status": "Settled",
+            },
         ):
             raise frappe.ValidationError("Settlement changed before ERP activation.")
 
@@ -276,7 +285,7 @@ def process_operation(operation_name: str) -> dict:
             request.name,
             "Activated",
             reason="ERP Service and Task activation completed.",
-            actor="bridge",
+            actor=frappe.session.user,
             operational_status="In Progress",
             idempotency_key=f"activated:{operation.operation_key}",
         )
@@ -303,7 +312,7 @@ def process_operation(operation_name: str) -> dict:
             new_state="activated",
             idempotency_key=operation.operation_key,
             safe_reason="bridge_completed",
-            actor="bridge",
+            actor=frappe.session.user,
         )
         return {
             "status": "completed",
@@ -320,7 +329,7 @@ def process_operation(operation_name: str) -> dict:
                 request.name,
                 "Activation Failed",
                 reason="ERP activation could not be completed.",
-                actor="bridge",
+                actor=frappe.session.user,
                 idempotency_key=f"activation-failed:{operation.operation_key}:{attempts}",
             )
         frappe.log_error(frappe.get_traceback(), f"OMC Bridge Activation Failed: {request.name}")

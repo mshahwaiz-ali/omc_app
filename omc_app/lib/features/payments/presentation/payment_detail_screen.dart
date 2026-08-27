@@ -5,6 +5,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/mutation_invalidation.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/diagnostics/e2e_network_audit.dart';
+import '../../../core/diagnostics/omc_widget_keys.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../app/theme.dart';
@@ -37,6 +40,7 @@ class PaymentDetailScreen extends ConsumerWidget {
         : ref.watch(paymentDetailProvider(paymentId));
 
     return Scaffold(
+      key: OmcWidgetKeys.paymentDetailScreen,
       appBar: const AppBackHeader(title: 'Payment Details'),
       body: paymentAsync.when(
         data: (payment) {
@@ -978,7 +982,10 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
         fallbackMessage:
             'Receipt upload could not be completed right now. Please try again.',
       );
-      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+      final message = E2eNetworkAudit.enabled && error is ApiError
+          ? error.message
+          : failure.message;
+      messenger.showSnackBar(SnackBar(content: Text(message)));
     } finally {
       _receiptUploadCancelToken = null;
       if (mounted) {

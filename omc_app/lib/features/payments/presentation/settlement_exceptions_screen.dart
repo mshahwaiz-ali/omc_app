@@ -48,9 +48,8 @@ class _SettlementExceptionsScreenState
         actions: [
           IconButton(
             tooltip: 'Refresh exceptions',
-            onPressed: () => ref.invalidate(
-              financeReconciliationPageProvider(query),
-            ),
+            onPressed: () =>
+                ref.invalidate(financeReconciliationPageProvider(query)),
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
@@ -78,9 +77,8 @@ class _SettlementExceptionsScreenState
               ),
               const SizedBox(height: 12),
               FilledButton.icon(
-                onPressed: () => ref.invalidate(
-                  financeReconciliationPageProvider(query),
-                ),
+                onPressed: () =>
+                    ref.invalidate(financeReconciliationPageProvider(query)),
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text('Try again'),
               ),
@@ -241,11 +239,9 @@ class _SettlementExceptionsScreenState
 
     setState(() => _mutatingReview = item.id);
     try {
-      await ref.read(financeReconciliationRepositoryProvider).decide(
-            review: item.id,
-            decision: decision,
-            note: note,
-          );
+      await ref
+          .read(financeReconciliationRepositoryProvider)
+          .decide(review: item.id, decision: decision, note: note);
       if (!mounted) return;
       ref.invalidate(financeReconciliationPageProvider(_query));
       ScaffoldMessenger.of(context).showSnackBar(
@@ -264,9 +260,9 @@ class _SettlementExceptionsScreenState
         fallbackTitle: 'Review not updated',
         fallbackMessage: 'The settlement review could not be updated.',
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(failure.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(failure.message)));
     } finally {
       if (mounted) setState(() => _mutatingReview = null);
     }
@@ -400,12 +396,14 @@ class _ReviewCard extends StatelessWidget {
             item.reasonLabel.isEmpty ? item.reasonCode : item.reasonLabel,
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
-          if (item.requestState.isNotEmpty || item.serviceStatus.isNotEmpty) ...[
+          if (item.requestState.isNotEmpty ||
+              item.serviceStatus.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
-              [item.requestState, item.serviceStatus]
-                  .where((value) => value.isNotEmpty)
-                  .join(' • '),
+              [
+                item.requestState,
+                item.serviceStatus,
+              ].where((value) => value.isNotEmpty).join(' • '),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -545,7 +543,10 @@ class _InfoBanner extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
                 const SizedBox(height: 4),
                 Text(message),
               ],

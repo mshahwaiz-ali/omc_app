@@ -582,7 +582,9 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('More support tickets could not be loaded.')),
+        const SnackBar(
+          content: Text('More support tickets could not be loaded.'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _loadingMore = false);
@@ -618,7 +620,9 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ticket assignment could not be updated.')),
+        const SnackBar(
+          content: Text('Ticket assignment could not be updated.'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _assigningTicketId = null);
@@ -649,7 +653,9 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
             children: [
               Expanded(
                 child: _SectionHeader(
-                  title: isInternalQueue ? 'Support queue' : 'Your support tickets',
+                  title: isInternalQueue
+                      ? 'Support queue'
+                      : 'Your support tickets',
                   subtitle: isInternalQueue
                       ? 'Review active customer conversations and closed ticket history.'
                       : 'Track active support and review closed ticket history.',
@@ -757,11 +763,15 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
                         icon: _loadingMore
                             ? const SizedBox.square(
                                 dimension: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Icon(Icons.expand_more_rounded),
                         label: Text(
-                          _loadingMore ? 'Loading tickets' : 'Load more tickets',
+                          _loadingMore
+                              ? 'Loading tickets'
+                              : 'Load more tickets',
                         ),
                       ),
                     ),
@@ -1243,8 +1253,15 @@ class _TicketTile extends StatelessWidget {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Icon(Icons.person_add_alt_1_rounded, size: 16),
-                          label: Text(ticket.isAssigned ? 'Reassign to me' : 'Assign to me'),
+                              : const Icon(
+                                  Icons.person_add_alt_1_rounded,
+                                  size: 16,
+                                ),
+                          label: Text(
+                            ticket.isAssigned
+                                ? 'Reassign to me'
+                                : 'Assign to me',
+                          ),
                           style: TextButton.styleFrom(
                             visualDensity: VisualDensity.compact,
                             padding: const EdgeInsets.symmetric(horizontal: 8),

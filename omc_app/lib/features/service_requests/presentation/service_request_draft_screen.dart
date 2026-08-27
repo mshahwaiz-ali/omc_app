@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/diagnostics/e2e_network_audit.dart';
 import '../../../core/forms/dirty_form_controller.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/network/mutation_intent.dart';
 import '../../../core/widgets/app_state.dart';
@@ -574,8 +576,11 @@ class _ServiceRequestDraftScreenState
         fallbackMessage:
             'Request could not be submitted right now. Your entered information was retained.',
       );
+      final message = E2eNetworkAudit.enabled && error is ApiError
+          ? error.message
+          : failure.message;
       _dirtyFormController.submissionFailed();
-      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+      messenger.showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) {
         if (_dirtyFormController.isSubmitting) {

@@ -124,7 +124,9 @@ class _EmailVerificationScreenState
     });
 
     try {
-      final response = await ref.read(authRepositoryProvider).completeRegistration(
+      final response = await ref
+          .read(authRepositoryProvider)
+          .completeRegistration(
             token: widget.token.trim(),
             password: _passwordController.text,
           );

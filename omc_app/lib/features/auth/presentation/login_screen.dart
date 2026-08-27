@@ -303,9 +303,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final biometricAvailable =
         ref.watch(biometricLoginAvailableProvider).value ?? false;
     final isLoading =
-        (_submitted && authState.status == AuthStatus.authenticating) ||
-        _guestSubmissionInFlight ||
-        _biometricSubmissionInFlight;
+        _submitted || _guestSubmissionInFlight || _biometricSubmissionInFlight;
     final loginErrorMessage = _loginError ?? authState.message;
 
     return AuthEntryScaffold(

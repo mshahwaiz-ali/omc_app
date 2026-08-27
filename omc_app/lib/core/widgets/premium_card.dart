@@ -43,11 +43,7 @@ class PremiumCard extends StatelessWidget {
         borderRadius: borderRadius,
         child: onTap == null
             ? content
-            : InkWell(
-                onTap: onTap,
-                borderRadius: borderRadius,
-                child: content,
-              ),
+            : InkWell(onTap: onTap, borderRadius: borderRadius, child: content),
       ),
     );
 

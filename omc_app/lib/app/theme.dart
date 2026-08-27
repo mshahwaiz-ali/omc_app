@@ -286,7 +286,9 @@ class AppTheme {
 
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(AppTouchTarget.primaryButtonHeight),
+          minimumSize: const Size.fromHeight(
+            AppTouchTarget.primaryButtonHeight,
+          ),
           backgroundColor: primary,
           foregroundColor: Colors.white,
           disabledBackgroundColor: const Color(0xFFE2E8F0),
@@ -299,7 +301,9 @@ class AppTheme {
 
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          minimumSize: const Size.fromHeight(AppTouchTarget.primaryButtonHeight),
+          minimumSize: const Size.fromHeight(
+            AppTouchTarget.primaryButtonHeight,
+          ),
           backgroundColor: primary,
           foregroundColor: Colors.white,
           disabledBackgroundColor: const Color(0xFFE2E8F0),

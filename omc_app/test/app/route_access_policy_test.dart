@@ -69,7 +69,10 @@ void main() {
         isFalse,
       );
       expect(
-        canAccessRoute('/internal-workspace/future-area', internalWorkspaceOnly),
+        canAccessRoute(
+          '/internal-workspace/future-area',
+          internalWorkspaceOnly,
+        ),
         isFalse,
       );
     });
@@ -82,10 +85,7 @@ void main() {
         canReviewPayments: true,
       );
       expect(canAccessRoute('/payments', reviewer), isTrue);
-      expect(
-        canAccessRoute('/internal-workspace/payments', reviewer),
-        isTrue,
-      );
+      expect(canAccessRoute('/internal-workspace/payments', reviewer), isTrue);
     });
 
     test('requires explicit tracking capability', () {
@@ -136,17 +136,11 @@ void main() {
         canCreateSupportTicket: true,
       );
 
-      expect(
-        canAccessRoute('/support-tickets/OMC-SUP-0001', customer),
-        isTrue,
-      );
+      expect(canAccessRoute('/support-tickets/OMC-SUP-0001', customer), isTrue);
     });
 
     test('internal workspace access does not imply notification authority', () {
-      expect(
-        canAccessRoute('/notifications', internalWorkspaceOnly),
-        isFalse,
-      );
+      expect(canAccessRoute('/notifications', internalWorkspaceOnly), isFalse);
 
       const customer = AuthCapabilities(
         accessState: AccountAccessState.approved,

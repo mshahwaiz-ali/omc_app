@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omc_app/core/diagnostics/omc_widget_keys.dart';
 
@@ -66,9 +67,53 @@ class AuthRobot {
     );
     await tester.pump();
 
-    await waits.tapAndWait(
-      target: find.byKey(OmcWidgetKeys.loginSubmit),
-      destination: find.byKey(OmcWidgetKeys.homeScreen),
+    final submit = find.byKey(OmcWidgetKeys.loginSubmit);
+    await waits.waitFor(submit, description: 'Real password login action');
+    await tester.ensureVisible(submit);
+    final tappableSubmit = submit.hitTestable();
+    if (tappableSubmit.evaluate().isEmpty) {
+      fail('Real password login action rendered but was not tappable.');
+    }
+    await tester.tap(tappableSubmit.first);
+    await tester.pump();
+
+    final state = await waits.waitForAny(
+      {
+        'home': find.byKey(OmcWidgetKeys.homeScreen),
+        'login-error': find.byKey(OmcWidgetKeys.loginError),
+        'device-lock': find.byKey(OmcWidgetKeys.deviceLockScreen),
+        'under-review': find.byKey(OmcWidgetKeys.underReviewScreen),
+        'startup-error': find.byKey(OmcWidgetKeys.startupError),
+        'route-failure': find.byKey(OmcWidgetKeys.routeFailure),
+      },
+      description: 'Real password login result',
+      timeout: const Duration(seconds: 30),
+    );
+
+    if (state != 'home') {
+      if (state == 'login-error') {
+        final messages = find
+            .descendant(
+              of: find.byKey(OmcWidgetKeys.loginError),
+              matching: find.byType(Text),
+            )
+            .evaluate()
+            .map((element) => element.widget)
+            .whereType<Text>()
+            .map((widget) => widget.data)
+            .whereType<String>()
+            .where((message) => message.trim().isNotEmpty)
+            .join(' | ');
+        fail(
+          'Real password login was rejected by the app'
+          '${messages.isEmpty ? '.' : ': $messages'}',
+        );
+      }
+      fail('Real password login reached unexpected state: $state.');
+    }
+
+    await waits.waitForScreen(
+      find.byKey(OmcWidgetKeys.homeScreen),
       description: 'Real password login -> Home',
     );
   }
@@ -89,11 +134,13 @@ class AuthRobot {
   }
 
   Future<void> _logoutCurrentSession() async {
-    await waits.tapAndWait(
-      target: find.byKey(OmcWidgetKeys.navMore),
-      destination: find.byKey(OmcWidgetKeys.moreScreen),
-      description: 'Open More for logout',
-    );
+    if (find.byKey(OmcWidgetKeys.moreScreen).evaluate().isEmpty) {
+      await waits.tapAndWait(
+        target: find.byKey(OmcWidgetKeys.navMore),
+        destination: find.byKey(OmcWidgetKeys.moreScreen),
+        description: 'Open More for logout',
+      );
+    }
     final logout = find.byKey(OmcWidgetKeys.moreAction('logout'));
     final login = find.byKey(OmcWidgetKeys.moreAction('login'));
     final action = logout.evaluate().isNotEmpty ? logout : login;

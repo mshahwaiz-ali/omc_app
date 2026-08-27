@@ -338,8 +338,6 @@ class DocumentsRepository {
         allowedExtensions: {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'},
         maxSizeBytes: 10 * 1024 * 1024,
       ),
-      doctype: ApiConfig.serviceRequestUploadDoctype,
-      docname: serviceRequestId,
     );
 
     final uploadedFileUrl = _extractFileUrl(uploadResponse);

@@ -263,8 +263,9 @@ class InternalHomeView extends ConsumerWidget {
       }
 
       final lifecycle = service.lifecycleState.trim().toLowerCase();
-      final operational =
-          service.effectiveOperationalStatus.trim().toLowerCase();
+      final operational = service.effectiveOperationalStatus
+          .trim()
+          .toLowerCase();
       if (lifecycle == 'financial hold' ||
           lifecycle == 'activation failed' ||
           lifecycle == 'pending payment' ||
