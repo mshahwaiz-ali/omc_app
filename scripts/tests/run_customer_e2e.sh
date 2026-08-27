@@ -145,7 +145,7 @@ run_flutter_leg \
 
 echo "=== CUSTOMER E2E FINANCE: REVIEW + ERP SETTLEMENT + ACTIVATION ==="
 set +e
-settlement_output="$((
+settlement_output="$(
   cd -- "$BENCH_DIR"
   OMC_E2E_CONTROL=1 \
   E2E_USERNAME="$E2E_USERNAME" \
@@ -153,8 +153,8 @@ settlement_output="$((
   E2E_FINANCE_USER="$E2E_FINANCE_USER" \
   E2E_INVOICE_ITEM_CODE="$E2E_INVOICE_ITEM_CODE" \
   E2E_PAYMENT_ACCOUNT="$E2E_PAYMENT_ACCOUNT" \
-  "$BENCH_BIN" --site "$SITE" execute omc_app.e2e_control.settle_latest_customer_request
-) 2>&1)"
+  "$BENCH_BIN" --site "$SITE" execute omc_app.e2e_control.settle_latest_customer_request 2>&1
+)"
 settlement_status=$?
 set -e
 printf '%s\n' "$settlement_output"
