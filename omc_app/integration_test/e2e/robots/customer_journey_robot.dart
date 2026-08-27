@@ -40,22 +40,21 @@ class CustomerJourneyRobot {
     await tester.tap(startRequest.first.hitTestable());
     await tester.pump();
 
-    await waits.waitForAny(
+    final startState = await waits.waitForAny(
       {
         'draft': find.text('Client details'),
         'duplicate': find.text('Service already in progress'),
       },
       description: 'Start request destination',
-    ).then((state) async {
-      if (state == 'duplicate') {
-        fail(
-          'The selected E2E customer already has an active '
-          '${config.serviceTitle} request. Use a clean approved customer or '
-          'a service that permits a fresh request; the E2E does not bypass '
-          'duplicate protection.',
-        );
-      }
-    });
+    );
+    if (startState == 'duplicate') {
+      fail(
+        'The selected E2E customer already has an active '
+        '${config.serviceTitle} request. Use a clean approved customer or '
+        'a service that permits a fresh request; the E2E does not bypass '
+        'duplicate protection.',
+      );
+    }
 
     await _fillRequestForm(config);
     await _submitRequest();
@@ -139,7 +138,7 @@ class CustomerJourneyRobot {
       if (!required) continue;
 
       await tester.ensureVisible(finder);
-      await tester.enterText(finder, _valueForTextField(widget, label, config));
+      await tester.enterText(finder, _valueForTextField(label, config));
       await tester.pump(const Duration(milliseconds: 100));
     }
 
@@ -147,26 +146,16 @@ class CustomerJourneyRobot {
     final dropdownCount = dropdowns.evaluate().length;
     for (var index = 0; index < dropdownCount; index++) {
       final finder = dropdowns.at(index);
-      final widget = tester.widget<DropdownButtonFormField<String>>(finder);
-      final items = widget.items ?? const <DropdownMenuItem<String>>[];
-      if (items.isEmpty) continue;
-      final firstValue = items
-          .map((item) => item.value)
-          .whereType<String>()
-          .where((value) => value.trim().isNotEmpty)
-          .firstOrNull;
-      if (firstValue == null) continue;
-
       await tester.ensureVisible(finder);
       await tester.tap(finder.hitTestable());
       await tester.pump(const Duration(milliseconds: 250));
-      final option = find.text(firstValue);
-      if (option.evaluate().isNotEmpty) {
-        await tester.tap(option.last.hitTestable());
-        await tester.pump(const Duration(milliseconds: 250));
-      } else {
-        fail('Dropdown option "$firstValue" could not be selected in the real form.');
+
+      final options = find.byType(DropdownMenuItem<String>).hitTestable();
+      if (options.evaluate().isEmpty) {
+        fail('A real request-form dropdown opened without selectable options.');
       }
+      await tester.tap(options.first);
+      await tester.pump(const Duration(milliseconds: 250));
     }
 
     final checks = find.byType(CheckboxListTile);
@@ -183,11 +172,7 @@ class CustomerJourneyRobot {
     waits.assertHealthy('Customer request form completion');
   }
 
-  String _valueForTextField(
-    TextFormField widget,
-    String label,
-    E2eConfig config,
-  ) {
+  String _valueForTextField(String label, E2eConfig config) {
     final normalized = label.toLowerCase();
     if (normalized.contains('email')) {
       return config.username.contains('@')
@@ -306,14 +291,5 @@ class CustomerJourneyRobot {
     if (find.byType(SnackBar).evaluate().isNotEmpty) {
       fail('Expected success snackbar did not close within 5 seconds.');
     }
-  }
-}
-
-extension _FirstOrNull<T> on Iterable<T> {
-  T? get firstOrNull {
-    for (final value in this) {
-      return value;
-    }
-    return null;
   }
 }
