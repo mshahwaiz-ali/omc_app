@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:omc_app/core/diagnostics/omc_widget_keys.dart';
 
 import '../support/e2e_config.dart';
+import '../support/e2e_record_finders.dart';
 import '../support/e2e_waits.dart';
 
 class CustomerJourneyRobot {
@@ -75,17 +76,14 @@ class CustomerJourneyRobot {
     await tester.pump(const Duration(milliseconds: 400));
     await waits.waitForNetworkIdle(description: 'Filtered request tracking');
 
-    final requestReference = find.text(config.requestId.trim());
+    final requestCard = E2eRecordFinders.requestCard(config.requestId);
     await waits.waitFor(
-      requestReference,
-      description: 'Settled request ${config.requestId}',
+      requestCard,
+      description: 'Settled request card ${config.requestId}',
       timeout: const Duration(seconds: 20),
     );
-
-    final viewDetails = find.text('View details');
-    await waits.waitFor(viewDetails, description: 'Open settled request');
-    await tester.ensureVisible(viewDetails.first);
-    await tester.tap(viewDetails.first.hitTestable());
+    await tester.ensureVisible(requestCard.first);
+    await tester.tap(requestCard.first.hitTestable());
     await tester.pump();
 
     await waits.waitFor(
