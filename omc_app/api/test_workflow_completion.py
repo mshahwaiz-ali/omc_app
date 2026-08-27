@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 
+from omc_app import e2e_internal_control
 from omc_app.api import workflow_automation
 
 
@@ -12,6 +13,26 @@ class TestWorkflowCompletion(TestCase):
             title="Test Service",
             service="TEST-SERVICE",
             customer_profile="OMC-CUST-TEST",
+        )
+
+    def test_e2e_precompletion_keeps_real_blockers_except_pending_task_transition(
+        self,
+    ):
+        with patch.object(
+            e2e_internal_control.workflow_automation,
+            "completion_blockers",
+            return_value=[
+                "Required payment has not been confirmed.",
+                "Operational ERP Task is not complete.",
+            ],
+        ):
+            blockers = e2e_internal_control._precompletion_blockers(
+                self._case(),
+            )
+
+        self.assertEqual(
+            blockers,
+            ["Required payment has not been confirmed."],
         )
 
     @patch.object(

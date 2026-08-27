@@ -25,6 +25,15 @@ class TestErpServiceTaskAdapter(FrappeTestCase):
         request.set = MagicMock()
         return request
 
+    def test_service_remarks_fit_legacy_data_field_and_keep_request_identity(self):
+        request = self._request()
+        request.description = "Request detail " * 100
+
+        remarks = erp_service_task_adapter._service_remarks(request)
+
+        self.assertLessEqual(len(remarks), 140)
+        self.assertIn(request.name, remarks)
+
     def test_missing_customer_and_task_type_returns_pending_configuration(self):
         request = self._request()
         service = SimpleNamespace(name="tax-filing", erp_task_type="")

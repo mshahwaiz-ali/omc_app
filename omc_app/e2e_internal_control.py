@@ -208,6 +208,50 @@ def _assert_request_status(request_name: str, expected: str, step: str) -> None:
         )
 
 
+def _precompletion_blockers(request) -> list[str]:
+    return [
+        blocker
+        for blocker in workflow_automation.completion_blockers(request)
+        if blocker != "Operational ERP Task is not complete."
+    ]
+
+
+def _assert_completed_evidence(request, task) -> None:
+    request.reload()
+    task.reload()
+    if str(task.status or "").strip() != "Completed":
+        frappe.throw("Completed E2E request does not retain a completed ERP Task.")
+    if str(request.status or "").strip() != "Completed":
+        frappe.throw("Completed ERP Task did not retain customer status Completed.")
+    if request.request_state != "Activated":
+        frappe.throw(
+            "Completing ERP work must not rewrite the payment-first activation state; "
+            f"got {request.request_state}."
+        )
+    if request.erp_task != task.name:
+        frappe.throw("Task completion changed the canonical ERP Task link unexpectedly.")
+    if not request.closed_on:
+        frappe.throw("Completed E2E request did not record closed_on.")
+
+    service_status_field = frappe.get_meta("Service").get_field("status")
+    if not service_status_field:
+        return
+    allowed_service_statuses = {
+        value.strip()
+        for value in str(getattr(service_status_field, "options", "") or "").splitlines()
+        if value.strip()
+    }
+    if "Completed" not in allowed_service_statuses:
+        return
+    erp_service_status = str(
+        frappe.db.get_value("Service", request.erp_service, "status") or ""
+    ).strip()
+    if erp_service_status != "Completed":
+        frappe.throw(
+            "ERP Task completion did not propagate Completed to the linked ERP Service."
+        )
+
+
 def approve_documents_and_complete_work() -> str:
     context = _runtime_context()
     request = context["request"]
@@ -217,6 +261,17 @@ def approve_documents_and_complete_work() -> str:
     _approve_uploaded_documents(request.name)
 
     task.reload()
+    request.reload()
+    task_completed = str(task.status or "").strip() == "Completed"
+    request_completed = str(request.status or "").strip() == "Completed"
+    if task_completed or request_completed:
+        if not (task_completed and request_completed):
+            frappe.throw(
+                "Phase 3 found inconsistent terminal ERP Task and customer request states."
+            )
+        _assert_completed_evidence(request, task)
+        return _markers(request, task)
+
     options = _operation_options(task)
     working_operation = next(
         (
@@ -253,7 +308,7 @@ def approve_documents_and_complete_work() -> str:
             )
 
     request.reload()
-    blockers = workflow_automation.completion_blockers(request)
+    blockers = _precompletion_blockers(request)
     if blockers:
         frappe.throw(
             "Phase 3 cannot complete the ERP Task because real workflow blockers remain: "
@@ -263,31 +318,6 @@ def approve_documents_and_complete_work() -> str:
     final_operation = "Submitted by QC" if "Submitted by QC" in options else None
     _save_task(task, status="Completed", operation_status=final_operation)
     _assert_request_status(request.name, "Completed", "ERP Task completion")
-
-    request.reload()
-    if request.request_state != "Activated":
-        frappe.throw(
-            "Completing ERP work must not rewrite the payment-first activation state; "
-            f"got {request.request_state}."
-        )
-    if request.erp_task != task.name:
-        frappe.throw("Task completion changed the canonical ERP Task link unexpectedly.")
-    if not request.closed_on:
-        frappe.throw("Completed E2E request did not record closed_on.")
-
-    erp_service_status = str(
-        frappe.db.get_value("Service", request.erp_service, "status") or ""
-    ).strip()
-    allowed_service_statuses = {
-        value.strip()
-        for value in str(
-            getattr(frappe.get_meta("Service").get_field("status"), "options", "") or ""
-        ).splitlines()
-        if value.strip()
-    }
-    if "Completed" in allowed_service_statuses and erp_service_status != "Completed":
-        frappe.throw(
-            "ERP Task completion did not propagate Completed to the linked ERP Service."
-        )
+    _assert_completed_evidence(request, task)
 
     return _markers(request, task)

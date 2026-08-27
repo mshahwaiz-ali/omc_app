@@ -103,6 +103,16 @@ def enforce_rate_limit(
     return RateLimitResult(action, highest, configured_limit, configured_window)
 
 
+def clear_actor_rate_limit(action: str, *, actor: str) -> None:
+    """Clear one actor bucket after the protected operation succeeds."""
+    action = _safe_code(action)
+    _, window_seconds = RATE_LIMITS.get(action, (60, 3600))
+    bucket = int(now_datetime().timestamp()) // window_seconds
+    key = f"omc:rate:{action}:actor:{_subject_hash(actor)}:{bucket}"
+    # enforce_rate_limit uses Redis' raw INCR, so delete the same raw key.
+    frappe.cache().delete(key)
+
+
 def audit_event(
     *,
     event_type: str,

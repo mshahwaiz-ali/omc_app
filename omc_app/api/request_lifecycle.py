@@ -393,7 +393,7 @@ def expire_request(request_name: str) -> bool:
         request.name,
         "Expired",
         reason="Pending request expired before payment/activation eligibility.",
-        actor="scheduler",
+        actor=frappe.session.user,
         idempotency_key=f"expiry:{request.name}",
     )
     return True

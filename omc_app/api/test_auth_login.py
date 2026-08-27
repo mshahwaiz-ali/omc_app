@@ -79,6 +79,7 @@ class TestMultiIdentifierLogin(FrappeTestCase):
             ),
         )
 
+    @patch("omc_app.api.auth_login.security.clear_actor_rate_limit", return_value=None)
     @patch("omc_app.api.auth_login.security.enforce_rate_limit", return_value=None)
     @patch("omc_app.api.auth_login.LoginManager")
     @patch("omc_app.api.auth_login.resolve_login_email")
@@ -87,6 +88,7 @@ class TestMultiIdentifierLogin(FrappeTestCase):
         resolve,
         manager_type,
         _rate_limit,
+        clear_rate_limit,
     ):
         resolve.return_value = "person@example.com"
         manager = MagicMock()
@@ -107,6 +109,7 @@ class TestMultiIdentifierLogin(FrappeTestCase):
             pwd="correct-password",
         )
         manager.post_login.assert_called_once_with()
+        clear_rate_limit.assert_called_once_with("login", actor="demo-user")
         self.assertEqual(result["email"], "person@example.com")
 
     @patch("omc_app.api.auth_login.security.enforce_rate_limit", return_value=None)

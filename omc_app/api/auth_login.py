@@ -140,6 +140,7 @@ def login(identifier: str | None = None, password: str | None = None):
         manager = LoginManager()
         manager.authenticate(user=user, pwd=secret)
         manager.post_login()
+        security.clear_actor_rate_limit("login", actor=str(identifier or ""))
     except AuthenticationError:
         frappe.throw(_(GENERIC_LOGIN_ERROR), AuthenticationError)
     except Exception:

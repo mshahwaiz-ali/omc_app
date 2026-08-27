@@ -19,6 +19,12 @@ def _set_if_field(doc, fieldname: str, value: Any) -> None:
         doc.set(fieldname, value)
 
 
+def _service_remarks(request) -> str:
+    # The legacy Service custom field is Data (140 characters). The complete
+    # request description is retained on the linked ERP Task below.
+    return f"Created from OMC Service Request {request.name}."
+
+
 def _set_request_state(request, *, status: str, customer="", service="", task="", error="") -> None:
     values = {
         "erp_sync_status": status,
@@ -135,7 +141,7 @@ def _create_service(request, service, profile, customer: str, task_type: str):
     _set_if_field(
         doc,
         "custom_remarks",
-        f"Created from OMC Service Request {request.name}. {_text(getattr(request, 'description', None))}".strip(),
+        _service_remarks(request),
     )
     doc.insert(ignore_permissions=True)
     return doc
