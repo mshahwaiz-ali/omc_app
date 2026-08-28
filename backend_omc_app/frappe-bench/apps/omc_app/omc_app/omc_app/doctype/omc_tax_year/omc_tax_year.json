@@ -9,6 +9,7 @@
  "field_order": [
   "year_section",
   "tax_year",
+  "app_defaults_managed",
   "title",
   "country",
   "currency",
@@ -16,6 +17,10 @@
   "effective_to",
   "status",
   "is_active",
+  "surcharge_section",
+  "section_4ab_threshold",
+  "salary_surcharge_percent",
+  "non_salaried_surcharge_percent",
   "verification_section",
   "source_reference",
   "last_verified_on",
@@ -36,6 +41,15 @@
    "label": "Tax Year",
    "reqd": 1,
    "unique": 1
+  },
+  {
+   "default": "0",
+   "description": "Set only by the source-controlled OMC app-ready defaults provisioner. Unmanaged tax years are never modified or archived by defaults reconciliation.",
+   "fieldname": "app_defaults_managed",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "App Defaults Managed",
+   "read_only": 1
   },
   {
    "bold": 1,
@@ -94,6 +108,30 @@
    "in_standard_filter": 1,
    "label": "Is Active",
    "search_index": 1
+  },
+  {
+   "fieldname": "surcharge_section",
+   "fieldtype": "Section Break",
+   "label": "Section 4AB Surcharge"
+  },
+  {
+   "default": "0",
+   "description": "Taxable-income threshold above which the configured section 4AB surcharge applies. Zero means no configured threshold.",
+   "fieldname": "section_4ab_threshold",
+   "fieldtype": "Currency",
+   "label": "Section 4AB Threshold"
+  },
+  {
+   "default": "0",
+   "fieldname": "salary_surcharge_percent",
+   "fieldtype": "Percent",
+   "label": "Salary Surcharge Percent"
+  },
+  {
+   "default": "0",
+   "fieldname": "non_salaried_surcharge_percent",
+   "fieldtype": "Percent",
+   "label": "Non-Salaried Surcharge Percent"
   },
   {
    "fieldname": "verification_section",
