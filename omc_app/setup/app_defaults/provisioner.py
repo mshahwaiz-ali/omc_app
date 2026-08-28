@@ -13,6 +13,7 @@ from omc_app.setup.app_defaults.mobile_settings import preview_mobile_settings, 
 from omc_app.setup.app_defaults.onboarding_provisioner import preview_onboarding_slides, sync_onboarding_slides, validate_onboarding_slides
 from omc_app.setup.app_defaults.quick_action_provisioner import preview_quick_actions, sync_quick_actions, validate_quick_actions
 from omc_app.setup.app_defaults.stage_provisioner import preview_stage_defaults, sync_stage_defaults, validate_stage_defaults
+from omc_app.setup.app_defaults.tax_provisioner import preview_tax_defaults, sync_tax_defaults, validate_tax_defaults
 
 PreviewFn = Callable[[], dict[str, Any]]
 ValidateFn = Callable[[], dict[str, Any]]
@@ -27,6 +28,7 @@ COMPONENTS: tuple[tuple[str, PreviewFn, SyncFn, ValidateFn], ...] = (
     ("knowledge_articles", preview_knowledge_articles, sync_knowledge_articles, validate_knowledge_articles),
     ("quick_actions", preview_quick_actions, sync_quick_actions, validate_quick_actions),
     ("banners", preview_banners, sync_banners, validate_banners),
+    ("tax_defaults", preview_tax_defaults, sync_tax_defaults, validate_tax_defaults),
 )
 
 MUTATION_KEYS = ("create", "adopt", "update", "deactivate", "archive")
