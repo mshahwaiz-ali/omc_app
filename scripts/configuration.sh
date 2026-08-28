@@ -3,7 +3,7 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 umask 077
 
-SCRIPT_VERSION="1.2.1"
+SCRIPT_VERSION="1.3.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEFAULT_BENCH_DIR="$(cd "$APP_ROOT/../.." 2>/dev/null && pwd || true)"
@@ -42,13 +42,19 @@ Environment alternatives:
   BENCH_DIR=/path/to/frappe-bench
   SITE_NAME=your.site.name
 
-The script is safe to rerun. It uses OMC's idempotent migration/catalogue
-operations and stops on failed compatibility, migration, catalogue or service
-presentation validation.
+The script is safe to rerun. It uses OMC's idempotent migration, catalogue and
+app-ready-default operations and stops on failed compatibility, migration,
+catalogue, presentation or app-default validation.
 
 Service catalogue synchronization atomically applies the managed service rows,
 customer-facing short/long descriptions, support copy and Employee assignment
-role in one database transaction.
+role in one database transaction. App-ready synchronization then reconciles
+source-controlled mobile content, workflow stages, expense categories, mobile
+settings and verified tax-calculator defaults without taking ownership of
+unknown client-managed rows.
+
+Payment-account/bank details, secrets, users and runtime transaction records are
+intentionally outside app-ready defaults and remain client/runtime-owned.
 
 Human-readable summaries are written to the main log. Full raw JSON command
 outputs are preserved separately in a timestamped evidence directory.
@@ -77,7 +83,7 @@ on_error() {
         printf 'Raw evidence: %s\n' "$EVIDENCE_DIR" >&2
     fi
     printf 'Fix the reported issue, then rerun the script.\n' >&2
-    printf 'Do not bypass failed ERP/catalogue safety checks.\n' >&2
+    printf 'Do not bypass failed ERP/catalogue/app-default safety checks.\n' >&2
     printf '============================================================\n' >&2
     exit "$rc"
 }
@@ -314,6 +320,15 @@ else:
 PY
 }
 
+print_app_defaults_summary() {
+    local file="$1"
+    printf 'Safe to sync:      %s\n' "$(json_value "$file" "safe_to_sync")"
+    printf 'Converged:         %s\n' "$(json_value "$file" "converged")"
+    printf 'Components:        %s\n' "$(json_value "$file" "summary.components")"
+    printf 'Pending mutations: %s\n' "$(json_value "$file" "summary.pending_mutations")"
+    printf 'Unsafe components: %s\n' "$(json_value "$file" "summary.unsafe_components")"
+}
+
 backup_site() {
     local label="$1"
     step "Backup: $label"
@@ -502,6 +517,33 @@ capture_json "09-service-presentation-validate" "presentation_validate" \
 [[ "$(json_value "$PRESENTATION_VALIDATE" "valid")" == "true" ]] ||
     fail "Service presentation validation failed."
 
+step "Preview source-controlled app-ready defaults"
+APP_DEFAULTS_PREVIEW="$EVIDENCE_DIR/10-app-defaults-preview.json"
+"$BENCH_CMD" --site "$SITE" execute \
+    omc_app.setup.operations.preview_app_defaults >"$APP_DEFAULTS_PREVIEW"
+print_app_defaults_summary "$APP_DEFAULTS_PREVIEW"
+[[ "$(json_value "$APP_DEFAULTS_PREVIEW" "safe_to_sync")" == "true" ]] ||
+    fail "App-ready defaults preview is not safe to sync. Review blockers/conflicts in raw evidence."
+
+step "Synchronize source-controlled app-ready defaults"
+APP_DEFAULTS_SYNC="$EVIDENCE_DIR/11-app-defaults-sync.json"
+"$BENCH_CMD" --site "$SITE" execute \
+    omc_app.setup.operations.sync_app_defaults >"$APP_DEFAULTS_SYNC"
+printf 'Committed: %s\n' "$(json_value "$APP_DEFAULTS_SYNC" "committed")"
+printf 'Valid:     %s\n' "$(json_value "$APP_DEFAULTS_SYNC" "validation.valid")"
+[[ "$(json_value "$APP_DEFAULTS_SYNC" "validation.valid")" == "true" ]] ||
+    fail "App-ready defaults synchronization did not validate."
+
+step "Validate source-controlled app-ready defaults"
+APP_DEFAULTS_VALIDATE="$EVIDENCE_DIR/12-app-defaults-validate.json"
+"$BENCH_CMD" --site "$SITE" execute \
+    omc_app.setup.operations.validate_app_defaults >"$APP_DEFAULTS_VALIDATE"
+printf 'Valid:              %s\n' "$(json_value "$APP_DEFAULTS_VALIDATE" "valid")"
+printf 'Components:         %s\n' "$(json_value "$APP_DEFAULTS_VALIDATE" "summary.components")"
+printf 'Invalid components: %s\n' "$(json_value "$APP_DEFAULTS_VALIDATE" "summary.invalid_components")"
+[[ "$(json_value "$APP_DEFAULTS_VALIDATE" "valid")" == "true" ]] ||
+    fail "App-ready defaults did not converge to a valid state."
+
 step "Optional legacy app retirement selection"
 refresh_installed_apps
 resolve_legacy_app
@@ -517,18 +559,18 @@ if [[ -n "$LEGACY_APP" ]]; then
     "$BENCH_CMD" --site "$SITE" clear-cache
 
     step "Revalidate ERP contract after legacy app removal"
-    capture_json "10-post-legacy-erp-contract" "erp_contract" \
+    capture_json "13-post-legacy-erp-contract" "erp_contract" \
         "$BENCH_CMD" --site "$SITE" execute \
         omc_app.setup.erp_contract.validate_client_erp_contract
 
     step "Reconcile OMC-owned configuration after legacy app removal"
-    capture_json "11-post-legacy-initialize" "initialize" \
+    capture_json "14-post-legacy-initialize" "initialize" \
         "$BENCH_CMD" --site "$SITE" execute \
         omc_app.setup.operations.initialize_site
 
     step "Revalidate catalogue after legacy app removal"
-    POST_LEGACY_VALIDATE="$EVIDENCE_DIR/12-catalogue-after-legacy.json"
-    capture_json "12-catalogue-after-legacy" "catalogue_validate" \
+    POST_LEGACY_VALIDATE="$EVIDENCE_DIR/15-catalogue-after-legacy.json"
+    capture_json "15-catalogue-after-legacy" "catalogue_validate" \
         "$BENCH_CMD" --site "$SITE" execute \
         omc_app.setup.operations.validate_service_catalogue
 
@@ -536,13 +578,20 @@ if [[ -n "$LEGACY_APP" ]]; then
         fail "Catalogue became invalid after legacy app removal."
 
     step "Revalidate service presentation after legacy app removal"
-    POST_LEGACY_PRESENTATION="$EVIDENCE_DIR/13-presentation-after-legacy.json"
-    capture_json "13-presentation-after-legacy" "presentation_validate" \
+    POST_LEGACY_PRESENTATION="$EVIDENCE_DIR/16-presentation-after-legacy.json"
+    capture_json "16-presentation-after-legacy" "presentation_validate" \
         "$BENCH_CMD" --site "$SITE" execute \
         omc_app.setup.service_catalogue.presentation.validate_service_presentation
 
     [[ "$(json_value "$POST_LEGACY_PRESENTATION" "valid")" == "true" ]] ||
         fail "Service presentation became invalid after legacy app removal."
+
+    step "Revalidate app-ready defaults after legacy app removal"
+    POST_LEGACY_APP_DEFAULTS="$EVIDENCE_DIR/17-app-defaults-after-legacy.json"
+    "$BENCH_CMD" --site "$SITE" execute \
+        omc_app.setup.operations.validate_app_defaults >"$POST_LEGACY_APP_DEFAULTS"
+    [[ "$(json_value "$POST_LEGACY_APP_DEFAULTS" "valid")" == "true" ]] ||
+        fail "App-ready defaults became invalid after legacy app removal."
 
     warn "Legacy app source folder was intentionally retained. Remove it only after confirming no other Bench site uses it."
 fi
@@ -565,25 +614,31 @@ fi
 
 step "Final application and site verification"
 refresh_installed_apps
-capture_json "14-final-erp-contract" "erp_contract" \
+capture_json "18-final-erp-contract" "erp_contract" \
     "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.erp_contract.validate_client_erp_contract
 
-FINAL_CATALOGUE="$EVIDENCE_DIR/15-final-catalogue.json"
-capture_json "15-final-catalogue" "catalogue_validate" \
+FINAL_CATALOGUE="$EVIDENCE_DIR/19-final-catalogue.json"
+capture_json "19-final-catalogue" "catalogue_validate" \
     "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.operations.validate_service_catalogue
 
 [[ "$(json_value "$FINAL_CATALOGUE" "valid")" == "true" ]] ||
     fail "Final catalogue validation failed."
 
-FINAL_PRESENTATION="$EVIDENCE_DIR/16-final-service-presentation.json"
-capture_json "16-final-service-presentation" "presentation_validate" \
+FINAL_PRESENTATION="$EVIDENCE_DIR/20-final-service-presentation.json"
+capture_json "20-final-service-presentation" "presentation_validate" \
     "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.service_catalogue.presentation.validate_service_presentation
 
 [[ "$(json_value "$FINAL_PRESENTATION" "valid")" == "true" ]] ||
     fail "Final service presentation validation failed."
+
+FINAL_APP_DEFAULTS="$EVIDENCE_DIR/21-final-app-defaults.json"
+"$BENCH_CMD" --site "$SITE" execute \
+    omc_app.setup.operations.validate_app_defaults >"$FINAL_APP_DEFAULTS"
+[[ "$(json_value "$FINAL_APP_DEFAULTS" "valid")" == "true" ]] ||
+    fail "Final app-ready defaults validation failed."
 
 "$BENCH_CMD" --site "$SITE" doctor
 
@@ -594,6 +649,7 @@ printf 'Log:          %s\n' "$LOG_FILE"
 printf 'Raw evidence: %s\n' "$EVIDENCE_DIR"
 printf '============================================================\n'
 printf '\nStill required outside this script:\n'
+printf '  - client configuration of OMC Payment Account/bank details\n'
 printf '  - controlled app/browser/device smoke test\n'
 printf '  - review any identity/blocker cases intentionally left for manual review\n'
 printf '  - verify production URL, HTTPS, email/deep links and external integrations\n'
