@@ -119,8 +119,10 @@ class KnowledgeRepository {
             json['intro'] ??
             title,
       ),
-      body: _nullableString(
-        json['body'] ?? json['content'] ?? json['details'] ?? json['article'],
+      body: _plainTextBody(
+        _nullableString(
+          json['body'] ?? json['content'] ?? json['details'] ?? json['article'],
+        ),
       ),
       type: _typeFromValue(json['type'] ?? json['article_type']),
       category: _nullableString(json['category'] ?? json['topic']),
@@ -170,5 +172,51 @@ class KnowledgeRepository {
     final text = value?.toString().trim();
     if (text == null || text.isEmpty) return null;
     return text;
+  }
+
+  String? _plainTextBody(String? value) {
+    final source = value?.trim();
+    if (source == null || source.isEmpty) return null;
+    if (!source.contains('<') || !source.contains('>')) return source;
+
+    final text = source
+        .replaceAll(
+          RegExp(
+            r'<script\b[^>]*>.*?</script>',
+            caseSensitive: false,
+            dotAll: true,
+          ),
+          '',
+        )
+        .replaceAll(
+          RegExp(
+            r'<style\b[^>]*>.*?</style>',
+            caseSensitive: false,
+            dotAll: true,
+          ),
+          '',
+        )
+        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'<li\b[^>]*>', caseSensitive: false), '• ')
+        .replaceAll(RegExp(r'</li>', caseSensitive: false), '\n')
+        .replaceAll(
+          RegExp(r'</(?:p|div|h[1-6]|ul|ol)>', caseSensitive: false),
+          '\n',
+        )
+        .replaceAll(RegExp(r'<[^>]+>'), '')
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+        .replaceAll('&#x27;', "'")
+        .replaceAll(RegExp(r'[ \t]+\n'), '\n')
+        .replaceAll(RegExp(r'\n[ \t]+'), '\n')
+        .replaceAll(RegExp(r'[ \t]{2,}'), ' ')
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+        .trim();
+
+    return text.isEmpty ? null : text;
   }
 }
