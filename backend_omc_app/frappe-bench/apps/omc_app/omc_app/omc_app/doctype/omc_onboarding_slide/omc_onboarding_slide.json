@@ -9,6 +9,7 @@
  "field_order": [
   "slide_id",
   "enabled",
+  "app_defaults_managed",
   "audience",
   "title",
   "subtitle",
@@ -38,6 +39,15 @@
    "fieldtype": "Check",
    "in_list_view": 1,
    "label": "Enabled"
+  },
+  {
+   "default": "0",
+   "description": "Set only by the source-controlled OMC app-ready defaults provisioner. Unmanaged onboarding slides are never modified or disabled by defaults reconciliation.",
+   "fieldname": "app_defaults_managed",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "App Defaults Managed",
+   "read_only": 1
   },
   {
    "default": "Public",
