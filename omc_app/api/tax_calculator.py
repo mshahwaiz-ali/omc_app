@@ -123,7 +123,14 @@ def calculate_tax(**kwargs):
         )
     _validate_slab_configuration(slab)
 
-    tax_before_credits = _calculate_slab_tax(taxable_income, slab)
+    base_tax = _calculate_slab_tax(taxable_income, slab)
+    surcharge = _section_4ab_surcharge(
+        year,
+        income_type,
+        taxable_income,
+        base_tax,
+    )
+    tax_before_credits = base_tax + surcharge["amount"]
     final_tax = max(0, tax_before_credits - adjustments["credits"])
     monthly_tax = final_tax / 12
     monthly_take_home = monthly_income - monthly_tax
@@ -138,6 +145,7 @@ def calculate_tax(**kwargs):
         tax_health = _tax_health_payload(filer_status, final_tax, advanced_inputs, user)
 
     insights = _insights_payload(year.name, income_type, filer_status, annual_income)
+    verified = bool(year.last_verified_on)
     result = {
         "annual_income": annual_income,
         "yearly_income": annual_income,
@@ -150,20 +158,27 @@ def calculate_tax(**kwargs):
         "monthly_after_tax": monthly_take_home,
         "yearly_after_tax": annual_income - final_tax,
         "effective_tax_rate": effective_tax_rate,
-        "breakdown": _breakdown_payload(slab, taxable_income, tax_before_credits, adjustments["credits"], final_tax),
+        "breakdown": _breakdown_payload(
+            slab,
+            taxable_income,
+            base_tax,
+            surcharge,
+            adjustments["credits"],
+            final_tax,
+        ),
         "comparison": comparison,
         "tax_health": tax_health,
         "insights": insights,
         "recommended_next_steps": _parse_json_list(settings.get("recommended_next_steps")),
         "source": {
             "tax_year": year.title or year.tax_year,
-            "verified": bool(year.last_verified_on),
+            "verified": verified,
             "last_verified_on": str(year.last_verified_on or ""),
             "public_note": year.public_note or "Based on OMC configured slabs.",
         },
         "cta": _cta_payload(settings, user),
-        "is_verified": True,
-        "verified": True,
+        "is_verified": verified,
+        "verified": verified,
         "note": settings.get("result_disclaimer") or "Estimate only. Final filing may require document review.",
     }
 
@@ -396,7 +411,7 @@ def _get_tax_year(name=None):
     if name:
         if frappe.db.exists("OMC Tax Year", name):
             doc = frappe.get_doc("OMC Tax Year", name)
-            if doc.status == "Published":
+            if doc.status == "Published" and int(doc.is_active or 0):
                 return doc
         filters["tax_year"] = name
     found = frappe.get_all("OMC Tax Year", filters=filters, fields=["name"], order_by="effective_from desc, modified desc", limit=1)
@@ -481,8 +496,8 @@ def _match_slab(tax_year, income_type, filer_status, taxable_income, allow_fallb
         if taxable_income >= from_amount and (not to_amount or taxable_income <= to_amount):
             return row
 
-    # Safe fallback: if Late Filer / Non-Filer slabs are not configured yet,
-    # calculate from Active Filer slabs instead of breaking the customer app.
+    # Late-filer/non-filer status affects many withholding or transaction rates,
+    # but the app-ready defaults intentionally keep one ordinary annual schedule.
     if allow_fallback and filer_status != "Active Filer":
         return _match_slab(tax_year, income_type, "Active Filer", taxable_income, allow_fallback=False)
 
@@ -512,13 +527,38 @@ def _calculate_slab_tax(taxable_income, slab):
     return flt(slab.fixed_tax) + max(0, taxable_income - amount_over) * flt(slab.rate_percent) / 100
 
 
-def _breakdown_payload(slab, taxable_income, tax_before_credits, credits, final_tax):
+def _section_4ab_surcharge(year, income_type, taxable_income, base_tax):
+    threshold = flt(getattr(year, "section_4ab_threshold", 0))
+    if not threshold or taxable_income <= threshold:
+        return {"threshold": threshold, "rate_percent": 0.0, "amount": 0.0}
+
+    if str(income_type or "").strip().lower() == "salary":
+        rate = flt(getattr(year, "salary_surcharge_percent", 0))
+    else:
+        rate = flt(getattr(year, "non_salaried_surcharge_percent", 0))
+
+    if rate < 0 or rate > 100:
+        frappe.throw("Tax year surcharge configuration is invalid.")
+
+    return {
+        "threshold": threshold,
+        "rate_percent": rate,
+        "amount": max(0.0, flt(base_tax)) * rate / 100,
+    }
+
+
+def _breakdown_payload(slab, taxable_income, base_tax, surcharge, credits, final_tax):
+    tax_before_credits = flt(base_tax) + flt(surcharge.get("amount"))
     return {
         "slab_label": slab.label or f"PKR {flt(slab.from_amount):,.0f} - PKR {flt(slab.to_amount):,.0f}",
         "fixed_tax": flt(slab.fixed_tax),
         "rate_percent": flt(slab.rate_percent),
         "amount_over": flt(slab.amount_over),
         "taxable_income": taxable_income,
+        "base_tax": flt(base_tax),
+        "surcharge_threshold": flt(surcharge.get("threshold")),
+        "surcharge_rate_percent": flt(surcharge.get("rate_percent")),
+        "surcharge_amount": flt(surcharge.get("amount")),
         "tax_before_credits": tax_before_credits,
         "credits": credits,
         "final_tax": final_tax,
