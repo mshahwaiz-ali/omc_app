@@ -10,6 +10,7 @@
   "field_section",
   "tax_year",
   "field_key",
+  "app_defaults_managed",
   "label",
   "input_type",
   "income_type",
@@ -40,6 +41,15 @@
    "label": "Field Key",
    "reqd": 1,
    "unique": 1
+  },
+  {
+   "default": "0",
+   "description": "Set only by the source-controlled OMC app-ready defaults provisioner. Unmanaged input fields are never modified or disabled by defaults reconciliation.",
+   "fieldname": "app_defaults_managed",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "App Defaults Managed",
+   "read_only": 1
   },
   {
    "bold": 1,
