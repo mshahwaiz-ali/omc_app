@@ -25,6 +25,21 @@ void main() {
     );
   });
 
+  test('tax file/share/start mutations use hardened POST endpoints', () {
+    expect(
+      ApiConfig.downloadTaxEstimatePdfMethod,
+      'omc_app.api.tax_calculator_mutations.download_tax_estimate_pdf',
+    );
+    expect(
+      ApiConfig.shareTaxEstimateWithConsultantMethod,
+      'omc_app.api.tax_calculator_mutations.share_tax_estimate_with_consultant',
+    );
+    expect(
+      ApiConfig.startTaxServiceFromCalculationMethod,
+      'omc_app.api.tax_calculator_mutations.start_service_from_calculation',
+    );
+  });
+
   test('release profile accepts only the canonical production origin', () {
     expect(
       () => ApiConfig.validateResolvedBuildProfile(
