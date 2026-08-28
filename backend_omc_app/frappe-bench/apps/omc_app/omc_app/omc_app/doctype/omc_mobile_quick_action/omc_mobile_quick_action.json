@@ -7,6 +7,8 @@
  "engine": "InnoDB",
  "field_order": [
   "enabled",
+  "app_defaults_key",
+  "app_defaults_managed",
   "title",
   "subtitle",
   "icon_key",
@@ -35,6 +37,25 @@
    "fieldname": "enabled",
    "fieldtype": "Check",
    "label": "Enabled"
+  },
+  {
+   "description": "Stable key used only by the source-controlled OMC app-ready defaults provisioner.",
+   "fieldname": "app_defaults_key",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "App Defaults Key",
+   "no_copy": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "default": "0",
+   "description": "Set only by the source-controlled OMC app-ready defaults provisioner. Unmanaged quick actions are never modified or disabled by defaults reconciliation.",
+   "fieldname": "app_defaults_managed",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "App Defaults Managed",
+   "read_only": 1
   },
   {
    "fieldname": "title",
