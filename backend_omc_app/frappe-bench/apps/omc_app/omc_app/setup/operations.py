@@ -58,7 +58,6 @@ def seed_business_rental_tax_slabs() -> dict[str, object]:
     """Deliberately install the optional Business/Rental tax schedules."""
     from omc_app.patches import seed_business_rental_tax_slabs as seed_patch
 
-    # The retained historical seed performs and verifies its own commit.
     seed_patch.execute()
     return {"ok": True, "operation": "seed_business_rental_tax_slabs"}
 
@@ -73,62 +72,29 @@ def sync_service_task_type_mappings(*, commit: bool = True) -> dict[str, object]
 
 
 def preview_service_catalogue() -> dict[str, object]:
-    """Read-only preview of the complete source-controlled OMC catalogue.
-
-    Customer-facing copy and the Employee assignment default are sourced from
-    the same catalogue manifest and are surfaced here so operators see those
-    intended changes before any synchronization occurs.
-    """
-    from omc_app.setup.service_catalogue.presentation import (
-        preview_service_presentation,
-    )
-    from omc_app.setup.service_catalogue.provisioner import (
-        preview_service_catalogue as preview,
-    )
+    """Read-only preview of the complete source-controlled OMC catalogue."""
+    from omc_app.setup.service_catalogue.presentation import preview_service_presentation
+    from omc_app.setup.service_catalogue.provisioner import preview_service_catalogue as preview
 
     result = preview()
     presentation = preview_service_presentation()
-    return {
-        **result,
-        "ready_to_sync": bool(
-            result.get("ready_to_sync") and presentation.get("ok")
-        ),
-        "presentation": presentation,
-    }
+    return {**result, "ready_to_sync": bool(result.get("ready_to_sync") and presentation.get("ok")), "presentation": presentation}
 
 
 def validate_service_catalogue() -> dict[str, object]:
     """Read-only exact-state validation of catalogue rows and service copy."""
-    from omc_app.setup.service_catalogue.presentation import (
-        validate_service_presentation,
-    )
-    from omc_app.setup.service_catalogue.provisioner import (
-        validate_service_catalogue as validate,
-    )
+    from omc_app.setup.service_catalogue.presentation import validate_service_presentation
+    from omc_app.setup.service_catalogue.provisioner import validate_service_catalogue as validate
 
     result = validate()
     presentation = validate_service_presentation()
-    return {
-        **result,
-        "valid": bool(result.get("valid") and presentation.get("valid")),
-        "presentation": presentation,
-    }
+    return {**result, "valid": bool(result.get("valid") and presentation.get("valid")), "presentation": presentation}
 
 
 def sync_service_catalogue(*, commit: bool = True) -> dict[str, object]:
-    """Atomically sync catalogue rows, customer copy and Employee defaults.
-
-    All managed customer-facing presentation values originate in the catalogue
-    manifest. The compatibility presentation reconciler runs inside the same
-    transaction as the established catalogue provisioner so deployments cannot
-    leave newly-created services partially configured.
-    """
-    from omc_app.setup.service_catalogue.presentation import (
-        sync_service_presentation,
-    )
-    from omc_app.setup.service_catalogue.provisioner import (
-        sync_service_catalogue as sync,
-    )
+    """Atomically sync catalogue rows, customer copy and Employee defaults."""
+    from omc_app.setup.service_catalogue.presentation import sync_service_presentation
+    from omc_app.setup.service_catalogue.provisioner import sync_service_catalogue as sync
 
     savepoint = "omc_catalogue_and_presentation_sync"
     frappe.db.savepoint(savepoint)
@@ -137,14 +103,36 @@ def sync_service_catalogue(*, commit: bool = True) -> dict[str, object]:
         presentation = sync_service_presentation(commit=False)
         if commit:
             frappe.db.commit()
-        return {
-            **result,
-            "committed": bool(commit),
-            "presentation": presentation,
-        }
+        return {**result, "committed": bool(commit), "presentation": presentation}
     except Exception:
         frappe.db.rollback(save_point=savepoint)
         raise
+
+
+def preview_app_defaults() -> dict[str, object]:
+    """Read-only preview of source-controlled app-ready defaults."""
+    from omc_app.setup.app_defaults.provisioner import preview_app_defaults as preview
+
+    return preview()
+
+
+def validate_app_defaults() -> dict[str, object]:
+    """Validate that all source-controlled app-ready defaults have converged."""
+    from omc_app.setup.app_defaults.provisioner import validate_app_defaults as validate
+
+    return validate()
+
+
+def sync_app_defaults(*, commit: bool = True) -> dict[str, object]:
+    """Atomically reconcile app-ready defaults after the service catalogue.
+
+    This operation is deliberately explicit. It is not called from migrate or
+    app hooks because these records are site-facing business configuration.
+    Unknown client-managed rows remain outside source-control ownership.
+    """
+    from omc_app.setup.app_defaults.provisioner import sync_app_defaults as sync
+
+    return sync(commit=commit)
 
 
 def initialize_site(*, commit: bool = True) -> dict[str, object]:
