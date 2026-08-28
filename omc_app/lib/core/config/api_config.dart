@@ -198,11 +198,11 @@ class ApiConfig {
   static const String taxCalculationHistoryMethod =
       'omc_app.api.tax_calculator.get_tax_calculation_history';
   static const String downloadTaxEstimatePdfMethod =
-      'omc_app.api.tax_calculator.download_tax_estimate_pdf';
+      'omc_app.api.tax_calculator_mutations.download_tax_estimate_pdf';
   static const String shareTaxEstimateWithConsultantMethod =
-      'omc_app.api.tax_calculator.share_tax_estimate_with_consultant';
+      'omc_app.api.tax_calculator_mutations.share_tax_estimate_with_consultant';
   static const String startTaxServiceFromCalculationMethod =
-      'omc_app.api.tax_calculator.start_service_from_calculation';
+      'omc_app.api.tax_calculator_mutations.start_service_from_calculation';
 
   static const String serviceCatalogueMethod =
       'omc_app.api.mobile.get_service_catalogue';
@@ -261,131 +261,56 @@ class ApiConfig {
   static const String faqsMethod = 'omc_app.api.mobile.get_faqs';
 
   static const String notificationsMethod =
-      'omc_app.api.mobile.get_notifications';
-  static const String notificationDetailMethod =
-      'omc_app.api.mobile.get_notification_detail';
-  static const String markNotificationReadMethod =
-      'omc_app.api.mobile.mark_notification_read';
-  static const String markAllNotificationsReadMethod =
-      'omc_app.api.mobile.mark_all_notifications_read';
-  static const String dismissNotificationMethod =
-      'omc_app.api.mobile.dismiss_notification';
-  static const String restoreNotificationMethod =
-      'omc_app.api.mobile.restore_notification';
-  static const String markNotificationUnreadMethod =
-      'omc_app.api.mobile.mark_notification_unread';
+      'omc_app.api.notifications.get_notifications';
   static const String unreadNotificationCountMethod =
-      'omc_app.api.mobile.get_unread_notification_count';
+      'omc_app.api.notifications.get_unread_notification_count';
+  static const String markNotificationReadMethod =
+      'omc_app.api.notifications.mark_notification_read';
+  static const String notificationPreferencesMethod =
+      'omc_app.api.notification_preferences.get_preferences';
+  static const String updateNotificationPreferencesMethod =
+      'omc_app.api.notification_preferences.update_preferences';
   static const String registerPushTokenMethod =
-      'omc_app.api.mobile.register_push_token';
+      'omc_app.api.push_notifications.register_token';
   static const String unregisterPushTokenMethod =
-      'omc_app.api.mobile.unregister_push_token';
+      'omc_app.api.push_notifications.unregister_token';
 
-  static const String settingsPreferencesMethod =
-      'omc_app.api.mobile.get_settings_preferences';
-  static const String updateSettingsPreferencesMethod =
-      'omc_app.api.mobile.update_settings_preferences';
-
-  static const String createSupportTicketMethod =
-      'omc_app.api.support_chat.create_support_ticket';
   static const String supportTicketsMethod =
-      'omc_app.api.support_chat.get_support_tickets';
+      'omc_app.api.support.get_support_tickets';
   static const String supportTicketDetailMethod =
-      'omc_app.api.support_chat.get_support_ticket';
-  static const String activeSupportTicketMethod =
-      'omc_app.api.support_chat.get_active_support_ticket';
-  static const String supportUnreadCountMethod =
-      'omc_app.api.support_chat.get_support_unread_count';
-  static const String markSupportTicketReadMethod =
-      'omc_app.api.support_chat.mark_support_ticket_read';
-  static const String addSupportTicketReplyMethod =
-      'omc_app.api.support_chat.add_support_ticket_reply';
-  static const String updateSupportTicketStatusMethod =
-      'omc_app.api.support_chat.update_support_ticket_status';
-  static const String uploadSupportTicketAttachmentMethod = 'upload_file';
-  static const String supportConfigMethod =
-      'omc_app.api.mobile.get_support_config';
+      'omc_app.api.support.get_support_ticket';
+  static const String createSupportTicketMethod =
+      'omc_app.api.support.create_support_ticket';
+  static const String addSupportMessageMethod =
+      'omc_app.api.support.add_support_message';
 
-  static const String uploadFileMethod = 'upload_file';
-  static const String mobileAppConfigMethod =
-      'omc_app.api.mobile.get_mobile_app_config';
-
-  static const String customersMethod = 'omc_app.api.mobile.get_customers';
-  static const String customerDetailMethod = 'omc_app.api.mobile.get_customer';
-  static const String getMyReferralSummaryMethod =
-      'omc_app.api.referral_analytics.get_my_referral_summary';
-  static const String getMyReferralsMethod =
-      'omc_app.api.referral_analytics.get_my_referrals';
-  static const String getMyReferralDetailMethod =
-      'omc_app.api.referral_analytics.get_my_referral_detail';
-  static const String getMyCommissionSummaryMethod =
-      'omc_app.api.referral_commissions.get_my_commission_summary';
-  static const String getMyCommissionsMethod =
-      'omc_app.api.referral_commissions.get_my_commissions';
-  static const String getMyCommissionMethod =
-      'omc_app.api.referral_commissions.get_my_commission';
-
-  static const String leadsMethod = 'omc_app.api.mobile.get_leads';
-  static const String leadDetailMethod = 'omc_app.api.mobile.get_lead';
-  static const String tasksMethod = 'omc_app.api.mobile.get_tasks';
-  static const String taskDetailMethod = 'omc_app.api.mobile.get_task';
-  static const String internalWorkspaceSummaryMethod =
-      'omc_app.api.mobile.get_internal_workspace_summary';
-  static const String internalServiceCasesMethod =
-      'omc_app.api.internal_workspace.get_service_cases';
-  static const String createServiceRequestForCustomerMethod =
-      'omc_app.api.internal_workspace.create_service_request_for_customer';
-  static const String adminOverviewMethod =
-      'omc_app.api.admin_control.get_admin_overview';
-  static const String adminOperationsMethod =
-      'omc_app.api.admin_control.get_admin_operations';
-  static const String reviewRegistrationMethod =
-      'omc_app.api.admin_control.review_registration';
-  static const String inviteStaffMethod =
-      'omc_app.api.admin_control.invite_staff';
-  static const String updateStaffAccountMethod =
-      'omc_app.api.admin_control.update_staff_account';
-  static const String reassignServiceRequestMethod =
-      'omc_app.api.admin_control.reassign_service_request';
-  static const String caseAdminOptionsMethod =
-      'omc_app.api.admin_control.get_case_admin_options';
-  static const String retryServiceSyncMethod =
-      'omc_app.api.admin_control.retry_service_sync';
-  static const String businessSettingsMethod =
-      'omc_app.api.admin_control.get_business_settings';
-  static const String updateBusinessSettingsMethod =
-      'omc_app.api.admin_control.update_business_settings';
-  static const String reviewDiscountMethod =
-      'omc_app.api.admin_control.review_discount';
-
-  static const String expenseConfigMethod =
-      'omc_app.api.expense.get_expense_config';
   static const String expenseCategoriesMethod =
       'omc_app.api.expense.get_expense_categories';
   static const String expenseEntriesMethod =
       'omc_app.api.expense.get_expense_entries';
-  static const String createExpenseEntryMethod =
-      'omc_app.api.expense.create_expense_entry';
-  static const String bulkSyncExpenseEntriesMethod =
-      'omc_app.api.expense.bulk_sync_expense_entries';
-  static const String updateExpenseEntryMethod =
-      'omc_app.api.expense.update_expense_entry';
+  static const String saveExpenseEntryMethod =
+      'omc_app.api.expense.save_expense_entry';
   static const String deleteExpenseEntryMethod =
       'omc_app.api.expense.delete_expense_entry';
   static const String expenseSummaryMethod =
       'omc_app.api.expense.get_expense_summary';
-  static const String expenseBudgetsMethod =
-      'omc_app.api.expense.get_expense_budgets';
+  static const String expenseBudgetMethod =
+      'omc_app.api.expense.get_budget';
   static const String saveExpenseBudgetMethod =
-      'omc_app.api.expense.save_expense_budget';
-  static const String uploadExpenseReceiptMethod =
-      'omc_app.api.expense.upload_expense_receipt';
+      'omc_app.api.expense.save_budget';
 
-  static const String serviceRequestUploadDoctype = 'OMC Service Request';
-  static const String expenseReceiptUploadDoctype = 'OMC Expense Entry';
-  static const String supportTicketUploadDoctype = 'OMC Support Ticket';
+  static const String deviceLockStatusMethod =
+      'omc_app.api.account_security.get_device_lock_status';
+  static const String updateDeviceLockStatusMethod =
+      'omc_app.api.account_security.update_device_lock_status';
+
+  static String methodUrl(String method) => '$apiMethodPath/$method';
 
   static String _withoutTrailingSlash(String value) {
-    return value.endsWith('/') ? value.substring(0, value.length - 1) : value;
+    var cleaned = value.trim();
+    while (cleaned.endsWith('/')) {
+      cleaned = cleaned.substring(0, cleaned.length - 1);
+    }
+    return cleaned;
   }
 }
