@@ -6,6 +6,13 @@ from omc_app.api import service_request_mutations, service_requests, tax_calcula
 from omc_app.omc_app.doctype.omc_service.omc_service import pricing_version_for
 
 
+TAX_SERVICE_IDS = {
+    "salary": "salaried-tax-filing",
+    "business": "business-tax-filing",
+    "rental": "other-sources",
+}
+
+
 def _text(value) -> str:
     return str(value or "").strip()
 
@@ -18,6 +25,29 @@ def _service(service_name: str):
     if not int(service.is_active or 0):
         frappe.throw("The linked tax service is inactive.", frappe.ValidationError)
     return service
+
+
+def _canonical_service_for_calculation(log):
+    income_type = _text(getattr(log, "income_type", None)).lower()
+    service_id = TAX_SERVICE_IDS.get(income_type)
+    if not service_id:
+        frappe.throw(
+            "The saved tax estimate does not have a supported income type.",
+            frappe.ValidationError,
+        )
+
+    rows = frappe.get_all(
+        "OMC Service",
+        filters={"service_id": service_id},
+        fields=["name"],
+        limit=2,
+    )
+    if len(rows) != 1:
+        frappe.throw(
+            "The linked tax filing service is unavailable or ambiguous.",
+            frappe.ValidationError,
+        )
+    return _service(rows[0].name)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -39,7 +69,13 @@ def download_tax_estimate_pdf(calculation_log=None):
 
 @frappe.whitelist(methods=["POST"])
 def start_service_from_calculation(calculation_log=None, service=None):
-    """Create/resume the tax service through the canonical payment-first path."""
+    """Create/resume the tax service through the canonical payment-first path.
+
+    ``service`` is retained only for API compatibility. It is deliberately not
+    authoritative: the server resolves the filing service from the owned saved
+    calculation so a client cannot redirect this mutation to an arbitrary OMC
+    service.
+    """
     log = tax_calculator._get_owned_calculation_log(calculation_log)
     if log.linked_service_request and frappe.db.exists(
         "OMC Service Request", log.linked_service_request
@@ -55,9 +91,7 @@ def start_service_from_calculation(calculation_log=None, service=None):
             "message": "A tax filing service request is already linked to this estimate.",
         }
 
-    settings = tax_calculator._get_settings()
-    service_name = _text(service) or _text(getattr(settings, "default_service", None))
-    service_doc = _service(service_name)
+    service_doc = _canonical_service_for_calculation(log)
     response = service_requests.create_service(
         service_id=service_doc.service_id or service_doc.name,
         service_version=int(service_doc.service_version or 1),
