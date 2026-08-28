@@ -6,13 +6,14 @@
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": ["service", "stage_title", "stage_key", "description", "sort_order", "is_customer_visible", "is_active"],
+ "field_order": ["service", "stage_title", "stage_key", "description", "sort_order", "app_defaults_managed", "is_customer_visible", "is_active"],
  "fields": [
   {"fieldname": "service", "fieldtype": "Link", "in_list_view": 1, "label": "Service", "options": "OMC Service", "reqd": 1},
   {"fieldname": "stage_title", "fieldtype": "Data", "in_list_view": 1, "label": "Stage Title", "reqd": 1},
   {"description": "Select the permanent lifecycle key used by the app. The customer-facing stage title may differ by service.", "fieldname": "stage_key", "fieldtype": "Select", "in_list_view": 1, "label": "Stage Key", "options": "request_received\nunder_review\nawaiting_customer\nawaiting_documents\nin_progress\nsubmitted\napproved\ncompleted\nrejected\ncancelled", "reqd": 1},
   {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"},
   {"default": "0", "fieldname": "sort_order", "fieldtype": "Int", "in_list_view": 1, "label": "Sort Order"},
+  {"default": "0", "description": "Set only by the source-controlled OMC app-ready defaults provisioner. Unmanaged/manual stage rows are never modified or deactivated by defaults reconciliation.", "fieldname": "app_defaults_managed", "fieldtype": "Check", "hidden": 1, "label": "App Defaults Managed", "read_only": 1},
   {"default": "1", "fieldname": "is_customer_visible", "fieldtype": "Check", "in_list_view": 1, "label": "Customer Visible"},
   {"default": "1", "fieldname": "is_active", "fieldtype": "Check", "in_list_view": 1, "label": "Is Active"}
  ],
