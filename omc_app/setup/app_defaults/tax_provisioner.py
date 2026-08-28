@@ -131,6 +131,10 @@ SETTINGS_VALUES = {
     "guest_cta_button": "Create Account",
     "customer_cta_title": "Need OMC to review or file this tax position?",
     "customer_cta_button": "Start Tax Filing Service",
+    # Keeps the existing Flutter CTA enabled. The hardened mutation endpoint does
+    # not trust this client-supplied link: it resolves the actual service from the
+    # saved calculation income type (Salary/Business/Rental) on the server.
+    "customer_cta_service": "other-sources",
 }
 
 NUMERIC_SETTINGS_FIELDS = {
