@@ -128,7 +128,7 @@
    "fieldname": "required_capability",
    "fieldtype": "Select",
    "label": "Required Capability",
-   "options": "\ncan_create_service_request\ncan_track_requests\ncan_view_documents\ncan_view_payments\ncan_create_support_ticket\ncan_view_support_tickets\ncan_use_tax_calculator\ncan_view_customer_notifications\ncan_access_internal_workspace"
+   "options": "\ncan_create_service_request\ncan_track_requests\ncan_view_documents\ncan_view_payments\ncan_create_support_ticket\ncan_view_support_tickets\ncan_use_tax_calculator\ncan_view_customer_dashboard\ncan_view_customer_notifications\ncan_access_internal_workspace"
   },
   {
    "default": "None",
