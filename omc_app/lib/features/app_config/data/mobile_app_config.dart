@@ -165,19 +165,21 @@ class MobileLegalConfig {
   final String termsText;
 
   static const fallback = MobileLegalConfig(
+    privacyPolicyUrl: 'https://omchouse.com/privacy-policy/',
     privacyPolicyText:
-        'OMC uses customer information to manage service requests, documents, support, notifications and account access.',
+        'OMC House uses customer information to provide account access, service requests, document handling, payments, support and service notifications. For the complete policy, open the OMC House privacy policy.',
     termsText:
-        'OMC services are subject to review, approval, document verification and applicable compliance requirements.',
+        'By using the OMC House app, you agree to provide accurate account and service information and to use the app only for lawful business, tax and compliance purposes. Service fees, timelines and outcomes may depend on document completeness, payment status, OMC review, government or third-party systems and applicable legal requirements. OMC may request additional information, decline or pause a request where verification, security, fraud-prevention or compliance checks require it. Payments, cancellations and refunds are handled according to the confirmed service terms and applicable law. You are responsible for protecting your account credentials and for activity performed through your account. OMC may send service, security and account notices using the contact details you provide. Nothing in these terms limits rights that cannot lawfully be excluded under applicable law.',
   );
 
   factory MobileLegalConfig.fromJson(Map<String, dynamic> json) {
     return MobileLegalConfig(
-      privacyPolicyUrl: _nullableString(json['privacy_policy_url']),
+      privacyPolicyUrl:
+          _nullableString(json['privacy_policy_url']) ?? fallback.privacyPolicyUrl,
       privacyPolicyText:
           _nullableString(json['privacy_policy_text']) ??
           fallback.privacyPolicyText,
-      termsUrl: _nullableString(json['terms_url']),
+      termsUrl: _nullableString(json['terms_url']) ?? fallback.termsUrl,
       termsText: _nullableString(json['terms_text']) ?? fallback.termsText,
     );
   }
