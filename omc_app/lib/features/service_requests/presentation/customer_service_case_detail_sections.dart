@@ -174,7 +174,20 @@ class _LifecycleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progress = detail.progressPercent.clamp(0, 100).toInt();
+    final waitingForRequiredDocuments =
+        detail.documentsNeedingUpload > 0 &&
+        detail.paymentId.isEmpty &&
+        !detail.isTerminal &&
+        !detail.isCompleted;
+    final progress = waitingForRequiredDocuments
+        ? detail.progressPercent.clamp(0, 25).toInt()
+        : detail.progressPercent.clamp(0, 100).toInt();
+    final currentStage = waitingForRequiredDocuments
+        ? 'Documents'
+        : detail.currentStage.isEmpty
+        ? 'Current status'
+        : detail.currentStage;
+
     return PremiumCard(
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -207,9 +220,7 @@ class _LifecycleCard extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           Text(
-            detail.currentStage.isEmpty
-                ? 'Current status'
-                : detail.currentStage,
+            currentStage,
             style: const TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 12.5,
@@ -365,14 +376,49 @@ class _NextStepCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final action = detail.nextAction;
+    final waitingForRequiredDocuments =
+        detail.documentsNeedingUpload > 0 &&
+        detail.paymentId.isEmpty &&
+        !detail.isTerminal &&
+        !detail.isCompleted;
+    final waitingForPaymentOpening =
+        detail.requestState.trim().toLowerCase() == 'pending payment' &&
+        detail.paymentId.isEmpty &&
+        detail.documentsNeedingUpload == 0 &&
+        !detail.isTerminal &&
+        !detail.isCompleted;
+
+    final action = waitingForRequiredDocuments
+        ? const CustomerServiceCaseAction(
+            type: 'upload_document',
+            title: 'Documents need your attention',
+            subtitle:
+                'Upload the required documents first. Payment becomes available after the required uploads are complete.',
+            route: '/documents',
+            buttonLabel: 'Open documents',
+            required: true,
+          )
+        : waitingForPaymentOpening
+        ? const CustomerServiceCaseAction(
+            type: 'await_payment_opening',
+            title: 'Payment details are being prepared',
+            subtitle:
+                'Your required documents are complete. OMC is preparing the payment step for this request.',
+            route: '',
+            buttonLabel: '',
+            required: false,
+          )
+        : detail.nextAction;
+
     if (action == null) return const SizedBox.shrink();
 
-    final canOpen = _canOpenAction(
-      action,
-      canViewDocuments: canViewDocuments,
-      canViewPayments: canViewPayments,
-    );
+    final canOpen =
+        action.route.trim().isNotEmpty &&
+        _canOpenAction(
+          action,
+          canViewDocuments: canViewDocuments,
+          canViewPayments: canViewPayments,
+        );
     final sameCaseRoute = action.route.trim().startsWith('/my-services/');
     final handledInline =
         detail.documentsNeedingUpload > 0 &&
