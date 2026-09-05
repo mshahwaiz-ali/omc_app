@@ -9,19 +9,41 @@ import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../auth/application/auth_controller.dart';
 import '../data/expense_tracker_repository.dart';
+import '../data/local_expense_budget_store.dart';
 import '../domain/expense_transaction.dart';
+
+const _budgetRequestTimeout = Duration(seconds: 12);
 
 final expenseBudgetsProvider =
     FutureProvider.autoDispose<List<ExpenseBudgetItem>>((ref) async {
       final repository = ref.watch(expenseTrackerRepositoryProvider);
-      final rows = await repository.fetchBudgets();
+      final rows = await repository
+          .fetchBudgets()
+          .timeout(_budgetRequestTimeout);
+      return rows.map(ExpenseBudgetItem.fromJson).toList(growable: false);
+    });
+
+final localExpenseBudgetsProvider =
+    FutureProvider.autoDispose<List<ExpenseBudgetItem>>((ref) async {
+      final userId = ref.watch(
+        authControllerProvider.select((state) => state.userId),
+      );
+      final rows = await LocalExpenseBudgetStore(userId).readBudgets();
       return rows.map(ExpenseBudgetItem.fromJson).toList(growable: false);
     });
 
 final expenseBudgetEntriesProvider =
     FutureProvider.autoDispose<List<ExpenseTransaction>>((ref) async {
       final repository = ref.watch(expenseTrackerRepositoryProvider);
-      return repository.fetchSyncedTransactions();
+      return repository
+          .fetchSyncedTransactions()
+          .timeout(_budgetRequestTimeout);
+    });
+
+final localExpenseBudgetEntriesProvider =
+    FutureProvider.autoDispose<List<ExpenseTransaction>>((ref) async {
+      final repository = ref.watch(expenseTrackerRepositoryProvider);
+      return repository.readTransactions();
     });
 
 class ExpenseBudgetItem {
@@ -75,11 +97,11 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final capabilities = ref.watch(authControllerProvider).capabilities;
-    final canManageBudgets =
-        capabilities.isApproved ||
-        capabilities.canAccessInternalWorkspace ||
-        capabilities.isInternal;
+    final authState = ref.watch(authControllerProvider);
+    final capabilities = authState.capabilities;
+    final isInternal =
+        capabilities.isInternal || capabilities.canAccessInternalWorkspace;
+    final canManageBudgets = capabilities.isApproved || isInternal;
 
     if (!canManageBudgets) {
       return Scaffold(
@@ -96,8 +118,12 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
       );
     }
 
-    final budgetsAsync = ref.watch(expenseBudgetsProvider);
-    final entriesAsync = ref.watch(expenseBudgetEntriesProvider);
+    final budgetsAsync = isInternal
+        ? ref.watch(localExpenseBudgetsProvider)
+        : ref.watch(expenseBudgetsProvider);
+    final entriesAsync = isInternal
+        ? ref.watch(localExpenseBudgetEntriesProvider)
+        : ref.watch(expenseBudgetEntriesProvider);
 
     return Scaffold(
       key: OmcWidgetKeys.budgetScreen,
@@ -137,6 +163,10 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
                   () => _month = DateTime(_month.year, _month.month + 1),
                 ),
               ),
+              if (isInternal) ...[
+                const SizedBox(height: 10),
+                const _InternalLocalBudgetNote(),
+              ],
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -173,10 +203,14 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
               const SizedBox(height: 12),
               budgetsAsync.when(
                 loading: () => const _BudgetLoadingCard(),
-                error: (_, _) => const PremiumEmptyState(
+                error: (_, _) => PremiumEmptyState(
                   icon: Icons.account_balance_wallet_outlined,
                   title: 'Budgets unavailable',
-                  message: 'Could not load synced budget settings right now.',
+                  message: isInternal
+                      ? 'Local budget data could not be loaded right now.'
+                      : 'Could not load synced budget settings right now.',
+                  actionLabel: 'Retry',
+                  onAction: _refresh,
                 ),
                 data: (budgets) {
                   final monthBudgets = budgets
@@ -216,13 +250,19 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
 
   void _refresh() {
     ref.invalidate(expenseBudgetsProvider);
+    ref.invalidate(localExpenseBudgetsProvider);
     ref.invalidate(expenseBudgetEntriesProvider);
+    ref.invalidate(localExpenseBudgetEntriesProvider);
   }
 
   Future<void> _showBudgetSheet({
     required DateTime month,
     ExpenseBudgetItem? budget,
   }) async {
+    final authState = ref.read(authControllerProvider);
+    final capabilities = authState.capabilities;
+    final useLocalBudgetStore =
+        capabilities.isInternal || capabilities.canAccessInternalWorkspace;
     final categoryController = TextEditingController(
       text: budget?.category == 'Overall' ? '' : budget?.category ?? '',
     );
@@ -328,21 +368,30 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
                         return;
                       }
 
+                      final payload = <String, dynamic>{
+                        if (budget != null && budget.name.isNotEmpty)
+                          'name': budget.name,
+                        'category': categoryController.text.trim().isEmpty
+                            ? null
+                            : categoryController.text.trim(),
+                        'month': DateFormat('yyyy-MM-dd').format(month),
+                        'limit_amount': amount,
+                        'alert_threshold': threshold.clamp(1, 100),
+                        'active': 1,
+                      };
+
                       dirtyFormController.beginSubmitting();
                       try {
-                        await ref
-                            .read(expenseTrackerRepositoryProvider)
-                            .saveBudget({
-                              if (budget != null && budget.name.isNotEmpty)
-                                'name': budget.name,
-                              'category': categoryController.text.trim().isEmpty
-                                  ? null
-                                  : categoryController.text.trim(),
-                              'month': DateFormat('yyyy-MM-dd').format(month),
-                              'limit_amount': amount,
-                              'alert_threshold': threshold.clamp(1, 100),
-                              'active': 1,
-                            });
+                        if (useLocalBudgetStore) {
+                          await LocalExpenseBudgetStore(
+                            authState.userId,
+                          ).saveBudget(payload);
+                        } else {
+                          await ref
+                              .read(expenseTrackerRepositoryProvider)
+                              .saveBudget(payload)
+                              .timeout(_budgetRequestTimeout);
+                        }
 
                         dirtyFormController.submissionSucceeded();
                         if (!sheetContext.mounted) return;
@@ -350,7 +399,14 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
                         Navigator.of(sheetContext).pop();
                       } catch (_) {
                         dirtyFormController.submissionFailed();
-                        rethrow;
+                        if (!sheetContext.mounted) return;
+                        ScaffoldMessenger.of(sheetContext).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Budget could not be saved right now. Please try again.',
+                            ),
+                          ),
+                        );
                       }
                     },
                     icon: const Icon(Icons.check_rounded),
@@ -371,6 +427,43 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
     categoryController.dispose();
     amountController.dispose();
     thresholdController.dispose();
+  }
+}
+
+class _InternalLocalBudgetNote extends StatelessWidget {
+  const _InternalLocalBudgetNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE3E6EB)),
+      ),
+      child: const Row(
+        children: [
+          Icon(
+            Icons.phone_iphone_rounded,
+            size: 18,
+            color: AppTheme.textSecondary,
+          ),
+          SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              'Internal account budgets are stored on this device and use your local expense entries.',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 10.5,
+                height: 1.35,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
