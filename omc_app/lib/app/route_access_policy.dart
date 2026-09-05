@@ -68,7 +68,9 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
   }
 
   if (location == '/expense-budget') {
-    return capabilities.isApproved || capabilities.isInternal;
+    // Monthly budgets are owned by an approved customer profile. Internal
+    // staff accounts do not have a customer-profile budget context.
+    return capabilities.isApproved;
   }
 
   if (location == '/internal-workspace') {
