@@ -45,6 +45,7 @@ class AssistedCustomerCard extends ConsumerStatefulWidget {
 
 class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
   final _customerController = TextEditingController();
+  final _searchController = TextEditingController();
   final _consentController = TextEditingController();
   final _cityController = TextEditingController();
   final _addressController = TextEditingController();
@@ -71,6 +72,7 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
     _cityController.removeListener(_emit);
     _addressController.removeListener(_emit);
     _customerController.dispose();
+    _searchController.dispose();
     _consentController.dispose();
     _cityController.dispose();
     _addressController.dispose();
@@ -101,7 +103,14 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
         _loading = false;
       });
 
-      if (firstMode != null) await _loadItems();
+      if (firstMode != null) {
+        final initialCustomerId = widget.initialCustomerId?.trim();
+        await _loadItems(
+          search: initialCustomerId != null && initialCustomerId.isNotEmpty
+              ? initialCustomerId
+              : null,
+        );
+      }
     } catch (error) {
       if (!mounted) return;
       final failure = AppFailureClassifier.classify(
@@ -118,7 +127,7 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
     }
   }
 
-  Future<void> _loadItems() async {
+  Future<void> _loadItems({String? search}) async {
     final mode = _selectedMode;
     if (mode == null || mode == 'Walk-in Customer') {
       setState(() {
@@ -144,6 +153,7 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
           .read(serviceRequestRepositoryProvider)
           .getAssistedCustomerSelection(
             customerMode: mode,
+            search: search,
             limitPageLength: 100,
           );
       if (!mounted) return;
@@ -248,6 +258,7 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
                   _items = const [];
                   _error = null;
                 });
+                _searchController.clear();
                 _consentController.clear();
                 _loadItems();
               },
@@ -278,6 +289,26 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
                 ),
               ),
             ] else ...[
+              TextField(
+                controller: _searchController,
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => _loading
+                    ? null
+                    : _loadItems(search: _searchController.text),
+                decoration: InputDecoration(
+                  labelText: 'Search all eligible customers',
+                  hintText: 'Name, phone, email or customer ID',
+                  prefixIcon: const Icon(Icons.manage_search_rounded),
+                  suffixIcon: IconButton(
+                    tooltip: 'Search customers',
+                    onPressed: _loading
+                        ? null
+                        : () => _loadItems(search: _searchController.text),
+                    icon: const Icon(Icons.search_rounded),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
               LayoutBuilder(
                 builder: (context, constraints) {
                   return DropdownMenu<AssistedCustomerOption>(
@@ -286,9 +317,9 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
                     enableFilter: true,
                     enableSearch: true,
                     requestFocusOnTap: true,
-                    leadingIcon: const Icon(Icons.search_rounded),
-                    label: const Text('Search and select customer'),
-                    hintText: 'Type name, phone, email or customer ID',
+                    leadingIcon: const Icon(Icons.person_search_outlined),
+                    label: const Text('Select customer'),
+                    hintText: 'Choose from the loaded results',
                     dropdownMenuEntries: _items
                         .map(
                           (
