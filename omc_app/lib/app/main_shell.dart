@@ -262,7 +262,9 @@ class _MainShellState extends ConsumerState<MainShell> {
         isGuest: authState.status == AuthStatus.guest,
         displayName: profile?.displayName ?? authState.displayName,
         companyName: profile?.companyName ?? authState.companyName,
-        customerStatus: profile?.status ?? authState.customerStatus,
+        customerStatus: capabilities.isInternal
+            ? 'Internal'
+            : profile?.status ?? authState.customerStatus,
         avatarUrl: profile?.avatarUrl ?? authState.avatarUrl,
         onOpenDashboard: () => _openWhenAllowed(
           allowed: canAccessRoute('/dashboard', capabilities),
