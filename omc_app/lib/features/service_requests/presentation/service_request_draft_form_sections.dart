@@ -432,6 +432,7 @@ class _SubmitRequestBar extends StatelessWidget {
 
               if (useStackedLayout) {
                 return Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [status, const SizedBox(height: 8), button],
                 );
