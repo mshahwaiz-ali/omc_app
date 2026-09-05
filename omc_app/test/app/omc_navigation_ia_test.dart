@@ -64,8 +64,6 @@ void main() {
       expect(labels, isNot(contains('Customers')));
       expect(labels, isNot(contains('Leads')));
       expect(labels, isNot(contains('Documents')));
-      expect(labels, isNot(contains('Expense')));
-      expect(labels, isNot(contains('Budget')));
     },
   );
 
@@ -91,8 +89,6 @@ void main() {
     expect(labels, isNot(contains('Payments')));
     expect(labels, isNot(contains('Documents')));
     expect(labels, isNot(contains('Customers')));
-    expect(labels, isNot(contains('Expense')));
-    expect(labels, isNot(contains('Budget')));
   });
 
   test(

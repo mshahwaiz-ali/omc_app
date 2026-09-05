@@ -205,6 +205,7 @@ void main() {
       '/tax-calculator',
       '/tax-calculator/history',
       '/expense-tracker',
+      '/expense-budget',
       '/knowledge',
       '/knowledge/article-1',
       '/internal-workspace',
@@ -229,7 +230,6 @@ void main() {
       '/my-services',
       '/my-referrals',
       '/my-referrals/CUST-0001',
-      '/expense-budget',
     ];
 
     for (final route in allowed) {
