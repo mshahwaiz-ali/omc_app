@@ -351,7 +351,7 @@ class ExpenseTrackerScreen extends ConsumerWidget {
   }
 
   ExpenseTrackerAccessMode _resolveAccessMode(AuthCapabilities capabilities) {
-    if (capabilities.isInternal) return ExpenseTrackerAccessMode.internalHidden;
+    if (capabilities.isInternal) return ExpenseTrackerAccessMode.offlineApproved;
     if (capabilities.isApproved) return ExpenseTrackerAccessMode.approvedSync;
     if (capabilities.isPending) return ExpenseTrackerAccessMode.pendingLocal;
     return ExpenseTrackerAccessMode.guestLocal;
@@ -885,7 +885,7 @@ class _AccessBanner extends StatelessWidget {
       ExpenseTrackerAccessMode.offlineApproved => (
         Icons.phone_iphone_rounded,
         'Local-only tracker',
-        'Account sync is available from the menu',
+        'Entries stay safely on this device',
       ),
       _ => (
         Icons.lock_outline_rounded,
