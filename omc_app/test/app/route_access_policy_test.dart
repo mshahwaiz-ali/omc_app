@@ -171,7 +171,7 @@ void main() {
       );
     });
 
-    test('allows expense utilities for customers and internal staff', () {
+    test('keeps expense tracking public but budgets customer-owned', () {
       const approvedCustomer = AuthCapabilities(
         accessState: AccountAccessState.approved,
       );
@@ -183,7 +183,7 @@ void main() {
       expect(canAccessRoute('/expense-tracker', approvedCustomer), isTrue);
       expect(canAccessRoute('/expense-tracker', internalUser), isTrue);
       expect(canAccessRoute('/expense-budget', approvedCustomer), isTrue);
-      expect(canAccessRoute('/expense-budget', internalUser), isTrue);
+      expect(canAccessRoute('/expense-budget', internalUser), isFalse);
     });
 
     test('uses my-referrals as the only referrals route', () {
