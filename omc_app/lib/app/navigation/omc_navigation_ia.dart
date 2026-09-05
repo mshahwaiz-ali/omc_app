@@ -206,12 +206,9 @@ List<OmcNavigationGroup> _internalMoreNavigation(
   if (capabilities.canUseTaxCalculator) {
     tools.add(const OmcNavigationItem(OmcNavigationActionId.tax, 'Tax'));
   }
-  if (features.expenseTrackerEnabled) {
-    tools.add(
-      const OmcNavigationItem(OmcNavigationActionId.expense, 'Expense'),
-    );
-    tools.add(const OmcNavigationItem(OmcNavigationActionId.budget, 'Budget'));
-  }
+  // Expense tracking and monthly budgets are customer-owned tools. Internal
+  // staff accounts intentionally do not expose these destinations because the
+  // backend expense APIs require an approved customer profile.
   if (features.knowledgeEnabled) {
     tools.add(
       const OmcNavigationItem(OmcNavigationActionId.knowledge, 'Knowledge'),
