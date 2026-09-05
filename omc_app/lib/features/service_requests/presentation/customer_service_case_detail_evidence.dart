@@ -374,14 +374,27 @@ class _PaymentCard extends StatelessWidget {
       message =
           'Open payments and submit corrected payment proof for this service request.';
       icon = Icons.error_outline_rounded;
-      showAction = canViewPayments;
+      showAction = canViewPayments && detail.paymentId.isNotEmpty;
     } else if (detail.paymentUnderReview) {
       title = 'Payment under review';
       message =
           'OMC is reviewing your submitted payment proof. Do not submit another payment or receipt unless OMC asks for a correction.';
       icon = Icons.hourglass_top_rounded;
-      showAction = canViewPayments;
-    } else if (detail.paymentId.isNotEmpty || detail.payableAmount > 0) {
+      showAction = canViewPayments && detail.paymentId.isNotEmpty;
+    } else if (
+        detail.paymentId.isEmpty && detail.documentsNeedingUpload > 0) {
+      title = 'Complete required documents first';
+      message =
+          'Payment will become available after all required documents are uploaded for this request.';
+      icon = Icons.description_outlined;
+      showAction = false;
+    } else if (detail.paymentId.isEmpty && detail.payableAmount > 0) {
+      title = 'Payment is being prepared';
+      message =
+          '${detail.currency.isEmpty ? 'PKR' : detail.currency} ${detail.payableAmount.toStringAsFixed(2)} is confirmed. Payment instructions are not available yet; they will appear here when the payment record opens.';
+      icon = Icons.hourglass_top_rounded;
+      showAction = false;
+    } else if (detail.paymentId.isNotEmpty) {
       title = detail.paymentStatus.isEmpty
           ? 'Payment status'
           : detail.paymentStatus;
