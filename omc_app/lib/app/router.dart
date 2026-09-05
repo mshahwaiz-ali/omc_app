@@ -334,14 +334,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final serviceId = Uri.decodeComponent(
             state.pathParameters['serviceId'] ?? '',
           );
-          return _withShell(
-            ShellNavScaffold.servicesIndex,
-            ServiceRequestDraftScreen(
-              serviceId: serviceId,
-              assisted: state.uri.queryParameters['assisted'] == '1',
-              customerProfile: state.uri.queryParameters['customer_profile'],
-              customerName: state.uri.queryParameters['customer_name'],
-            ),
+          // The draft owns an app bar and a persistent submit bar. Keep it out
+          // of ShellNavScaffold so two nested Scaffold bottom bars cannot
+          // compete for the same layout space on Android.
+          return ServiceRequestDraftScreen(
+            serviceId: serviceId,
+            assisted: state.uri.queryParameters['assisted'] == '1',
+            customerProfile: state.uri.queryParameters['customer_profile'],
+            customerName: state.uri.queryParameters['customer_name'],
           );
         },
       ),
