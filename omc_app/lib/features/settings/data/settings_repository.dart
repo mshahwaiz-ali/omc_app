@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/frappe_client.dart';
+import '../../auth/application/auth_controller.dart';
 import 'settings_preferences.dart';
 
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
@@ -14,8 +15,17 @@ final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
 
 final settingsPreferencesProvider =
     FutureProvider.autoDispose<SettingsPreferences?>((ref) async {
-      final repository = ref.watch(settingsRepositoryProvider);
+      final authState = ref.watch(authControllerProvider);
 
+      // Internal OMC users do not have a customer profile, so customer-specific
+      // notification preferences are not applicable. Resolve immediately
+      // instead of leaving the Settings screen waiting on a customer endpoint.
+      if (authState.capabilities.isInternal ||
+          authState.canAccessInternalWorkspace) {
+        return const SettingsPreferences();
+      }
+
+      final repository = ref.watch(settingsRepositoryProvider);
       return repository.fetchPreferences();
     });
 
