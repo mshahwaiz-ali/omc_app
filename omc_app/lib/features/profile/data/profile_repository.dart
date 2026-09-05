@@ -165,6 +165,8 @@ class ProfileRepository {
       envelope: envelope,
       profile: profile,
     );
+    final isInternalProfile =
+        capabilities.isInternal || capabilities.canAccessInternalWorkspace;
     final avatarUrl =
         _userImageUrlFromPayload(profile) ?? _userImageUrlFromPayload(envelope);
 
@@ -201,13 +203,16 @@ class ProfileRepository {
       education: _nullableString(profile['education']),
       experience: _nullableString(profile['experience']),
       remarks: _nullableString(profile['remarks'] ?? profile['notes']),
-      approvalStatus: _nullableString(profile['approval_status']),
+      approvalStatus: isInternalProfile
+          ? null
+          : _nullableString(profile['approval_status']),
       // Keep the backend User.user_image URL stable during ordinary reads.
       // A fresh cache-buster is only returned immediately after an upload.
       avatarUrl: avatarUrl,
-      status:
-          _nullableString(profile['customer_status'] ?? profile['status']) ??
-          fallback.status,
+      status: isInternalProfile
+          ? 'Internal'
+          : _nullableString(profile['customer_status'] ?? profile['status']) ??
+                fallback.status,
       canAccessInternalWorkspace:
           capabilities.canAccessInternalWorkspace ||
           _boolValue(
