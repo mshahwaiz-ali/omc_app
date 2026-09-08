@@ -4,18 +4,27 @@ import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 
-def execute():
-    """Add company authority to requests without inventing historical values.
+DOCTYPE = "OMC Service Request"
+FIELDNAME = "company_snapshot"
 
-    Existing rows intentionally remain blank. Finance must reconcile those
-    requests explicitly rather than deriving a company from ERP defaults or
-    an arbitrary first invoice.
+
+def execute():
+    """Ensure company authority exists without duplicating current source schema.
+
+    Historical deployments introduced company_snapshot as a Custom Field.
+    Current source defines it as a normal DocField. If model sync already
+    exposes the field, this legacy patch must be a no-op. The Custom Field
+    fallback remains only for unusual historical migration orderings where the
+    field is genuinely absent.
     """
+    if frappe.get_meta(DOCTYPE).has_field(FIELDNAME):
+        return
+
     create_custom_fields(
         {
-            "OMC Service Request": [
+            DOCTYPE: [
                 {
-                    "fieldname": "company_snapshot",
+                    "fieldname": FIELDNAME,
                     "label": "Company Snapshot",
                     "fieldtype": "Link",
                     "options": "Company",
@@ -31,4 +40,4 @@ def execute():
         },
         update=True,
     )
-    frappe.clear_cache(doctype="OMC Service Request")
+    frappe.clear_cache(doctype=DOCTYPE)
