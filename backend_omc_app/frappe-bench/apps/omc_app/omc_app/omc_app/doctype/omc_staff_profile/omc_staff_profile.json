@@ -4,19 +4,31 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "identity_section",
+  "user_section",
   "user",
   "linked_employee",
   "full_name",
   "email",
+  "username",
   "phone",
   "whatsapp_no",
+  "status_section",
+  "staff_status",
+  "approval_status",
+  "staff_role",
+  "is_active",
+  "identity_section",
+  "cnic",
+  "ntn",
+  "company_name",
   "professional_section",
   "address",
   "education",
   "experience",
   "remarks",
-  "is_active"
+  "referral_section",
+  "referral_record",
+  "own_referral_code"
  ],
  "fields": [
   {
