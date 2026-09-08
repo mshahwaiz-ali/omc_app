@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from frappe.tests.utils import FrappeTestCase
 
-from omc_app.setup import desk_metadata
+from omc_app.setup import desk_metadata, referral_workspace
 
 
 class TestWorkspaceReconciliation(FrappeTestCase):
@@ -37,3 +37,43 @@ class TestWorkspaceReconciliation(FrappeTestCase):
             desk_metadata._reconcile_omc_workspace_from_source()
 
         get_doc.assert_not_called()
+
+    def test_my_referrals_roles_replace_stale_and_duplicate_rows(self):
+        report = MagicMock()
+        report.flags = SimpleNamespace(ignore_permissions=False)
+        report.get.return_value = [
+            {"role": "OMC Admin"},
+            {"role": "OMC Admin"},
+            {"role": "OMC Consultant"},
+        ]
+
+        with (
+            patch.object(referral_workspace.frappe.db, "exists", return_value=True),
+            patch.object(referral_workspace.frappe, "get_doc", return_value=report),
+        ):
+            referral_workspace._ensure_my_referrals_report_roles()
+
+        expected = [
+            {"role": role}
+            for role in referral_workspace._MY_REFERRALS_REPORT_ROLES
+        ]
+        report.set.assert_called_once_with("roles", expected)
+        self.assertTrue(report.flags.ignore_permissions)
+        report.save.assert_called_once_with(ignore_permissions=True)
+
+    def test_my_referrals_role_reconciliation_is_noop_when_exact(self):
+        report = MagicMock()
+        report.flags = SimpleNamespace(ignore_permissions=False)
+        report.get.return_value = [
+            {"role": role}
+            for role in referral_workspace._MY_REFERRALS_REPORT_ROLES
+        ]
+
+        with (
+            patch.object(referral_workspace.frappe.db, "exists", return_value=True),
+            patch.object(referral_workspace.frappe, "get_doc", return_value=report),
+        ):
+            referral_workspace._ensure_my_referrals_report_roles()
+
+        report.set.assert_not_called()
+        report.save.assert_not_called()
