@@ -1,1 +1,0 @@
-# OMC mobile API package.
