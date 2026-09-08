@@ -192,6 +192,9 @@ def _customer_profile_compatibility_state() -> dict[str, Any]:
         "manual_customer_status",
         "linked_app_user",
         "user",
+        "education",
+        "experience",
+        "remarks",
     ]
     rows = _rows("OMC Customer Profile", fields)
 
@@ -218,12 +221,25 @@ def _customer_profile_compatibility_state() -> dict[str, Any]:
         if _text(row.get("linked_app_user"))
         and not _text(row.get("user"))
     ]
+    professional_data = [
+        row.get("name")
+        for row in rows
+        if any(
+            _text(row.get(fieldname))
+            for fieldname in ("education", "experience", "remarks")
+        )
+    ]
 
     return {
         "profiles": len(rows),
         "noncustomer_persona_count": len(noncustomer_persona),
+        "noncustomer_persona_profiles": noncustomer_persona,
         "manual_status_count": len(manual_status),
         "legacy_link_without_user_count": len(legacy_link_only),
+        "customer_profile_professional_data_count": len(professional_data),
+        "customer_profile_professional_data_profiles": professional_data,
+        "safe_to_remove_customer_persona_fields": len(noncustomer_persona) == 0,
+        "safe_to_remove_customer_professional_fields": len(professional_data) == 0,
     }
 
 
