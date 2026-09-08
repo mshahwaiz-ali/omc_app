@@ -55,7 +55,7 @@ class TestWorkspaceReconciliation(FrappeTestCase):
 
         expected = [
             {"role": role}
-            for role in referral_workspace._MY_REFERRALS_REPORT_ROLES
+            for role in referral_workspace._MY_REFERRALS_REPORT_ROLE_CANDIDATES
         ]
         report.set.assert_called_once_with("roles", expected)
         self.assertTrue(report.flags.ignore_permissions)
@@ -66,7 +66,7 @@ class TestWorkspaceReconciliation(FrappeTestCase):
         report.flags = SimpleNamespace(ignore_permissions=False)
         report.get.return_value = [
             {"role": role}
-            for role in referral_workspace._MY_REFERRALS_REPORT_ROLES
+            for role in referral_workspace._MY_REFERRALS_REPORT_ROLE_CANDIDATES
         ]
 
         with (
