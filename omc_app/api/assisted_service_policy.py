@@ -51,7 +51,7 @@ def get_customer_selection_options(
     response["modes"] = modes
 
     capabilities = dict(response.get("capabilities") or {})
-    capabilities["can_search_all_customers"] = False
+    capabilities["can_search_all_customers"] = "Existing Customer" in modes
     capabilities["can_use_my_referrals"] = "My Referral" in modes
     response["capabilities"] = capabilities
     return response
