@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/push/push_registration.dart';
+import '../core/push/push_runtime.dart';
+import '../features/app_config/presentation/app_readiness_gate.dart';
 import '../features/app_config/data/mobile_app_config.dart';
 import '../features/app_config/data/mobile_app_config_repository.dart';
 import '../features/app_config/presentation/app_brand_registry.dart';
@@ -15,7 +16,6 @@ class OmcApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(pushAuthBindingProvider);
     final router = ref.watch(appRouterProvider);
     final appConfig = ref
         .watch(mobileAppConfigProvider)
@@ -31,9 +31,16 @@ class OmcApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: _withAccentTheme(AppTheme.lightTheme, appColors),
       themeMode: ThemeMode.light,
-      routerConfig: router,
+      routerDelegate: router.routerDelegate,
+      routeInformationParser: router.routeInformationParser,
+      routeInformationProvider: router.routeInformationProvider,
+      backButtonDispatcher: ref.watch(mobileBackDispatcherProvider),
       builder: (context, child) {
-        return DeviceLockGate(child: child ?? const SizedBox.shrink());
+        return AppReadinessGate(
+          child: PushRuntimeHost(
+            child: DeviceLockGate(child: child ?? const SizedBox.shrink()),
+          ),
+        );
       },
     );
   }

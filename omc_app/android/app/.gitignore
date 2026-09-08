@@ -1,0 +1,3 @@
+# Real Firebase project configuration is provided outside Git.
+/google-services.json
+/src/*/google-services.json

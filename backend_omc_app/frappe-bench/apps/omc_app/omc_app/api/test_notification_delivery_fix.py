@@ -20,24 +20,42 @@ class TestNotificationDeliveryFix(TestCase):
             self.assertEqual(notification_channels.channels_for_customer(None, 'Task'), (True, True))
     def test_http_v1_payload_and_error_classification(self):
         response = Mock(ok=False, status_code=404, headers={})
-        response.json.return_value = {'error': {'details': [{'errorCode': 'UNREGISTERED'}]}}
-        conf = SimpleNamespace(omc_fcm_credentials_file='/not-read', omc_fcm_project_id='project-test')
-        with patch.object(fcm_http, 'operational', return_value=True), patch.object(frappe, 'conf', conf), patch.object(fcm_http.service_account.Credentials, 'from_service_account_file'), patch.object(fcm_http, 'AuthorizedSession') as session:
-            session.return_value.__enter__.return_value.post.return_value = response
+        response.json.return_value = {"error": {"details": [{
+            "@type": "type.googleapis.com/google.firebase.fcm.v1.FcmError", "errorCode": "UNREGISTERED",
+        }]}}
+        conf = SimpleNamespace(omc_fcm_credentials_file="/not-read", omc_fcm_project_id="project-test")
+        # send() deliberately imports Google Auth lazily. Patch the actual import
+        # targets, not obsolete fcm_http module attributes. No network/key reads.
+        with patch.object(fcm_http, "operational", return_value=True), \
+                patch.object(frappe, "conf", conf), \
+                patch("google.oauth2.service_account.Credentials.from_service_account_file"), \
+                patch("google.auth.transport.requests.AuthorizedSession") as session:
+            transport = session.return_value.__enter__.return_value
+            transport.post.return_value = response
             with self.assertRaises(fcm_http.SendFailure) as error:
-                fcm_http.send('private-token', 'notification', 'binding')
-            self.assertEqual(error.exception.code, 'UNREGISTERED')
-            payload = session.return_value.__enter__.return_value.post.call_args.kwargs['json']['message']
-            self.assertEqual(payload['data'], {'notification_id': 'notification', 'binding_id': 'binding'})
+                fcm_http.send("private-token", "notification", "binding")
+            self.assertEqual(error.exception.code, "UNREGISTERED")
+            request = transport.post.call_args.kwargs
+            self.assertFalse(request["allow_redirects"])
+            self.assertEqual(request["timeout"], (5, 20))
+            payload = request["json"]["message"]
+            self.assertEqual(payload["data"], {"notification_id": "notification", "binding_id": "binding"})
+            self.assertEqual(payload["android"]["notification"]["channel_id"], "omc_updates")
+            # A generic/untyped 404 must not revoke a registered token.
+            response.json.return_value = {"error": {"details": [{"errorCode": "UNREGISTERED"}]}}
+            with self.assertRaises(fcm_http.SendFailure) as error:
+                fcm_http.send("private-token", "notification", "binding")
+            self.assertNotEqual(error.exception.code, "UNREGISTERED")
+            self.assertFalse(error.exception.retryable)
             response.status_code = 400
-            response.json.return_value = {'error': {'status': 'INVALID_ARGUMENT'}}
+            response.json.return_value = {"error": {"status": "INVALID_ARGUMENT"}}
             with self.assertRaises(fcm_http.SendFailure) as error:
-                fcm_http.send('private-token', 'notification', 'binding')
-            self.assertNotEqual(error.exception.code, 'UNREGISTERED')
+                fcm_http.send("private-token", "notification", "binding")
+            self.assertNotEqual(error.exception.code, "UNREGISTERED")
             self.assertFalse(error.exception.retryable)
             response.status_code = 503
-            response.headers = {'Retry-After': '120'}
+            response.headers = {"Retry-After": "120"}
             with self.assertRaises(fcm_http.SendFailure) as error:
-                fcm_http.send('private-token', 'notification', 'binding')
+                fcm_http.send("private-token", "notification", "binding")
             self.assertTrue(error.exception.retryable)
             self.assertEqual(error.exception.retry_after, 120)

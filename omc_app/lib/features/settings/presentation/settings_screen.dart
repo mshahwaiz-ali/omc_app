@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/push/push_device_settings_tile.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/omc_premium.dart';
@@ -127,30 +128,33 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 20),
-            if (!authState.capabilities.isInternal && !authState.canAccessInternalWorkspace) preferencesAsync.when(
-              data: (preferences) => _PreferencesSection(
-                preferences: preferences ?? const SettingsPreferences(),
-                errorMessage: null,
-                onRetry: () => ref.invalidate(settingsPreferencesProvider),
-                onToggle: (updatedPreferences) =>
-                    _savePreferences(context, ref, updatedPreferences),
-              ),
-              loading: () => const _PreferencesLoadingSection(),
-              error: (error, _) {
-                final failure = AppFailureClassifier.classify(
-                  error,
-                  fallbackTitle: 'Preferences unavailable',
-                  fallbackMessage:
-                      'Notification preferences could not be loaded right now.',
-                );
-                return _PreferencesSection(
-                  preferences: const SettingsPreferences(),
-                  errorMessage: failure.message,
+            const PushDeviceSettingsTile(),
+            if (!authState.capabilities.isInternal &&
+                !authState.canAccessInternalWorkspace)
+              preferencesAsync.when(
+                data: (preferences) => _PreferencesSection(
+                  preferences: preferences ?? const SettingsPreferences(),
+                  errorMessage: null,
                   onRetry: () => ref.invalidate(settingsPreferencesProvider),
-                  onToggle: null,
-                );
-              },
-            ),
+                  onToggle: (updatedPreferences) =>
+                      _savePreferences(context, ref, updatedPreferences),
+                ),
+                loading: () => const _PreferencesLoadingSection(),
+                error: (error, _) {
+                  final failure = AppFailureClassifier.classify(
+                    error,
+                    fallbackTitle: 'Preferences unavailable',
+                    fallbackMessage:
+                        'Notification preferences could not be loaded right now.',
+                  );
+                  return _PreferencesSection(
+                    preferences: const SettingsPreferences(),
+                    errorMessage: failure.message,
+                    onRetry: () => ref.invalidate(settingsPreferencesProvider),
+                    onToggle: null,
+                  );
+                },
+              ),
             const SizedBox(height: 20),
             _SettingsSection(
               title: 'Legal',
@@ -733,7 +737,6 @@ class _PreferencesSection extends StatelessWidget {
                   preferences.copyWith(paymentAlertsEnabled: value),
                 ),
         ),
-
       ],
     );
   }

@@ -7,36 +7,49 @@ import 'package:omc_app/core/storage/secure_storage_service.dart';
 import 'package:omc_app/features/service_catalogue/data/service_catalogue_repository.dart';
 
 void main() {
-  test('direct request loads a verified template independently of catalogue', () async {
-    final client = _CatalogueFrappeClient();
-    final service = await ServiceCatalogueRepository(frappeClient: client).fetchDetail('ntn-registration', withTemplate: true);
-    expect(service.formSchema, hasLength(1));
-    expect(client.calls, [ApiConfig.serviceDetailMethod, ApiConfig.serviceTemplateMethod]);
-  });
-  test('template failure propagates instead of returning a generic form', () async {
-    final client = _CatalogueFrappeClient()..failTemplate = true;
-    await expectLater(ServiceCatalogueRepository(frappeClient: client).fetchDetail('ntn-registration', withTemplate: true), throwsA(isA<Exception>()));
-  });
-
   test(
-    'catalogue stays lightweight and preserves pricing metadata',
+    'direct request loads a verified template independently of catalogue',
     () async {
-      final repository = ServiceCatalogueRepository(
-        frappeClient: _CatalogueFrappeClient(),
-      );
-
-      final services = await repository.fetchServices();
-
-      expect(services, hasLength(1));
-      final service = services.single;
-      expect(service.formSchema, isEmpty);
-      expect(service.serviceVersion, 7);
-      expect(service.pricingVersion, 'server-pricing-hash');
-      expect(service.taxPolicy, 'Exclusive');
-      expect(service.taxRate, 18);
-      expect(service.activationPolicy, 'Full Settlement');
+      final client = _CatalogueFrappeClient();
+      final service = await ServiceCatalogueRepository(
+        frappeClient: client,
+      ).fetchDetail('ntn-registration', withTemplate: true);
+      expect(service.formSchema, hasLength(1));
+      expect(client.calls, [
+        ApiConfig.serviceDetailMethod,
+        ApiConfig.serviceTemplateMethod,
+      ]);
     },
   );
+  test(
+    'template failure propagates instead of returning a generic form',
+    () async {
+      final client = _CatalogueFrappeClient()..failTemplate = true;
+      await expectLater(
+        ServiceCatalogueRepository(
+          frappeClient: client,
+        ).fetchDetail('ntn-registration', withTemplate: true),
+        throwsA(isA<Exception>()),
+      );
+    },
+  );
+
+  test('catalogue stays lightweight and preserves pricing metadata', () async {
+    final repository = ServiceCatalogueRepository(
+      frappeClient: _CatalogueFrappeClient(),
+    );
+
+    final services = await repository.fetchServices();
+
+    expect(services, hasLength(1));
+    final service = services.single;
+    expect(service.formSchema, isEmpty);
+    expect(service.serviceVersion, 7);
+    expect(service.pricingVersion, 'server-pricing-hash');
+    expect(service.taxPolicy, 'Exclusive');
+    expect(service.taxRate, 18);
+    expect(service.activationPolicy, 'Full Settlement');
+  });
 }
 
 class _CatalogueFrappeClient extends FrappeClient {
@@ -58,7 +71,14 @@ class _CatalogueFrappeClient extends FrappeClient {
   }) async {
     calls.add(method);
     if (method == ApiConfig.serviceDetailMethod) {
-      return {'message': {'id': 'ntn-registration', 'title': 'NTN Registration', 'service_version': 7, 'pricing_version': 'server-pricing-hash'}};
+      return {
+        'message': {
+          'id': 'ntn-registration',
+          'title': 'NTN Registration',
+          'service_version': 7,
+          'pricing_version': 'server-pricing-hash',
+        },
+      };
     }
     if (method == ApiConfig.serviceCatalogueMethod) {
       expect(queryParameters?['lightweight'], 1);

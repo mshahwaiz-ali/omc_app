@@ -1,4 +1,7 @@
 import '../../support/data/support_config_data.dart';
+import 'mobile_release_controls.dart';
+
+enum MobileConfigAvailability { current, stale, unavailable }
 
 class MobileAppConfig {
   const MobileAppConfig({
@@ -7,6 +10,9 @@ class MobileAppConfig {
     required this.branding,
     required this.legal,
     required this.isFallback,
+    this.controls = MobileReleaseControls.unavailable,
+    this.availability = MobileConfigAvailability.unavailable,
+    this.validUntil,
   });
 
   final SupportConfigData support;
@@ -14,67 +20,94 @@ class MobileAppConfig {
   final MobileBrandingConfig branding;
   final MobileLegalConfig legal;
   final bool isFallback;
+  final MobileReleaseControls controls;
+  final MobileConfigAvailability availability;
+  final DateTime? validUntil;
 
-  static MobileAppConfig get fallback {
-    return MobileAppConfig(
-      support: SupportConfigData.fallback,
-      features: const MobileFeatureConfig(),
-      branding: const MobileBrandingConfig(
-        companyName: 'OMC House',
-        tagline: 'Business, tax and compliance support',
-        accentColor: '#111827',
-      ),
-      legal: MobileLegalConfig.fallback,
-      isFallback: true,
-    );
-  }
+  bool isCurrentAt(DateTime now) =>
+      availability == MobileConfigAvailability.current &&
+      controls.valid &&
+      validUntil != null &&
+      now.isBefore(validUntil!);
 
-  factory MobileAppConfig.fromApiResponse(Map<String, dynamic>? data) {
-    if (data == null || data.isEmpty) return fallback;
+  static MobileAppConfig get fallback => MobileAppConfig(
+    support: SupportConfigData.fallback,
+    features: const MobileFeatureConfig(),
+    branding: const MobileBrandingConfig(
+      companyName: 'OMC House',
+      tagline: 'Business, tax and compliance support',
+      accentColor: '#111827',
+    ),
+    legal: MobileLegalConfig.fallback,
+    isFallback: true,
+  );
 
+  MobileAppConfig asStale() => MobileAppConfig(
+    support: support,
+    // Last-known branding and blocked controls survive; stale features do not
+    // become permission to start a business workflow.
+    features: const MobileFeatureConfig(),
+    branding: branding,
+    legal: legal,
+    isFallback: true,
+    controls: controls,
+    availability: MobileConfigAvailability.stale,
+  );
+
+  factory MobileAppConfig.fromApiResponse(
+    Map<String, dynamic>? data, {
+    DateTime? fetchedAt,
+  }) {
+    if (data == null || data.isEmpty) {
+      throw const FormatException('Mobile configuration is empty.');
+    }
     final message = data['message'];
     final raw = message is Map<String, dynamic> ? message : data;
-
-    final supportRaw = raw['support'];
-    final featuresRaw = raw['features'];
-    final brandingRaw = raw['branding'];
-    final legalRaw = raw['legal'];
-    final metaRaw = raw['meta'];
-
-    final fallbackConfig = fallback;
-
+    final featureData = raw['features'];
+    final meta = raw['meta'];
+    if (featureData is! Map<String, dynamic> || meta is! Map<String, dynamic>) {
+      throw const FormatException('Mobile configuration is incomplete.');
+    }
+    final controls = MobileReleaseControls.fromJson(meta);
+    final defaults = fallback;
+    final support = raw['support'];
+    final branding = raw['branding'];
+    final legal = raw['legal'];
+    // Legacy meta.fallback describes default support contacts, not the validity
+    // of the feature/control payload. Required controls are validated above.
     return MobileAppConfig(
-      support: supportRaw is Map<String, dynamic>
-          ? SupportConfigData.fromApiResponse(supportRaw)
-          : fallbackConfig.support,
-      features: featuresRaw is Map<String, dynamic>
-          ? MobileFeatureConfig.fromJson(featuresRaw)
-          : fallbackConfig.features,
-      branding: brandingRaw is Map<String, dynamic>
-          ? MobileBrandingConfig.fromJson(brandingRaw)
-          : fallbackConfig.branding,
-      legal: legalRaw is Map<String, dynamic>
-          ? MobileLegalConfig.fromJson(legalRaw)
-          : fallbackConfig.legal,
+      support: support is Map<String, dynamic>
+          ? SupportConfigData.fromApiResponse(support)
+          : defaults.support,
+      features: MobileFeatureConfig.fromJson(featureData),
+      branding: branding is Map<String, dynamic>
+          ? MobileBrandingConfig.fromJson(branding)
+          : defaults.branding,
+      legal: legal is Map<String, dynamic>
+          ? MobileLegalConfig.fromJson(legal)
+          : defaults.legal,
       isFallback:
           raw['fallback'] == true ||
           raw['is_fallback'] == true ||
-          (metaRaw is Map<String, dynamic> && metaRaw['fallback'] == true),
+          meta['fallback'] == true,
+      controls: controls,
+      availability: MobileConfigAvailability.current,
+      validUntil: (fetchedAt ?? DateTime.now()).add(const Duration(minutes: 5)),
     );
   }
 }
 
 class MobileFeatureConfig {
   const MobileFeatureConfig({
-    this.guestModeEnabled = true,
-    this.expenseTrackerEnabled = true,
-    this.knowledgeEnabled = true,
-    this.paymentsEnabled = true,
+    this.guestModeEnabled = false,
+    this.expenseTrackerEnabled = false,
+    this.knowledgeEnabled = false,
+    this.paymentsEnabled = false,
     this.paymentGatewayEnabled = false,
-    this.taxCalculatorEnabled = true,
-    this.supportEnabled = true,
+    this.taxCalculatorEnabled = false,
+    this.supportEnabled = false,
     this.subscriptionsEnabled = false,
-    this.internalWorkspaceEnabled = true,
+    this.internalWorkspaceEnabled = false,
   });
 
   final bool guestModeEnabled;
@@ -87,33 +120,21 @@ class MobileFeatureConfig {
   final bool subscriptionsEnabled;
   final bool internalWorkspaceEnabled;
 
-  factory MobileFeatureConfig.fromJson(Map<String, dynamic> json) {
-    return MobileFeatureConfig(
-      guestModeEnabled: _boolValue(json['guest_mode_enabled'], true),
-      expenseTrackerEnabled: _boolValue(json['expense_tracker_enabled'], true),
-      knowledgeEnabled: _boolValue(json['knowledge_enabled'], true),
-      paymentsEnabled: _boolValue(json['payments_enabled'], true),
-      paymentGatewayEnabled: _boolValue(json['payment_gateway_enabled'], false),
-      taxCalculatorEnabled: _boolValue(json['tax_calculator_enabled'], true),
-      supportEnabled: _boolValue(json['support_enabled'], true),
-      subscriptionsEnabled: _boolValue(json['subscriptions_enabled'], false),
-      internalWorkspaceEnabled: _boolValue(
-        json['internal_workspace_enabled'],
-        true,
-      ),
-    );
-  }
+  factory MobileFeatureConfig.fromJson(Map<String, dynamic> json) =>
+      MobileFeatureConfig(
+        guestModeEnabled: _enabled(json['guest_mode_enabled']),
+        expenseTrackerEnabled: _enabled(json['expense_tracker_enabled']),
+        knowledgeEnabled: _enabled(json['knowledge_enabled']),
+        paymentsEnabled: _enabled(json['payments_enabled']),
+        paymentGatewayEnabled: _enabled(json['payment_gateway_enabled']),
+        taxCalculatorEnabled: _enabled(json['tax_calculator_enabled']),
+        supportEnabled: _enabled(json['support_enabled']),
+        subscriptionsEnabled: _enabled(json['subscriptions_enabled']),
+        internalWorkspaceEnabled: _enabled(json['internal_workspace_enabled']),
+      );
 
-  static bool _boolValue(dynamic value, bool fallback) {
-    if (value is bool) return value;
-    if (value is num) return value != 0;
-
-    final text = value?.toString().trim().toLowerCase();
-    if (text == 'true' || text == '1' || text == 'yes') return true;
-    if (text == 'false' || text == '0' || text == 'no') return false;
-
-    return fallback;
-  }
+  static bool _enabled(Object? value) =>
+      value == true || value == 1 || value == '1' || value == 'true';
 }
 
 class MobileBrandingConfig {
@@ -175,7 +196,8 @@ class MobileLegalConfig {
   factory MobileLegalConfig.fromJson(Map<String, dynamic> json) {
     return MobileLegalConfig(
       privacyPolicyUrl:
-          _nullableString(json['privacy_policy_url']) ?? fallback.privacyPolicyUrl,
+          _nullableString(json['privacy_policy_url']) ??
+          fallback.privacyPolicyUrl,
       privacyPolicyText:
           _nullableString(json['privacy_policy_text']) ??
           fallback.privacyPolicyText,

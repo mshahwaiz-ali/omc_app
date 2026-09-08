@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_error.dart';
+import '../../../core/push/push_registration.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../app/providers/core_providers.dart';
 import '../../../core/forms/dirty_form_controller.dart';
@@ -160,12 +161,14 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<bool> continueAsGuest() async {
+    final pushCleanup = ref.read(pushRegistrationProvider).prepareForSignOut();
     try {
       // Drop protected UI ownership before any network cleanup. On Web the
       // logout call is also required to clear the browser-managed Frappe
       // cookie; clearing local storage alone is not a Guest transition.
       state = const AuthState.unauthenticated();
       ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
+      await pushCleanup;
       await _authRepository.logout();
       await _authRepository.createGuestSession();
       state = const AuthState.guest();
@@ -189,6 +192,7 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
+    final pushCleanup = ref.read(pushRegistrationProvider).prepareForSignOut();
     // Remove authenticated ownership before starting remote cleanup. This
     // prevents protected providers from issuing refreshes while logout is in
     // flight and avoids mounting DeviceLockGate during the transition.
@@ -196,6 +200,7 @@ class AuthController extends Notifier<AuthState> {
     ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
 
     try {
+      await pushCleanup;
       await _authRepository.logout();
     } finally {
       await _advanceSessionBoundary();
@@ -207,11 +212,15 @@ class AuthController extends Notifier<AuthState> {
       return;
     }
     _sessionExpiryInFlight = true;
+    final pushCleanup = ref
+        .read(pushRegistrationProvider)
+        .prepareForSignOut(unregister: false);
     try {
       state = const AuthState.unauthenticated(
         message: 'Your session has expired. Please sign in again.',
       );
       ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
+      await pushCleanup;
       await _clearSessionBestEffort();
       await _advanceSessionBoundary();
     } finally {

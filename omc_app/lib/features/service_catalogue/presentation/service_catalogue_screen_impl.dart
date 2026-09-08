@@ -49,7 +49,12 @@ class _ServiceCatalogueScreenState
   void _search(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 300), () {
-      if (mounted) setState(() { _query = value.trim(); _start = 0; });
+      if (mounted) {
+        setState(() {
+          _query = value.trim();
+          _start = 0;
+        });
+      }
     });
   }
 
@@ -70,7 +75,11 @@ class _ServiceCatalogueScreenState
 
   @override
   Widget build(BuildContext context) {
-    final pageProvider = serviceCataloguePageProvider((start: _start, search: _query, category: _selectedCategory == _allCategory ? '' : _selectedCategory));
+    final pageProvider = serviceCataloguePageProvider((
+      start: _start,
+      search: _query,
+      category: _selectedCategory == _allCategory ? '' : _selectedCategory,
+    ));
     final pageAsync = ref.watch(pageProvider);
     final servicesAsync = pageAsync.whenData((page) => page.items);
     ref.watch(authControllerProvider);
@@ -83,13 +92,22 @@ class _ServiceCatalogueScreenState
           icon: Icons.cloud_off_outlined,
           title: 'Services unavailable',
           message: serviceCatalogueErrorMessage(error),
-          actionLabel: 'Retry',
-          onAction: () => ref.invalidate(pageProvider),
+          actionLabel: _query.isNotEmpty || _selectedCategory != _allCategory
+              ? 'Clear filters'
+              : 'Retry',
+          onAction: () {
+            if (_query.isNotEmpty || _selectedCategory != _allCategory) {
+              _clearFilters();
+            } else {
+              ref.invalidate(pageProvider);
+            }
+          },
         ),
         data: (services) {
           final categories = <String>[
             _allCategory,
             ...{
+              if (_selectedCategory != _allCategory) _selectedCategory,
               for (final service in services)
                 if (service.category.trim().isNotEmpty) service.category.trim(),
             }.toList()..sort(),
@@ -109,11 +127,29 @@ class _ServiceCatalogueScreenState
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               children: [
                 const _PageHeading(),
-                Row(children: [
-                  TextButton(onPressed: _start == 0 ? null : () => setState(() => _start = (_start - 50).clamp(0, _start)), child: const Text('Previous')),
-                  Text('Page ${_start ~/ 50 + 1}'),
-                  TextButton(onPressed: pageAsync.value?.nextStart == null ? null : () => setState(() => _start = pageAsync.value!.nextStart!), child: const Text('Next')),
-                ]),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    TextButton(
+                      onPressed: _start == 0
+                          ? null
+                          : () => setState(
+                              () => _start = (_start - 50).clamp(0, _start),
+                            ),
+                      child: const Text('Previous'),
+                    ),
+                    Text('Page ${_start ~/ 50 + 1}'),
+                    TextButton(
+                      onPressed: pageAsync.value?.nextStart == null
+                          ? null
+                          : () => setState(
+                              () => _start = pageAsync.value!.nextStart!,
+                            ),
+                      child: const Text('Next'),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 _SearchField(
                   controller: _searchController,
@@ -130,8 +166,10 @@ class _ServiceCatalogueScreenState
                 _CategoryStrip(
                   categories: categories,
                   selectedCategory: _selectedCategory,
-                  onSelected: (category) =>
-                      setState(() { _selectedCategory = category; _start = 0; }),
+                  onSelected: (category) => setState(() {
+                    _selectedCategory = category;
+                    _start = 0;
+                  }),
                 ),
                 const SizedBox(height: 14),
                 _SectionHeader(
@@ -140,7 +178,9 @@ class _ServiceCatalogueScreenState
                       _query.isNotEmpty || _selectedCategory != _allCategory,
                 ),
                 const SizedBox(height: 9),
-                if (services.isEmpty)
+                if (services.isEmpty &&
+                    _query.isEmpty &&
+                    _selectedCategory == _allCategory)
                   const _ServiceListEmptyState(
                     icon: Icons.inventory_2_outlined,
                     title: 'No services available',
@@ -198,6 +238,7 @@ class _ServiceCatalogueScreenState
   }
 
   void _clearFilters() {
+    _debounce?.cancel();
     _searchController.clear();
     setState(() {
       _query = '';
@@ -286,7 +327,10 @@ class _ServiceCatalogueScreenState
                               : _displayCategoryLabel(category),
                           selected: _selectedCategory == category,
                           onTap: () {
-                            setState(() { _selectedCategory = category; _start = 0; });
+                            setState(() {
+                              _selectedCategory = category;
+                              _start = 0;
+                            });
                             Navigator.of(sheetContext).pop();
                           },
                         ),

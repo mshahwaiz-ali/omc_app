@@ -4,6 +4,7 @@ import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
+import '../../../core/network/page_result.dart';
 import '../domain/customer_item.dart';
 
 final customersRepositoryProvider = Provider<CustomersRepository>((ref) {
@@ -31,10 +32,29 @@ class CustomersRepository {
 
   final FrappeClient _frappeClient;
 
-  Future<List<CustomerItem>> fetchCustomers({int start = 0, String search = ""}) async {
+  Future<List<CustomerItem>> fetchCustomers({
+    int start = 0,
+    String search = '',
+  }) async {
+    return (await fetchPage(start: start, search: search)).items;
+  }
+
+  Future<PageResult<CustomerItem>> fetchPage({
+    int start = 0,
+    String search = '',
+  }) async {
     try {
-      final response = await _frappeClient.getMethod(ApiConfig.customersMethod, queryParameters: {"start": start, "limit": 50, "search": search});
-      return _mapCustomersResponse(response);
+      final response = await _frappeClient.getMethod(
+        ApiConfig.customersMethod,
+        queryParameters: {'start': start, 'limit': 50, 'search': search.trim()},
+      );
+      final items = _mapCustomersResponse(response);
+      final message = response['message'];
+      final data = message is Map ? message : response;
+      return PageResult(
+        items,
+        readNextStart(data, start: start, count: items.length, limit: 50),
+      );
     } on ApiError {
       rethrow;
     } catch (error) {
@@ -93,7 +113,10 @@ class CustomersRepository {
               data['results'] ??
               data['records'];
 
-    if (rawCustomers is! List) return const [];
+    if (rawCustomers is! List ||
+        rawCustomers.any((row) => row is! Map<String, dynamic>)) {
+      throw const FormatException('Invalid customers response.');
+    }
 
     return rawCustomers
         .whereType<Map<String, dynamic>>()
@@ -125,6 +148,19 @@ class CustomersRepository {
   }
 }
 
-final customersPageProvider = FutureProvider.autoDispose.family<List<CustomerItem>, ({int start, String search})>((ref, query) {
-  return ref.watch(customersRepositoryProvider).fetchCustomers(start: query.start, search: query.search);
-});
+final customersResultPageProvider = FutureProvider.autoDispose
+    .family<PageResult<CustomerItem>, ({int start, String search})>((
+      ref,
+      query,
+    ) {
+      return ref
+          .watch(customersRepositoryProvider)
+          .fetchPage(start: query.start, search: query.search);
+    });
+
+final customersPageProvider = FutureProvider.autoDispose
+    .family<List<CustomerItem>, ({int start, String search})>((ref, query) {
+      return ref
+          .watch(customersResultPageProvider(query).future)
+          .then((page) => page.items);
+    });

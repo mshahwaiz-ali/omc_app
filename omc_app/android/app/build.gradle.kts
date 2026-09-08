@@ -7,6 +7,14 @@ plugins {
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
+    id("com.google.gms.google-services") apply false
+}
+
+// No fabricated Firebase configuration. An absent file disables OS push only.
+if (file("google-services.json").isFile) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.lifecycle("OMC: google-services.json absent; OS push is unavailable.")
 }
 
 val keystoreProperties = Properties()
@@ -58,6 +66,7 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -100,6 +109,10 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 secrets {

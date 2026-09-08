@@ -120,7 +120,9 @@ class _ServiceRequestDraftScreenState
         : ref.watch(profileSummaryProvider);
     final customerProfile = profileAsync?.asData?.value;
 
-    final servicesAsync = ref.watch(serviceRequestTemplateProvider(widget.serviceId));
+    final servicesAsync = ref.watch(
+      serviceRequestTemplateProvider(widget.serviceId),
+    );
 
     return servicesAsync.when(
       loading: () => const Scaffold(
@@ -136,7 +138,9 @@ class _ServiceRequestDraftScreenState
             fallbackTitle: 'Request form unavailable',
             fallbackMessage:
                 'The request form could not be prepared right now.',
-            onRetry: () => ref.invalidate(serviceRequestTemplateProvider(widget.serviceId)),
+            onRetry: () => ref.invalidate(
+              serviceRequestTemplateProvider(widget.serviceId),
+            ),
           ),
         ),
       ),

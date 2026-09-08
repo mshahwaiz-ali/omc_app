@@ -70,6 +70,7 @@ class TestNotificationOwnershipAuthority(FrappeTestCase):
             filters={
                 "visible_to_customer": 1,
                 "is_read": 0,
+                "in_app_delivery_enabled": 1,
                 "is_dismissed": 0,
                 "customer_profile": "CUST-0001",
             },
@@ -184,41 +185,28 @@ class TestPushTokenLifecycle(FrappeTestCase):
         new_doc.assert_not_called()
         commit.assert_called_once_with()
 
-    @patch("omc_app.api.mobile.frappe.db.commit")
-    @patch("omc_app.api.mobile.frappe.utils.now_datetime")
-    @patch("omc_app.api.mobile.frappe.get_doc")
-    @patch("omc_app.api.mobile.frappe.get_all")
-    @patch("omc_app.api.mobile._current_user")
-    def test_unregister_is_scoped_to_current_user(
-        self,
-        current_user,
-        get_all,
-        get_doc,
-        now_datetime,
-        commit,
-    ):
-        current_user.return_value = "user@example.com"
-        get_all.return_value = ["PUSH-0001"]
+    def test_unregister_is_scoped_to_current_user(self):
         doc = MagicMock()
-        get_doc.return_value = doc
-        now_datetime.return_value = "2026-07-29 20:00:00"
-
-        result = mobile.unregister_push_token(
-            token="TOKEN-A",
-            device_id="DEVICE-1",
-        )
-
+        doc.user = "user@example.com"
+        doc.token = "TOKEN-A"
+        doc.binding_id = "a" * 32
+        doc.is_active = 1
+        with patch("omc_app.api.mobile._current_user", return_value=doc.user), \
+                patch("omc_app.api.mobile.frappe.get_all", return_value=["PUSH-0001"]) as get_all, \
+                patch("omc_app.api.mobile.frappe.get_doc", return_value=doc), \
+                patch("omc_app.api.mobile.frappe.db.sql") as lock, \
+                patch("omc_app.api.mobile.frappe.db.commit") as commit:
+            result = mobile.unregister_push_token(token="TOKEN-A", device_id="DEVICE-1")
         get_all.assert_called_once_with(
-            "OMC Push Token",
-            filters={
-                "user": "user@example.com",
-                "token": "TOKEN-A",
-            },
-            pluck="name",
+            "OMC Push Token", filters={"user": "user@example.com", "token": "TOKEN-A"}, pluck="name",
+        )
+        lock.assert_called_once_with(
+            "SELECT name FROM `tabOMC Push Token` WHERE name=%s FOR UPDATE", "PUSH-0001",
         )
         self.assertEqual(doc.is_active, 0)
         doc.save.assert_called_once_with(ignore_permissions=True)
         self.assertTrue(result["unregistered"])
+        self.assertEqual(result["count"], 1)
         commit.assert_called_once_with()
 
 
@@ -289,82 +277,72 @@ class TestSettingsPreferenceAuthority(FrappeTestCase):
         )
 
 class TestNotificationPreferenceGating(FrappeTestCase):
-    @patch("omc_app.api.mobile.frappe.new_doc")
-    @patch("omc_app.api.mobile._notification_preference_enabled")
-    def test_disabled_customer_preference_suppresses_notification(
-        self,
-        preference_enabled,
-        new_doc,
-    ):
-        preference_enabled.return_value = False
-
-        result = mobile._create_customer_notification(
-            customer_profile="CUST-0001",
-            title="Document required",
-            message="Please upload the requested document.",
-            notification_type="Document Request",
-            reference_doctype="OMC Service Document",
-            reference_name="DOC-0001",
-        )
-
+    def test_disabled_customer_preference_suppresses_notification(self):
+        preferences = {
+            "document_reminders_enabled": 0,
+            "in_app_notifications_enabled": 1,
+            "push_notifications_enabled": 1,
+        }
+        with patch("omc_app.api.notification_channels.frappe.db.get_value", return_value=preferences) as lookup, \
+                patch("omc_app.api.mobile.frappe.db.exists", return_value=False), \
+                patch("omc_app.api.mobile.frappe.new_doc") as new_doc:
+            result = mobile._create_customer_notification(
+                customer_profile="CUST-0001", title="Document required",
+                message="Please upload the requested document.",
+                notification_type="Document Request",
+                reference_doctype="OMC Service Document", reference_name="DOC-0001",
+            )
         self.assertIsNone(result)
-        preference_enabled.assert_called_once_with(
-            customer_profile="CUST-0001",
-            notification_type="Document",
-        )
         new_doc.assert_not_called()
+        lookup.assert_called_once_with(
+            "OMC Customer Preference", {"customer_profile": "CUST-0001"},
+            ["document_reminders_enabled", "in_app_notifications_enabled", "push_notifications_enabled"],
+            as_dict=True,
+        )
 
-    @patch("omc_app.api.mobile.frappe.new_doc")
-    @patch("omc_app.api.mobile._notification_preference_enabled")
-    def test_enabled_customer_preference_allows_notification(
-        self,
-        preference_enabled,
-        new_doc,
-    ):
-        preference_enabled.return_value = True
+    def test_enabled_customer_preference_allows_notification(self):
+        preferences = {
+            "payment_alerts_enabled": 1,
+            "in_app_notifications_enabled": 1,
+            "push_notifications_enabled": 1,
+        }
         notification = MagicMock()
         notification.meta.has_field.return_value = False
-        new_doc.return_value = notification
-
-        result = mobile._create_customer_notification(
-            customer_profile="CUST-0001",
-            title="Payment update",
-            message="Your payment was received.",
-            notification_type="Payment Alert",
-            reference_doctype="OMC Service Payment",
-            reference_name="PAY-0001",
-        )
-
+        with patch("omc_app.api.notification_channels.frappe.db.get_value", return_value=preferences) as lookup, \
+                patch("omc_app.api.mobile.frappe.db.exists", return_value=False), \
+                patch("omc_app.api.mobile.frappe.new_doc", return_value=notification):
+            result = mobile._create_customer_notification(
+                customer_profile="CUST-0001", title="Payment update",
+                message="Your payment was received.", notification_type="Payment Alert",
+                reference_doctype="OMC Service Payment", reference_name="PAY-0001",
+            )
         self.assertIs(result, notification)
-        preference_enabled.assert_called_once_with(
-            customer_profile="CUST-0001",
-            notification_type="Payment",
+        self.assertEqual(notification.customer_profile, "CUST-0001")
+        self.assertEqual(notification.in_app_delivery_enabled, 1)
+        self.assertEqual(notification.push_delivery_enabled, 1)
+        lookup.assert_called_once_with(
+            "OMC Customer Preference", {"customer_profile": "CUST-0001"},
+            ["payment_alerts_enabled", "in_app_notifications_enabled", "push_notifications_enabled"],
+            as_dict=True,
         )
         notification.insert.assert_called_once_with(ignore_permissions=True)
 
-    @patch("omc_app.api.mobile.frappe.new_doc")
-    @patch("omc_app.api.mobile._notification_preference_enabled")
-    def test_internal_recipient_bypasses_customer_preferences(
-        self,
-        preference_enabled,
-        new_doc,
-    ):
+    def test_internal_recipient_bypasses_customer_preferences(self):
         notification = MagicMock()
         notification.meta.has_field.return_value = False
-        new_doc.return_value = notification
-
-        result = mobile._create_customer_notification(
-            recipient_user="staff@example.com",
-            title="New service request assigned",
-            message="SR-0001 has been assigned.",
-            notification_type="Service",
-            reference_doctype="OMC Service Request",
-            reference_name="SR-0001",
-        )
-
+        with patch("omc_app.api.notification_channels.frappe.db.get_value") as lookup, \
+                patch("omc_app.api.mobile.frappe.db.exists", return_value=False), \
+                patch("omc_app.api.mobile.frappe.new_doc", return_value=notification):
+            result = mobile._create_customer_notification(
+                recipient_user="staff@example.com", title="New service request assigned",
+                message="SR-0001 has been assigned.", notification_type="Service",
+                reference_doctype="OMC Service Request", reference_name="SR-0001",
+            )
         self.assertIs(result, notification)
-        preference_enabled.assert_not_called()
+        lookup.assert_not_called()
         self.assertEqual(notification.recipient_user, "staff@example.com")
+        self.assertEqual(notification.in_app_delivery_enabled, 1)
+        self.assertEqual(notification.push_delivery_enabled, 1)
         notification.insert.assert_called_once_with(ignore_permissions=True)
 
     @patch("omc_app.api.mobile.frappe.db.get_value")
@@ -408,3 +386,74 @@ class TestNotificationPreferenceGating(FrappeTestCase):
             {"customer_profile": "CUST-0001"},
             "name",
         )
+
+
+class TestNotificationChannelAndBindingRegression(FrappeTestCase):
+    def test_creator_respects_independent_channel_truth_table(self):
+        for category in (0, 1):
+            for inbox in (0, 1):
+                for push in (0, 1):
+                    with self.subTest(category=category, inbox=inbox, push=push):
+                        notification = MagicMock()
+                        notification.meta.has_field.return_value = False
+                        preferences = {
+                            "service_updates_enabled": category,
+                            "in_app_notifications_enabled": inbox,
+                            "push_notifications_enabled": push,
+                        }
+                        with patch("omc_app.api.notification_channels.frappe.db.get_value", return_value=preferences), \
+                                patch("omc_app.api.mobile.frappe.db.exists", return_value=False), \
+                                patch("omc_app.api.mobile.frappe.new_doc", return_value=notification) as new_doc:
+                            result = mobile._create_customer_notification(
+                                customer_profile="CUST-0001", title="Account update", notification_type="General",
+                            )
+                        if not category or not (inbox or push):
+                            self.assertIsNone(result)
+                            new_doc.assert_not_called()
+                        else:
+                            self.assertIs(result, notification)
+                            self.assertEqual(notification.customer_profile, "CUST-0001")
+                            self.assertEqual(notification.in_app_delivery_enabled, inbox)
+                            self.assertEqual(notification.push_delivery_enabled, push)
+                            notification.insert.assert_called_once_with(ignore_permissions=True)
+
+    def test_stale_logout_does_not_revoke_rebound_or_foreign_token(self):
+        cases = (
+            ("other@example.com", "TOKEN-A", "a" * 32),
+            ("user@example.com", "TOKEN-A", "b" * 32),
+            ("user@example.com", "TOKEN-NEW", "a" * 32),
+        )
+        for user, token, binding in cases:
+            with self.subTest(user=user, token=token, binding=binding):
+                doc = MagicMock()
+                doc.user, doc.token, doc.binding_id, doc.is_active = user, token, binding, 1
+                with patch("omc_app.api.mobile._current_user", return_value="user@example.com"), \
+                        patch("omc_app.api.mobile.frappe.get_all", return_value=["PUSH-0001"]) as query, \
+                        patch("omc_app.api.mobile.frappe.get_doc", return_value=doc), \
+                        patch("omc_app.api.mobile.frappe.db.sql") as lock, \
+                        patch("omc_app.api.mobile.frappe.db.commit") as commit:
+                    result = mobile.unregister_push_token(token="TOKEN-A", binding_id="a" * 32)
+                self.assertEqual(query.call_args.kwargs["filters"], {
+                    "user": "user@example.com", "token": "TOKEN-A", "binding_id": "a" * 32,
+                })
+                lock.assert_called_once()
+                doc.save.assert_not_called()
+                commit.assert_not_called()
+                self.assertEqual(doc.is_active, 1)
+                self.assertFalse(result["unregistered"])
+                self.assertEqual(result["count"], 0)
+
+    def test_matching_bound_logout_revokes_only_one_binding(self):
+        doc = MagicMock()
+        doc.user, doc.token, doc.binding_id, doc.is_active = "user@example.com", "TOKEN-A", "a" * 32, 1
+        with patch("omc_app.api.mobile._current_user", return_value=doc.user), \
+                patch("omc_app.api.mobile.frappe.get_all", return_value=["PUSH-0001"]) as query, \
+                patch("omc_app.api.mobile.frappe.get_doc", return_value=doc), \
+                patch("omc_app.api.mobile.frappe.db.sql"), \
+                patch("omc_app.api.mobile.frappe.db.commit") as commit:
+            result = mobile.unregister_push_token(token=doc.token, binding_id=doc.binding_id)
+        self.assertEqual(query.call_args.kwargs["filters"]["binding_id"], "a" * 32)
+        self.assertEqual(doc.is_active, 0)
+        doc.save.assert_called_once_with(ignore_permissions=True)
+        commit.assert_called_once_with()
+        self.assertEqual(result["count"], 1)

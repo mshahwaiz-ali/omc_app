@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:dio/dio.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,6 +9,7 @@ import '../../../app/providers/core_providers.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/frappe_client.dart';
+import '../../../core/network/page_result.dart';
 import '../domain/expense_transaction.dart';
 
 final expenseTrackerRepositoryProvider = Provider<ExpenseTrackerRepository>((
@@ -399,7 +401,9 @@ class ExpenseTrackerRepository {
 
     try {
       final decoded = jsonDecode(raw);
-      if (decoded is! List) return const [];
+      if (decoded is! List) {
+        throw const FormatException('Invalid local expense backup.');
+      }
 
       return decoded
           .whereType<Map>()
@@ -412,7 +416,9 @@ class ExpenseTrackerRepository {
           )
           .toList(growable: false);
     } catch (_) {
-      return const [];
+      throw StateError(
+        'Local expense backup could not be read. It has not been replaced.',
+      );
     }
   }
 
@@ -423,7 +429,9 @@ class ExpenseTrackerRepository {
       transactions.map((transaction) => transaction.toJson()).toList(),
     );
 
-    await preferences.setString(_storageKey, encoded);
+    if (!await preferences.setString(_storageKey, encoded)) {
+      throw StateError('Local expense backup could not be saved.');
+    }
   }
 
   Future<void> clearTransactions() async {
@@ -451,28 +459,71 @@ class ExpenseTrackerRepository {
     }
   }
 
-  Future<ExpenseCloudPage> fetchSyncedPage({int start = 0, String? month}) async {
-    final response = await _frappeClient.getMethod(ApiConfig.expenseEntriesMethod,
-        queryParameters: {'start': start, 'limit': 100, 'month': ?month});
+  Future<ExpenseCloudPage> fetchSyncedPage({
+    int start = 0,
+    String? month,
+    CancelToken? cancelToken,
+  }) async {
+    final response = await _frappeClient.getMethod(
+      ApiConfig.expenseEntriesMethod,
+      queryParameters: {'start': start, 'limit': 100, 'month': ?month},
+      cancelToken: cancelToken,
+    );
     final data = _extractPayload(response);
     if (data['fallback'] == true || data['entries'] is! List) {
-      throw StateError('Cloud expense history is unavailable. Local data is unchanged.');
+      throw StateError(
+        'Cloud expense history is unavailable. Local data is unchanged.',
+      );
+    }
+    final rows = data['entries'] as List;
+    if (rows.any((row) => row is! Map<String, dynamic>)) {
+      throw const FormatException('Invalid expense history response.');
+    }
+    final entries = rows
+        .cast<Map<String, dynamic>>()
+        .map(ExpenseTransaction.fromJson)
+        .toList();
+    final ids = <String>{};
+    if (entries.any((entry) => entry.id.isEmpty || !ids.add(entry.id))) {
+      throw const FormatException('Duplicate or missing expense identifier.');
     }
     return ExpenseCloudPage(
-      _extractList(response, 'entries').map(ExpenseTransaction.fromJson).toList(),
-      data['has_more'] == true ? (data['next_start'] as num).toInt() : null,
+      entries,
+      readNextStart(
+        data,
+        start: start,
+        count: entries.length,
+        limit: 100,
+        requireMetadata: true,
+      ),
       Map<String, dynamic>.from(data['summary'] as Map? ?? const {}),
     );
   }
 
-  Stream<ExpenseCloudPage> syncedPages({String? month}) async* {
+  Stream<ExpenseCloudPage> syncedPages({
+    String? month,
+    CancelToken? cancelToken,
+    bool Function()? shouldCancel,
+  }) async* {
     var start = 0;
     while (true) {
-      final page = await fetchSyncedPage(start: start, month: month);
+      if (cancelToken?.isCancelled == true || shouldCancel?.call() == true) {
+        throw StateError('Export cancelled.');
+      }
+      final page = await fetchSyncedPage(
+        start: start,
+        month: month,
+        cancelToken: cancelToken,
+      );
+      if (cancelToken?.isCancelled == true || shouldCancel?.call() == true) {
+        throw StateError('Export cancelled.');
+      }
       yield page;
       final next = page.nextStart;
       if (next == null) break;
-      if (next <= start) throw StateError('Invalid expense continuation. Please retry.');
+      if (next <= start) {
+        throw StateError('Invalid expense continuation. Please retry.');
+      }
       start = next;
     }
   }
@@ -480,7 +531,9 @@ class ExpenseTrackerRepository {
   Future<List<ExpenseTransaction>> fetchSyncedTransactions() async {
     final entries = <String, ExpenseTransaction>{};
     await for (final page in syncedPages()) {
-      for (final entry in page.entries) { entries[entry.id] = entry; }
+      for (final entry in page.entries) {
+        entries[entry.id] = entry;
+      }
     }
     return entries.values.toList();
   }
@@ -652,7 +705,11 @@ class ExpenseCloudPage {
   final int? nextStart;
   final Map<String, dynamic> summary;
 }
-final expenseCloudPageProvider = FutureProvider.autoDispose.family<ExpenseCloudPage, ({int start, String? month})>((ref, query) {
-  ref.watch(sessionEpochProvider);
-  return ref.watch(expenseTrackerRepositoryProvider).fetchSyncedPage(start: query.start, month: query.month);
-});
+
+final expenseCloudPageProvider = FutureProvider.autoDispose
+    .family<ExpenseCloudPage, ({int start, String? month})>((ref, query) {
+      ref.watch(sessionEpochProvider);
+      return ref
+          .watch(expenseTrackerRepositoryProvider)
+          .fetchSyncedPage(start: query.start, month: query.month);
+    });

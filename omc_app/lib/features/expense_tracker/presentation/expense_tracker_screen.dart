@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import '../data/expense_export.dart';
 
 import 'package:file_picker/file_picker.dart';
@@ -34,72 +35,127 @@ final expenseTransactionsProvider =
 
 class ExpenseTransactionsController
     extends AsyncNotifier<List<ExpenseTransaction>> {
-  late final ExpenseTrackerRepository _repository;
+  late ExpenseTrackerRepository _repository;
+  int _generation = 0;
+  bool _mutating = false;
 
   @override
   Future<List<ExpenseTransaction>> build() async {
+    _generation++;
+    _mutating = false;
+    ref.watch(sessionEpochProvider);
     _repository = ref.watch(expenseTrackerRepositoryProvider);
-    return _sort(await _repository.readTransactions());
+    final repository = _repository;
+    return _sort(await repository.readTransactions());
+  }
+
+  void _current(int generation) {
+    if (!ref.mounted || generation != _generation) {
+      throw StateError('Account changed. Reopen the expense tracker.');
+    }
+  }
+
+  Future<T> _mutate<T>(
+    Future<T> Function(ExpenseTrackerRepository, int) work, {
+    bool requireLoaded = true,
+  }) async {
+    if (_mutating || (requireLoaded && !state.hasValue)) {
+      throw StateError('Wait for the current expense operation to finish.');
+    }
+    _mutating = true;
+    final generation = _generation;
+    final repository = _repository;
+    try {
+      return await work(repository, generation);
+    } finally {
+      if (ref.mounted && generation == _generation) {
+        _mutating = false;
+      }
+    }
+  }
+
+  Future<void> _save(
+    ExpenseTrackerRepository repository,
+    int generation,
+    List<ExpenseTransaction> transactions,
+  ) async {
+    _current(generation);
+    final next = _sort(transactions);
+    await repository.saveTransactions(next);
+    _current(generation);
+    state = AsyncData(next);
+    ref.invalidate(expenseCloudPageProvider);
   }
 
   Future<void> reloadLocal() async {
+    if (_mutating) {
+      return;
+    }
+    final generation = _generation;
+    final repository = _repository;
     state = const AsyncLoading();
     try {
-      state = AsyncData(_sort(await _repository.readTransactions()));
-    } catch (error, stackTrace) {
-      state = AsyncError(error, stackTrace);
+      final transactions = await repository.readTransactions();
+      _current(generation);
+      state = AsyncData(_sort(transactions));
+    } catch (error, stack) {
+      if (ref.mounted && generation == _generation) {
+        state = AsyncError(error, stack);
+      }
     }
   }
 
   Future<void> loadSynced() async {
-    state = const AsyncLoading();
-    try {
-      await _repository.fetchSyncedPage();
-      // A cloud read must never replace pending/local-only records.
-      state = AsyncData(_sort(await _repository.readTransactions()));
-    } catch (error, stackTrace) {
-      state = AsyncError(error, stackTrace);
-    }
+    ref.invalidate(expenseCloudPageProvider);
+    await reloadLocal();
   }
 
   Future<ExpenseTransaction> add(
     ExpenseTransaction transaction, {
     required bool sync,
-  }) async {
-    final current = state.value ?? const <ExpenseTransaction>[];
-    var nextTransaction = transaction;
-
-    if (sync) {
-      final synced = await _repository.createSyncedTransaction(transaction);
-      if (synced != null) nextTransaction = synced.copyWith(synced: true);
-    }
-
-    final next = _sort([nextTransaction, ...current]);
-    await _repository.saveTransactions(next);
-    state = AsyncData(next);
-    return nextTransaction;
+  }) {
+    return _mutate((repository, generation) async {
+      final current = state.value ?? const <ExpenseTransaction>[];
+      var saved = transaction;
+      if (sync) {
+        final result = await repository.createSyncedTransaction(transaction);
+        _current(generation);
+        if (result == null) {
+          throw StateError('Server did not confirm the saved expense.');
+        }
+        saved = result.copyWith(synced: true);
+      }
+      await _save(repository, generation, [
+        saved,
+        ...current.where((item) => item.id != saved.id),
+      ]);
+      return saved;
+    });
   }
 
   Future<ExpenseTransaction> updateTransaction(
     ExpenseTransaction transaction, {
     required bool sync,
-  }) async {
-    final current = state.value ?? const <ExpenseTransaction>[];
-    var nextTransaction = transaction;
-
-    if (sync) {
-      final synced = await _repository.updateSyncedTransaction(transaction);
-      if (synced != null) nextTransaction = synced.copyWith(synced: true);
-    }
-
-    final next = _sort(
-      current
-          .map((item) => item.id == transaction.id ? nextTransaction : item)
-          .toList(growable: false),
-    );
-    await _repository.saveTransactions(next);
-    state = AsyncData(next);
-    return nextTransaction;
+  }) {
+    return _mutate((repository, generation) async {
+      final current = state.value ?? const <ExpenseTransaction>[];
+      var saved = transaction;
+      if (sync) {
+        final result = await repository.updateSyncedTransaction(transaction);
+        _current(generation);
+        if (result == null) {
+          throw StateError('Server did not confirm the updated expense.');
+        }
+        saved = result.copyWith(synced: true);
+      }
+      await _save(repository, generation, [
+        saved,
+        ...current.where(
+          (item) => item.id != transaction.id && item.id != saved.id,
+        ),
+      ]);
+      return saved;
+    });
   }
 
   Future<void> attachReceipt({
@@ -107,62 +163,95 @@ class ExpenseTransactionsController
     required PlatformFile file,
     required bool sync,
   }) async {
-    if (!sync) return;
-
-    final fileUrl = await _repository.uploadReceiptFile(
+    if (!sync) {
+      return;
+    }
+    final generation = _generation;
+    final repository = _repository;
+    final fileUrl = await repository.uploadReceiptFile(
       entryId: transaction.id,
       fileName: file.name,
       filePath: file.path,
       fileBytes: file.bytes,
     );
-
+    _current(generation);
     if (fileUrl.trim().isEmpty) {
-      throw StateError('Receipt uploaded but no file URL was returned.');
+      throw StateError('Receipt upload was not confirmed.');
     }
-
     await updateTransaction(
       transaction.copyWith(receiptFile: fileUrl, synced: true),
       sync: true,
     );
   }
 
-  Future<void> bulkSync() async {
-    final current = state.value ?? const <ExpenseTransaction>[];
-    if (current.isEmpty) return;
-
-    state = const AsyncLoading();
-    try {
-      final synced = await _repository.bulkSyncTransactions(current);
-      await _repository.saveTransactions(synced);
-      state = AsyncData(_sort(synced));
-    } catch (error, stackTrace) {
-      state = AsyncError(error, stackTrace);
-    }
+  Future<void> bulkSync() {
+    return _mutate((repository, generation) async {
+      final current = state.value ?? const <ExpenseTransaction>[];
+      final pending = current.where((item) => !item.synced).toList();
+      if (pending.isEmpty) {
+        return;
+      }
+      final results = await repository.bulkSyncTransactions(pending);
+      _current(generation);
+      // A partial response must never overwrite or silently drop local records.
+      if (results.length != pending.length ||
+          results.map((item) => item.id).toSet().length != results.length) {
+        throw StateError(
+          'Sync was not fully confirmed. Local entries were preserved; retry safely.',
+        );
+      }
+      final pendingIds = pending.map((item) => item.id).toSet();
+      final synced = results
+          .map((item) => item.copyWith(synced: true))
+          .toList();
+      final byId = {
+        for (final item in current.where(
+          (item) => !pendingIds.contains(item.id),
+        ))
+          item.id: item,
+      };
+      for (final item in synced) {
+        byId[item.id] = item;
+      }
+      await _save(repository, generation, byId.values.toList());
+    });
   }
 
-  Future<void> remove(String id, {required bool sync}) async {
-    final current = state.value ?? const <ExpenseTransaction>[];
-    final next = current.where((item) => item.id != id).toList(growable: false);
-
-    if (sync) await _repository.deleteSyncedTransaction(id);
-    await _repository.saveTransactions(next);
-    state = AsyncData(next);
+  Future<void> remove(String id, {required bool sync}) {
+    return _mutate((repository, generation) async {
+      final current = state.value ?? const <ExpenseTransaction>[];
+      if (sync && !await repository.deleteSyncedTransaction(id)) {
+        throw StateError('Server did not confirm expense deletion.');
+      }
+      await _save(
+        repository,
+        generation,
+        current.where((item) => item.id != id).toList(),
+      );
+    });
   }
 
-  Future<void> replaceAll(List<ExpenseTransaction> transactions) async {
-    final next = _sort(transactions);
-    await _repository.saveTransactions(next);
-    state = AsyncData(next);
+  Future<void> replaceAll(List<ExpenseTransaction> transactions) {
+    return _mutate(
+      (repository, generation) => _save(repository, generation, transactions),
+      requireLoaded: false,
+    );
   }
 
-  Future<void> clearAll() async {
-    await _repository.clearTransactions();
-    state = const AsyncData([]);
+  Future<void> clearAll() {
+    return _mutate((repository, generation) async {
+      await repository.clearTransactions();
+      _current(generation);
+      state = const AsyncData([]);
+    }, requireLoaded: false);
   }
 
   List<ExpenseTransaction> _sort(List<ExpenseTransaction> transactions) {
     final sorted = [...transactions.where((item) => !item.isArchived)];
-    sorted.sort((a, b) => b.date.compareTo(a.date));
+    sorted.sort((a, b) {
+      final order = b.date.compareTo(a.date);
+      return order != 0 ? order : b.id.compareTo(a.id);
+    });
     return sorted;
   }
 }
@@ -304,70 +393,99 @@ class ExpenseTrackerScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         top: false,
-        child: shouldSync ? _CloudExpenseBody(
-          onAdd: () => _showTransactionSheet(context, ref, accessMode: effectiveAccessMode, config: config, sync: true),
-          onEdit: (transaction) => _showTransactionSheet(context, ref, accessMode: effectiveAccessMode, config: config, sync: true, transaction: transaction),
-          onDelete: (id) => _confirmDeleteTransaction(context, ref, id, sync: true),
-        ) : transactionsAsync.when(
-          loading: () => const _TrackerLoadingView(),
-          error: (_, _) => PremiumEmptyState(
-            icon: Icons.account_balance_wallet_outlined,
-            title: shouldSync ? 'Sync unavailable' : 'Tracker unavailable',
-            message: shouldSync
-                ? 'Cloud data could not be loaded. Your local backup remains safe.'
-                : 'Local expense data could not be loaded.',
-            actionLabel: 'Retry',
-            onAction: () => shouldSync
-                ? ref.read(expenseTransactionsProvider.notifier).loadSynced()
-                : ref.read(expenseTransactionsProvider.notifier).reloadLocal(),
-          ),
-          data: (transactions) => _ExpenseTrackerBody(
-            accessMode: effectiveAccessMode,
-            config: config,
-            transactions: transactions,
-            onManualEntry: () => _showTransactionSheet(
-              context,
-              ref,
-              accessMode: effectiveAccessMode,
-              config: config,
-              sync: shouldSync,
-            ),
-            onQuickAdd: (category) => _showTransactionSheet(
-              context,
-              ref,
-              accessMode: effectiveAccessMode,
-              config: config,
-              sync: shouldSync,
-              initialCategory: category,
-            ),
-            onSync: shouldSync
-                ? () =>
-                      ref.read(expenseTransactionsProvider.notifier).bulkSync()
-                : null,
-            onEdit: (transaction) => _showTransactionSheet(
-              context,
-              ref,
-              accessMode: effectiveAccessMode,
-              config: config,
-              sync: shouldSync,
-              transaction: transaction,
-            ),
-            onDelete: (id) =>
-                _confirmDeleteTransaction(context, ref, id, sync: shouldSync),
-          ),
-        ),
+        child: shouldSync
+            ? _CloudExpenseBody(
+                onAdd: () => _showTransactionSheet(
+                  context,
+                  ref,
+                  accessMode: effectiveAccessMode,
+                  config: config,
+                  sync: true,
+                ),
+                onEdit: (transaction) => _showTransactionSheet(
+                  context,
+                  ref,
+                  accessMode: effectiveAccessMode,
+                  config: config,
+                  sync: true,
+                  transaction: transaction,
+                ),
+                onDelete: (id) =>
+                    _confirmDeleteTransaction(context, ref, id, sync: true),
+              )
+            : transactionsAsync.when(
+                loading: () => const _TrackerLoadingView(),
+                error: (_, _) => PremiumEmptyState(
+                  icon: Icons.account_balance_wallet_outlined,
+                  title: shouldSync
+                      ? 'Sync unavailable'
+                      : 'Tracker unavailable',
+                  message: shouldSync
+                      ? 'Cloud data could not be loaded. Your local backup remains safe.'
+                      : 'Local expense data could not be loaded.',
+                  actionLabel: 'Retry',
+                  onAction: () => shouldSync
+                      ? ref
+                            .read(expenseTransactionsProvider.notifier)
+                            .loadSynced()
+                      : ref
+                            .read(expenseTransactionsProvider.notifier)
+                            .reloadLocal(),
+                ),
+                data: (transactions) => _ExpenseTrackerBody(
+                  accessMode: effectiveAccessMode,
+                  config: config,
+                  transactions: transactions,
+                  onManualEntry: () => _showTransactionSheet(
+                    context,
+                    ref,
+                    accessMode: effectiveAccessMode,
+                    config: config,
+                    sync: shouldSync,
+                  ),
+                  onQuickAdd: (category) => _showTransactionSheet(
+                    context,
+                    ref,
+                    accessMode: effectiveAccessMode,
+                    config: config,
+                    sync: shouldSync,
+                    initialCategory: category,
+                  ),
+                  onSync: shouldSync
+                      ? () => ref
+                            .read(expenseTransactionsProvider.notifier)
+                            .bulkSync()
+                      : null,
+                  onEdit: (transaction) => _showTransactionSheet(
+                    context,
+                    ref,
+                    accessMode: effectiveAccessMode,
+                    config: config,
+                    sync: shouldSync,
+                    transaction: transaction,
+                  ),
+                  onDelete: (id) => _confirmDeleteTransaction(
+                    context,
+                    ref,
+                    id,
+                    sync: shouldSync,
+                  ),
+                ),
+              ),
       ),
     );
   }
 
   ExpenseTrackerAccessMode _resolveAccessMode(AuthCapabilities capabilities) {
-    if (capabilities.isInternal) return ExpenseTrackerAccessMode.offlineApproved;
+    if (capabilities.isInternal) {
+      return ExpenseTrackerAccessMode.offlineApproved;
+    }
     if (capabilities.isApproved) return ExpenseTrackerAccessMode.approvedSync;
     if (capabilities.isPending) return ExpenseTrackerAccessMode.pendingLocal;
     return ExpenseTrackerAccessMode.guestLocal;
   }
 
-  void _showTransactionSheet(
+  Future<void> _showTransactionSheet(
     BuildContext context,
     WidgetRef ref, {
     required ExpenseTrackerAccessMode accessMode,
@@ -375,8 +493,8 @@ class ExpenseTrackerScreen extends ConsumerWidget {
     required bool sync,
     ExpenseTrackerCategory? initialCategory,
     ExpenseTransaction? transaction,
-  }) {
-    showModalBottomSheet<void>(
+  }) async {
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -405,21 +523,63 @@ class ExpenseTrackerScreen extends ConsumerWidget {
   Future<void> _exportCloud(BuildContext context, WidgetRef ref) async {
     final repository = ref.read(expenseTrackerRepositoryProvider);
     final progress = ValueNotifier<int>(0);
+    final cancellation = CancelToken();
     var cancelled = false;
     final epoch = ref.read(sessionEpochProvider);
-    final dialog = showDialog<void>(context: context, barrierDismissible: false,
-      builder: (dialogContext) => PopScope(canPop: false, child: AlertDialog(
-        title: const Text('Export account history'),
-        content: ValueListenableBuilder<int>(valueListenable: progress, builder: (_, count, _) => Text('$count records exported')),
-        actions: [TextButton(onPressed: () { cancelled = true; }, child: const Text('Cancel'))],
-      )));
+    bool isCancelled() =>
+        cancelled ||
+        !context.mounted ||
+        ref.read(sessionEpochProvider) != epoch;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final route = DialogRoute<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: const Text('Export account history'),
+          content: ValueListenableBuilder<int>(
+            valueListenable: progress,
+            builder: (_, count, _) => Text('$count records prepared'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                cancelled = true;
+                cancellation.cancel('Expense export cancelled');
+              },
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      ),
+    );
+    final dialog = navigator.push(route);
     try {
-      await exportExpensePages(repository.syncedPages(), isCancelled: () => cancelled || !context.mounted || ref.read(sessionEpochProvider) != epoch,
-        onProgress: (count) => progress.value = count);
-    } catch (error) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Export not completed: $error')));
+      await exportExpensePages(
+        repository.syncedPages(
+          cancelToken: cancellation,
+          shouldCancel: isCancelled,
+        ),
+        isCancelled: isCancelled,
+        onProgress: (count) => progress.value = count,
+      );
+    } catch (_) {
+      if (!isCancelled() && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Export was not completed. No partial backup was shared. Please retry.',
+            ),
+          ),
+        );
+      }
     } finally {
-      if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+      cancellation.cancel('Expense export finished');
+      // Remove this dialog only, never a new login/other route after account change.
+      if (navigator.mounted && route.isActive) {
+        navigator.removeRoute(route);
+      }
       await dialog;
       progress.dispose();
     }
@@ -2145,40 +2305,157 @@ String _money(double value) {
 }
 
 class _CloudExpenseBody extends ConsumerStatefulWidget {
-  const _CloudExpenseBody({required this.onAdd, required this.onEdit, required this.onDelete});
+  const _CloudExpenseBody({
+    required this.onAdd,
+    required this.onEdit,
+    required this.onDelete,
+  });
   final VoidCallback onAdd;
   final ValueChanged<ExpenseTransaction> onEdit;
   final ValueChanged<String> onDelete;
   @override
   ConsumerState<_CloudExpenseBody> createState() => _CloudExpenseBodyState();
 }
+
 class _CloudExpenseBodyState extends ConsumerState<_CloudExpenseBody> {
   int start = 0;
   DateTime? month;
   @override
   Widget build(BuildContext context) {
-    final provider = expenseCloudPageProvider((start: start, month: month == null ? null : DateFormat('yyyy-MM-01').format(month!)));
+    final provider = expenseCloudPageProvider((
+      start: start,
+      month: month == null ? null : DateFormat('yyyy-MM-01').format(month!),
+    ));
     final data = ref.watch(provider);
-    return Column(children: [
-      Wrap(alignment: WrapAlignment.center, children: [
-        TextButton(onPressed: () => setState(() { start = 0; month = null; }), child: const Text('All history')),
-        TextButton(onPressed: () => setState(() { start = 0; month = DateTime.now(); }), child: const Text('This month')),
-        TextButton(onPressed: () => setState(() { start = 0; final now = month ?? DateTime.now(); month = DateTime(now.year, now.month - 1); }), child: const Text('Earlier month')),
-        TextButton(onPressed: widget.onAdd, child: const Text('Add transaction')),
-      ]),
-      Expanded(child: data.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => PremiumEmptyState(icon: Icons.cloud_off, title: 'Cloud history unavailable', message: 'Retry when connected. Local and pending records remain in local mode.', actionLabel: 'Retry', onAction: () => ref.invalidate(provider)),
-        data: (page) => RefreshIndicator(onRefresh: () async { ref.invalidate(provider); await ref.read(provider.future); }, child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(), padding: const EdgeInsets.all(16), children: [
-            Text(month == null ? 'Complete account totals' : DateFormat('MMMM yyyy').format(month!)),
-            Text('Income: ${page.summary['income']} · Expenses: ${page.summary['expenses']} · Balance: ${page.summary['balance']}'),
-            Text('${page.summary['transaction_count']} records in this scope. Local pending entries are available in local mode.'),
-            Row(children: [TextButton(onPressed: start == 0 ? null : () => setState(() => start = (start - 100).clamp(0, start)), child: const Text('Previous')), Text('Page ${start ~/ 100 + 1}'), TextButton(onPressed: page.nextStart == null ? null : () => setState(() => start = page.nextStart!), child: const Text('Next'))]),
-            if (page.entries.isEmpty) const Text('No entries in this period.'),
-            for (final entry in page.entries) _TransactionTile(transaction: entry, onEdit: () => widget.onEdit(entry), onDelete: () => widget.onDelete(entry.id)),
-          ])),
-      )),
-    ]);
+    final local =
+        ref.watch(expenseTransactionsProvider).value ??
+        const <ExpenseTransaction>[];
+    final pending = local.where((entry) => !entry.synced).toList();
+    return Column(
+      children: [
+        Wrap(
+          alignment: WrapAlignment.center,
+          children: [
+            TextButton(
+              onPressed: () => setState(() {
+                start = 0;
+                month = null;
+              }),
+              child: const Text('All history'),
+            ),
+            TextButton(
+              onPressed: () => setState(() {
+                start = 0;
+                month = DateTime.now();
+              }),
+              child: const Text('This month'),
+            ),
+            TextButton(
+              onPressed: () => setState(() {
+                start = 0;
+                final now = month ?? DateTime.now();
+                month = DateTime(now.year, now.month - 1);
+              }),
+              child: const Text('Earlier month'),
+            ),
+            TextButton(
+              onPressed: widget.onAdd,
+              child: const Text('Add transaction'),
+            ),
+          ],
+        ),
+        Expanded(
+          child: data.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, _) => PremiumEmptyState(
+              icon: Icons.cloud_off,
+              title: 'Cloud history unavailable',
+              message:
+                  'Retry when connected. Local and pending records remain in local mode.',
+              actionLabel: 'Retry',
+              onAction: () => ref.invalidate(provider),
+            ),
+            data: (page) => RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(provider);
+                await ref.read(provider.future);
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Text(
+                    month == null
+                        ? 'Complete account totals'
+                        : DateFormat('MMMM yyyy').format(month!),
+                  ),
+                  Text(
+                    'Income: ${page.summary['income']} · Expenses: ${page.summary['expenses']} · Balance: ${page.summary['balance']}',
+                  ),
+                  Text(
+                    '${page.summary['transaction_count']} cloud records in this scope. Pending local entries are excluded from these totals.',
+                  ),
+                  if (pending.isNotEmpty) ...[
+                    Text('${pending.length} local entries waiting to sync'),
+                    TextButton(
+                      onPressed: () async {
+                        try {
+                          await ref
+                              .read(expenseTransactionsProvider.notifier)
+                              .bulkSync();
+                        } catch (_) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Sync was not completed. Local entries were preserved.',
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text('Sync pending entries'),
+                    ),
+                    for (final entry in pending)
+                      ListTile(
+                        title: Text(entry.category),
+                        subtitle: Text('Local only - ${entry.amount}'),
+                      ),
+                  ],
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: start == 0
+                            ? null
+                            : () => setState(
+                                () => start = (start - 100).clamp(0, start),
+                              ),
+                        child: const Text('Previous'),
+                      ),
+                      Text('Page ${start ~/ 100 + 1}'),
+                      TextButton(
+                        onPressed: page.nextStart == null
+                            ? null
+                            : () => setState(() => start = page.nextStart!),
+                        child: const Text('Next'),
+                      ),
+                    ],
+                  ),
+                  if (page.entries.isEmpty)
+                    const Text('No entries in this period.'),
+                  for (final entry in page.entries)
+                    _TransactionTile(
+                      transaction: entry,
+                      onEdit: () => widget.onEdit(entry),
+                      onDelete: () => widget.onDelete(entry.id),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

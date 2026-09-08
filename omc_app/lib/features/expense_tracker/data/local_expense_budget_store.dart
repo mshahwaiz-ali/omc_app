@@ -14,7 +14,9 @@ class LocalExpenseBudgetStore {
     final identity = cleanUserId == null || cleanUserId.isEmpty
         ? 'guest-device'
         : cleanUserId;
-    final namespace = base64Url.encode(utf8.encode(identity)).replaceAll('=', '');
+    final namespace = base64Url
+        .encode(utf8.encode(identity))
+        .replaceAll('=', '');
     return '$_storageKeyPrefix::$namespace';
   }
 

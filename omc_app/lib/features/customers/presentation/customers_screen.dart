@@ -25,8 +25,16 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
   Timer? _debounce;
   void _search(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () { if (mounted) setState(() { _query = value; _start = 0; }); });
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          _query = value;
+          _start = 0;
+        });
+      }
+    });
   }
+
   CustomerFilter _selectedFilter = CustomerFilter.all;
 
   @override
@@ -38,8 +46,9 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final page = customersPageProvider((start: _start, search: _query));
-    final customersAsync = ref.watch(page);
+    final page = customersResultPageProvider((start: _start, search: _query));
+    final resultAsync = ref.watch(page);
+    final customersAsync = resultAsync.whenData((page) => page.items);
 
     return Scaffold(
       body: Column(
@@ -49,11 +58,48 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
             subtitle: 'Profiles, services and account activity',
             fallbackRoute: '/internal-workspace',
           ),
-          Row(children: [
-            TextButton(onPressed: _start == 0 ? null : () => setState(() => _start -= 50), child: const Text('Previous')),
-            Text('Page ${_start ~/ 50 + 1} · Filters/counts on this page'),
-            TextButton(onPressed: customersAsync.value?.length != 50 ? null : () => setState(() => _start += 50), child: const Text('Next')),
-          ]),
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              TextButton(
+                onPressed: _start == 0
+                    ? null
+                    : () => setState(() => _start -= 50),
+                child: const Text('Previous'),
+              ),
+              Text('Page ${_start ~/ 50 + 1} - page counts'),
+              TextButton(
+                onPressed:
+                    resultAsync.isLoading ||
+                        resultAsync.value?.nextStart == null
+                    ? null
+                    : () => setState(
+                        () => _start = resultAsync.value!.nextStart!,
+                      ),
+                child: const Text('Next'),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _search,
+              decoration: InputDecoration(
+                hintText: 'Search name, phone, CNIC, NTN, email or ID',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: IconButton(
+                  tooltip: 'Clear search',
+                  onPressed: () {
+                    _searchController.clear();
+                    _search('');
+                  },
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ),
+            ),
+          ),
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async {
@@ -76,14 +122,8 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
   }
 
   Widget _buildCustomerCenter(List<CustomerItem> customers) {
-    final query = _searchController.text.trim().toLowerCase();
-
     final visibleCustomers = customers
         .where((customer) {
-          if (query.isNotEmpty && !customer.searchableText.contains(query)) {
-            return false;
-          }
-
           switch (_selectedFilter) {
             case CustomerFilter.all:
               return true;
@@ -124,24 +164,6 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
           attention: attentionCount,
         ),
         const SizedBox(height: 16),
-        TextField(
-          controller: _searchController,
-          onChanged: _search,
-          decoration: InputDecoration(
-            hintText: 'Search name, phone, CNIC, NTN, email or ID',
-            prefixIcon: const Icon(Icons.search_rounded),
-            suffixIcon: _searchController.text.isEmpty
-                ? null
-                : IconButton(
-                    tooltip: 'Clear search',
-                    onPressed: () {
-                      _searchController.clear();
-                      _search('');
-                    },
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-          ),
-        ),
         const SizedBox(height: 14),
         SizedBox(
           height: 42,
@@ -250,7 +272,7 @@ class _CustomerSummary extends StatelessWidget {
             _SummaryTile(
               width: width,
               icon: Icons.groups_2_rounded,
-              label: 'Total customers',
+              label: 'Customers on this page',
               value: total,
               color: AppTheme.primary,
               background: AppTheme.primarySoft,

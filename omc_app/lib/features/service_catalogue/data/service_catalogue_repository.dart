@@ -8,6 +8,8 @@ import '../../../core/config/api_config.dart';
 import '../../../core/config/env.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
+import '../../../core/network/page_result.dart';
+import '../../service_templates/data/service_template_validation.dart';
 import '../../service_templates/data/service_template.dart';
 import 'service_item.dart';
 
@@ -80,14 +82,30 @@ class ServiceCatalogueRepository {
     return (await fetchPage()).items;
   }
 
-  Future<ServiceCataloguePage> fetchPage({int start = 0, String search = "", String category = ""}) async {
+  Future<ServiceCataloguePage> fetchPage({
+    int start = 0,
+    String search = "",
+    String category = "",
+  }) async {
     try {
       final response = await _frappeClient.getMethod(
         ApiConfig.serviceCatalogueMethod,
-        queryParameters: {"start": start, "limit": 50, "lightweight": 1, "search": search, "category": category},
+        queryParameters: {
+          "start": start,
+          "limit": 50,
+          "lightweight": 1,
+          "search": search,
+          "category": category,
+        },
       );
-      final data = response["message"] is Map ? response["message"] as Map : response;
-      return ServiceCataloguePage(_servicesFromResponse(response), data["has_more"] == true ? (data["next_start"] as num).toInt() : null);
+      final data = response["message"] is Map
+          ? response["message"] as Map
+          : response;
+      final items = _servicesFromResponse(response);
+      return ServiceCataloguePage(
+        items,
+        readNextStart(data, start: start, count: items.length, limit: 50),
+      );
     } on ApiError {
       rethrow;
     } catch (error) {
@@ -100,13 +118,33 @@ class ServiceCatalogueRepository {
     }
   }
 
-  Future<ServiceItem> fetchDetail(String id, {bool withTemplate = false}) async {
-    final response = await _frappeClient.getMethod(ApiConfig.serviceDetailMethod,
-        queryParameters: {'service_id': id});
-    final raw = response['message'] is Map ? response['message'] as Map : response;
+  Future<ServiceItem> fetchDetail(
+    String id, {
+    bool withTemplate = false,
+  }) async {
+    final response = await _frappeClient.getMethod(
+      ApiConfig.serviceDetailMethod,
+      queryParameters: {'service_id': id},
+    );
+    final raw = response['message'] is Map
+        ? response['message'] as Map
+        : response;
     final service = ServiceItem.fromJson(Map<String, dynamic>.from(raw));
-    if (service.id.isEmpty) throw const ApiError(message: 'Service unavailable.');
-    return withTemplate ? _serviceWithTemplate(service) : service;
+    if (service.id.isEmpty) {
+      throw const ApiError(message: 'Service unavailable.');
+    }
+    if (!withTemplate) return service;
+    try {
+      return await _serviceWithTemplate(service);
+    } on ApiError catch (error) {
+      if (error.code != 'service_template_version_changed') {
+        rethrow;
+      }
+      // One fresh detail/template pair resolves a publication race. Persistent
+      // conflicts remain an error; never manufacture a generic submission form.
+      final refreshed = await fetchDetail(id);
+      return _serviceWithTemplate(refreshed);
+    }
   }
 
   Future<ServiceItem> _serviceWithTemplate(ServiceItem service) async {
@@ -117,10 +155,14 @@ class ServiceCatalogueRepository {
       );
       final message = response['message'];
       final data = message is Map<String, dynamic> ? message : response;
-      if (data['form_schema'] is! List || data['stages'] is! List ||
-          data['service_version']?.toString() != service.serviceVersion.toString() ||
+      validateServiceTemplate(data);
+      if (data['service_version']?.toString() !=
+              service.serviceVersion.toString() ||
           data['pricing_version']?.toString() != service.pricingVersion) {
-        throw const ApiError(message: 'The service form changed or is unavailable. Please retry.', code: 'service_template_unavailable');
+        throw const ApiError(
+          message: 'The service form changed. Please retry.',
+          code: 'service_template_version_changed',
+        );
       }
       final template = ServiceTemplate.fromJson(data);
 
@@ -165,7 +207,11 @@ class ServiceCatalogueRepository {
     } on ApiError {
       rethrow;
     } catch (error) {
-      throw ApiError(message: "The service form could not be prepared. Please retry.", code: "service_template_unavailable", details: error);
+      throw ApiError(
+        message: "The service form could not be prepared. Please retry.",
+        code: "service_template_unavailable",
+        details: error,
+      );
     }
   }
 

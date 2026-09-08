@@ -64,28 +64,27 @@ class TestExpenseReadGuard(FrappeTestCase):
         )
         exists.assert_not_called()
 
-    @patch("omc_app.api.expense_read_guard.expense._summary")
-    @patch("omc_app.api.expense_read_guard.expense.get_expense_entries")
-    @patch("omc_app.api.expense_read_guard._sanitize_entry")
-    def test_entry_summary_is_recomputed_after_sanitizing(
-        self, sanitize_entry, get_entries, summary
-    ):
-        get_entries.return_value = {
-            "entries": [{"category": "Old", "receipt_file": "/files/old.pdf"}],
-            "summary": {"receipts_attached": 1},
-            "fallback": False,
-        }
-        sanitize_entry.return_value = {
-            "category": "Uncategorized",
-            "receipt_file": "",
-        }
-        summary.return_value = {"receipts_attached": 0}
-
-        result = expense_read_guard.get_expense_entries(month="2026-07")
-
-        self.assertEqual(result["summary"], {"receipts_attached": 0})
-        summary.assert_called_once_with(result["entries"])
-        get_entries.assert_called_once_with(month="2026-07", limit=200, start=0)
+    def test_entry_summary_is_recomputed_after_sanitizing(self):
+        # The historical method name is retained. The approved paged contract now
+        # obtains sanitized receipt counts globally, never by totaling this page.
+        complete = {"transaction_count": 250, "income": 5000, "expenses": 2500,
+                    "balance": 2500, "receipts_attached": 0}
+        with patch.object(expense_read_guard.expense, "_summary") as page_summary, \
+                patch.object(expense_read_guard.expense, "get_expense_entries", return_value={
+                    "entries": [{"category": "Old", "receipt_file": "/files/old.pdf"}],
+                    "summary": complete, "fallback": False, "has_more": True, "next_start": 100,
+                }) as get_entries, \
+                patch.object(expense_read_guard, "_sanitize_entry", return_value={
+                    "category": "Uncategorized", "receipt_file": "",
+                }) as sanitize_entry:
+            result = expense_read_guard.get_expense_entries(month="2026-07", limit=100)
+        self.assertEqual(result["summary"], complete)
+        self.assertEqual(result["entries"], [{"category": "Uncategorized", "receipt_file": ""}])
+        self.assertTrue(result["has_more"])
+        self.assertEqual(result["next_start"], 100)
+        sanitize_entry.assert_called_once_with({"category": "Old", "receipt_file": "/files/old.pdf"})
+        page_summary.assert_not_called()
+        get_entries.assert_called_once_with(month="2026-07", limit=100, start=0)
 
     @patch("omc_app.api.expense_read_guard.expense._has_doctype", return_value=True)
     @patch("omc_app.api.expense_read_guard.frappe.db.exists", return_value=False)

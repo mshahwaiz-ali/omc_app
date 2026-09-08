@@ -61,9 +61,9 @@ final notificationDetailProvider = FutureProvider.autoDispose
     });
 
 class NotificationsRepository {
-  const NotificationsRepository({required this._frappeClient});
+  const NotificationsRepository({required this.frappeClient});
 
-  final FrappeClient _frappeClient;
+  final FrappeClient frappeClient;
 
   Future<List<NotificationItem>> fetchNotifications() async {
     return (await fetchNotificationPage()).items;
@@ -74,7 +74,7 @@ class NotificationsRepository {
     int limit = 50,
   }) async {
     try {
-      final response = await _frappeClient.getMethod(
+      final response = await frappeClient.getMethod(
         ApiConfig.notificationsMethod,
         queryParameters: {'start': start, 'limit': limit},
       );
@@ -101,7 +101,7 @@ class NotificationsRepository {
   }
 
   Future<int> fetchUnreadCount() async {
-    final response = await _frappeClient.getMethod(
+    final response = await frappeClient.getMethod(
       ApiConfig.unreadNotificationCountMethod,
     );
     final message = response['message'];
@@ -119,7 +119,7 @@ class NotificationsRepository {
       throw const ApiError(message: 'Missing notification reference.');
     }
 
-    await _frappeClient.postMethod(
+    await frappeClient.postMethod(
       ApiConfig.markNotificationReadMethod,
       data: {
         'notification_id': cleanNotificationId,
@@ -129,7 +129,7 @@ class NotificationsRepository {
   }
 
   Future<void> markAllNotificationsAsRead() async {
-    await _frappeClient.postMethod(ApiConfig.markAllNotificationsReadMethod);
+    await frappeClient.postMethod(ApiConfig.markAllNotificationsReadMethod);
   }
 
   Future<void> dismissNotification(String notificationId) async {
@@ -137,7 +137,7 @@ class NotificationsRepository {
     if (id.isEmpty) {
       throw const ApiError(message: 'Missing notification reference.');
     }
-    await _frappeClient.postMethod(
+    await frappeClient.postMethod(
       ApiConfig.dismissNotificationMethod,
       data: {'notification_id': id, 'name': id},
     );
@@ -148,7 +148,7 @@ class NotificationsRepository {
     if (id.isEmpty) {
       throw const ApiError(message: 'Missing notification reference.');
     }
-    await _frappeClient.postMethod(
+    await frappeClient.postMethod(
       ApiConfig.restoreNotificationMethod,
       data: {'notification_id': id, 'name': id},
     );
@@ -159,7 +159,7 @@ class NotificationsRepository {
     if (id.isEmpty) {
       throw const ApiError(message: 'Missing notification reference.');
     }
-    await _frappeClient.postMethod(
+    await frappeClient.postMethod(
       ApiConfig.markNotificationUnreadMethod,
       data: {'notification_id': id, 'name': id},
     );
@@ -172,7 +172,7 @@ class NotificationsRepository {
     if (cleanNotificationId.isEmpty) return null;
 
     try {
-      final response = await _frappeClient.getMethod(
+      final response = await frappeClient.getMethod(
         ApiConfig.notificationDetailMethod,
         queryParameters: {
           'notification_id': cleanNotificationId,

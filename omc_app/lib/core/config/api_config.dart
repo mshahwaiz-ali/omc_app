@@ -204,7 +204,8 @@ class ApiConfig {
   static const String startTaxServiceFromCalculationMethod =
       'omc_app.api.tax_calculator_mutations.start_service_from_calculation';
 
-  static const String serviceDetailMethod = 'omc_app.api.public_catalogue.get_service_detail';
+  static const String serviceDetailMethod =
+      'omc_app.api.public_catalogue.get_service_detail';
   static const String serviceCatalogueMethod =
       'omc_app.api.mobile.get_service_catalogue';
   static const String serviceTemplateMethod =

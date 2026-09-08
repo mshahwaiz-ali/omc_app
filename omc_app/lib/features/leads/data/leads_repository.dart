@@ -4,6 +4,7 @@ import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
+import '../../../core/network/page_result.dart';
 import '../../../core/network/mutation_intent.dart';
 import '../domain/lead_item.dart';
 
@@ -34,10 +35,26 @@ class LeadsRepository {
   final FrappeClient _frappeClient;
   final MutationIntent _createIntent = MutationIntent();
 
-  Future<List<LeadItem>> fetchLeads({int start = 0, String search = ""}) async {
+  Future<List<LeadItem>> fetchLeads({int start = 0, String search = ''}) async {
+    return (await fetchPage(start: start, search: search)).items;
+  }
+
+  Future<PageResult<LeadItem>> fetchPage({
+    int start = 0,
+    String search = '',
+  }) async {
     try {
-      final response = await _frappeClient.getMethod(ApiConfig.leadsMethod, queryParameters: {"start": start, "limit": 50, "search": search});
-      return _mapLeadsResponse(response);
+      final response = await _frappeClient.getMethod(
+        ApiConfig.leadsMethod,
+        queryParameters: {'start': start, 'limit': 50, 'search': search.trim()},
+      );
+      final items = _mapLeadsResponse(response);
+      final message = response['message'];
+      final data = message is Map ? message : response;
+      return PageResult(
+        items,
+        readNextStart(data, start: start, count: items.length, limit: 50),
+      );
     } on ApiError {
       rethrow;
     } catch (error) {
@@ -144,7 +161,10 @@ class LeadsRepository {
               data['results'] ??
               data['records'];
 
-    if (rawLeads is! List) return const [];
+    if (rawLeads is! List ||
+        rawLeads.any((row) => row is! Map<String, dynamic>)) {
+      throw const FormatException('Invalid leads response.');
+    }
 
     return rawLeads
         .whereType<Map<String, dynamic>>()
@@ -174,6 +194,16 @@ class LeadsRepository {
   }
 }
 
-final leadsPageProvider = FutureProvider.autoDispose.family<List<LeadItem>, ({int start, String search})>((ref, query) {
-  return ref.watch(leadsRepositoryProvider).fetchLeads(start: query.start, search: query.search);
-});
+final leadsResultPageProvider = FutureProvider.autoDispose
+    .family<PageResult<LeadItem>, ({int start, String search})>((ref, query) {
+      return ref
+          .watch(leadsRepositoryProvider)
+          .fetchPage(start: query.start, search: query.search);
+    });
+
+final leadsPageProvider = FutureProvider.autoDispose
+    .family<List<LeadItem>, ({int start, String search})>((ref, query) {
+      return ref
+          .watch(leadsResultPageProvider(query).future)
+          .then((page) => page.items);
+    });

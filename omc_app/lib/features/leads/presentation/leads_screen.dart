@@ -26,10 +26,22 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
   Timer? _debounce;
   void _search(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () { if (mounted) setState(() { _query = value; _start = 0; }); });
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          _query = value;
+          _start = 0;
+        });
+      }
+    });
   }
+
   @override
-  void dispose() { _debounce?.cancel(); super.dispose(); }
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
   String _query = '';
   LeadStatus? _statusFilter;
 
@@ -48,25 +60,56 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final page = leadsPageProvider((start: _start, search: _query));
-    final leadsAsync = ref.watch(page);
+    final page = leadsResultPageProvider((start: _start, search: _query));
+    final resultAsync = ref.watch(page);
+    final leadsAsync = resultAsync.whenData((page) => page.items);
     final canCreateLeads = ref
         .watch(authControllerProvider)
         .capabilities
         .canManageLeads;
 
     return Scaffold(
-      bottomNavigationBar: SafeArea(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        TextButton(onPressed: _start == 0 ? null : () => setState(() => _start -= 50), child: const Text('Previous')),
-        Text('Page ${_start ~/ 50 + 1} · Page counts'),
-        TextButton(onPressed: leadsAsync.value?.length != 50 ? null : () => setState(() => _start += 50), child: const Text('Next')),
-      ])),
+      bottomNavigationBar: SafeArea(
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            TextButton(
+              onPressed: _start == 0
+                  ? null
+                  : () => setState(() => _start -= 50),
+              child: const Text('Previous'),
+            ),
+            Text('Page ${_start ~/ 50 + 1} - page counts'),
+            if (_query.isNotEmpty)
+              TextButton(
+                onPressed: () {
+                  _debounce?.cancel();
+                  setState(() {
+                    _query = '';
+                    _start = 0;
+                  });
+                },
+                child: const Text('Clear search'),
+              ),
+            TextButton(
+              onPressed:
+                  resultAsync.isLoading || resultAsync.value?.nextStart == null
+                  ? null
+                  : () =>
+                        setState(() => _start = resultAsync.value!.nextStart!),
+              child: const Text('Next'),
+            ),
+          ],
+        ),
+      ),
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
           onRefresh: () {
             ref.invalidate(leadsProvider);
             ref.invalidate(leadsPageProvider);
+            ref.invalidate(leadsResultPageProvider);
             return ref.read(page.future);
           },
           child: leadsAsync.when(
@@ -185,7 +228,8 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
                     );
 
                 ref.invalidate(leadsProvider);
-            ref.invalidate(leadsPageProvider);
+                ref.invalidate(leadsPageProvider);
+                ref.invalidate(leadsResultPageProvider);
 
                 if (!sheetContext.mounted) return;
 

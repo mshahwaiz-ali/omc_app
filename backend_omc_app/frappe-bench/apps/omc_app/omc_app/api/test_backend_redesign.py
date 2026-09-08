@@ -386,7 +386,11 @@ class TestFlutterRouteContracts(TestCase):
             repo_root / "omc_app/lib/core/config/api_config.dart"
         ).read_text(encoding="utf-8")
         routes = sorted(set(re.findall(r"omc_app\.[A-Za-z0-9_.]+", config)))
-        self.assertEqual(len(routes), 115)
+        # Direct service detail is the one additive catalogue contract.
+        detail_route = "omc_app.api.public_catalogue.get_service_detail"
+        self.assertIn(detail_route, routes)
+        self.assertEqual(len(set(routes) - {detail_route}), 115)
+        self.assertEqual(len(routes), 116)
 
         for route in routes:
             with self.subTest(route=route):
