@@ -80,23 +80,29 @@
    "options": "\nbusiness_setup\ncompany_registration\ntax_filing\ntax_registration\ngst\naccounting\naudit\ndocuments\ncertificate\nlegal\nvisa\npayroll\npayments\ncompliance\nconsultation\nlicensing\ntrademark\nbookkeeping\nbanking\ngeneral_service"
   },
   {
+   "description": "Legacy compatibility field. Completion Time is the canonical customer-facing duration.",
    "fieldname": "estimated_duration",
    "fieldtype": "Data",
-   "label": "Estimated Duration"
+   "hidden": 1,
+   "label": "Estimated Duration",
+   "read_only": 1
   },
   {
    "fieldname": "default_assignee",
    "fieldtype": "Link",
    "label": "Default Assignee",
    "options": "User",
-   "description": "Preferred staff member for new requests of this service."
+   "description": "Optional preferred staff member. If blank, automatic assignment uses the normal eligible staff pool after activation."
   },
   {
+   "default": "Employee",
+   "description": "Legacy compatibility field. Automatic assignment falls back to the standard Employee pool; historical role values remain readable until data normalization is complete.",
    "fieldname": "default_assignment_role",
    "fieldtype": "Select",
+   "hidden": 1,
    "label": "Default Assignment Role",
    "options": "\nEmployee\nConsultant\nTax Associates\nBusiness Partner\nOMC Manager\nOMC Consultant\nOMC Tax Associate\nOMC Business Partner",
-   "description": "Fallback staff persona used for least-loaded automatic assignment. Source-controlled OMC services default to Employee; legacy values remain selectable only for compatibility."
+   "read_only": 1
   },
   {
    "default": "0",
@@ -130,12 +136,15 @@
    "default": "1",
    "fieldname": "service_version",
    "fieldtype": "Int",
+   "hidden": 1,
    "label": "Service Version",
+   "read_only": 1,
    "reqd": 1
   },
   {
    "fieldname": "pricing_version",
    "fieldtype": "Data",
+   "hidden": 1,
    "label": "Pricing Version",
    "read_only": 1,
    "search_index": 1
