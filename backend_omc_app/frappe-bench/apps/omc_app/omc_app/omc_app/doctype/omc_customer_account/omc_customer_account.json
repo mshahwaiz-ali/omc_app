@@ -9,7 +9,7 @@
  "fields": [
   {"fieldname": "user", "fieldtype": "Link", "in_list_view": 1, "label": "User", "options": "User", "reqd": 1, "unique": 1},
   {"fieldname": "erp_customer", "fieldtype": "Link", "in_list_view": 1, "label": "ERP Customer", "options": "Customer", "unique": 1},
-  {"fieldname": "legacy_customer_profile", "fieldtype": "Link", "label": "Legacy Customer Profile", "options": "OMC Customer Profile", "unique": 1},
+  {"description": "OMC app customer profile linked to this customer-access authority record.", "fieldname": "legacy_customer_profile", "fieldtype": "Link", "label": "Customer Profile", "options": "OMC Customer Profile", "unique": 1},
   {"default": "Pending", "fieldname": "identity_proof_status", "fieldtype": "Select", "in_list_view": 1, "label": "Identity Proof Status", "options": "Pending\nVerified\nExpired\nBlocked", "reqd": 1},
   {"default": "Unlinked", "fieldname": "account_link_status", "fieldtype": "Select", "in_list_view": 1, "label": "Account Link Status", "options": "Unlinked\nLinked\nConflict\nBlocked", "reqd": 1},
   {"default": "Pending Review", "fieldname": "service_access_status", "fieldtype": "Select", "in_list_view": 1, "label": "Service Access Status", "options": "Pending Review\nApproved\nSuspended", "reqd": 1},
