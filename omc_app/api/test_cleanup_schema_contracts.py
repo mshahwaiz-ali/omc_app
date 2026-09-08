@@ -68,6 +68,28 @@ class TestCleanupSchemaContracts(FrappeTestCase):
         ):
             self.assertIn(active, fieldnames)
 
+    def test_customer_preferences_only_expose_runtime_preferences(self):
+        schema = _schema("omc_customer_preference")
+        fieldnames = {
+            row.get("fieldname")
+            for row in schema.get("fields") or []
+        }
+
+        self.assertNotIn("appearance_section", fieldnames)
+        self.assertNotIn("theme", fieldnames)
+        self.assertNotIn("language", fieldnames)
+        for active in (
+            "service_updates_enabled",
+            "document_reminders_enabled",
+            "payment_alerts_enabled",
+            "tax_alerts_enabled",
+            "email_notifications_enabled",
+            "whatsapp_notifications_enabled",
+            "in_app_notifications_enabled",
+            "push_notifications_enabled",
+        ):
+            self.assertIn(active, fieldnames)
+
     def test_service_role_selector_is_legacy_hidden_state(self):
         schema = _schema("omc_service")
         role = _field(schema, "default_assignment_role")
