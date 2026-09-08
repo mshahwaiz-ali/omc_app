@@ -20,22 +20,19 @@
  "report_type": "Script Report",
  "roles": [
   {
-   "role": "OMC Consultant"
+   "role": "Consultant"
   },
   {
-   "role": "OMC Tax Associate"
+   "role": "Tax Associates"
   },
   {
-   "role": "OMC Business Partner"
+   "role": "Business Partner"
   },
   {
    "role": "OMC Admin"
   },
   {
    "role": "OMC Manager"
-  },
-  {
-   "role": "OMC Admin"
   }
  ],
  "timeout": 0
