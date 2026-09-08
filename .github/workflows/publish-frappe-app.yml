@@ -1,0 +1,75 @@
+name: Publish Frappe app branch
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend_omc_app/frappe-bench/apps/omc_app/**'
+      - '.github/workflows/publish-frappe-app.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-frappe-app
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish backend subtree
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify deployable Frappe app source
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_PATH='backend_omc_app/frappe-bench/apps/omc_app'
+
+          test -f "$APP_PATH/pyproject.toml"
+          test -f "$APP_PATH/README.md"
+          test -f "$APP_PATH/omc_app/hooks.py"
+          test -f "$APP_PATH/omc_app/patches.txt"
+
+          grep -q '^name = "omc_app"$' "$APP_PATH/pyproject.toml"
+          grep -q "^app_name = 'omc_app'$" "$APP_PATH/omc_app/hooks.py"
+          grep -q "^required_apps = \['erpnext'\]$" "$APP_PATH/omc_app/hooks.py"
+
+      - name: Publish generated frappe-app branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_PATH='backend_omc_app/frappe-bench/apps/omc_app'
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          SPLIT_SHA="$(git subtree split --prefix="$APP_PATH" HEAD)"
+          test -n "$SPLIT_SHA"
+
+          git cat-file -e "${SPLIT_SHA}:pyproject.toml"
+          git cat-file -e "${SPLIT_SHA}:README.md"
+          git cat-file -e "${SPLIT_SHA}:omc_app/hooks.py"
+          git cat-file -e "${SPLIT_SHA}:omc_app/patches.txt"
+
+          if git cat-file -e "${SPLIT_SHA}:backend_omc_app" 2>/dev/null; then
+            echo 'Refusing nested backend_omc_app in generated deployment branch.' >&2
+            exit 1
+          fi
+          if git cat-file -e "${SPLIT_SHA}:frappe-bench" 2>/dev/null; then
+            echo 'Refusing nested frappe-bench in generated deployment branch.' >&2
+            exit 1
+          fi
+          if git cat-file -e "${SPLIT_SHA}:pubspec.yaml" 2>/dev/null; then
+            echo 'Refusing Flutter root in generated deployment branch.' >&2
+            exit 1
+          fi
+
+          git push --force origin "${SPLIT_SHA}:refs/heads/frappe-app"
