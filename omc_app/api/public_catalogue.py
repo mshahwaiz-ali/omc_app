@@ -26,11 +26,18 @@ def _pagination(start=0, limit=50, limit_start=None, limit_page_length=None):
 
 
 @frappe.whitelist(allow_guest=True)
-def get_service_catalogue(start=0, limit=50, limit_start=None, limit_page_length=None):
+def get_service_catalogue(start=0, limit=50, limit_start=None, limit_page_length=None, lightweight=0, search=None, category=None):
     offset, length = _pagination(start, limit, limit_start, limit_page_length)
+    filters = {"is_active": 1}
+    if category:
+        category_name = frappe.db.get_value("OMC Service Category", {"title": str(category)[:140]}, "name") or str(category)[:140]
+        filters["category"] = category_name
+    search = str(search or "").strip()[:140]
+    or_filters = {field: ["like", "%" + search + "%"] for field in ("title", "service_id", "short_description")} if search else None
     services = frappe.get_all(
         "OMC Service",
-        filters={"is_active": 1},
+        filters=filters,
+        or_filters=or_filters,
         fields=[
             "name",
             "service_id",
@@ -61,7 +68,7 @@ def get_service_catalogue(start=0, limit=50, limit_start=None, limit_page_length
     has_more = len(services) > length
     services = services[:length]
     payload = [
-        _public_service_payload(service, include_required_documents=True)
+        _public_service_payload(service, include_required_documents=not frappe.utils.cint(lightweight))
         for service in services
     ]
     return {

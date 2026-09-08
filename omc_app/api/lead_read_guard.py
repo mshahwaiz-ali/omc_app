@@ -34,7 +34,9 @@ def _sanitize_lead_payload(payload):
 
 
 @frappe.whitelist()
-def get_leads():
+def get_leads(start=0, limit=100, search=None):
+    from omc_app.api.public_catalogue import _pagination
+    offset, length = _pagination(start, limit)
     mobile._assert_internal_workspace_access()
     mobile._require_canonical_capability(
         "can_manage_leads",
@@ -43,19 +45,21 @@ def get_leads():
 
     lead_names = frappe.get_all(
         "Lead",
+        or_filters={field: ["like", "%" + str(search).strip()[:140] + "%"] for field in ("name", "lead_name", "email_id", "mobile_no", "phone")} if search else None,
         pluck="name",
-        order_by="modified desc",
-        limit_page_length=100,
+        order_by="modified desc, name asc",
+        limit_start=offset,
+        limit_page_length=length + 1,
     )
 
     leads = []
-    for lead_name in lead_names:
+    for lead_name in lead_names[:length]:
         try:
             lead = _load_lead(lead_name)
         except frappe.DoesNotExistError:
             continue
         leads.append(_sanitize_lead_payload(mobile._lead_to_dict(lead)))
-    return {"leads": leads}
+    return {"leads": leads, "has_more": len(lead_names) > length, "next_start": offset + length if len(lead_names) > length else None}
 
 
 @frappe.whitelist()

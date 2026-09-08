@@ -1,0 +1,78 @@
+{
+ "doctype": "DocType",
+ "name": "OMC Push Delivery",
+ "module": "OMC App",
+ "autoname": "hash",
+ "engine": "InnoDB",
+ "field_order": [
+  "notification",
+  "push_token",
+  "recipient_user",
+  "binding_id",
+  "status",
+  "attempts",
+  "next_attempt",
+  "lease_until",
+  "provider_message_id",
+  "error_code"
+ ],
+ "fields": [
+  {
+   "fieldname": "notification",
+   "label": "Notification",
+   "fieldtype": "Link",
+   "options": "OMC Notification"
+  },
+  {
+   "fieldname": "push_token",
+   "label": "Push Token",
+   "fieldtype": "Link",
+   "options": "OMC Push Token"
+  },
+  {
+   "fieldname": "recipient_user",
+   "label": "Recipient User",
+   "fieldtype": "Link",
+   "options": "User"
+  },
+  {
+   "fieldname": "binding_id",
+   "label": "Binding Id",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "status",
+   "label": "Status",
+   "fieldtype": "Select",
+   "options": "Pending\nSending\nRetry\nSent\nSkipped\nFailed"
+  },
+  {
+   "fieldname": "attempts",
+   "label": "Attempts",
+   "fieldtype": "Int"
+  },
+  {
+   "fieldname": "next_attempt",
+   "label": "Next Attempt",
+   "fieldtype": "Datetime"
+  },
+  {
+   "fieldname": "lease_until",
+   "label": "Lease Until",
+   "fieldtype": "Datetime"
+  },
+  {
+   "fieldname": "provider_message_id",
+   "label": "Provider Message Id",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "error_code",
+   "label": "Error Code",
+   "fieldtype": "Data"
+  }
+ ],
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}

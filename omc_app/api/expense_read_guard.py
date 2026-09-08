@@ -49,14 +49,13 @@ def get_expense_entries(month=None, limit=200, start=0):
     return {
         **response,
         "entries": entries,
-        "summary": expense._summary(entries),
+        "summary": response["summary"],
     }
 
 
 @frappe.whitelist()
 def get_expense_summary(month=None):
-    response = get_expense_entries(month=month)
-    return response.get("summary") or expense._summary([])
+    return expense.get_expense_summary(month=month)
 
 
 @frappe.whitelist()

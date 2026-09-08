@@ -322,6 +322,8 @@ def get_expense_categories():
 
 @frappe.whitelist()
 def get_expense_entries(month=None, limit=200, start=0):
+    start = max(int(start or 0), 0)
+    limit = min(max(int(limit or 200), 1), 200)
     profile = _profile()
 
     if not _has_doctype("OMC Expense Entry"):
@@ -360,13 +362,14 @@ def get_expense_entries(month=None, limit=200, start=0):
             "creation",
             "modified",
         ],
-        order_by="transaction_date desc, creation desc",
-        limit_start=int(start or 0),
-        limit_page_length=int(limit or 200),
+        order_by="transaction_date desc, creation desc, name desc",
+        limit_start=start,
+        limit_page_length=limit + 1,
     )
 
-    entries = [_entry_to_dict(row) for row in rows]
-    return {"entries": entries, "summary": _summary(entries), "fallback": False}
+    entries = [_entry_to_dict(row) for row in rows[:limit]]
+    return {"entries": entries, "summary": _complete_summary(profile.name, month), "fallback": False,
+            "has_more": len(rows) > limit, "next_start": start + limit if len(rows) > limit else None}
 
 
 @frappe.whitelist()
@@ -542,8 +545,8 @@ def upload_expense_receipt(entry_id=None, file_url=None, name=None, docname=None
 
 @frappe.whitelist()
 def get_expense_summary(month=None):
-    response = get_expense_entries(month=month)
-    return response.get("summary") or _summary([])
+    profile = _profile()
+    return _complete_summary(profile.name, month) if _has_doctype("OMC Expense Entry") else _summary([])
 
 
 @frappe.whitelist()
@@ -682,3 +685,33 @@ def _readiness_label(score):
     if score >= 35:
         return "Improving"
     return "Low"
+
+
+def _complete_summary(profile_name, month=None):
+    """Aggregate all owned active rows, independent of list pagination."""
+    conditions = "customer_profile=%s AND status!='Archived'"
+    values = [profile_name]
+    if month:
+        first = frappe.utils.get_first_day(month)
+        conditions += " AND transaction_date BETWEEN %s AND %s"
+        values.extend([first, frappe.utils.get_last_day(first)])
+    rows = frappe.db.sql("""
+        SELECT transaction_type, category, payment_method, SUM(amount) AS amount,
+               COUNT(*) AS row_count,
+               SUM(CASE WHEN tax_relevant=1 THEN amount ELSE 0 END) AS tax_total,
+               SUM(CASE WHEN business_related=1 THEN amount ELSE 0 END) AS business_total,
+               SUM(CASE WHEN COALESCE(receipt_file,'')!='' THEN 1 ELSE 0 END) AS receipts,
+               SUM(CASE WHEN recurring=1 THEN 1 ELSE 0 END) AS recurring_count
+          FROM `tabOMC Expense Entry` WHERE """ + conditions + """
+         GROUP BY transaction_type, category, payment_method
+    """, tuple(values), as_dict=True)
+    result = _summary(rows)
+    result["transaction_count"] = sum(int(row.row_count) for row in rows)
+    result["tax_relevant_total"] = sum(float(row.tax_total or 0) for row in rows if row.transaction_type != "Income")
+    result["business_expense_total"] = sum(float(row.business_total or 0) for row in rows if row.transaction_type != "Income")
+    result["receipts_attached"] = sum(int(row.receipts or 0) for row in rows)
+    result["recurring_count"] = sum(int(row.recurring_count or 0) for row in rows)
+    score = (20 + 25 * bool(result["tax_relevant_total"]) + 15 * bool(result["business_expense_total"]) +
+             20 * bool(result["receipts_attached"]) + 10 * bool(result["income"]) + 10 * bool(result["recurring_count"])) if rows else 0
+    result.update(readiness_score=score, readiness_label=_readiness_label(score))
+    return result
