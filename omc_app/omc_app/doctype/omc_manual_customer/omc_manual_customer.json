@@ -84,7 +84,7 @@
   {
    "fieldname": "status_section",
    "fieldtype": "Section Break",
-   "label": "Status"
+   "label": "Legacy Status"
   },
   {
    "fieldname": "verification_status",
@@ -93,7 +93,8 @@
    "options": "Unverified\nPending Review\nVerified\nRejected",
    "default": "Unverified",
    "in_list_view": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "read_only": 1
   },
   {
    "fieldname": "conversion_status",
@@ -103,19 +104,21 @@
    "default": "Unregistered",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "search_index": 1
+   "search_index": 1,
+   "read_only": 1
   },
   {
    "fieldname": "customer_origin",
    "fieldtype": "Select",
    "label": "Customer Origin",
    "options": "Walk-in\nImported\nStaff Created",
-   "default": "Walk-in"
+   "default": "Walk-in",
+   "read_only": 1
   },
   {
    "fieldname": "relationship_section",
    "fieldtype": "Section Break",
-   "label": "Relationship"
+   "label": "Legacy Relationship"
   },
   {
    "fieldname": "created_by_user",
@@ -130,26 +133,30 @@
    "fieldtype": "Link",
    "label": "Referral Owner",
    "options": "User",
-   "search_index": 1
+   "search_index": 1,
+   "read_only": 1
   },
   {
    "fieldname": "linked_customer_profile",
    "fieldtype": "Link",
    "label": "Linked Customer Profile",
    "options": "OMC Customer Profile",
-   "search_index": 1
+   "search_index": 1,
+   "read_only": 1
   },
   {
    "fieldname": "linked_app_user",
    "fieldtype": "Link",
    "label": "Linked App User",
    "options": "User",
-   "search_index": 1
+   "search_index": 1,
+   "read_only": 1
   },
   {
    "fieldname": "notes",
    "fieldtype": "Small Text",
-   "label": "Notes"
+   "label": "Legacy Notes",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 0,
@@ -161,14 +168,8 @@
   {
    "role": "OMC Admin",
    "read": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1,
    "report": 1,
-   "export": 1,
-   "print": 1,
-   "email": 1,
-   "share": 1
+   "print": 1
   }
  ],
  "search_fields": "full_name,cnic,mobile,email,city,conversion_status",
