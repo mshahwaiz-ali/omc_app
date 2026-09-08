@@ -30,6 +30,16 @@ _REFERRAL_LABELS = {"Referrals", "My Referrals", "Referral Codes"}
 _REFERRAL_TARGETS = {"My Referrals", "OMC Referral"}
 _SECTION_LABEL = "Customers & Referrals"
 _ANCHOR_LABEL = "Customer Profiles"
+_MY_REFERRALS_REPORT_ROLES = (
+    "Consultant",
+    "OMC Consultant",
+    "Tax Associates",
+    "OMC Tax Associate",
+    "Business Partner",
+    "OMC Business Partner",
+    "OMC Admin",
+    "OMC Manager",
+)
 
 
 def _row_payload(row) -> dict:
@@ -44,9 +54,32 @@ def _row_payload(row) -> dict:
     return payload
 
 
+def _ensure_my_referrals_report_roles() -> None:
+    """Replace stale/duplicate Report.roles rows with the source authority."""
+    if not frappe.db.exists("Report", "My Referrals"):
+        return
+
+    report = frappe.get_doc("Report", "My Referrals")
+    current = [
+        str(row.get("role") or "").strip()
+        for row in report.get("roles") or []
+        if str(row.get("role") or "").strip()
+    ]
+    desired = list(_MY_REFERRALS_REPORT_ROLES)
+    if current == desired:
+        return
+
+    report.set("roles", [{"role": role} for role in desired])
+    report.flags.ignore_permissions = True
+    report.save(ignore_permissions=True)
+
+
 def ensure_referral_workspace_links() -> None:
-    """Keep referral links in the curated Customers & Referrals section."""
+    """Keep referral report roles and curated workspace links in exact state."""
+    _ensure_my_referrals_report_roles()
+
     if not frappe.db.exists("Workspace", "OMC App"):
+        frappe.clear_cache()
         return
 
     workspace = frappe.get_doc("Workspace", "OMC App")
