@@ -96,24 +96,30 @@
   },
   {
    "default": "1",
+   "description": "Legacy compatibility field. Service Updates Enabled is canonical.",
    "fieldname": "notifications_enabled",
    "fieldtype": "Check",
+   "hidden": 1,
    "label": "Legacy Notifications Enabled",
-   "hidden": 1
+   "read_only": 1
   },
   {
    "default": "1",
+   "description": "Legacy compatibility field. Email Notifications Enabled is canonical.",
    "fieldname": "email_updates_enabled",
    "fieldtype": "Check",
+   "hidden": 1,
    "label": "Legacy Email Updates Enabled",
-   "hidden": 1
+   "read_only": 1
   },
   {
    "default": "1",
+   "description": "Legacy compatibility field. Payment Alerts Enabled is canonical.",
    "fieldname": "payment_reminders_enabled",
    "fieldtype": "Check",
+   "hidden": 1,
    "label": "Legacy Payment Reminders Enabled",
-   "hidden": 1
+   "read_only": 1
   },
   {
    "default": "0",
@@ -128,16 +134,16 @@
    "read_only": 1
   },
   {
+   "default": "1",
    "fieldname": "in_app_notifications_enabled",
-   "label": "In-app notifications",
    "fieldtype": "Check",
-   "default": "1"
+   "label": "In-app notifications"
   },
   {
+   "default": "1",
    "fieldname": "push_notifications_enabled",
-   "label": "Push notifications",
    "fieldtype": "Check",
-   "default": "1"
+   "label": "Push notifications"
   }
  ],
  "index_web_pages_for_search": 1,
