@@ -5,7 +5,6 @@ from typing import Any
 import frappe
 
 from omc_app.setup.service_catalogue.manifest import (
-    DEFAULT_ASSIGNMENT_ROLE,
     SERVICES,
     service_by_id,
 )
@@ -15,7 +14,6 @@ PRESENTATION_FIELDS = (
     "short_description",
     "description",
     "support_message",
-    "default_assignment_role",
 )
 
 
@@ -24,11 +22,11 @@ def _text(value: Any) -> str:
 
 
 def validate_presentation_source() -> dict[str, Any]:
-    """Validate presentation data already carried by the catalogue manifest."""
+    """Validate customer-facing presentation data carried by the catalogue."""
     errors: list[str] = []
 
     for spec in SERVICES:
-        for fieldname in ("short_description", "description", "support_message"):
+        for fieldname in PRESENTATION_FIELDS:
             if not _text(getattr(spec, fieldname, "")):
                 errors.append(f"{spec.service_id}.{fieldname} is empty")
 
@@ -36,17 +34,11 @@ def validate_presentation_source() -> dict[str, Any]:
             errors.append(f"{spec.service_id}.short_description is too long")
         if len(_text(spec.support_message)) > 240:
             errors.append(f"{spec.service_id}.support_message is too long")
-        if _text(spec.default_assignment_role) != DEFAULT_ASSIGNMENT_ROLE:
-            errors.append(
-                f"{spec.service_id}.default_assignment_role must be "
-                f"{DEFAULT_ASSIGNMENT_ROLE}"
-            )
 
     return {
         "ok": not errors,
         "expected_services": len(SERVICES),
         "configured_services": len(SERVICES),
-        "assignment_role": DEFAULT_ASSIGNMENT_ROLE,
         "errors": errors,
     }
 
@@ -67,7 +59,6 @@ def desired_presentation(service_id: str) -> dict[str, str]:
         "short_description": spec.short_description,
         "description": spec.description,
         "support_message": spec.support_message,
-        "default_assignment_role": spec.default_assignment_role,
     }
 
 
@@ -85,7 +76,7 @@ def _service_rows() -> dict[str, dict[str, Any]]:
 
 
 def preview_service_presentation() -> dict[str, Any]:
-    """Read-only preview of managed customer copy and assignment defaults."""
+    """Read-only preview of managed customer-facing service copy."""
     source = validate_presentation_source()
     if not source["ok"]:
         return {
@@ -97,7 +88,6 @@ def preview_service_presentation() -> dict[str, Any]:
             "unchanged": 0,
             "missing_services": [],
             "update_services": [],
-            "assignment_role": DEFAULT_ASSIGNMENT_ROLE,
             "errors": source["errors"],
         }
 
@@ -130,7 +120,6 @@ def preview_service_presentation() -> dict[str, Any]:
         "unchanged": len(unchanged),
         "missing_services": missing,
         "update_services": updated,
-        "assignment_role": DEFAULT_ASSIGNMENT_ROLE,
         "errors": [],
     }
 
@@ -150,11 +139,11 @@ def validate_service_presentation() -> dict[str, Any]:
 
 
 def sync_service_presentation(*, commit: bool = True) -> dict[str, Any]:
-    """Reconcile manifest-owned copy/defaults for existing managed services.
+    """Reconcile manifest-owned customer copy for existing managed services.
 
-    Normal deployment calls this inside operations.sync_service_catalogue so
-    catalogue rows and their presentation defaults share one outer transaction.
-    The standalone entrypoint remains for compatibility and repair only.
+    Assignment is intentionally not a presentation/catalogue concern. The
+    runtime assignment policy uses referral/default assignee evidence and then
+    falls back to the standard Employee pool.
     """
     source = validate_presentation_source()
     if not source["ok"]:
@@ -209,7 +198,6 @@ def sync_service_presentation(*, commit: bool = True) -> dict[str, Any]:
             "committed": bool(commit),
             "updated": changed,
             "unchanged": unchanged,
-            "assignment_role": DEFAULT_ASSIGNMENT_ROLE,
             "validation": validation,
         }
     except Exception:
