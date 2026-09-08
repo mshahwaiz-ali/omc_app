@@ -17,13 +17,12 @@ class AssistedCustomerDraftSelection {
   final String mode;
   final AssistedCustomerOption? customer;
   final String consentReference;
+  // Retained as source-compatible empty values until the request payload model
+  // drops the retired walk-in fields in the coordinated API compatibility cut.
   final String city;
   final String address;
 
-  String? get customerId {
-    if (mode == 'Walk-in Customer') return null;
-    return customer?.id;
-  }
+  String? get customerId => customer?.id;
 }
 
 class AssistedCustomerCard extends ConsumerStatefulWidget {
@@ -47,8 +46,6 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
   final _customerController = TextEditingController();
   final _searchController = TextEditingController();
   final _consentController = TextEditingController();
-  final _cityController = TextEditingController();
-  final _addressController = TextEditingController();
 
   List<String> _modes = const [];
   List<AssistedCustomerOption> _items = const [];
@@ -61,21 +58,15 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
   void initState() {
     super.initState();
     _consentController.addListener(_emit);
-    _cityController.addListener(_emit);
-    _addressController.addListener(_emit);
     Future<void>.microtask(_loadModes);
   }
 
   @override
   void dispose() {
     _consentController.removeListener(_emit);
-    _cityController.removeListener(_emit);
-    _addressController.removeListener(_emit);
     _customerController.dispose();
     _searchController.dispose();
     _consentController.dispose();
-    _cityController.dispose();
-    _addressController.dispose();
     super.dispose();
   }
 
@@ -129,7 +120,7 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
 
   Future<void> _loadItems({String? search}) async {
     final mode = _selectedMode;
-    if (mode == null || mode == 'Walk-in Customer') {
+    if (mode == null) {
       setState(() {
         _items = const [];
         _selectedCustomer = null;
@@ -196,11 +187,7 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
 
   void _emit() {
     final mode = _selectedMode;
-    if (mode == null) {
-      widget.onChanged(null);
-      return;
-    }
-    if (mode != 'Walk-in Customer' && _selectedCustomer == null) {
+    if (mode == null || _selectedCustomer == null) {
       widget.onChanged(null);
       return;
     }
@@ -209,8 +196,6 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
         mode: mode,
         customer: _selectedCustomer,
         consentReference: _consentController.text.trim(),
-        city: _cityController.text.trim(),
-        address: _addressController.text.trim(),
       ),
     );
   }
@@ -228,7 +213,7 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
           ),
           const SizedBox(height: 3),
           const Text(
-            'Choose who this request is being created for.',
+            'Choose the registered customer this request is being created for.',
             style: TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 12),
@@ -268,105 +253,83 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
               ),
             ),
             const SizedBox(height: 10),
-            if (_selectedMode == 'Walk-in Customer') ...[
-              TextFormField(
-                controller: _cityController,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'City (optional)',
-                  prefixIcon: Icon(Icons.location_city_outlined),
+            TextField(
+              controller: _searchController,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _loading
+                  ? null
+                  : _loadItems(search: _searchController.text),
+              decoration: InputDecoration(
+                labelText: 'Search all eligible customers',
+                hintText: 'Name, phone, email or customer ID',
+                prefixIcon: const Icon(Icons.manage_search_rounded),
+                suffixIcon: IconButton(
+                  tooltip: 'Search customers',
+                  onPressed: _loading
+                      ? null
+                      : () => _loadItems(search: _searchController.text),
+                  icon: const Icon(Icons.search_rounded),
                 ),
               ),
+            ),
+            const SizedBox(height: 10),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return DropdownMenu<AssistedCustomerOption>(
+                  controller: _customerController,
+                  width: constraints.maxWidth,
+                  enableFilter: true,
+                  enableSearch: true,
+                  requestFocusOnTap: true,
+                  leadingIcon: const Icon(Icons.person_search_outlined),
+                  label: const Text('Select customer'),
+                  hintText: 'Choose from the loaded results',
+                  dropdownMenuEntries: _items
+                      .map(
+                        (
+                          customer,
+                        ) => DropdownMenuEntry<AssistedCustomerOption>(
+                          value: customer,
+                          label: customer.subtitle.isEmpty
+                              ? customer.fullName
+                              : '${customer.fullName} — ${customer.subtitle}',
+                        ),
+                      )
+                      .toList(growable: false),
+                  onSelected: (customer) {
+                    setState(() => _selectedCustomer = customer);
+                    _emit();
+                  },
+                );
+              },
+            ),
+            if (_loading) ...[
+              const SizedBox(height: 8),
+              const LinearProgressIndicator(),
+            ],
+            if (_error != null) ...[const SizedBox(height: 8), Text(_error!)],
+            if (!_loading && _error == null && _items.isEmpty) ...[
+              const SizedBox(height: 8),
+              const Text('No eligible customers found.'),
+            ],
+            if (_selectedMode == 'Existing Customer') ...[
               const SizedBox(height: 10),
               TextFormField(
-                controller: _addressController,
-                minLines: 2,
-                maxLines: 3,
+                controller: _consentController,
                 decoration: const InputDecoration(
-                  labelText: 'Address (optional)',
-                  prefixIcon: Icon(Icons.home_outlined),
-                  alignLabelWithHint: true,
+                  labelText: 'Consent reference',
+                  helperText:
+                      'Add a call, message, visit, or written-consent reference.',
+                  prefixIcon: Icon(Icons.verified_user_outlined),
                 ),
-              ),
-            ] else ...[
-              TextField(
-                controller: _searchController,
-                textInputAction: TextInputAction.search,
-                onSubmitted: (_) => _loading
-                    ? null
-                    : _loadItems(search: _searchController.text),
-                decoration: InputDecoration(
-                  labelText: 'Search all eligible customers',
-                  hintText: 'Name, phone, email or customer ID',
-                  prefixIcon: const Icon(Icons.manage_search_rounded),
-                  suffixIcon: IconButton(
-                    tooltip: 'Search customers',
-                    onPressed: _loading
-                        ? null
-                        : () => _loadItems(search: _searchController.text),
-                    icon: const Icon(Icons.search_rounded),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  return DropdownMenu<AssistedCustomerOption>(
-                    controller: _customerController,
-                    width: constraints.maxWidth,
-                    enableFilter: true,
-                    enableSearch: true,
-                    requestFocusOnTap: true,
-                    leadingIcon: const Icon(Icons.person_search_outlined),
-                    label: const Text('Select customer'),
-                    hintText: 'Choose from the loaded results',
-                    dropdownMenuEntries: _items
-                        .map(
-                          (
-                            customer,
-                          ) => DropdownMenuEntry<AssistedCustomerOption>(
-                            value: customer,
-                            label: customer.subtitle.isEmpty
-                                ? customer.fullName
-                                : '${customer.fullName} — ${customer.subtitle}',
-                          ),
-                        )
-                        .toList(growable: false),
-                    onSelected: (customer) {
-                      setState(() => _selectedCustomer = customer);
-                      _emit();
-                    },
-                  );
+                validator: (value) {
+                  if (_selectedMode != 'Existing Customer') return null;
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Consent reference is required.';
+                  }
+                  return null;
                 },
               ),
-              if (_loading) ...[
-                const SizedBox(height: 8),
-                const LinearProgressIndicator(),
-              ],
-              if (_error != null) ...[const SizedBox(height: 8), Text(_error!)],
-              if (!_loading && _error == null && _items.isEmpty) ...[
-                const SizedBox(height: 8),
-                const Text('No eligible customers found.'),
-              ],
-              if (_selectedMode == 'Existing Customer') ...[
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: _consentController,
-                  decoration: const InputDecoration(
-                    labelText: 'Consent reference',
-                    helperText:
-                        'Add a call, message, visit, or written-consent reference.',
-                    prefixIcon: Icon(Icons.verified_user_outlined),
-                  ),
-                  validator: (value) {
-                    if (_selectedMode != 'Existing Customer') return null;
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Consent reference is required.';
-                    }
-                    return null;
-                  },
-                ),
-              ],
             ],
           ],
         ],
