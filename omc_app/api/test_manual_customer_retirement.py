@@ -6,9 +6,21 @@ from frappe.tests.utils import FrappeTestCase
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = PACKAGE_ROOT.parents[5]
 DOCTYPE_ROOT = PACKAGE_ROOT / "omc_app" / "doctype"
 WORKSPACE_PATH = PACKAGE_ROOT / "omc_app" / "workspace" / "omc_app" / "omc_app.json"
 ROLES_PATH = PACKAGE_ROOT / "setup" / "roles.py"
+ASSISTED_POLICY_PATH = PACKAGE_ROOT / "api" / "assisted_service_policy.py"
+FLUTTER_API_CONFIG_PATH = REPO_ROOT / "omc_app" / "lib" / "core" / "config" / "api_config.dart"
+FLUTTER_REQUEST_REPOSITORY_PATH = (
+    REPO_ROOT
+    / "omc_app"
+    / "lib"
+    / "features"
+    / "service_requests"
+    / "data"
+    / "service_request_repository.dart"
+)
 
 
 class TestManualCustomerRetirement(FrappeTestCase):
@@ -77,3 +89,22 @@ class TestManualCustomerRetirement(FrappeTestCase):
         self.assertEqual(field.get("options"), "OMC Manual Customer")
         self.assertEqual(int(field.get("hidden") or 0), 1)
         self.assertEqual(int(field.get("read_only") or 0), 1)
+
+    def test_supported_assisted_policy_excludes_walk_in_mode(self):
+        source = ASSISTED_POLICY_PATH.read_text(encoding="utf-8")
+        self.assertIn(
+            'ALLOWED_ASSISTED_MODES = {"My Referral", "Existing Customer"}',
+            source,
+        )
+        self.assertNotIn('"can_use_walk_in_customers"', source)
+
+    def test_flutter_uses_assisted_policy_and_has_no_manual_customer_model(self):
+        api_config = FLUTTER_API_CONFIG_PATH.read_text(encoding="utf-8")
+        repository = FLUTTER_REQUEST_REPOSITORY_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "omc_app.api.assisted_service_policy.get_customer_selection_options",
+            api_config,
+        )
+        self.assertNotIn("manual_customer_id", repository)
+        self.assertNotIn("isManualCustomer", repository)
