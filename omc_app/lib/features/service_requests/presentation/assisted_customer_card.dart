@@ -10,17 +10,11 @@ class AssistedCustomerDraftSelection {
     required this.mode,
     this.customer,
     this.consentReference = '',
-    this.city = '',
-    this.address = '',
   });
 
   final String mode;
   final AssistedCustomerOption? customer;
   final String consentReference;
-  // Retained as source-compatible empty values until the request payload model
-  // drops the retired walk-in fields in the coordinated API compatibility cut.
-  final String city;
-  final String address;
 
   String? get customerId => customer?.id;
 }
