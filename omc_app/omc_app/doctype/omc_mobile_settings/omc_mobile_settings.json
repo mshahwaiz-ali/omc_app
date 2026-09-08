@@ -6,10 +6,6 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "status_section",
-  "is_mobile_backend_active",
-  "signup_enabled",
-  "require_customer_approval",
   "feature_section",
   "guest_mode_enabled",
   "payments_enabled",
@@ -18,7 +14,6 @@
   "knowledge_enabled",
   "tax_calculator_enabled",
   "expense_tracker_enabled",
-  "subscriptions_enabled",
   "internal_workspace_enabled",
   "pricing_policy_section",
   "discount_auto_approval_percent",
@@ -34,29 +29,6 @@
   "terms_text"
  ],
  "fields": [
-  {
-   "fieldname": "status_section",
-   "fieldtype": "Section Break",
-   "label": "Status"
-  },
-  {
-   "default": "1",
-   "fieldname": "is_mobile_backend_active",
-   "fieldtype": "Check",
-   "label": "Mobile Backend Active"
-  },
-  {
-   "default": "1",
-   "fieldname": "signup_enabled",
-   "fieldtype": "Check",
-   "label": "Signup Enabled"
-  },
-  {
-   "default": "1",
-   "fieldname": "require_customer_approval",
-   "fieldtype": "Check",
-   "label": "Require Customer Approval"
-  },
   {
    "fieldname": "feature_section",
    "fieldtype": "Section Break",
@@ -103,12 +75,6 @@
    "fieldname": "expense_tracker_enabled",
    "fieldtype": "Check",
    "label": "Expense Tracker Enabled"
-  },
-  {
-   "default": "0",
-   "fieldname": "subscriptions_enabled",
-   "fieldtype": "Check",
-   "label": "Subscriptions Enabled"
   },
   {
    "default": "0",
