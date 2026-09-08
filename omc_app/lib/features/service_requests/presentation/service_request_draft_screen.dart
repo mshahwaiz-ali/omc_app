@@ -348,9 +348,6 @@ class _ServiceRequestDraftScreenState
       _nameController.text = customer.fullName;
       _phoneController.text = customer.phone;
       _emailController.text = customer.email;
-      if (customer.cnic.isNotEmpty) {
-        _taxIdController.text = customer.cnic;
-      }
     }
     if (mounted) setState(() {});
   }
@@ -522,8 +519,6 @@ class _ServiceRequestDraftScreenState
       customerName: _assistedSelection?.customer?.fullName,
       customerMode: _assistedSelection?.mode,
       customerConsentReference: _assistedSelection?.consentReference,
-      city: _assistedSelection?.city,
-      address: _assistedSelection?.address,
       discountType: capabilities.isInternal && discountValue > 0
           ? _discountType
           : null,
