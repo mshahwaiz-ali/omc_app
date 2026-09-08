@@ -119,6 +119,7 @@
    "in_standard_filter": 1,
    "label": "Service",
    "options": "OMC Service",
+   "read_only": 1,
    "search_index": 1
   },
   {
@@ -266,7 +267,8 @@
    "fieldname": "customer_profile",
    "fieldtype": "Link",
    "label": "Customer Profile",
-   "options": "OMC Customer Profile"
+   "options": "OMC Customer Profile",
+   "read_only": 1
   },
   {
    "fieldname": "customer_name",
@@ -302,6 +304,7 @@
    "fieldtype": "Link",
    "label": "Requested For Customer",
    "options": "User",
+   "read_only": 1,
    "search_index": 1
   },
   {
@@ -315,21 +318,25 @@
    "search_index": 1
   },
   {
+   "default": "Self",
+   "description": "Request provenance selected by the guarded creation flow; immutable after creation.",
    "fieldname": "customer_mode",
    "fieldtype": "Select",
+   "in_standard_filter": 1,
    "label": "Customer Mode",
    "options": "Self\nMy Referral\nExisting Customer\nWalk-in Customer",
-   "default": "Self",
-   "in_standard_filter": 1,
+   "read_only": 1,
    "search_index": 1
   },
   {
+   "default": "Customer Self-Service",
+   "description": "Submission provenance recorded by the guarded creation flow; immutable after creation.",
    "fieldname": "submission_mode",
    "fieldtype": "Select",
+   "in_standard_filter": 1,
    "label": "Submission Mode",
    "options": "Customer Self-Service\nStaff on Behalf\nAdmin on Behalf\nWalk-in Assisted\nHistorical Import",
-   "default": "Customer Self-Service",
-   "in_standard_filter": 1,
+   "read_only": 1,
    "search_index": 1
   },
   {
@@ -353,6 +360,7 @@
    "fieldtype": "Link",
    "label": "Referral Owner",
    "options": "User",
+   "read_only": 1,
    "search_index": 1
   },
   {
@@ -360,6 +368,7 @@
    "fieldtype": "Link",
    "label": "Referral Record",
    "options": "OMC Referral",
+   "read_only": 1,
    "search_index": 1
   },
   {
@@ -386,7 +395,8 @@
    "fieldname": "source_channel",
    "fieldtype": "Select",
    "label": "Source Channel",
-   "options": "Mobile App\nDesk\nWebsite\nWalk-in\nImported\nAPI"
+   "options": "Mobile App\nDesk\nWebsite\nWalk-in\nImported\nAPI",
+   "read_only": 1
   },
   {
    "collapsible": 1,
