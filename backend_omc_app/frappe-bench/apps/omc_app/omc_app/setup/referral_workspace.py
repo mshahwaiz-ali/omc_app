@@ -28,6 +28,8 @@ _TARGETS = (
 
 _REFERRAL_LABELS = {"Referrals", "My Referrals", "Referral Codes"}
 _REFERRAL_TARGETS = {"My Referrals", "OMC Referral"}
+_SECTION_LABEL = "Customers & Referrals"
+_ANCHOR_LABEL = "Customer Profiles"
 
 
 def _row_payload(row) -> dict:
@@ -43,6 +45,7 @@ def _row_payload(row) -> dict:
 
 
 def ensure_referral_workspace_links() -> None:
+    """Keep referral links in the curated Customers & Referrals section."""
     if not frappe.db.exists("Workspace", "OMC App"):
         return
 
@@ -60,16 +63,16 @@ def ensure_referral_workspace_links() -> None:
         (
             index + 1
             for index, row in enumerate(preserved)
-            if str(row.get("label") or "").strip() == "Referrals & Commissions"
+            if str(row.get("label") or "").strip() == _ANCHOR_LABEL
         ),
         None,
     )
     if insert_at is None:
         insert_at = next(
             (
-                index
+                index + 1
                 for index, row in enumerate(preserved)
-                if str(row.get("label") or "").strip() == "Finance & Reconciliation"
+                if str(row.get("label") or "").strip() == _SECTION_LABEL
             ),
             len(preserved),
         )
