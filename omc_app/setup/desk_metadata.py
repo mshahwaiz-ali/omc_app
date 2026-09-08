@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import frappe
 
 _AUTOMATIC_NAMING_SERIES_DOCTYPES = (
@@ -9,6 +12,15 @@ _AUTOMATIC_NAMING_SERIES_DOCTYPES = (
     'OMC Service Request',
     'OMC Support Ticket',
     'OMC Support Ticket Message',
+)
+
+_PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+_WORKSPACE_SOURCE = (
+    _PACKAGE_ROOT
+    / 'omc_app'
+    / 'workspace'
+    / 'omc_app'
+    / 'omc_app.json'
 )
 
 _ONBOARDING_WORKSPACE_LINK = {
@@ -26,6 +38,7 @@ _ONBOARDING_WORKSPACE_LINK = {
 def sync_desk_metadata():
     """Keep Desk metadata aligned with the source-controlled OMC app."""
     _hide_automatic_naming_series_fields()
+    _reconcile_omc_workspace_from_source()
     _remove_standalone_tax_slab_links()
     _ensure_onboarding_workspace_link()
     frappe.clear_cache()
@@ -53,6 +66,35 @@ def _hide_automatic_naming_series_fields():
                 values['default'] = options[0]
 
         frappe.db.set_value('DocField', field.name, values, update_modified=False)
+
+
+def _workspace_source_payload() -> dict:
+    if not _WORKSPACE_SOURCE.exists():
+        frappe.throw(
+            'Source-controlled OMC App workspace definition is missing.',
+            frappe.ValidationError,
+        )
+    return json.loads(_WORKSPACE_SOURCE.read_text(encoding='utf-8'))
+
+
+def _reconcile_omc_workspace_from_source():
+    """Replace mutable Desk rows with the curated source-controlled workspace.
+
+    Existing sites may still contain links from older releases even when the
+    current workspace JSON no longer exposes those internal DocTypes. The
+    explicit Desk sync operation therefore converges links/content/quick lists
+    to source rather than only appending missing links.
+    """
+    if not frappe.db.exists('Workspace', 'OMC App'):
+        return
+
+    source = _workspace_source_payload()
+    workspace = frappe.get_doc('Workspace', 'OMC App')
+    workspace.content = source.get('content') or '[]'
+    workspace.set('links', source.get('links') or [])
+    workspace.set('quick_lists', source.get('quick_lists') or [])
+    workspace.flags.ignore_permissions = True
+    workspace.save(ignore_permissions=True)
 
 
 def _remove_standalone_tax_slab_links():
