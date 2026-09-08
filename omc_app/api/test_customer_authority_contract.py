@@ -20,16 +20,26 @@ class TestCustomerAuthorityContract(FrappeTestCase):
             root
             / "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api"
         )
+        doctype_root = (
+            root
+            / "backend_omc_app/frappe-bench/apps/omc_app/omc_app/"
+            "omc_app/doctype"
+        )
 
         mobile = (api / "mobile.py").read_text(encoding="utf-8")
         profile = (api / "profile.py").read_text(encoding="utf-8")
-        assisted = (api / "assisted_service.py").read_text(
-            encoding="utf-8"
-        )
+        manual_controller = (
+            doctype_root
+            / "omc_manual_customer/omc_manual_customer.py"
+        ).read_text(encoding="utf-8")
+        legacy_conversion = (
+            api / "manual_customer_conversion.py"
+        ).read_text(encoding="utf-8")
 
         self.assertIn('frappe.new_doc("OMC Customer Profile")', mobile)
         self.assertIn('"OMC Customer Profile"', profile)
-        self.assertIn('"OMC Manual Customer"', assisted)
+        self.assertIn("OMC Manual Customer is retired", manual_controller)
+        self.assertIn('"OMC Manual Customer"', legacy_conversion)
 
     def test_erp_customer_is_downstream_bridge_only(self):
         root = self._repo_root()
@@ -63,12 +73,12 @@ class TestCustomerAuthorityContract(FrappeTestCase):
         resolver = (api / "erp_customer_resolver.py").read_text(
             encoding="utf-8"
         )
-        assisted = (api / "assisted_service.py").read_text(
-            encoding="utf-8"
-        )
         admin_control = (api / "admin_control.py").read_text(
             encoding="utf-8"
         )
+        pending_registration = (
+            api / "pending_registration.py"
+        ).read_text(encoding="utf-8")
 
         # ERP Customer identity must come from deterministic customer
         # evidence, never the legacy shared Customer.user_link field.
@@ -98,13 +108,12 @@ class TestCustomerAuthorityContract(FrappeTestCase):
             admin_control,
         )
 
+        # New customer creation remains protected by the verified registration
+        # flow; retired walk-in records are no longer a second acquisition path.
+        self.assertIn('frappe.db.exists("User", email)', pending_registration)
         self.assertIn(
-            "def _manual_customer_duplicate_matches(",
-            assisted,
-        )
-        self.assertIn(
-            "A matching walk-in customer already exists.",
-            assisted,
+            'frappe.db.exists("OMC Customer Profile", {"email": email})',
+            pending_registration,
         )
 
     def test_service_request_uses_canonical_customer_links(self):
@@ -118,6 +127,15 @@ class TestCustomerAuthorityContract(FrappeTestCase):
 
         self.assertIn('"fieldname": "customer_profile"', schema)
         self.assertIn('"options": "OMC Customer Profile"', schema)
+        self.assertIn('"fieldname": "customer_account"', schema)
+        self.assertIn('"options": "OMC Customer Account"', schema)
+        self.assertIn('"fieldname": "erp_customer"', schema)
+
+        # The manual-customer link is retained only as hidden historical
+        # evidence until local/prod data reconciliation proves it can be dropped.
         self.assertIn('"fieldname": "manual_customer"', schema)
         self.assertIn('"options": "OMC Manual Customer"', schema)
-        self.assertIn('"fieldname": "erp_customer"', schema)
+        self.assertIn(
+            "Legacy walk-in customer reference retained only for historical request reconciliation.",
+            schema,
+        )
