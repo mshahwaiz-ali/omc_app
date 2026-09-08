@@ -30,10 +30,17 @@ _REFERRAL_LABELS = {"Referrals", "My Referrals", "Referral Codes"}
 _REFERRAL_TARGETS = {"My Referrals", "OMC Referral"}
 _SECTION_LABEL = "Customers & Referrals"
 _ANCHOR_LABEL = "Customer Profiles"
-_MY_REFERRALS_REPORT_ROLES = (
+
+# Report.roles is only a coarse Frappe Desk gate. Canonical referral authority
+# is enforced inside the report through OMC Staff Access/capabilities and
+# referrals.is_referral_owner(). Some client sites use ERP persona names as
+# User.omc_user_type values without creating same-named Frappe Role records, so
+# only roles that actually exist on the current site may be written here.
+_MY_REFERRALS_REPORT_ROLE_CANDIDATES = (
     "Consultant",
     "OMC Consultant",
     "Tax Associates",
+    "Tax Associate",
     "OMC Tax Associate",
     "Business Partner",
     "OMC Business Partner",
@@ -54,9 +61,29 @@ def _row_payload(row) -> dict:
     return payload
 
 
+def _available_my_referrals_report_roles() -> list[str]:
+    return [
+        role
+        for role in _MY_REFERRALS_REPORT_ROLE_CANDIDATES
+        if frappe.db.exists("Role", role)
+    ]
+
+
 def _ensure_my_referrals_report_roles() -> None:
-    """Replace stale/duplicate Report.roles rows with the source authority."""
+    """Replace stale/duplicate Report.roles with valid installed Role links.
+
+    This deliberately does not create or rename Frappe Roles. The OMC staff
+    persona/capability model remains authoritative; Report.roles only needs a
+    valid coarse Desk gate before the report's own permission checks run.
+    """
     if not frappe.db.exists("Report", "My Referrals"):
+        return
+
+    desired = _available_my_referrals_report_roles()
+    if not desired:
+        frappe.logger("omc_app.setup").warning(
+            "My Referrals role reconciliation skipped: no eligible installed Role records found"
+        )
         return
 
     report = frappe.get_doc("Report", "My Referrals")
@@ -65,7 +92,6 @@ def _ensure_my_referrals_report_roles() -> None:
         for row in report.get("roles") or []
         if str(row.get("role") or "").strip()
     ]
-    desired = list(_MY_REFERRALS_REPORT_ROLES)
     if current == desired:
         return
 
