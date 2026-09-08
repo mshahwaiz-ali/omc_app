@@ -50,10 +50,12 @@
    "search_index": 1
   },
   {
+   "description": "Legacy first-message field retained for historical tickets. Ticket messages are canonical.",
    "fieldname": "message",
    "fieldtype": "Long Text",
    "hidden": 1,
-   "label": "Legacy Message"
+   "label": "Legacy Message",
+   "read_only": 1
   },
   {
    "bold": 1,
