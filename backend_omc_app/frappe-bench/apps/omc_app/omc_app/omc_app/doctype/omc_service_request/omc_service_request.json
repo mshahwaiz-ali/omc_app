@@ -20,6 +20,7 @@
   "pricing_section",
   "original_price",
   "pricing_currency",
+  "company_snapshot",
   "discount_type",
   "discount_value",
   "discount_amount",
@@ -143,6 +144,15 @@
    "fieldtype": "Data",
    "label": "Pricing Currency",
    "read_only": 1
+  },
+  {
+   "description": "Immutable legal company frozen from the OMC Service when the request is created.",
+   "fieldname": "company_snapshot",
+   "fieldtype": "Link",
+   "label": "Company Snapshot",
+   "options": "Company",
+   "read_only": 1,
+   "search_index": 1
   },
   {
    "fieldname": "discount_type",
@@ -295,10 +305,13 @@
    "search_index": 1
   },
   {
+   "description": "Legacy walk-in customer reference retained only for historical request reconciliation.",
    "fieldname": "manual_customer",
    "fieldtype": "Link",
+   "hidden": 1,
    "label": "Manual Customer",
    "options": "OMC Manual Customer",
+   "read_only": 1,
    "search_index": 1
   },
   {
@@ -740,7 +753,7 @@
   }
  ],
  "row_format": "Dynamic",
- "search_fields": "title,customer_name,service,status,priority,requested_for_customer,manual_customer,referral_owner",
+ "search_fields": "title,customer_name,service,status,priority,requested_for_customer,referral_owner",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
