@@ -8,10 +8,19 @@ MAX_PAGE_SIZE = 100
 
 
 def _public_service_payload(service, include_required_documents=False):
-    return mobile._service_to_catalogue_dict(
+    payload = mobile._service_to_catalogue_dict(
         service,
         include_required_documents=include_required_documents,
     )
+    # ``completion_time`` is the canonical service duration. Keep the historical
+    # ``estimated_duration`` response key for older clients, but derive it from
+    # the canonical field so stale legacy storage can no longer change output.
+    payload["estimated_duration"] = (
+        payload.get("completion_time")
+        or payload.get("completionTime")
+        or ""
+    )
+    return payload
 
 
 def _pagination(start=0, limit=50, limit_start=None, limit_page_length=None):
