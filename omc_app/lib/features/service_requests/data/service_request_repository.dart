@@ -33,8 +33,6 @@ class ServiceRequestPayload {
     this.customerName,
     this.customerMode,
     this.customerConsentReference,
-    this.city,
-    this.address,
     this.discountType,
     this.discountValue,
     this.discountReason,
@@ -52,8 +50,6 @@ class ServiceRequestPayload {
   final String? customerName;
   final String? customerMode;
   final String? customerConsentReference;
-  final String? city;
-  final String? address;
   final String? discountType;
   final double? discountValue;
   final String? discountReason;
@@ -114,16 +110,6 @@ class ServiceRequestPayload {
     if (normalizedConsentReference != null &&
         normalizedConsentReference.isNotEmpty) {
       data['customer_consent_reference'] = normalizedConsentReference;
-    }
-
-    final normalizedCity = city?.trim();
-    if (normalizedCity != null && normalizedCity.isNotEmpty) {
-      data['city'] = normalizedCity;
-    }
-
-    final normalizedAddress = address?.trim();
-    if (normalizedAddress != null && normalizedAddress.isNotEmpty) {
-      data['address'] = normalizedAddress;
     }
 
     final normalizedDiscountType = discountType?.trim();
@@ -273,12 +259,9 @@ class AssistedCustomerOption {
     required this.fullName,
     required this.email,
     required this.phone,
-    this.cnic = '',
-    this.city = '',
     this.customerStatus = '',
     this.approvalStatus = '',
     this.consentGranted = false,
-    this.isManualCustomer = false,
   });
 
   final String mode;
@@ -286,29 +269,20 @@ class AssistedCustomerOption {
   final String fullName;
   final String email;
   final String phone;
-  final String cnic;
-  final String city;
   final String customerStatus;
   final String approvalStatus;
   final bool consentGranted;
-  final bool isManualCustomer;
 
   factory AssistedCustomerOption.fromJson(Map<String, dynamic> json) {
-    final manualId = _staticString(json['manual_customer_id']);
-    final customerId = _staticString(json['customer_id']);
-
     return AssistedCustomerOption(
       mode: _staticString(json['customer_mode']),
-      id: manualId.isNotEmpty ? manualId : customerId,
+      id: _staticString(json['customer_id']),
       fullName: _staticString(json['full_name']),
       email: _staticString(json['email']),
       phone: _staticString(json['phone']),
-      cnic: _staticString(json['cnic']),
-      city: _staticString(json['city']),
       customerStatus: _staticString(json['customer_status']),
       approvalStatus: _staticString(json['approval_status']),
       consentGranted: _staticBool(json['consent_granted']),
-      isManualCustomer: manualId.isNotEmpty,
     );
   }
 
@@ -316,7 +290,6 @@ class AssistedCustomerOption {
     final parts = <String>[
       if (phone.isNotEmpty) phone,
       if (email.isNotEmpty) email,
-      if (city.isNotEmpty) city,
     ];
     return parts.join(' • ');
   }
