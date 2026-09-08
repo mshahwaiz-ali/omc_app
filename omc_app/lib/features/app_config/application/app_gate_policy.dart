@@ -133,8 +133,5 @@ bool mobileFeatureRouteEnabled(
       at('/admin-control')) {
     return features.internalWorkspaceEnabled;
   }
-  if (at('/subscriptions')) {
-    return features.subscriptionsEnabled;
-  }
   return true;
 }
