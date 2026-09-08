@@ -82,7 +82,7 @@ def _workspace_row_payload(row):
 
 
 def _ensure_onboarding_workspace_link():
-    """Expose the editable onboarding content without exposing auth internals."""
+    """Keep editable onboarding content inside the curated App Content section."""
     if not frappe.db.exists('Workspace', 'OMC App'):
         return
 
@@ -97,17 +97,24 @@ def _ensure_onboarding_workspace_link():
     inserted = False
     for row in workspace.get('links') or []:
         payload = _workspace_row_payload(row)
+        links.append(payload)
         if (
             not inserted
-            and str(payload.get('type') or '').strip() == 'Card Break'
-            and str(payload.get('label') or '').strip() == 'Tax Calculator'
+            and str(payload.get('label') or '').strip() == 'App Banners'
         ):
             links.append(dict(_ONBOARDING_WORKSPACE_LINK))
             inserted = True
-        links.append(payload)
 
     if not inserted:
-        links.append(dict(_ONBOARDING_WORKSPACE_LINK))
+        app_content_index = next(
+            (
+                index + 1
+                for index, payload in enumerate(links)
+                if str(payload.get('label') or '').strip() == 'App Content'
+            ),
+            len(links),
+        )
+        links.insert(app_content_index, dict(_ONBOARDING_WORKSPACE_LINK))
 
     workspace.set('links', links)
     workspace.flags.ignore_permissions = True
