@@ -43,10 +43,16 @@ class SettingsRepository {
   }
 
   Future<void> savePreferences(SettingsPreferences preferences) async {
-    await frappeClient.postMethod(
+    final response = await frappeClient.postMethod(
       ApiConfig.updateSettingsPreferencesMethod,
       data: preferences.toJson(),
     );
+    final saved = _mapPreferencesResponse(response);
+    final raw = response['message'] is Map ? response['message'] as Map : response;
+    if (raw['preferences'] is! Map || saved == null ||
+        saved.toJson().entries.any((entry) => entry.value != preferences.toJson()[entry.key])) {
+      throw StateError('The server did not save these preferences. Please retry.');
+    }
   }
 
   SettingsPreferences? _mapPreferencesResponse(Map<String, dynamic>? data) {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -43,6 +44,14 @@ class _ServiceCatalogueScreenState
 
   String _selectedCategory = _allCategory;
   String _query = '';
+  int _start = 0;
+  Timer? _debounce;
+  void _search(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) setState(() { _query = value.trim(); _start = 0; });
+    });
+  }
 
   @override
   void initState() {
@@ -54,13 +63,16 @@ class _ServiceCatalogueScreenState
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final servicesAsync = ref.watch(serviceCatalogueProvider);
+    final pageProvider = serviceCataloguePageProvider((start: _start, search: _query, category: _selectedCategory == _allCategory ? '' : _selectedCategory));
+    final pageAsync = ref.watch(pageProvider);
+    final servicesAsync = pageAsync.whenData((page) => page.items);
     ref.watch(authControllerProvider);
 
     return SafeArea(
@@ -72,7 +84,7 @@ class _ServiceCatalogueScreenState
           title: 'Services unavailable',
           message: serviceCatalogueErrorMessage(error),
           actionLabel: 'Retry',
-          onAction: () => ref.invalidate(serviceCatalogueProvider),
+          onAction: () => ref.invalidate(pageProvider),
         ),
         data: (services) {
           final categories = <String>[
@@ -82,12 +94,12 @@ class _ServiceCatalogueScreenState
                 if (service.category.trim().isNotEmpty) service.category.trim(),
             }.toList()..sort(),
           ];
-          final filteredServices = _filterServices(services);
+          final filteredServices = services;
 
           return RefreshIndicator(
             onRefresh: () async {
-              ref.invalidate(serviceCatalogueProvider);
-              await ref.read(serviceCatalogueProvider.future);
+              ref.invalidate(pageProvider);
+              await ref.read(pageProvider.future);
             },
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(
@@ -97,16 +109,20 @@ class _ServiceCatalogueScreenState
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               children: [
                 const _PageHeading(),
+                Row(children: [
+                  TextButton(onPressed: _start == 0 ? null : () => setState(() => _start = (_start - 50).clamp(0, _start)), child: const Text('Previous')),
+                  Text('Page ${_start ~/ 50 + 1}'),
+                  TextButton(onPressed: pageAsync.value?.nextStart == null ? null : () => setState(() => _start = pageAsync.value!.nextStart!), child: const Text('Next')),
+                ]),
                 const SizedBox(height: 12),
                 _SearchField(
                   controller: _searchController,
                   query: _query,
                   hasActiveCategory: _selectedCategory != _allCategory,
-                  onChanged: (value) =>
-                      setState(() => _query = value.trim().toLowerCase()),
+                  onChanged: _search,
                   onClear: () {
                     _searchController.clear();
-                    setState(() => _query = '');
+                    _search('');
                   },
                   onFilterTap: () => _openFilterSheet(context, categories),
                 ),
@@ -115,7 +131,7 @@ class _ServiceCatalogueScreenState
                   categories: categories,
                   selectedCategory: _selectedCategory,
                   onSelected: (category) =>
-                      setState(() => _selectedCategory = category),
+                      setState(() { _selectedCategory = category; _start = 0; }),
                 ),
                 const SizedBox(height: 14),
                 _SectionHeader(
@@ -181,36 +197,11 @@ class _ServiceCatalogueScreenState
     );
   }
 
-  List<ServiceItem> _filterServices(List<ServiceItem> services) {
-    return services
-        .where((service) {
-          if (_selectedCategory != _allCategory &&
-              service.category.trim() != _selectedCategory) {
-            return false;
-          }
-
-          if (_query.isEmpty) return true;
-
-          final haystack = [
-            service.id,
-            service.title,
-            service.category,
-            service.description ?? '',
-            service.shortDescription ?? '',
-            service.feeLabel,
-            service.priceLabel,
-            service.completionTime,
-          ].join(' ').toLowerCase();
-
-          return haystack.contains(_query);
-        })
-        .toList(growable: false);
-  }
-
   void _clearFilters() {
     _searchController.clear();
     setState(() {
       _query = '';
+      _start = 0;
       _selectedCategory = _allCategory;
     });
   }
@@ -295,7 +286,7 @@ class _ServiceCatalogueScreenState
                               : _displayCategoryLabel(category),
                           selected: _selectedCategory == category,
                           onTap: () {
-                            setState(() => _selectedCategory = category);
+                            setState(() { _selectedCategory = category; _start = 0; });
                             Navigator.of(sheetContext).pop();
                           },
                         ),

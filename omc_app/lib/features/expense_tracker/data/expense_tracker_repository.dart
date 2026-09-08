@@ -451,17 +451,38 @@ class ExpenseTrackerRepository {
     }
   }
 
-  Future<List<ExpenseTransaction>> fetchSyncedTransactions() async {
-    final response = await _frappeClient.getMethod(
-      ApiConfig.expenseEntriesMethod,
+  Future<ExpenseCloudPage> fetchSyncedPage({int start = 0, String? month}) async {
+    final response = await _frappeClient.getMethod(ApiConfig.expenseEntriesMethod,
+        queryParameters: {'start': start, 'limit': 100, 'month': ?month});
+    final data = _extractPayload(response);
+    if (data['fallback'] == true || data['entries'] is! List) {
+      throw StateError('Cloud expense history is unavailable. Local data is unchanged.');
+    }
+    return ExpenseCloudPage(
+      _extractList(response, 'entries').map(ExpenseTransaction.fromJson).toList(),
+      data['has_more'] == true ? (data['next_start'] as num).toInt() : null,
+      Map<String, dynamic>.from(data['summary'] as Map? ?? const {}),
     );
-    final rawEntries = _extractList(response, 'entries');
-    return rawEntries
-        .map(ExpenseTransaction.fromJson)
-        .where(
-          (item) => item.id.isNotEmpty && item.amount > 0 && !item.isArchived,
-        )
-        .toList(growable: false);
+  }
+
+  Stream<ExpenseCloudPage> syncedPages({String? month}) async* {
+    var start = 0;
+    while (true) {
+      final page = await fetchSyncedPage(start: start, month: month);
+      yield page;
+      final next = page.nextStart;
+      if (next == null) break;
+      if (next <= start) throw StateError('Invalid expense continuation. Please retry.');
+      start = next;
+    }
+  }
+
+  Future<List<ExpenseTransaction>> fetchSyncedTransactions() async {
+    final entries = <String, ExpenseTransaction>{};
+    await for (final page in syncedPages()) {
+      for (final entry in page.entries) { entries[entry.id] = entry; }
+    }
+    return entries.values.toList();
   }
 
   Future<ExpenseTransaction?> createSyncedTransaction(
@@ -514,9 +535,10 @@ class ExpenseTrackerRepository {
     return payload['deleted'] == true || payload['deleted'].toString() == '1';
   }
 
-  Future<Map<String, dynamic>> fetchSyncedSummary() async {
+  Future<Map<String, dynamic>> fetchSyncedSummary({String? month}) async {
     final response = await _frappeClient.getMethod(
       ApiConfig.expenseSummaryMethod,
+      queryParameters: {'month': ?month},
     );
     return _extractPayload(response);
   }
@@ -548,6 +570,7 @@ class ExpenseTrackerRepository {
       method: ApiConfig.uploadExpenseReceiptMethod,
       doctype: ApiConfig.expenseReceiptUploadDoctype,
       docname: entryId,
+      extraFields: {'entry_id': entryId},
       isPrivate: true,
     );
 
@@ -622,3 +645,14 @@ bool _boolValue(dynamic value) {
   final text = value?.toString().trim().toLowerCase();
   return text == 'true' || text == '1' || text == 'yes' || text == 'on';
 }
+
+class ExpenseCloudPage {
+  const ExpenseCloudPage(this.entries, this.nextStart, this.summary);
+  final List<ExpenseTransaction> entries;
+  final int? nextStart;
+  final Map<String, dynamic> summary;
+}
+final expenseCloudPageProvider = FutureProvider.autoDispose.family<ExpenseCloudPage, ({int start, String? month})>((ref, query) {
+  ref.watch(sessionEpochProvider);
+  return ref.watch(expenseTrackerRepositoryProvider).fetchSyncedPage(start: query.start, month: query.month);
+});

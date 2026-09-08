@@ -21,7 +21,9 @@
   "email_updates_enabled",
   "payment_reminders_enabled",
   "work_address_prompt_dismissed",
-  "work_address_prompt_dismissed_at"
+  "work_address_prompt_dismissed_at",
+  "in_app_notifications_enabled",
+  "push_notifications_enabled"
  ],
  "fields": [
   {
@@ -124,6 +126,18 @@
    "fieldtype": "Datetime",
    "label": "Work Address Prompt Dismissed At",
    "read_only": 1
+  },
+  {
+   "fieldname": "in_app_notifications_enabled",
+   "label": "In-app notifications",
+   "fieldtype": "Check",
+   "default": "1"
+  },
+  {
+   "fieldname": "push_notifications_enabled",
+   "label": "Push notifications",
+   "fieldtype": "Check",
+   "default": "1"
   }
  ],
  "index_web_pages_for_search": 1,

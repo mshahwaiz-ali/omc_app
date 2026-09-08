@@ -54,6 +54,10 @@ dependencies:
   pdfrx: ^2.4.7
   google_maps_flutter: ^2.18.0
   geolocator: ^14.0.2
+  firebase_core: ^4.14.0
+  firebase_messaging: ^16.6.0
+  flutter_local_notifications: ^22.3.0
+  pub_semver: ^2.2.1
 
 dev_dependencies:
   flutter_test:

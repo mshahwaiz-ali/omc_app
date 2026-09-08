@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../data/expense_export.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/providers/effective_capabilities_provider.dart';
+import '../../../app/providers/core_providers.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../app/theme.dart';
 import '../../../core/forms/dirty_form_controller.dart';
@@ -52,9 +54,9 @@ class ExpenseTransactionsController
   Future<void> loadSynced() async {
     state = const AsyncLoading();
     try {
-      final remote = await _repository.fetchSyncedTransactions();
-      await _repository.saveTransactions(remote);
-      state = AsyncData(_sort(remote));
+      await _repository.fetchSyncedPage();
+      // A cloud read must never replace pending/local-only records.
+      state = AsyncData(_sort(await _repository.readTransactions()));
     } catch (error, stackTrace) {
       state = AsyncError(error, stackTrace);
     }
@@ -219,7 +221,11 @@ class ExpenseTrackerScreen extends ConsumerWidget {
                 transactionsAsync.value ?? const <ExpenseTransaction>[];
 
             if (value == 'export') {
-              _showExportDialog(context, transactions);
+              if (shouldSync) {
+                await _exportCloud(context, ref);
+              } else {
+                _showExportDialog(context, transactions);
+              }
               return;
             }
             if (value == 'import') {
@@ -248,7 +254,7 @@ class ExpenseTrackerScreen extends ConsumerWidget {
             }
             if (value == 'refresh') {
               if (shouldSync) {
-                ref.read(expenseTransactionsProvider.notifier).loadSynced();
+                ref.invalidate(expenseCloudPageProvider);
               } else {
                 ref.read(expenseTransactionsProvider.notifier).reloadLocal();
               }
@@ -298,7 +304,11 @@ class ExpenseTrackerScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         top: false,
-        child: transactionsAsync.when(
+        child: shouldSync ? _CloudExpenseBody(
+          onAdd: () => _showTransactionSheet(context, ref, accessMode: effectiveAccessMode, config: config, sync: true),
+          onEdit: (transaction) => _showTransactionSheet(context, ref, accessMode: effectiveAccessMode, config: config, sync: true, transaction: transaction),
+          onDelete: (id) => _confirmDeleteTransaction(context, ref, id, sync: true),
+        ) : transactionsAsync.when(
           loading: () => const _TrackerLoadingView(),
           error: (_, _) => PremiumEmptyState(
             icon: Icons.account_balance_wallet_outlined,
@@ -389,6 +399,30 @@ class ExpenseTrackerScreen extends ConsumerWidget {
         },
       ),
     );
+    if (context.mounted) ref.invalidate(expenseCloudPageProvider);
+  }
+
+  Future<void> _exportCloud(BuildContext context, WidgetRef ref) async {
+    final repository = ref.read(expenseTrackerRepositoryProvider);
+    final progress = ValueNotifier<int>(0);
+    var cancelled = false;
+    final epoch = ref.read(sessionEpochProvider);
+    final dialog = showDialog<void>(context: context, barrierDismissible: false,
+      builder: (dialogContext) => PopScope(canPop: false, child: AlertDialog(
+        title: const Text('Export account history'),
+        content: ValueListenableBuilder<int>(valueListenable: progress, builder: (_, count, _) => Text('$count records exported')),
+        actions: [TextButton(onPressed: () { cancelled = true; }, child: const Text('Cancel'))],
+      )));
+    try {
+      await exportExpensePages(repository.syncedPages(), isCancelled: () => cancelled || !context.mounted || ref.read(sessionEpochProvider) != epoch,
+        onProgress: (count) => progress.value = count);
+    } catch (error) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Export not completed: $error')));
+    } finally {
+      if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+      await dialog;
+      progress.dispose();
+    }
   }
 
   void _showExportDialog(
@@ -578,6 +612,7 @@ class ExpenseTrackerScreen extends ConsumerWidget {
           .read(expenseTransactionsProvider.notifier)
           .remove(id, sync: sync);
       if (!context.mounted) return;
+      ref.invalidate(expenseCloudPageProvider);
       messenger.showSnackBar(
         const SnackBar(content: Text('Transaction archived.')),
       );
@@ -738,7 +773,7 @@ class _ExpenseTrackerBodyState extends State<_ExpenseTrackerBody> {
             message: 'Choose another period to view your entries.',
           )
         else
-          for (final transaction in filteredTransactions.take(40))
+          for (final transaction in filteredTransactions)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _TransactionTile(
@@ -2107,4 +2142,43 @@ String _money(double value) {
     symbol: 'PKR ',
     decimalDigits: 0,
   ).format(value);
+}
+
+class _CloudExpenseBody extends ConsumerStatefulWidget {
+  const _CloudExpenseBody({required this.onAdd, required this.onEdit, required this.onDelete});
+  final VoidCallback onAdd;
+  final ValueChanged<ExpenseTransaction> onEdit;
+  final ValueChanged<String> onDelete;
+  @override
+  ConsumerState<_CloudExpenseBody> createState() => _CloudExpenseBodyState();
+}
+class _CloudExpenseBodyState extends ConsumerState<_CloudExpenseBody> {
+  int start = 0;
+  DateTime? month;
+  @override
+  Widget build(BuildContext context) {
+    final provider = expenseCloudPageProvider((start: start, month: month == null ? null : DateFormat('yyyy-MM-01').format(month!)));
+    final data = ref.watch(provider);
+    return Column(children: [
+      Wrap(alignment: WrapAlignment.center, children: [
+        TextButton(onPressed: () => setState(() { start = 0; month = null; }), child: const Text('All history')),
+        TextButton(onPressed: () => setState(() { start = 0; month = DateTime.now(); }), child: const Text('This month')),
+        TextButton(onPressed: () => setState(() { start = 0; final now = month ?? DateTime.now(); month = DateTime(now.year, now.month - 1); }), child: const Text('Earlier month')),
+        TextButton(onPressed: widget.onAdd, child: const Text('Add transaction')),
+      ]),
+      Expanded(child: data.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => PremiumEmptyState(icon: Icons.cloud_off, title: 'Cloud history unavailable', message: 'Retry when connected. Local and pending records remain in local mode.', actionLabel: 'Retry', onAction: () => ref.invalidate(provider)),
+        data: (page) => RefreshIndicator(onRefresh: () async { ref.invalidate(provider); await ref.read(provider.future); }, child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(), padding: const EdgeInsets.all(16), children: [
+            Text(month == null ? 'Complete account totals' : DateFormat('MMMM yyyy').format(month!)),
+            Text('Income: ${page.summary['income']} · Expenses: ${page.summary['expenses']} · Balance: ${page.summary['balance']}'),
+            Text('${page.summary['transaction_count']} records in this scope. Local pending entries are available in local mode.'),
+            Row(children: [TextButton(onPressed: start == 0 ? null : () => setState(() => start = (start - 100).clamp(0, start)), child: const Text('Previous')), Text('Page ${start ~/ 100 + 1}'), TextButton(onPressed: page.nextStart == null ? null : () => setState(() => start = page.nextStart!), child: const Text('Next'))]),
+            if (page.entries.isEmpty) const Text('No entries in this period.'),
+            for (final entry in page.entries) _TransactionTile(transaction: entry, onEdit: () => widget.onEdit(entry), onDelete: () => widget.onDelete(entry.id)),
+          ])),
+      )),
+    ]);
+  }
 }

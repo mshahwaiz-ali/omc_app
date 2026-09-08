@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -21,6 +22,14 @@ class LeadsScreen extends ConsumerStatefulWidget {
 }
 
 class _LeadsScreenState extends ConsumerState<LeadsScreen> {
+  int _start = 0;
+  Timer? _debounce;
+  void _search(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () { if (mounted) setState(() { _query = value; _start = 0; }); });
+  }
+  @override
+  void dispose() { _debounce?.cancel(); super.dispose(); }
   String _query = '';
   LeadStatus? _statusFilter;
 
@@ -39,26 +48,33 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final leadsAsync = ref.watch(leadsProvider);
+    final page = leadsPageProvider((start: _start, search: _query));
+    final leadsAsync = ref.watch(page);
     final canCreateLeads = ref
         .watch(authControllerProvider)
         .capabilities
         .canManageLeads;
 
     return Scaffold(
+      bottomNavigationBar: SafeArea(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        TextButton(onPressed: _start == 0 ? null : () => setState(() => _start -= 50), child: const Text('Previous')),
+        Text('Page ${_start ~/ 50 + 1} · Page counts'),
+        TextButton(onPressed: leadsAsync.value?.length != 50 ? null : () => setState(() => _start += 50), child: const Text('Next')),
+      ])),
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
           onRefresh: () {
             ref.invalidate(leadsProvider);
-            return ref.read(leadsProvider.future);
+            ref.invalidate(leadsPageProvider);
+            return ref.read(page.future);
           },
           child: leadsAsync.when(
             data: (leads) => _LeadsContent(
               leads: leads,
               query: _query,
               statusFilter: _statusFilter,
-              onQueryChanged: (value) => setState(() => _query = value),
+              onQueryChanged: _search,
               onStatusChanged: (value) => setState(() => _statusFilter = value),
               onAddLead: canCreateLeads ? _showCreateLeadSheet : null,
             ),
@@ -69,7 +85,7 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
               icon: Icons.trending_up_rounded,
               title: 'Leads unavailable',
               message: _backendErrorMessage(error),
-              onRetry: () => ref.invalidate(leadsProvider),
+              onRetry: () => ref.invalidate(page),
             ),
           ),
         ),
@@ -169,6 +185,7 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
                     );
 
                 ref.invalidate(leadsProvider);
+            ref.invalidate(leadsPageProvider);
 
                 if (!sheetContext.mounted) return;
 

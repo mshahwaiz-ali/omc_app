@@ -41,3 +41,5 @@ scheduler_events = {
 }
 fixtures = [{'doctype': 'Workspace', 'filters': [['name', 'in', ['OMC App']]]}]
 app_include_css = '/assets/omc_app/css/omc_desk.css'
+# Durable push retries are isolated from business mutations.
+scheduler_events.setdefault("cron", {}).setdefault("* * * * *", []).append("omc_app.api.push_delivery.sweep")

@@ -34,9 +34,9 @@ class LeadsRepository {
   final FrappeClient _frappeClient;
   final MutationIntent _createIntent = MutationIntent();
 
-  Future<List<LeadItem>> fetchLeads() async {
+  Future<List<LeadItem>> fetchLeads({int start = 0, String search = ""}) async {
     try {
-      final response = await _frappeClient.getMethod(ApiConfig.leadsMethod);
+      final response = await _frappeClient.getMethod(ApiConfig.leadsMethod, queryParameters: {"start": start, "limit": 50, "search": search});
       return _mapLeadsResponse(response);
     } on ApiError {
       rethrow;
@@ -173,3 +173,7 @@ class LeadsRepository {
     return LeadItem.fromJson(rawLead);
   }
 }
+
+final leadsPageProvider = FutureProvider.autoDispose.family<List<LeadItem>, ({int start, String search})>((ref, query) {
+  return ref.watch(leadsRepositoryProvider).fetchLeads(start: query.start, search: query.search);
+});

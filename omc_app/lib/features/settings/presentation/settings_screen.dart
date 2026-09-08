@@ -127,7 +127,7 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 20),
-            preferencesAsync.when(
+            if (!authState.capabilities.isInternal && !authState.canAccessInternalWorkspace) preferencesAsync.when(
               data: (preferences) => _PreferencesSection(
                 preferences: preferences ?? const SettingsPreferences(),
                 errorMessage: null,
@@ -733,14 +733,7 @@ class _PreferencesSection extends StatelessWidget {
                   preferences.copyWith(paymentAlertsEnabled: value),
                 ),
         ),
-        _SwitchTile(
-          title: 'Tax alerts',
-          value: preferences.taxAlertsEnabled,
-          onChanged: onToggle == null
-              ? null
-              : (value) =>
-                    onToggle!(preferences.copyWith(taxAlertsEnabled: value)),
-        ),
+
       ],
     );
   }

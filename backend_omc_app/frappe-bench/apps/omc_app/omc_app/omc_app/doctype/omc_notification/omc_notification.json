@@ -5,22 +5,126 @@
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": ["recipient_user", "customer_profile", "title", "message", "notification_type", "reference_doctype", "reference_name", "mobile_route", "is_read", "read_on", "visible_to_customer", "is_dismissed", "dismissed_on", "expires_on"],
+ "field_order": [
+  "recipient_user",
+  "customer_profile",
+  "title",
+  "message",
+  "notification_type",
+  "reference_doctype",
+  "reference_name",
+  "mobile_route",
+  "is_read",
+  "read_on",
+  "visible_to_customer",
+  "is_dismissed",
+  "dismissed_on",
+  "expires_on",
+  "in_app_delivery_enabled",
+  "push_delivery_enabled"
+ ],
  "fields": [
-  {"fieldname": "recipient_user", "fieldtype": "Link", "in_list_view": 1, "label": "Recipient User", "options": "User"},
-  {"fieldname": "customer_profile", "fieldtype": "Link", "in_list_view": 1, "label": "Customer Profile", "options": "OMC Customer Profile"},
-  {"fieldname": "title", "fieldtype": "Data", "in_list_view": 1, "label": "Title", "reqd": 1},
-  {"fieldname": "message", "fieldtype": "Small Text", "label": "Message"},
-  {"default": "General", "fieldname": "notification_type", "fieldtype": "Select", "in_list_view": 1, "label": "Notification Type", "options": "General\nService Request\nDocument\nPayment\nTax\nSupport\nTask", "reqd": 1},
-  {"fieldname": "reference_doctype", "fieldtype": "Data", "label": "Reference DocType"},
-  {"fieldname": "reference_name", "fieldtype": "Dynamic Link", "label": "Reference Name", "options": "reference_doctype"},
-  {"fieldname": "mobile_route", "fieldtype": "Data", "label": "Mobile Route"},
-  {"default": "0", "fieldname": "is_read", "fieldtype": "Check", "in_list_view": 1, "label": "Is Read"},
-  {"fieldname": "read_on", "fieldtype": "Datetime", "label": "Read On", "read_only": 1},
-  {"default": "1", "fieldname": "visible_to_customer", "fieldtype": "Check", "label": "Visible To Customer"},
-  {"default": "0", "fieldname": "is_dismissed", "fieldtype": "Check", "in_list_view": 1, "label": "Is Dismissed", "read_only": 1},
-  {"fieldname": "dismissed_on", "fieldtype": "Datetime", "label": "Dismissed On", "read_only": 1},
-  {"fieldname": "expires_on", "fieldtype": "Datetime", "label": "Expires On"}
+  {
+   "fieldname": "recipient_user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Recipient User",
+   "options": "User"
+  },
+  {
+   "fieldname": "customer_profile",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Customer Profile",
+   "options": "OMC Customer Profile"
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "message",
+   "fieldtype": "Small Text",
+   "label": "Message"
+  },
+  {
+   "default": "General",
+   "fieldname": "notification_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Notification Type",
+   "options": "General\nService Request\nDocument\nPayment\nTax\nSupport\nTask",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Data",
+   "label": "Reference DocType"
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference Name",
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "mobile_route",
+   "fieldtype": "Data",
+   "label": "Mobile Route"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_read",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Read"
+  },
+  {
+   "fieldname": "read_on",
+   "fieldtype": "Datetime",
+   "label": "Read On",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "visible_to_customer",
+   "fieldtype": "Check",
+   "label": "Visible To Customer"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_dismissed",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Dismissed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dismissed_on",
+   "fieldtype": "Datetime",
+   "label": "Dismissed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "expires_on",
+   "fieldtype": "Datetime",
+   "label": "Expires On"
+  },
+  {
+   "fieldname": "in_app_delivery_enabled",
+   "label": "In-app delivery",
+   "fieldtype": "Check",
+   "default": "1"
+  },
+  {
+   "fieldname": "push_delivery_enabled",
+   "label": "Push delivery",
+   "fieldtype": "Check",
+   "default": "0"
+  }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
@@ -29,7 +133,13 @@
  "module": "OMC App",
  "name": "OMC Notification",
  "owner": "Administrator",
- "permissions": [{"read": 1, "report": 1, "role": "OMC Admin"}],
+ "permissions": [
+  {
+   "read": 1,
+   "report": 1,
+   "role": "OMC Admin"
+  }
+ ],
  "quick_entry": 0,
  "sort_field": "creation",
  "sort_order": "DESC",

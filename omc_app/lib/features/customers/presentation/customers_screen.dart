@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -19,17 +20,26 @@ class CustomersScreen extends ConsumerStatefulWidget {
 
 class _CustomersScreenState extends ConsumerState<CustomersScreen> {
   final TextEditingController _searchController = TextEditingController();
+  int _start = 0;
+  String _query = '';
+  Timer? _debounce;
+  void _search(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () { if (mounted) setState(() { _query = value; _start = 0; }); });
+  }
   CustomerFilter _selectedFilter = CustomerFilter.all;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final customersAsync = ref.watch(customersProvider);
+    final page = customersPageProvider((start: _start, search: _query));
+    final customersAsync = ref.watch(page);
 
     return Scaffold(
       body: Column(
@@ -39,18 +49,23 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
             subtitle: 'Profiles, services and account activity',
             fallbackRoute: '/internal-workspace',
           ),
+          Row(children: [
+            TextButton(onPressed: _start == 0 ? null : () => setState(() => _start -= 50), child: const Text('Previous')),
+            Text('Page ${_start ~/ 50 + 1} · Filters/counts on this page'),
+            TextButton(onPressed: customersAsync.value?.length != 50 ? null : () => setState(() => _start += 50), child: const Text('Next')),
+          ]),
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async {
-                ref.invalidate(customersProvider);
-                await ref.read(customersProvider.future);
+                ref.invalidate(page);
+                await ref.read(page.future);
               },
               child: customersAsync.when(
                 data: _buildCustomerCenter,
                 loading: () => const _CustomersLoadingView(),
                 error: (error, _) => _BackendUnavailableState(
                   message: _backendErrorMessage(error),
-                  onRetry: () => ref.invalidate(customersProvider),
+                  onRetry: () => ref.invalidate(page),
                 ),
               ),
             ),
@@ -111,7 +126,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
         const SizedBox(height: 16),
         TextField(
           controller: _searchController,
-          onChanged: (_) => setState(() {}),
+          onChanged: _search,
           decoration: InputDecoration(
             hintText: 'Search name, phone, CNIC, NTN, email or ID',
             prefixIcon: const Icon(Icons.search_rounded),
@@ -121,7 +136,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                     tooltip: 'Clear search',
                     onPressed: () {
                       _searchController.clear();
-                      setState(() {});
+                      _search('');
                     },
                     icon: const Icon(Icons.close_rounded),
                   ),

@@ -31,9 +31,9 @@ class CustomersRepository {
 
   final FrappeClient _frappeClient;
 
-  Future<List<CustomerItem>> fetchCustomers() async {
+  Future<List<CustomerItem>> fetchCustomers({int start = 0, String search = ""}) async {
     try {
-      final response = await _frappeClient.getMethod(ApiConfig.customersMethod);
+      final response = await _frappeClient.getMethod(ApiConfig.customersMethod, queryParameters: {"start": start, "limit": 50, "search": search});
       return _mapCustomersResponse(response);
     } on ApiError {
       rethrow;
@@ -124,3 +124,7 @@ class CustomersRepository {
     return CustomerItem.fromJson(rawCustomer);
   }
 }
+
+final customersPageProvider = FutureProvider.autoDispose.family<List<CustomerItem>, ({int start, String search})>((ref, query) {
+  return ref.watch(customersRepositoryProvider).fetchCustomers(start: query.start, search: query.search);
+});

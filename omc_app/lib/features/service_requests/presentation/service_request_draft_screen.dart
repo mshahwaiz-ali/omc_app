@@ -120,7 +120,7 @@ class _ServiceRequestDraftScreenState
         : ref.watch(profileSummaryProvider);
     final customerProfile = profileAsync?.asData?.value;
 
-    final servicesAsync = ref.watch(serviceCatalogueProvider);
+    final servicesAsync = ref.watch(serviceRequestTemplateProvider(widget.serviceId));
 
     return servicesAsync.when(
       loading: () => const Scaffold(
@@ -136,7 +136,7 @@ class _ServiceRequestDraftScreenState
             fallbackTitle: 'Request form unavailable',
             fallbackMessage:
                 'The request form could not be prepared right now.',
-            onRetry: () => ref.invalidate(serviceCatalogueProvider),
+            onRetry: () => ref.invalidate(serviceRequestTemplateProvider(widget.serviceId)),
           ),
         ),
       ),
@@ -365,15 +365,7 @@ class _ServiceRequestDraftScreenState
       return fields;
     }
 
-    return const [
-      ServiceTemplateField(
-        fieldname: 'request_context',
-        label: 'Request details',
-        fieldtype: 'Small Text',
-        description: 'Tell OMC what you need for this service.',
-        isRequired: true,
-      ),
-    ];
+    return const [];
   }
 
   TextEditingController _controllerFor(ServiceTemplateField field) {

@@ -32,13 +32,9 @@ final localExpenseBudgetsProvider =
       return rows.map(ExpenseBudgetItem.fromJson).toList(growable: false);
     });
 
-final expenseBudgetEntriesProvider =
-    FutureProvider.autoDispose<List<ExpenseTransaction>>((ref) async {
-      final repository = ref.watch(expenseTrackerRepositoryProvider);
-      return repository
-          .fetchSyncedTransactions()
-          .timeout(_budgetRequestTimeout);
-    });
+final expenseBudgetSummaryProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, month) {
+  return ref.watch(expenseTrackerRepositoryProvider).fetchSyncedSummary(month: month).timeout(_budgetRequestTimeout);
+});
 
 final localExpenseBudgetEntriesProvider =
     FutureProvider.autoDispose<List<ExpenseTransaction>>((ref) async {
@@ -123,7 +119,8 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
         : ref.watch(expenseBudgetsProvider);
     final entriesAsync = isInternal
         ? ref.watch(localExpenseBudgetEntriesProvider)
-        : ref.watch(expenseBudgetEntriesProvider);
+        : const AsyncData<List<ExpenseTransaction>>([]);
+    final cloudSummary = isInternal ? null : ref.watch(expenseBudgetSummaryProvider(DateFormat('yyyy-MM-01').format(_month)));
 
     return Scaffold(
       key: OmcWidgetKeys.budgetScreen,
@@ -220,6 +217,14 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
                       })
                       .toList(growable: false);
 
+                  if (!isInternal) {
+                    return cloudSummary!.when(
+                      loading: () => const _BudgetLoadingCard(),
+                      error: (_, _) => PremiumEmptyState(icon: Icons.cloud_off, title: 'Spending unavailable', message: 'Account totals could not be loaded.', actionLabel: 'Retry', onAction: _refresh),
+                      data: (summary) => _BudgetList(budgets: monthBudgets, entries: const [], summary: summary, month: _month,
+                        onAdd: () => _showBudgetSheet(month: _month), onEdit: (budget) => _showBudgetSheet(month: _month, budget: budget)),
+                    );
+                  }
                   return entriesAsync.when(
                     loading: () => const _BudgetLoadingCard(),
                     error: (_, _) => _BudgetList(
@@ -251,7 +256,7 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
   void _refresh() {
     ref.invalidate(expenseBudgetsProvider);
     ref.invalidate(localExpenseBudgetsProvider);
-    ref.invalidate(expenseBudgetEntriesProvider);
+    ref.invalidate(expenseBudgetSummaryProvider);
     ref.invalidate(localExpenseBudgetEntriesProvider);
   }
 
@@ -530,6 +535,7 @@ class _BudgetMonthHeader extends StatelessWidget {
 
 class _BudgetList extends StatelessWidget {
   const _BudgetList({
+    this.summary,
     required this.budgets,
     required this.entries,
     required this.month,
@@ -537,6 +543,7 @@ class _BudgetList extends StatelessWidget {
     required this.onEdit,
   });
 
+  final Map<String, dynamic>? summary;
   final List<ExpenseBudgetItem> budgets;
   final List<ExpenseTransaction> entries;
   final DateTime month;
@@ -577,6 +584,11 @@ class _BudgetList extends StatelessWidget {
     List<ExpenseTransaction> entries,
   ) {
     final category = budget.category.trim().toLowerCase();
+    if (summary != null) {
+      if (category.isEmpty || category == 'overall') return (summary!['expenses'] as num?)?.toDouble() ?? 0;
+      final totals = summary!['category_totals'] as Map? ?? const {};
+      return totals.entries.where((entry) => entry.key.toString().trim().toLowerCase() == category).fold<double>(0, (sum, entry) => sum + (entry.value as num).toDouble());
+    }
     final matching = category.isEmpty || category == 'overall'
         ? entries
         : entries.where(

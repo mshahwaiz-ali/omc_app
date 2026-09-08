@@ -42,7 +42,7 @@ class ServiceDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final servicesAsync = ref.watch(serviceCatalogueProvider);
+    final servicesAsync = ref.watch(serviceDetailProvider(serviceId));
     final capabilities = ref.watch(authControllerProvider).capabilities;
     final mobileConfig =
         ref.watch(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
@@ -65,7 +65,7 @@ class ServiceDetailScreen extends ConsumerWidget {
           title: 'Service unavailable',
           message: serviceCatalogueErrorMessage(error),
           actionLabel: 'Retry',
-          onAction: () => ref.invalidate(serviceCatalogueProvider),
+          onAction: () => ref.invalidate(serviceDetailProvider(serviceId)),
         ),
       ),
       data: (services) {

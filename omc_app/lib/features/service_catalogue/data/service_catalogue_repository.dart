@@ -77,13 +77,17 @@ class ServiceCatalogueRepository {
   }
 
   Future<List<ServiceItem>> _fetchBackendServices() async {
+    return (await fetchPage()).items;
+  }
+
+  Future<ServiceCataloguePage> fetchPage({int start = 0, String search = "", String category = ""}) async {
     try {
       final response = await _frappeClient.getMethod(
         ApiConfig.serviceCatalogueMethod,
+        queryParameters: {"start": start, "limit": 50, "lightweight": 1, "search": search, "category": category},
       );
-
-      final services = _servicesFromResponse(response);
-      return _withBackendTemplates(services);
+      final data = response["message"] is Map ? response["message"] as Map : response;
+      return ServiceCataloguePage(_servicesFromResponse(response), data["has_more"] == true ? (data["next_start"] as num).toInt() : null);
     } on ApiError {
       rethrow;
     } catch (error) {
@@ -96,21 +100,16 @@ class ServiceCatalogueRepository {
     }
   }
 
-  Future<List<ServiceItem>> _withBackendTemplates(
-    List<ServiceItem> services,
-  ) async {
-    final enriched = <ServiceItem>[];
-
-    for (final service in services) {
-      enriched.add(await _serviceWithTemplate(service));
-    }
-
-    return enriched;
+  Future<ServiceItem> fetchDetail(String id, {bool withTemplate = false}) async {
+    final response = await _frappeClient.getMethod(ApiConfig.serviceDetailMethod,
+        queryParameters: {'service_id': id});
+    final raw = response['message'] is Map ? response['message'] as Map : response;
+    final service = ServiceItem.fromJson(Map<String, dynamic>.from(raw));
+    if (service.id.isEmpty) throw const ApiError(message: 'Service unavailable.');
+    return withTemplate ? _serviceWithTemplate(service) : service;
   }
 
   Future<ServiceItem> _serviceWithTemplate(ServiceItem service) async {
-    if (service.hasBackendTemplate) return service;
-
     try {
       final response = await _frappeClient.getMethod(
         ApiConfig.serviceTemplateMethod,
@@ -118,11 +117,12 @@ class ServiceCatalogueRepository {
       );
       final message = response['message'];
       final data = message is Map<String, dynamic> ? message : response;
-      final template = ServiceTemplate.fromJson(data);
-
-      if (!template.hasDynamicFields && template.stages.isEmpty) {
-        return service;
+      if (data['form_schema'] is! List || data['stages'] is! List ||
+          data['service_version']?.toString() != service.serviceVersion.toString() ||
+          data['pricing_version']?.toString() != service.pricingVersion) {
+        throw const ApiError(message: 'The service form changed or is unavailable. Please retry.', code: 'service_template_unavailable');
       }
+      final template = ServiceTemplate.fromJson(data);
 
       final templateRequirements = template.formSchema
           .where((field) => field.isRequired)
@@ -162,8 +162,10 @@ class ServiceCatalogueRepository {
         formSchema: template.formSchema,
         stages: template.stages,
       );
-    } catch (_) {
-      return service;
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(message: "The service form could not be prepared. Please retry.", code: "service_template_unavailable", details: error);
     }
   }
 
@@ -291,4 +293,10 @@ class ServiceCatalogueRepository {
 
     return null;
   }
+}
+
+class ServiceCataloguePage {
+  const ServiceCataloguePage(this.items, this.nextStart);
+  final List<ServiceItem> items;
+  final int? nextStart;
 }

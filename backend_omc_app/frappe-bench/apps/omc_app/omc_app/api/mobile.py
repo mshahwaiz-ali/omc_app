@@ -2973,6 +2973,7 @@ def get_notifications(start=0, limit=50):
     filters = {
         "visible_to_customer": 1,
     }
+    filters["in_app_delivery_enabled"] = 1
     if _doctype_has_field("OMC Notification", "is_dismissed"):
         filters["is_dismissed"] = 0
 
@@ -3172,6 +3173,7 @@ def get_unread_notification_count():
         return {"count": 0}
     profile = None if _can_access_internal_workspace(user) else _assert_approved_customer()
     filters = {"visible_to_customer": 1, "is_read": 0}
+    filters["in_app_delivery_enabled"] = 1
     if _doctype_has_field("OMC Notification", "is_dismissed"):
         filters["is_dismissed"] = 0
     if profile:
@@ -3233,6 +3235,12 @@ def register_push_token(**kwargs):
     else:
         doc = frappe.new_doc("OMC Push Token")
 
+    import hashlib
+    import uuid
+    binding_changed = doc.is_new() or doc.user != user or doc.token != token or not doc.is_active
+    if binding_changed or not doc.get("binding_id"):
+        doc.binding_id = uuid.uuid4().hex
+    doc.token_hash = hashlib.sha256(token.encode()).hexdigest()
     doc.token = token
     doc.user = user
     doc.customer_profile = profile.name if profile else None
@@ -3253,6 +3261,7 @@ def register_push_token(**kwargs):
 
     return {
         "registered": True,
+        "binding_id": doc.binding_id,
         "name": doc.name,
         "platform": doc.platform or "unknown",
         "is_active": int(doc.is_active or 0),
@@ -3311,6 +3320,7 @@ def mark_all_notifications_read():
         "visible_to_customer": 1,
         "is_read": 0,
     }
+    filters["in_app_delivery_enabled"] = 1
     if _doctype_has_field("OMC Notification", "is_dismissed"):
         filters["is_dismissed"] = 0
 
@@ -3550,16 +3560,16 @@ def _create_customer_notification(
         "task": "Task",
         "task update": "Task",
         "task assignment": "Task",
+        "tax": "Tax",
     }
     normalized_notification_type = notification_type_aliases.get(
         str(notification_type or "").strip().lower(),
         "General",
     )
 
-    if customer_profile and not _notification_preference_enabled(
-        customer_profile=customer_profile,
-        notification_type=normalized_notification_type,
-    ):
+    from omc_app.api.notification_channels import channels_for_customer
+    in_app, push = channels_for_customer(customer_profile, normalized_notification_type)
+    if not in_app and not push:
         return None
 
     dedupe_filters = {
@@ -3594,6 +3604,8 @@ def _create_customer_notification(
     if notification.meta.has_field("is_dismissed"):
         notification.is_dismissed = 0
     notification.visible_to_customer = 1
+    notification.in_app_delivery_enabled = int(in_app)
+    notification.push_delivery_enabled = int(push)
     notification.insert(ignore_permissions=True)
     return notification
 
@@ -4069,7 +4081,11 @@ def _preference_bool(preferences, fieldname, fallback_fieldname=None, default=Tr
 
 
 def _settings_preferences_to_dict(preferences):
+    from omc_app.api.fcm_http import operational
     return {
+        "in_app_notifications_enabled": _preference_bool(preferences, "in_app_notifications_enabled"),
+        "push_notifications_enabled": _preference_bool(preferences, "push_notifications_enabled"),
+        "push_provider_operational": operational(),
         "service_updates_enabled": _preference_bool(preferences, "service_updates_enabled"),
         "document_reminders_enabled": _preference_bool(preferences, "document_reminders_enabled"),
         "payment_alerts_enabled": _preference_bool(preferences, "payment_alerts_enabled", "payment_reminders_enabled"),
@@ -4085,6 +4101,10 @@ _NOTIFICATION_PREFERENCE_FIELDS = {
     "general": "service_updates_enabled",
     "service": "service_updates_enabled",
     "service request": "service_updates_enabled",
+    "service update": "service_updates_enabled",
+    "task": "service_updates_enabled",
+    "task assignment": "service_updates_enabled",
+    "task update": "service_updates_enabled",
     "support": "service_updates_enabled",
     "document": "document_reminders_enabled",
     "payment": "payment_alerts_enabled",
@@ -4166,7 +4186,10 @@ def _notification_delivery_enabled(
 
     preferences = _get_customer_preferences(profile)
     fieldname = _notification_preference_field(notification_type, channel)
-    return _preference_bool(preferences, fieldname)
+    enabled = _preference_bool(preferences, fieldname)
+    if channel in {"push", "in_app"}:
+        enabled = enabled and _preference_bool(preferences, "push_notifications_enabled" if channel == "push" else "in_app_notifications_enabled")
+    return enabled
 
 
 def _active_push_tokens_for_notification(
@@ -4248,7 +4271,6 @@ def update_settings_preferences(**kwargs):
 
     field_aliases = {
         "notifications_enabled": "service_updates_enabled",
-        "push_notifications_enabled": "service_updates_enabled",
         "email_updates_enabled": "email_notifications_enabled",
         "payment_reminders_enabled": "payment_alerts_enabled",
     }
@@ -4258,6 +4280,8 @@ def update_settings_preferences(**kwargs):
             kwargs[target_field] = kwargs.get(incoming_field)
 
     allowed_check_fields = [
+        "in_app_notifications_enabled",
+        "push_notifications_enabled",
         "service_updates_enabled",
         "document_reminders_enabled",
         "payment_alerts_enabled",
@@ -4966,7 +4990,9 @@ def _customer_profile_to_dict(profile):
 
 
 @frappe.whitelist()
-def get_customers():
+def get_customers(start=0, limit=100, search=None):
+    from omc_app.api.public_catalogue import _pagination
+    offset, length = _pagination(start, limit)
     user = _assert_internal_workspace_access()
     capabilities = _require_canonical_capability(
         "can_manage_customers",
@@ -4988,19 +5014,21 @@ def get_customers():
     customer_names = frappe.get_all(
         "OMC Customer Profile",
         filters=filters,
+        or_filters={field: ["like", "%" + str(search).strip()[:140] + "%"] for field in ("name", "full_name", "phone", "email", "cnic", "ntn")} if search else None,
         pluck="name",
-        order_by="modified desc",
-        limit_page_length=100,
+        order_by="modified desc, name asc",
+        limit_start=offset,
+        limit_page_length=length + 1,
     )
 
     customers = [
         _customer_profile_to_dict(
             frappe.get_doc("OMC Customer Profile", customer_name)
         )
-        for customer_name in customer_names
+        for customer_name in customer_names[:length]
     ]
 
-    return {"customers": customers}
+    return {"customers": customers, "has_more": len(customer_names) > length, "next_start": offset + length if len(customer_names) > length else None}
 
 
 @frappe.whitelist()

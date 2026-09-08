@@ -26,3 +26,5 @@ omc_app.patches.retire_pending_registration_password_secret_20260819
 omc_app.patches.remove_system_manager_omc_docperm_20260824
 omc_app.patches.repair_reconciliation_indexes_20260824
 omc_app.patches.repair_omc_workspace_service_timeline_link_20260825
+
+omc_app.patches.push_delivery_schema_20260908

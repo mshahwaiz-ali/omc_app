@@ -171,4 +171,8 @@ def get_service_template(service_id=None, service=None):
     if not frappe.db.exists("OMC Service", {"name": service_name, "is_active": 1}):
         frappe.throw("Service not found", frappe.DoesNotExistError)
 
-    return get_template_for_service(service_name, public_only=True)
+    from omc_app.api.public_catalogue import get_service_detail
+    detail = get_service_detail(service_name)
+    return {**get_template_for_service(service_name, public_only=True),
+            "service_version": detail["service_version"],
+            "pricing_version": detail["pricing_version"]}
