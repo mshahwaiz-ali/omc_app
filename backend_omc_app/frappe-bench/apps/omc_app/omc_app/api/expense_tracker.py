@@ -1,8 +1,10 @@
-"""Compatibility wrappers for the mobile expense tracker API.
+"""Legacy compatibility wrappers for older mobile expense API paths.
 
-The Flutter app calls methods from omc_app.api.expense_tracker.  The
-implementation lives in omc_app.api.expense, so this module keeps the public
-API path stable without duplicating business logic.
+Current Flutter clients call the canonical methods in ``omc_app.api.expense``.
+This module remains temporarily so already-installed older clients can continue
+using the historical ``omc_app.api.expense_tracker`` dotted paths without
+duplicating any expense business logic. Remove it only after the supported
+mobile-version cutoff confirms those legacy routes are no longer in use.
 """
 
 from omc_app.api.expense import (  # noqa: F401
