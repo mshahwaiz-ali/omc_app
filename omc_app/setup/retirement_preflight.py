@@ -173,7 +173,11 @@ def _legacy_role_state() -> dict[str, Any]:
 
     for role in RETIRED_EXTERNAL_ROLES:
         assignments[role] = int(
-            frappe.db.count("Has Role", filters={"role": role}) or 0
+            frappe.db.count(
+                "Has Role",
+                filters={"role": role, "parenttype": "User"},
+            )
+            or 0
         )
 
     total = sum(assignments.values())
@@ -181,6 +185,7 @@ def _legacy_role_state() -> dict[str, Any]:
         "assignments": assignments,
         "total_assignments": total,
         "safe_to_remove_role_compatibility": total == 0,
+        "note": "Only Has Role rows attached to User are counted. Report.roles rows are not user assignments.",
     }
 
 
