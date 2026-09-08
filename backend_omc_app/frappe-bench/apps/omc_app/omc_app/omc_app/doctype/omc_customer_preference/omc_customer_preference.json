@@ -14,9 +14,6 @@
   "tax_alerts_enabled",
   "email_notifications_enabled",
   "whatsapp_notifications_enabled",
-  "appearance_section",
-  "theme",
-  "language",
   "notifications_enabled",
   "email_updates_enabled",
   "payment_reminders_enabled",
@@ -75,24 +72,6 @@
    "fieldname": "whatsapp_notifications_enabled",
    "fieldtype": "Check",
    "label": "WhatsApp Notifications Enabled"
-  },
-  {
-   "fieldname": "appearance_section",
-   "fieldtype": "Section Break",
-   "label": "Appearance"
-  },
-  {
-   "default": "system",
-   "fieldname": "theme",
-   "fieldtype": "Select",
-   "label": "Theme",
-   "options": "system\nlight\ndark"
-  },
-  {
-   "default": "en",
-   "fieldname": "language",
-   "fieldtype": "Data",
-   "label": "Language"
   },
   {
    "default": "1",
