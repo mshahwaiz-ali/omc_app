@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from frappe.tests.utils import FrappeTestCase
+
+from omc_app.setup import referral_workspace
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
@@ -17,7 +20,6 @@ REPORT_PATH = (
 REFERRAL_AUTOMATION_PATH = PACKAGE_ROOT / "referral_automation.py"
 REFERRALS_API_PATH = PACKAGE_ROOT / "api" / "referrals.py"
 REFERRAL_CAPABILITIES_PATH = PACKAGE_ROOT / "referral_capabilities.py"
-REFERRAL_WORKSPACE_PATH = PACKAGE_ROOT / "setup" / "referral_workspace.py"
 STAFF_PROFILE_PATH = (
     PACKAGE_ROOT
     / "omc_app"
@@ -26,12 +28,13 @@ STAFF_PROFILE_PATH = (
     / "omc_staff_profile.json"
 )
 
-EXPECTED_REPORT_ROLES = {
+REFERRAL_REPORT_ROLE_CANDIDATES = {
     "Consultant",
-    "Tax Associates",
-    "Business Partner",
     "OMC Consultant",
+    "Tax Associates",
+    "Tax Associate",
     "OMC Tax Associate",
+    "Business Partner",
     "OMC Business Partner",
     "OMC Admin",
     "OMC Manager",
@@ -39,21 +42,61 @@ EXPECTED_REPORT_ROLES = {
 
 
 class TestReferralSystemContract(FrappeTestCase):
-    def test_my_referrals_report_remains_enabled_with_compatible_roles(self):
+    def test_my_referrals_report_remains_enabled_with_install_safe_roles(self):
         report = json.loads(REPORT_PATH.read_text(encoding="utf-8"))
         self.assertEqual(report["report_name"], "My Referrals")
         self.assertEqual(report["report_type"], "Script Report")
         self.assertEqual(int(report.get("disabled") or 0), 0)
 
         roles = {row["role"] for row in report.get("roles") or []}
-        self.assertTrue(EXPECTED_REPORT_ROLES <= roles)
+        self.assertEqual(roles, {"OMC Admin", "OMC Manager"})
 
-    def test_desk_sync_reconciles_referral_report_roles(self):
-        source = REFERRAL_WORKSPACE_PATH.read_text(encoding="utf-8")
-        self.assertIn("_ensure_my_referrals_report_roles", source)
-        self.assertIn('frappe.get_doc("Report", "My Referrals")', source)
-        for role in EXPECTED_REPORT_ROLES:
-            self.assertIn(f'"{role}"', source)
+    def test_desk_sync_supports_canonical_and_compatibility_role_names(self):
+        self.assertTrue(
+            REFERRAL_REPORT_ROLE_CANDIDATES
+            <= set(referral_workspace._MY_REFERRALS_REPORT_ROLE_CANDIDATES)
+        )
+
+    def test_desk_sync_writes_only_roles_installed_on_the_site(self):
+        installed = {
+            "Consultant",
+            "Tax Associate",
+            "Business Partner",
+            "OMC Admin",
+            "OMC Manager",
+        }
+        report = MagicMock()
+        report.get.return_value = [
+            {"role": "OMC Consultant"},
+            {"role": "OMC Admin"},
+            {"role": "OMC Admin"},
+        ]
+
+        def exists(doctype, name):
+            if doctype == "Report":
+                return name == "My Referrals"
+            if doctype == "Role":
+                return name in installed
+            return False
+
+        with (
+            patch.object(referral_workspace.frappe.db, "exists", side_effect=exists),
+            patch.object(referral_workspace.frappe, "get_doc", return_value=report),
+        ):
+            referral_workspace._ensure_my_referrals_report_roles()
+
+        desired = [
+            "Consultant",
+            "Tax Associate",
+            "Business Partner",
+            "OMC Admin",
+            "OMC Manager",
+        ]
+        report.set.assert_called_once_with(
+            "roles",
+            [{"role": role} for role in desired],
+        )
+        report.save.assert_called_once_with(ignore_permissions=True)
 
     def test_referral_code_generation_and_validation_remain_available(self):
         automation = REFERRAL_AUTOMATION_PATH.read_text(encoding="utf-8")
