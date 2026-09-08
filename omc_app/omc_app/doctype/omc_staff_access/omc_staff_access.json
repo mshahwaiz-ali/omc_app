@@ -4,7 +4,7 @@
  "fields": [
   {"fieldname": "user", "fieldtype": "Link", "in_list_view": 1, "label": "User", "options": "User", "reqd": 1, "unique": 1},
   {"fieldname": "employee", "fieldtype": "Link", "in_list_view": 1, "label": "Employee", "options": "Employee", "unique": 1},
-  {"fieldname": "legacy_staff_profile", "fieldtype": "Link", "label": "Legacy Staff Profile", "options": "OMC Staff Profile", "unique": 1},
+  {"description": "OMC professional/referral profile linked to this access authority record.", "fieldname": "legacy_staff_profile", "fieldtype": "Link", "label": "Staff Profile", "options": "OMC Staff Profile", "unique": 1},
   {"default": "Pending Review", "fieldname": "access_status", "fieldtype": "Select", "in_list_view": 1, "label": "Access Status", "options": "Pending Review\nApproved\nSuspended\nRejected", "reqd": 1},
   {"fieldname": "persona_snapshot", "fieldtype": "Data", "in_list_view": 1, "label": "Persona Snapshot", "read_only": 1},
   {"fieldname": "persona_source", "fieldtype": "Select", "label": "Persona Source", "options": "\nUser.omc_user_type\nEmployee Fallback\nReviewed", "read_only": 1},
