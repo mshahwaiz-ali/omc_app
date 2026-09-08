@@ -6,7 +6,7 @@ from frappe.tests.utils import FrappeTestCase
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = PACKAGE_ROOT.parents[5]
+REPO_ROOT = PACKAGE_ROOT.parents[4]
 DOCTYPE_ROOT = PACKAGE_ROOT / "omc_app" / "doctype"
 WORKSPACE_PATH = PACKAGE_ROOT / "omc_app" / "workspace" / "omc_app" / "omc_app.json"
 ROLES_PATH = PACKAGE_ROOT / "setup" / "roles.py"
