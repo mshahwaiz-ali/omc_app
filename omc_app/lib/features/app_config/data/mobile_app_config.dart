@@ -106,7 +106,6 @@ class MobileFeatureConfig {
     this.paymentGatewayEnabled = false,
     this.taxCalculatorEnabled = false,
     this.supportEnabled = false,
-    this.subscriptionsEnabled = false,
     this.internalWorkspaceEnabled = false,
   });
 
@@ -117,7 +116,6 @@ class MobileFeatureConfig {
   final bool paymentGatewayEnabled;
   final bool taxCalculatorEnabled;
   final bool supportEnabled;
-  final bool subscriptionsEnabled;
   final bool internalWorkspaceEnabled;
 
   factory MobileFeatureConfig.fromJson(Map<String, dynamic> json) =>
@@ -129,7 +127,6 @@ class MobileFeatureConfig {
         paymentGatewayEnabled: _enabled(json['payment_gateway_enabled']),
         taxCalculatorEnabled: _enabled(json['tax_calculator_enabled']),
         supportEnabled: _enabled(json['support_enabled']),
-        subscriptionsEnabled: _enabled(json['subscriptions_enabled']),
         internalWorkspaceEnabled: _enabled(json['internal_workspace_enabled']),
       );
 
