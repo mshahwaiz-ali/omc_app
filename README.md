@@ -1,42 +1,90 @@
-# OMC App — Frappe Backend Engineering Guide
+# OMC App — Frappe Backend
 
-Source cross-check: **25 August 2026**, branch `main`.
+This directory is the authoritative custom Frappe application `omc_app` used by the OMC House mobile/customer platform.
 
-This directory contains the custom Frappe application `omc_app` used by the OMC House Flutter/customer platform.
+Current client target:
 
-The current client deployment target is **Frappe/ERPNext v14**. The package declares Python `>=3.10`; the checked-in deployment toolkit currently provisions Python 3.10 for the v14 runtime.
+```text
+Frappe / ERPNext: v14
+Python:           >=3.10
+App name:         omc_app
+```
 
-> OMC business logic belongs in this custom app. Do not patch ERPNext source files to implement OMC features.
+OMC business logic belongs in this custom app. ERPNext/Frappe core source must not be patched for OMC behavior.
 
----
+## Direct client installation from this repository
+
+The development repository keeps Flutter and backend source together on `main`. A GitHub workflow publishes **this directory only** to the generated `frappe-app` branch, with this Frappe app at the branch root.
+
+Do not edit `frappe-app` manually. Changes must be made here on `main`; the deployment branch is generated from this directory.
+
+### First installation
+
+From the client's existing Frappe Bench:
+
+```bash
+cd /home/frappe/frappe-bench
+
+bench get-app --branch frappe-app \
+  https://github.com/mshahwaiz-ali/omc_app.git
+
+bench --site <site> install-app omc_app
+```
+
+For the current client Bench, replace `<site>` with the actual site name, for example `erp.omchouse.com`.
+
+`bench get-app` owns the app placement and Python editable installation. Manual ZIP extraction, nested-folder copying, manual `pip install -e`, and manual edits to `sites/apps.txt` should not be required for a normal fresh fetch.
+
+### Existing installed app update
+
+```bash
+cd /home/frappe/frappe-bench/apps/omc_app
+git pull --ff-only origin frappe-app
+
+cd /home/frappe/frappe-bench
+bench --site <site> migrate
+bench build --app omc_app
+bench --site <site> clear-cache
+bench restart
+```
+
+Always take the site's normal production backup before a production update.
+
+### Explicit OMC post-install configuration
+
+The app ships its guarded configuration/migration helper inside the app itself:
+
+```bash
+cd /home/frappe/frappe-bench/apps/omc_app
+bash scripts/configuration.sh --site <site>
+```
+
+This is separate from `bench get-app`/`install-app`. Use it when the reviewed client handover requires OMC customer/staff migration, catalogue reconciliation, or other explicit setup operations. Routine future code updates normally use the migration/update flow above rather than rerunning historical setup blindly.
 
 ## Backend responsibilities
 
 The app provides:
 
-- customer onboarding/login/activation support;
+- customer onboarding, login and activation support;
 - canonical customer mapping through `OMC Customer Account`;
 - canonical internal authority through `OMC Staff Access`;
-- backend capability and break-glass checks;
+- capability, ownership and break-glass checks;
 - service catalogue and service templates;
-- service request lifecycle;
-- stable required-document identity and uploads;
-- payment/receipt workflow;
-- accounting settlement reconciliation;
+- payment-first service-request lifecycle;
+- stable document requirements and uploads;
+- payment/receipt workflow and ERP accounting reconciliation;
 - durable ERP Service/Task activation;
 - assignment and workflow automation;
 - referrals and commission lifecycle;
-- support, notifications and customer settings;
+- support, notifications, push delivery and customer settings;
 - tax/expense tools;
 - customer/staff migration and reconciliation;
 - audit/security evidence;
 - APIs consumed by Flutter.
 
----
-
 ## Canonical authority
 
-### Customer
+Customer:
 
 ```text
 Frappe Website User
@@ -45,7 +93,7 @@ Frappe Website User
               -> OMC Customer Profile compatibility link
 ```
 
-### Staff
+Staff:
 
 ```text
 Frappe System User
@@ -57,70 +105,29 @@ Frappe System User
 
 `System Manager` is not implicit OMC business authority.
 
----
-
 ## Main package map
 
 ```text
 omc_app/
-├── api/                         # guarded API/workflow modules
+├── api/                         # guarded APIs/workflows
 ├── omc_app/doctype/             # OMC DocTypes
-├── patches/                     # controlled data/schema patches
-├── setup/                       # roles, lifecycle, catalogue, reconciliation
+├── patches/                     # controlled schema/data patches
+├── setup/                       # lifecycle, permissions, catalogue, reconciliation
 ├── fixtures/
 ├── public/
 ├── hooks.py
 └── README.md
 ```
 
-Important setup area:
+The source-controlled service catalogue lives under:
 
 ```text
 omc_app/setup/service_catalogue/
 ```
 
-which contains the source-controlled production service catalogue manifest, requirements and provisioner.
+## Install and migrate lifecycle
 
----
-
-## Production service catalogue
-
-Current manifest:
-
-```text
-9 categories
-31 services
-17 active
-14 inactive/review-required
-PKR
-Omc House
-Full Settlement default activation policy
-```
-
-Operator entrypoints, from this app directory:
-
-```bash
-cd ../..
-
-bench --site <site> execute \
-  omc_app.setup.operations.preview_service_catalogue
-
-bench --site <site> execute \
-  omc_app.setup.operations.validate_service_catalogue
-
-bench --site <site> execute \
-  omc_app.setup.operations.sync_service_catalogue
-```
-
-`preview` and `validate` are read-only. `sync` is an explicit reconciliation.
-
-Normal `bench migrate` does not publish the catalogue.
-
----
-
-## Setup lifecycle
-
-Current lifecycle behavior:
+Current hooks:
 
 ```text
 before_install -> validate_site
@@ -128,184 +135,89 @@ after_install  -> initialize_site(commit=False)
 after_migrate  -> validate_site only
 ```
 
-Normal migration deliberately does not rewrite roles, branding, Desk/workspace metadata or catalogue content.
+Routine migration deliberately does not republish all business configuration or silently rewrite the service catalogue.
 
-Deliberate operator operations include:
+Explicit operator operations remain available through `omc_app.setup.operations`, including validation, permission repair, Desk synchronization, branding, tax seeds, task-type mappings, and service-catalogue preview/validate/sync.
 
-```text
-initialize_site
-repair_permissions
-sync_desk_configuration
-apply_site_branding
-seed_tax_calculator_defaults
-seed_business_rental_tax_slabs
-sync_service_task_type_mappings
-preview_service_catalogue
-validate_service_catalogue
-sync_service_catalogue
-```
+## Service catalogue
 
-Use only the operations required by the deployment plan.
-
----
-
-## Service request lifecycle
-
-Canonical request-state examples:
+Current source-controlled production manifest:
 
 ```text
-Draft
-Pending Payment
-Payment Not Required
-Ready for Activation
-Activating
-Activated
-Activation Failed
-Financial Hold
-Expired
-Cancelled
+9 categories
+31 services
+PKR
+Omc House
+Full Settlement default activation policy
 ```
 
-Customer-facing operational status is a compatibility projection over the canonical lifecycle.
-
-Full-settlement activation requires accounting settlement evidence before the durable ERP bridge may create/confirm operational links.
-
----
-
-## Required-document identity
-
-`OMC Service Required Document` and `OMC Service Document` support stable `document_key` identity.
-
-Rules:
-
-- keyed requirement + keyed upload -> key is authoritative;
-- wrong key never falls back to title/type;
-- legacy/unkeyed history can use exact normalized title+type compatibility;
-- one upload satisfies at most one requirement;
-- new requirements can be request-grandfathered by `effective_from`;
-- the backend canonicalises requirement identity on upload.
-
----
-
-## Durable ERP bridge
-
-`OMC Bridge Operation` protects ERP activation with:
-
-- deterministic operation keys;
-- request locking;
-- eligibility/settlement re-checks;
-- bounded retries/backoff;
-- stale-processing lease recovery;
-- savepoint rollback;
-- explicit terminal states;
-- capability-gated recovery;
-- audit events.
-
-A request cannot complete activation without committed ERP `Service` and `Task` links.
-
----
-
-## Referrals and commissions
-
-Referral ownership, personal commission visibility, and finance commission operations are separate capability domains.
-
-`OMC Commission Allocation` is evidence/entitlement state; it does not turn a referral owner into a finance reviewer.
-
-Historical attribution and commission evidence should preserve provenance instead of guessing it.
-
----
-
-## Local Bench workflow
-
-From the repository root:
+Read-only preview and validation:
 
 ```bash
-cd backend_omc_app/frappe-bench
-bench list-sites
-bench --site <site> list-apps
-bench start
+bench --site <site> execute omc_app.setup.operations.preview_service_catalogue
+bench --site <site> execute omc_app.setup.operations.validate_service_catalogue
 ```
 
-For an existing site after code/schema changes:
+Explicit reconciliation:
 
 ```bash
-bench --site <site> migrate
-bench --site <site> clear-cache
+bench --site <site> execute omc_app.setup.operations.sync_service_catalogue
 ```
-
-Do not recreate an existing client site/Bench for ordinary development or application updates.
-
----
-
-## App package installation
-
-If the app source is already in `apps/omc_app`:
-
-```bash
-cd backend_omc_app/frappe-bench
-./env/bin/pip install -e apps/omc_app
-./env/bin/python -c "import omc_app; print('OMC App import: OK')"
-```
-
-First site installation:
-
-```bash
-bench --site <site> install-app omc_app
-bench --site <site> migrate
-```
-
----
 
 ## Validation
 
-Run the backend suite against the exact environment being released:
+Backend regression suite:
 
 ```bash
-cd backend_omc_app/frappe-bench
-
-bench --site <site> run-tests \
-  --app omc_app \
-  --skip-test-records
+cd /home/frappe/frappe-bench
+bench --site <site> run-tests --app omc_app --skip-test-records
 ```
 
-Latest directly observed suite before this documentation refresh:
+Latest locally verified complete OMC backend regression checkpoint on 8 September 2026:
 
 ```text
-Ran 932 tests
+Ran 1028 tests
 OK
 ```
 
-Catalogue validation:
+## Security boundaries
 
-```bash
-bench --site <site> execute \
-  omc_app.setup.operations.validate_service_catalogue
-```
-
-Latest observed production catalogue state was 195 managed objects unchanged with zero conflicts/blockers.
-
----
-
-## Security rules
-
-- backend checks are authoritative;
+- backend authorization is authoritative;
 - unknown access fails closed;
 - customers are ownership-scoped;
-- staff operations require canonical capability/scope;
+- staff actions require canonical capabilities/scopes;
 - System Manager does not silently gain OMC authority;
-- explicit break-glass grants are temporary/scoped;
+- break-glass grants are explicit, temporary and scoped;
 - sensitive mutations use guarded APIs;
-- customer identity ambiguity is reviewed rather than guessed;
-- payment/accounting eligibility is re-checked before ERP activation;
-- stable document keys cannot be bypassed by matching labels;
-- ERPNext source remains untouched.
+- payment/accounting eligibility is rechecked before ERP activation;
+- document identity cannot be bypassed by display labels;
+- push tokens/bindings are account/device scoped;
+- ERPNext/Frappe core remains untouched.
 
----
+## Source and deployment relationship
+
+```text
+main
+  backend_omc_app/frappe-bench/apps/omc_app/
+                    |
+                    | automatic publish
+                    v
+frappe-app branch (generated)
+  pyproject.toml
+  README.md
+  omc_app/
+  scripts/
+  ...
+                    |
+                    v
+client Bench get-app / install-app
+```
+
+This keeps one development source of truth and removes manual backend-folder copying.
 
 ## Related documentation
 
-- [`../../../../README.md`](../../../../README.md) — repository architecture;
-- [`../../../../docs/ROLE.md`](../../../../docs/ROLE.md) — access/capabilities;
-- [`../../../../docs/OMC_APP_FEATURES.md`](../../../../docs/OMC_APP_FEATURES.md) — features;
-- [`../../../../docs/omc_detailed_explanation.md`](../../../../docs/omc_detailed_explanation.md) — business workflow;
-- [`../../../deploy/README.md`](../../../deploy/README.md) — deployment toolkit.
+- repository overview: `../../../../README.md` on `main`;
+- roles/capabilities: `../../../../docs/ROLE.md` on `main`;
+- product feature guide: `../../../../docs/OMC_APP_FEATURES.md` on `main`;
+- archived backend/deployment notes: `../../../docs/README.md` on `main`.
