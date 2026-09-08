@@ -124,6 +124,7 @@ INTERNAL_ONLY_DOCTYPES = {
     "OMC Password Reset",
     "OMC Pending Registration",
     "OMC Push Token",
+    "OMC Push Delivery",
     "OMC Reconciliation Checkpoint",
 }
 

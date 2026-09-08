@@ -3231,6 +3231,10 @@ def register_push_token(**kwargs):
         )
 
     if existing_name:
+        frappe.db.sql(
+            "SELECT name FROM `tabOMC Push Token` WHERE name=%s FOR UPDATE",
+            existing_name,
+        )
         doc = frappe.get_doc("OMC Push Token", existing_name)
     else:
         doc = frappe.new_doc("OMC Push Token")
@@ -3287,15 +3291,30 @@ def unregister_push_token(**kwargs):
         filters["token"] = token
     elif device_id:
         filters["device_id"] = device_id
+    # A delayed old logout must not revoke a subsequently rebound token.
+    expected_binding = kwargs.get("binding_id")
+    if expected_binding is not None:
+        filters["binding_id"] = str(expected_binding)
 
     token_names = frappe.get_all("OMC Push Token", filters=filters, pluck="name")
     now = frappe.utils.now_datetime()
 
+    revoked_names = []
     for token_name in token_names:
+        frappe.db.sql(
+            "SELECT name FROM `tabOMC Push Token` WHERE name=%s FOR UPDATE",
+            token_name,
+        )
         doc = frappe.get_doc("OMC Push Token", token_name)
+        if doc.user != user or (token and doc.token != token):
+            continue
+        if expected_binding is not None and doc.binding_id != str(expected_binding):
+            continue
         doc.is_active = 0
         doc.last_unregistered_on = now
         doc.save(ignore_permissions=True)
+        revoked_names.append(token_name)
+    token_names = revoked_names
 
     if token_names:
         frappe.db.commit()
@@ -3359,7 +3378,7 @@ def mark_all_notifications_read():
 
 
 @frappe.whitelist()
-def get_notification_detail(notification_id=None):
+def get_notification_detail(notification_id=None, binding_id=None):
     if not notification_id:
         frappe.throw("notification_id is required")
 
@@ -3382,6 +3401,10 @@ def get_notification_detail(notification_id=None):
         user=user,
         profile=profile,
     )
+
+    if binding_id is not None:
+        from omc_app.api.push_access import assert_bound_push_access
+        assert_bound_push_access(notification, binding_id)
 
     if not notification.is_read:
         notification.is_read = 1

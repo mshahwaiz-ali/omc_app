@@ -687,6 +687,11 @@ def _readiness_label(score):
     return "Low"
 
 
+# Match receipt sanitization over the complete authorized scope, not one page.
+# EXISTS avoids double counting when File has duplicate URL rows.
+_VALID_RECEIPT_SQL = "CASE\n    WHEN COALESCE(TRIM(expense_entry.receipt_file), '') = '' THEN 0\n    WHEN (SUBSTRING(TRIM(expense_entry.receipt_file), 1, 7) = '/files/'\n       OR SUBSTRING(TRIM(expense_entry.receipt_file), 1, 15) = '/private/files/')\n     AND NOT EXISTS (\n         SELECT 1 FROM `tabFile` AS receipt\n          WHERE receipt.file_url = TRIM(expense_entry.receipt_file)\n     ) THEN 0\n    ELSE 1\nEND"
+
+
 def _complete_summary(profile_name, month=None):
     """Aggregate all owned active rows, independent of list pagination."""
     conditions = "customer_profile=%s AND status!='Archived'"
@@ -695,14 +700,14 @@ def _complete_summary(profile_name, month=None):
         first = frappe.utils.get_first_day(month)
         conditions += " AND transaction_date BETWEEN %s AND %s"
         values.extend([first, frappe.utils.get_last_day(first)])
-    rows = frappe.db.sql("""
+    rows = frappe.db.sql(f"""
         SELECT transaction_type, category, payment_method, SUM(amount) AS amount,
                COUNT(*) AS row_count,
                SUM(CASE WHEN tax_relevant=1 THEN amount ELSE 0 END) AS tax_total,
                SUM(CASE WHEN business_related=1 THEN amount ELSE 0 END) AS business_total,
-               SUM(CASE WHEN COALESCE(receipt_file,'')!='' THEN 1 ELSE 0 END) AS receipts,
+               SUM({_VALID_RECEIPT_SQL}) AS receipts,
                SUM(CASE WHEN recurring=1 THEN 1 ELSE 0 END) AS recurring_count
-          FROM `tabOMC Expense Entry` WHERE """ + conditions + """
+          FROM `tabOMC Expense Entry` AS expense_entry WHERE """ + conditions + """
          GROUP BY transaction_type, category, payment_method
     """, tuple(values), as_dict=True)
     result = _summary(rows)

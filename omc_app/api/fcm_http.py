@@ -9,13 +9,12 @@ from email.utils import parsedate_to_datetime
 from datetime import datetime, timezone
 
 import frappe
-from google.oauth2 import service_account
-from google.auth.transport.requests import AuthorizedSession
+from omc_app.api.push_retry_policy import enabled, response_failure
 
 
 def operational():
     conf = getattr(frappe.local, 'conf', None) or {}
-    return bool(conf.get('omc_fcm_enabled') and
+    return bool(enabled(conf.get('omc_fcm_enabled')) and
                 re.fullmatch(r'[a-z][a-z0-9-]{4,62}', str(conf.get('omc_fcm_project_id') or '')) and
                 os.path.isfile(str(conf.get('omc_fcm_credentials_file') or '')))
 
@@ -40,9 +39,14 @@ def send(token, notification_id, binding_id):
     if not operational():
         raise SendFailure('NOT_CONFIGURED')
     try:
+        from google.oauth2 import service_account
+        from google.auth.transport.requests import AuthorizedSession
         credentials = service_account.Credentials.from_service_account_file(
             frappe.conf.omc_fcm_credentials_file,
             scopes=['https://www.googleapis.com/auth/firebase.messaging'])
+    except Exception:
+        raise SendFailure('PROVIDER_CREDENTIAL_CONFIGURATION_ERROR') from None
+    try:
         with AuthorizedSession(credentials) as session:
             response = session.post(
                 'https://fcm.googleapis.com/v1/projects/' + frappe.conf.omc_fcm_project_id + '/messages:send',
@@ -53,17 +57,15 @@ def send(token, notification_id, binding_id):
                     'android': {'priority': 'high', 'ttl': '86400s', 'notification': {
                         'channel_id': 'omc_updates', 'icon': 'ic_stat_omc',
                         'tag': notification_id, 'visibility': 'PRIVATE'}},
-                }}, timeout=(5, 20))
-        data = response.json()
+                }}, timeout=(5, 20), allow_redirects=False)
     except Exception:
         # Never persist provider bodies, token values, key paths or auth exceptions.
         raise SendFailure('TRANSPORT_OR_CREDENTIAL_ERROR', retryable=True) from None
-    if response.ok and isinstance(data, dict) and data.get('name'):
-        return str(data['name'])[:255]
-    error = data.get('error', {}) if isinstance(data, dict) else {}
-    codes = [item.get('errorCode') for item in error.get('details', []) if isinstance(item, dict)]
-    if 'UNREGISTERED' in codes:
-        raise SendFailure('UNREGISTERED')
-    retryable = response.status_code in (429, 500, 502, 503, 504)
-    code = 'TRANSIENT_PROVIDER_ERROR' if retryable else 'PROVIDER_CONFIGURATION_OR_PAYLOAD_ERROR'
+    try:
+        data = response.json()
+    except (ValueError, TypeError):
+        data = {}
+    if response.ok and isinstance(data, dict) and isinstance(data.get('name'), str) and data['name']:
+        return data['name'][:255]
+    code, retryable = response_failure(response.status_code, data)
     raise SendFailure(code, retryable, retry_after_seconds(response.headers.get('Retry-After')))
