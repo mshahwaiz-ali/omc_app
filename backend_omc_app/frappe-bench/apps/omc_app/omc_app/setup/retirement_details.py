@@ -12,6 +12,12 @@ RETIRED_EXTERNAL_ROLES = (
     "OMC Employee",
 )
 
+RETIRED_STAFF_PERSONAS = (
+    "OMC Consultant",
+    "OMC Tax Associate",
+    "OMC Business Partner",
+)
+
 
 def _text(value: Any) -> str:
     return str(value or "").strip()
@@ -33,6 +39,28 @@ def _retired_role_assignments() -> list[dict[str, Any]]:
         filters={"role": ["in", list(RETIRED_EXTERNAL_ROLES)]},
         fields=["name", "parent", "parenttype", "parentfield", "role"],
         order_by="role asc, parent asc",
+        limit_page_length=1000,
+    )
+    return [dict(row) for row in rows]
+
+
+def _retired_staff_personas() -> list[dict[str, Any]]:
+    if not _doctype_exists("OMC Staff Access"):
+        return []
+
+    rows = frappe.get_all(
+        "OMC Staff Access",
+        filters={"persona_snapshot": ["in", list(RETIRED_STAFF_PERSONAS)]},
+        fields=[
+            "name",
+            "user",
+            "employee",
+            "access_status",
+            "persona_snapshot",
+            "persona_source",
+            "reconciliation_status",
+        ],
+        order_by="persona_snapshot asc, user asc",
         limit_page_length=1000,
     )
     return [dict(row) for row in rows]
@@ -86,12 +114,15 @@ def preview_retirement_blockers() -> dict[str, Any]:
     the very small set of historical exceptions before any destructive cleanup.
     """
     role_rows = _retired_role_assignments()
+    staff_persona_rows = _retired_staff_personas()
     professional_rows = _customer_professional_rows()
 
     return {
         "read_only": True,
         "retired_role_assignments": role_rows,
         "retired_role_assignment_count": len(role_rows),
+        "retired_staff_personas": staff_persona_rows,
+        "retired_staff_persona_count": len(staff_persona_rows),
         "customer_professional_rows": professional_rows,
         "customer_professional_row_count": len(professional_rows),
     }
