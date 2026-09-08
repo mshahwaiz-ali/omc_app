@@ -85,4 +85,11 @@ class TestManualCustomerRetirement(FrappeTestCase):
             'ALLOWED_ASSISTED_MODES = {"My Referral", "Existing Customer"}',
             source,
         )
-        self.assertNotIn('"can_use_walk_in_customers"', source)
+        self.assertIn(
+            'capabilities.pop("can_use_walk_in_customers", None)',
+            source,
+        )
+        self.assertNotIn(
+            'capabilities["can_use_walk_in_customers"] =',
+            source,
+        )
