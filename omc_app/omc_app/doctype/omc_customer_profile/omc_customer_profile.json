@@ -76,21 +76,21 @@
    "search_index": 1
   },
   {
+   "description": "Required for app-linked customer accounts. Imported ERP customer profiles may remain blank until activation.",
    "fieldname": "email",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Email",
    "reqd": 0,
-   "unique": 1,
-   "description": "Required for app-linked customer accounts. Imported ERP customer profiles may remain blank until activation."
+   "unique": 1
   },
   {
+   "description": "Normalized public login identifier. Frappe User remains email-based.",
    "fieldname": "username",
    "fieldtype": "Data",
    "label": "Username",
-   "unique": 1,
    "search_index": 1,
-   "description": "Normalized public login identifier. Frappe User remains email-based."
+   "unique": 1
   },
   {
    "fieldname": "phone",
@@ -162,20 +162,26 @@
   },
   {
    "default": "Customer",
+   "description": "Legacy compatibility field. Public OMC registration is customer-only; staff personas are managed separately.",
    "fieldname": "register_as",
    "fieldtype": "Select",
+   "hidden": 1,
    "label": "Register As",
-   "options": "Customer\nConsultant\nBusiness Partner\nTax Associate"
+   "options": "Customer\nConsultant\nBusiness Partner\nTax Associate",
+   "read_only": 1
   },
   {
    "default": "Customer",
+   "description": "Legacy compatibility field. OMC Customer Profile represents customers only.",
    "fieldname": "customer_type",
    "fieldtype": "Select",
+   "hidden": 1,
    "in_filter": 1,
-   "in_list_view": 1,
-   "in_standard_filter": 1,
+   "in_list_view": 0,
+   "in_standard_filter": 0,
    "label": "Customer Type",
    "options": "Customer\nConsultant\nBusiness Partner\nTax Associate",
+   "read_only": 1,
    "search_index": 1
   },
   {
@@ -189,12 +195,12 @@
    "label": "Acquisition and Referral"
   },
   {
+   "default": "Unknown",
    "fieldname": "acquisition_source",
    "fieldtype": "Select",
+   "in_standard_filter": 1,
    "label": "Acquisition Source",
    "options": "Unknown\nExisting\nReferral\nWebsite\nSocial Media\nAdvertisement\nExisting Customer\nEvent\nOther",
-   "default": "Unknown",
-   "in_standard_filter": 1,
    "search_index": 1
   },
   {
@@ -223,10 +229,10 @@
    "read_only": 1
   },
   {
+   "default": "0",
    "fieldname": "referral_assistance_consent",
    "fieldtype": "Check",
-   "label": "Referral Assistance Consent",
-   "default": "0"
+   "label": "Referral Assistance Consent"
   },
   {
    "fieldname": "referral_consent_timestamp",
@@ -241,12 +247,13 @@
    "read_only": 1
   },
   {
+   "default": "App Signup",
    "fieldname": "customer_origin",
    "fieldtype": "Select",
+   "in_standard_filter": 1,
    "label": "Customer Origin",
    "options": "App Signup\nWalk-in\nImported\nStaff Created",
-   "default": "App Signup",
-   "in_standard_filter": 1
+   "read_only": 1
   },
   {
    "default": "New Customer",
@@ -255,20 +262,26 @@
    "in_standard_filter": 1,
    "label": "Onboarding Mode",
    "options": "New Customer\nExisting Customer Claim\nImported Existing",
+   "read_only": 1,
    "search_index": 1
   },
   {
+   "description": "Legacy application-user link retained while customer identity data is reconciled through OMC Customer Account.",
    "fieldname": "linked_app_user",
    "fieldtype": "Link",
+   "hidden": 1,
    "label": "Linked App User",
    "options": "User",
    "read_only": 1
   },
   {
+   "description": "Legacy manual-customer lifecycle status retained for imported/historical records until final data reconciliation.",
    "fieldname": "manual_customer_status",
    "fieldtype": "Select",
+   "hidden": 1,
    "label": "Manual Customer Status",
-   "options": "\nUnregistered\nInvited\nSignup Pending\nLinked\nDuplicate Review\nArchived"
+   "options": "\nUnregistered\nInvited\nSignup Pending\nLinked\nDuplicate Review\nArchived",
+   "read_only": 1
   },
   {
    "fieldname": "review_section",
@@ -293,16 +306,16 @@
   {
    "fieldname": "integration_section",
    "fieldtype": "Section Break",
-   "label": "Optional Integration"
+   "label": "ERP Customer Link"
   },
   {
+   "description": "Canonical ERP Customer linked to this OMC customer profile. Managed by the OMC ERP bridge.",
    "fieldname": "linked_erpnext_customer",
    "fieldtype": "Link",
    "label": "Linked ERP Customer",
    "options": "Customer",
    "read_only": 1,
-   "search_index": 1,
-   "description": "Canonical ERP Customer linked to this OMC customer profile. Managed by the OMC ERP bridge."
+   "search_index": 1
   }
  ],
  "index_web_pages_for_search": 1,
