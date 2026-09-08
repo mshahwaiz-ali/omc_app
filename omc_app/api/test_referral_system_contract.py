@@ -17,6 +17,7 @@ REPORT_PATH = (
 REFERRAL_AUTOMATION_PATH = PACKAGE_ROOT / "referral_automation.py"
 REFERRALS_API_PATH = PACKAGE_ROOT / "api" / "referrals.py"
 REFERRAL_CAPABILITIES_PATH = PACKAGE_ROOT / "referral_capabilities.py"
+REFERRAL_WORKSPACE_PATH = PACKAGE_ROOT / "setup" / "referral_workspace.py"
 STAFF_PROFILE_PATH = (
     PACKAGE_ROOT
     / "omc_app"
@@ -24,6 +25,17 @@ STAFF_PROFILE_PATH = (
     / "omc_staff_profile"
     / "omc_staff_profile.json"
 )
+
+EXPECTED_REPORT_ROLES = {
+    "Consultant",
+    "Tax Associates",
+    "Business Partner",
+    "OMC Consultant",
+    "OMC Tax Associate",
+    "OMC Business Partner",
+    "OMC Admin",
+    "OMC Manager",
+}
 
 
 class TestReferralSystemContract(FrappeTestCase):
@@ -34,19 +46,14 @@ class TestReferralSystemContract(FrappeTestCase):
         self.assertEqual(int(report.get("disabled") or 0), 0)
 
         roles = {row["role"] for row in report.get("roles") or []}
-        self.assertTrue(
-            {
-                "Consultant",
-                "Tax Associates",
-                "Business Partner",
-                "OMC Consultant",
-                "OMC Tax Associate",
-                "OMC Business Partner",
-                "OMC Admin",
-                "OMC Manager",
-            }
-            <= roles
-        )
+        self.assertTrue(EXPECTED_REPORT_ROLES <= roles)
+
+    def test_desk_sync_reconciles_referral_report_roles(self):
+        source = REFERRAL_WORKSPACE_PATH.read_text(encoding="utf-8")
+        self.assertIn("_ensure_my_referrals_report_roles", source)
+        self.assertIn('frappe.get_doc("Report", "My Referrals")', source)
+        for role in EXPECTED_REPORT_ROLES:
+            self.assertIn(f'"{role}"', source)
 
     def test_referral_code_generation_and_validation_remain_available(self):
         automation = REFERRAL_AUTOMATION_PATH.read_text(encoding="utf-8")
