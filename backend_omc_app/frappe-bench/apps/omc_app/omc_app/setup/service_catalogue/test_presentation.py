@@ -1,10 +1,8 @@
 from unittest import TestCase
 
-from omc_app.setup.service_catalogue.manifest import (
-    DEFAULT_ASSIGNMENT_ROLE,
-    SERVICES,
-)
+from omc_app.setup.service_catalogue.manifest import SERVICES
 from omc_app.setup.service_catalogue.presentation import (
+    PRESENTATION_FIELDS,
     desired_presentation,
     validate_presentation_source,
 )
@@ -30,12 +28,15 @@ class TestServicePresentationSource(TestCase):
             self.assertEqual(desired["short_description"], service.short_description)
             self.assertEqual(desired["description"], service.description)
             self.assertEqual(desired["support_message"], service.support_message)
-            self.assertEqual(
-                desired["default_assignment_role"],
-                DEFAULT_ASSIGNMENT_ROLE,
-            )
+            self.assertNotIn("default_assignment_role", desired)
 
-    def test_managed_services_default_to_employee_assignment(self):
-        self.assertEqual(DEFAULT_ASSIGNMENT_ROLE, "Employee")
+    def test_assignment_is_not_catalogue_presentation_state(self):
+        self.assertEqual(
+            PRESENTATION_FIELDS,
+            ("short_description", "description", "support_message"),
+        )
         for service in SERVICES:
-            self.assertEqual(service.default_assignment_role, "Employee")
+            self.assertNotIn(
+                "default_assignment_role",
+                desired_presentation(service.service_id),
+            )
