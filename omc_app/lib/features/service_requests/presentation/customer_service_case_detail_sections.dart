@@ -7,75 +7,94 @@ class _ServiceHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: AppTheme.primarySoft,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.description_outlined,
-                  color: AppTheme.primary,
-                  size: 27,
-                ),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 330 ||
+                  MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+              final identity = Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.description_outlined,
+                      color: AppTheme.textSecondary,
+                      size: 23,
+                    ),
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Text(
                       detail.title.isEmpty
                           ? 'OMC service request'
                           : detail.title,
-                      style: const TextStyle(
+                      style: theme.textTheme.titleLarge?.copyWith(
                         color: AppTheme.textPrimary,
-                        fontSize: 20,
-                        height: 1.15,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
+                        height: 1.25,
                       ),
                     ),
-                    const SizedBox(height: 7),
-                    _StatusPill(label: detail.statusLabel),
-                  ],
-                ),
-              ),
-            ],
+                  ),
+                ],
+              );
+              final status = _StatusPill(label: detail.statusLabel);
+
+              if (stacked) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [identity, const SizedBox(height: 12), status],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: identity),
+                  const SizedBox(width: 12),
+                  status,
+                ],
+              );
+            },
           ),
           if (detail.createdOnBehalf) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.all(12),
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFFF2F7F4),
-                borderRadius: BorderRadius.circular(14),
+                color: theme.colorScheme.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.border),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Icon(
                     Icons.account_circle_outlined,
-                    size: 19,
-                    color: Color(0xFF168D49),
+                    size: 20,
+                    color: AppTheme.textSecondary,
                   ),
-                  const SizedBox(width: 9),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       detail.submittedByName.isEmpty
                           ? 'Created by OMC on your behalf'
                           : 'Created by ${detail.submittedByName} from OMC on your behalf',
-                      style: const TextStyle(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: AppTheme.textPrimary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                        height: 1.4,
                       ),
                     ),
                   ),
@@ -83,10 +102,10 @@ class _ServiceHero extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           Wrap(
-            spacing: 18,
-            runSpacing: 10,
+            spacing: 22,
+            runSpacing: 14,
             children: [
               _Meta(label: 'Request ID', value: detail.id),
               _Meta(label: 'Requested', value: detail.createdAtLabel),
@@ -106,21 +125,26 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final resolved = label.isEmpty ? 'Open' : label;
+    final theme = Theme.of(context);
     return Semantics(
-      label: 'Status: ${label.isEmpty ? 'Open' : label}',
+      label: 'Status: $resolved',
       excludeSemantics: true,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        constraints: const BoxConstraints(maxWidth: 260),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
         decoration: BoxDecoration(
-          color: AppTheme.primarySoft,
+          color: AppTheme.primary.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: AppTheme.border),
         ),
         child: Text(
-          label.isEmpty ? 'Open' : label,
-          style: const TextStyle(
+          resolved,
+          style: theme.textTheme.bodySmall?.copyWith(
             color: AppTheme.textPrimary,
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            height: 1.25,
           ),
         ),
       ),
@@ -137,28 +161,26 @@ class _Meta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (value.trim().isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
     return ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 105, maxWidth: 190),
+      constraints: const BoxConstraints(minWidth: 110, maxWidth: 240),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: theme.textTheme.bodySmall?.copyWith(
               color: AppTheme.textSecondary,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 3),
           Text(
             value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: theme.textTheme.bodyMedium?.copyWith(
               color: AppTheme.textPrimary,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
             ),
           ),
         ],
@@ -187,33 +209,34 @@ class _LifecycleCard extends StatelessWidget {
         : detail.currentStage.isEmpty
         ? 'Current status'
         : detail.currentStage;
+    final theme = Theme.of(context);
 
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Semantics(
                   header: true,
                   child: Text(
                     'Service journey',
-                    style: TextStyle(
+                    style: theme.textTheme.titleLarge?.copyWith(
                       color: AppTheme.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
               ),
+              const SizedBox(width: 12),
               Text(
                 detail.isTerminal ? 'Closed' : '$progress%',
-                style: const TextStyle(
-                  color: AppTheme.primary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -221,13 +244,11 @@ class _LifecycleCard extends StatelessWidget {
           const SizedBox(height: 5),
           Text(
             currentStage,
-            style: const TextStyle(
+            style: theme.textTheme.bodyMedium?.copyWith(
               color: AppTheme.textSecondary,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Semantics(
             label: detail.isTerminal
                 ? 'Service journey closed'
@@ -238,17 +259,16 @@ class _LifecycleCard extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: progress / 100,
                 minHeight: 7,
-                backgroundColor: AppTheme.primarySoft,
+                backgroundColor: AppTheme.primary.withValues(alpha: 0.06),
               ),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 20),
           if (detail.milestones.isEmpty)
-            const Text(
+            Text(
               'Lifecycle details are not available yet.',
-              style: TextStyle(
+              style: theme.textTheme.bodyMedium?.copyWith(
                 color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w600,
               ),
             )
           else
@@ -281,6 +301,7 @@ class _MilestoneRow extends StatelessWidget {
         : milestone.isCurrent
         ? 'current'
         : 'pending';
+    final theme = Theme.of(context);
 
     return Semantics(
       label:
@@ -290,66 +311,64 @@ class _MilestoneRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 26,
+            width: 30,
             child: Column(
               children: [
                 Container(
-                  width: 21,
-                  height: 21,
+                  width: 24,
+                  height: 24,
                   decoration: BoxDecoration(
                     color: visual.background,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(visual.icon, size: 13, color: visual.foreground),
+                  alignment: Alignment.center,
+                  child: Icon(visual.icon, size: 14, color: visual.foreground),
                 ),
                 if (!isLast)
                   Container(
                     width: 2,
-                    height: milestone.detail.isEmpty ? 22 : 37,
+                    height: milestone.detail.isEmpty ? 28 : 48,
                     color: AppTheme.border,
                   ),
               ],
             ),
           ),
-          const SizedBox(width: 9),
+          const SizedBox(width: 10),
           Expanded(
             child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Expanded(
-                        child: Text(
-                          milestone.label,
-                          style: TextStyle(
-                            color: visual.foreground,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w900,
-                          ),
+                      Text(
+                        milestone.label,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       if (milestone.isSkipped)
-                        const Text(
+                        Text(
                           'Skipped',
-                          style: TextStyle(
+                          style: theme.textTheme.bodySmall?.copyWith(
                             color: AppTheme.textSecondary,
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                     ],
                   ),
                   if (milestone.detail.isNotEmpty) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       milestone.detail,
-                      style: const TextStyle(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: AppTheme.textSecondary,
-                        fontSize: 11.5,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
+                        height: 1.4,
                       ),
                     ),
                   ],
@@ -423,29 +442,41 @@ class _NextStepCard extends StatelessWidget {
     final handledInline =
         detail.documentsNeedingUpload > 0 &&
         action.route.trim().startsWith('/documents');
+    final theme = Theme.of(context);
 
     return PremiumCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Text(
+            action.required ? 'Next action' : 'Current update',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 43,
-                height: 43,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: action.required
-                      ? AppTheme.dangerSoft
-                      : AppTheme.primarySoft,
-                  borderRadius: BorderRadius.circular(14),
+                      ? theme.colorScheme.errorContainer.withValues(alpha: 0.45)
+                      : AppTheme.primary.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(13),
                 ),
+                alignment: Alignment.center,
                 child: Icon(
                   action.required
                       ? Icons.priority_high_rounded
                       : Icons.info_outline_rounded,
-                  color: action.required ? AppTheme.danger : AppTheme.primary,
+                  color: action.required
+                      ? theme.colorScheme.error
+                      : AppTheme.textSecondary,
                 ),
               ),
               const SizedBox(width: 12),
@@ -454,31 +485,20 @@ class _NextStepCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      action.required ? 'Next action' : 'Current update',
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
                       action.title,
-                      style: const TextStyle(
+                      style: theme.textTheme.titleMedium?.copyWith(
                         color: AppTheme.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
+                        height: 1.3,
                       ),
                     ),
                     if (action.subtitle.isNotEmpty) ...[
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 6),
                       Text(
                         action.subtitle,
-                        style: const TextStyle(
+                        style: theme.textTheme.bodyMedium?.copyWith(
                           color: AppTheme.textSecondary,
-                          fontSize: 12,
-                          height: 1.4,
-                          fontWeight: FontWeight.w600,
+                          height: 1.45,
                         ),
                       ),
                     ],
@@ -488,7 +508,7 @@ class _NextStepCard extends StatelessWidget {
             ],
           ),
           if (canOpen && !sameCaseRoute && !handledInline) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: () => _openAction(context, detail, action),
               icon: const Icon(Icons.arrow_forward_rounded),

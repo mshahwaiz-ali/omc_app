@@ -56,7 +56,7 @@ class _CustomerServiceCaseDetailScreenState
         children: [
           AppBackHeader(
             title: 'Service Request',
-            subtitle: 'Current stage, requirements and next step',
+            subtitle: 'Status, next action and request evidence',
             actionIcon: Icons.support_agent_rounded,
             actionTooltip: 'Contact support',
             onAction: () => SupportLauncher.openWhatsApp(context),
@@ -101,36 +101,36 @@ class _CustomerServiceCaseDetailScreenState
                       physics: const AlwaysScrollableScrollPhysics(
                         parent: BouncingScrollPhysics(),
                       ),
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 36),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
                       children: [
                         _ServiceHero(detail: detail),
-                        const SizedBox(height: 14),
-                        _LifecycleCard(detail: detail),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
                         _NextStepCard(
                           detail: detail,
                           canViewDocuments: capabilities.canViewDocuments,
                           canViewPayments: capabilities.canViewPayments,
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
+                        _LifecycleCard(detail: detail),
+                        const SizedBox(height: 12),
                         _DocumentsCard(
                           detail: detail,
                           canViewDocuments: capabilities.canViewDocuments,
                           canUploadDocuments: capabilities.canUploadDocuments,
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
                         _PaymentCard(
                           key: OmcWidgetKeys.customerCasePayment,
                           detail: detail,
                           canViewPayments: capabilities.canViewPayments,
                         ),
                         if (detail.activities.isNotEmpty) ...[
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 12),
                           _RecentActivityCard(activities: detail.activities),
                         ],
                         if (detail.canCancel &&
                             capabilities.canTrackRequests) ...[
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 12),
                           _CancelRequestCard(
                             busy: _isCancelling,
                             onCancel: () => _confirmCancel(detail),
@@ -153,22 +153,30 @@ class _CustomerServiceCaseDetailScreenState
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Cancel service request?'),
-        content: const Text(
-          'This will cancel this request. Existing submitted documents and payment proof are not deleted, and you can start a new request later if needed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Keep request'),
+      builder: (dialogContext) {
+        final theme = Theme.of(dialogContext);
+        return AlertDialog(
+          scrollable: true,
+          title: const Text('Cancel service request?'),
+          content: const Text(
+            'This will cancel this request. Existing submitted documents and payment proof are not deleted, and you can start a new request later if needed.',
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Cancel request'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Keep request'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: theme.colorScheme.error,
+                foregroundColor: theme.colorScheme.onError,
+              ),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Cancel request'),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirmed != true || !mounted) return;

@@ -29,32 +29,30 @@ class _DocumentsCardState extends ConsumerState<_DocumentsCard> {
     final isHistorical =
         detail.requestState.trim().toLowerCase() == 'historical';
     final isReadOnly = detail.isTerminal || detail.isCompleted;
+    final theme = Theme.of(context);
 
     return PremiumCard(
-      padding: const EdgeInsets.all(17),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Semantics(
             header: true,
-            child: const Text(
+            child: Text(
               'Required documents',
-              style: TextStyle(
+              style: theme.textTheme.titleLarge?.copyWith(
                 color: AppTheme.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 7),
           if (documents.isEmpty)
-            const Text(
+            Text(
               'No documents are currently required for this service request.',
-              style: TextStyle(
+              style: theme.textTheme.bodyMedium?.copyWith(
                 color: AppTheme.textSecondary,
-                fontSize: 12.5,
                 height: 1.4,
-                fontWeight: FontWeight.w600,
               ),
             )
           else ...[
@@ -68,29 +66,30 @@ class _DocumentsCardState extends ConsumerState<_DocumentsCard> {
                   : needsUpload
                   ? '${detail.documentsNeedingUpload} required document${detail.documentsNeedingUpload == 1 ? '' : 's'} still need attention.'
                   : 'Your required document checklist is up to date.',
-              style: const TextStyle(
+              style: theme.textTheme.bodyMedium?.copyWith(
                 color: AppTheme.textSecondary,
-                fontSize: 12.5,
                 height: 1.4,
-                fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 13),
-            for (final document in documents) ...[
+            const SizedBox(height: 16),
+            for (var index = 0; index < documents.length; index++) ...[
               _DocumentRow(
-                document: document,
+                document: documents[index],
                 readOnly: isReadOnly,
                 canUpload:
                     widget.canUploadDocuments &&
                     !isReadOnly &&
-                    document.needsUpload,
-                isUploading: _uploading.contains(document.uploadIdentity),
-                onUpload: () => _uploadRequiredDocument(document),
+                    documents[index].needsUpload,
+                isUploading: _uploading.contains(
+                  documents[index].uploadIdentity,
+                ),
+                onUpload: () => _uploadRequiredDocument(documents[index]),
               ),
-              const SizedBox(height: 8),
+              if (index != documents.length - 1)
+                const SizedBox(height: 10),
             ],
             if (widget.canViewDocuments && hasUploadedDocuments) ...[
-              const SizedBox(height: 5),
+              const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: () => context.go('/documents'),
                 icon: const Icon(Icons.folder_open_outlined),
@@ -220,7 +219,7 @@ class _DocumentRow extends StatelessWidget {
             'uploaded' || 'submitted' || 'under review' => (
               'Under review',
               Icons.hourglass_top_rounded,
-              const Color(0xFFA85C00),
+              const Color(0xFFA15C00),
               const Color(0xFFFFF4E4),
             ),
             _ => (
@@ -231,117 +230,168 @@ class _DocumentRow extends StatelessWidget {
             ),
           };
 
+    final theme = Theme.of(context);
     return Container(
       key: OmcWidgetKeys.caseRequiredDocument(document.uploadIdentity),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: foreground.withValues(alpha: 0.13)),
+        border: Border.all(color: foreground.withValues(alpha: 0.16)),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ExcludeSemantics(child: Icon(icon, size: 19, color: foreground)),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Semantics(
-                  label: '${document.title}, $label',
-                  excludeSemantics: true,
-                  child: Text(
-                    document.title,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                if (document.remarks.isNotEmpty) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    document.remarks,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 11,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stacked = constraints.maxWidth < 330 ||
+              MediaQuery.textScalerOf(context).scale(1) >= 1.4;
+          final identity = Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ExcludeSemantics(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w900,
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: foreground.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(11),
                   ),
+                  alignment: Alignment.center,
+                  child: Icon(icon, size: 20, color: foreground),
                 ),
               ),
-              if (canUpload) ...[
-                const SizedBox(height: 6),
-                SizedBox(
-                  height: 34,
-                  child: Semantics(
-                    button: true,
-                    enabled: !isUploading,
-                    label: document.isRejected
-                        ? 'Replace document'
-                        : 'Upload document',
-                    child: Material(
-                      color: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: AppTheme.border),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        key: OmcWidgetKeys.caseRequiredDocumentUpload(
-                          document.uploadIdentity,
-                        ),
-                        onTap: isUploading ? null : onUpload,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          child: Center(
-                            widthFactor: 1,
-                            child: isUploading
-                                ? const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Text(
-                                    document.isRejected ? 'Replace' : 'Upload',
-                                    style: const TextStyle(
-                                      color: AppTheme.primary,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                          ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Semantics(
+                      label: '${document.title}, $label',
+                      excludeSemantics: true,
+                      child: Text(
+                        document.title,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w600,
+                          height: 1.35,
                         ),
                       ),
                     ),
-                  ),
+                    if (document.remarks.isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        document.remarks,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: document.isRejected
+                              ? theme.colorScheme.error
+                              : AppTheme.textSecondary,
+                          height: 1.4,
+                          fontWeight: document.isRejected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
+              ),
             ],
-          ),
-        ],
+          );
+
+          final controls = _DocumentRowControls(
+            label: label,
+            foreground: foreground,
+            canUpload: canUpload,
+            isUploading: isUploading,
+            document: document,
+            onUpload: onUpload,
+            expanded: stacked,
+          );
+
+          if (stacked) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [identity, const SizedBox(height: 12), controls],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: identity),
+              const SizedBox(width: 12),
+              controls,
+            ],
+          );
+        },
       ),
+    );
+  }
+}
+
+class _DocumentRowControls extends StatelessWidget {
+  const _DocumentRowControls({
+    required this.label,
+    required this.foreground,
+    required this.canUpload,
+    required this.isUploading,
+    required this.document,
+    required this.onUpload,
+    required this.expanded,
+  });
+
+  final String label;
+  final Color foreground;
+  final bool canUpload;
+  final bool isUploading;
+  final CustomerServiceCaseDocument document;
+  final VoidCallback onUpload;
+  final bool expanded;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final status = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: foreground.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: foreground,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+
+    if (!canUpload) return status;
+
+    final button = OutlinedButton.icon(
+      key: OmcWidgetKeys.caseRequiredDocumentUpload(document.uploadIdentity),
+      onPressed: isUploading ? null : onUpload,
+      icon: isUploading
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.upload_file_outlined),
+      label: Text(document.isRejected ? 'Replace' : 'Upload'),
+    );
+
+    if (expanded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [Align(alignment: Alignment.centerLeft, child: status),
+          const SizedBox(height: 10),
+          button,
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [status, const SizedBox(height: 8), button],
     );
   }
 }
@@ -410,11 +460,23 @@ class _PaymentCard extends StatelessWidget {
       showAction = false;
     }
 
+    final theme = Theme.of(context);
     return PremiumCard(
-      padding: const EdgeInsets.all(17),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Semantics(
+            header: true,
+            child: Text(
+              'Payment',
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -422,41 +484,31 @@ class _PaymentCard extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: AppTheme.primarySoft,
-                  borderRadius: BorderRadius.circular(13),
+                  color: AppTheme.primary.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: AppTheme.primary, size: 21),
+                alignment: Alignment.center,
+                child: Icon(icon, color: AppTheme.textSecondary, size: 21),
               ),
-              const SizedBox(width: 11),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Payment',
-                      style: TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: theme.textTheme.titleMedium?.copyWith(
                         color: AppTheme.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
+                        height: 1.3,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 5),
                     Text(
                       message,
-                      style: const TextStyle(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        height: 1.4,
-                        fontWeight: FontWeight.w600,
+                        height: 1.45,
                       ),
                     ),
                   ],
@@ -465,7 +517,7 @@ class _PaymentCard extends StatelessWidget {
             ],
           ),
           if (showAction) ...[
-            const SizedBox(height: 13),
+            const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: () => _openPayments(context, detail),
               icon: const Icon(Icons.open_in_new_rounded),
@@ -485,8 +537,9 @@ class _RecentActivityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return PremiumCard(
-      padding: const EdgeInsets.all(17),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -494,72 +547,70 @@ class _RecentActivityCard extends StatelessWidget {
             header: true,
             child: Text(
               'Recent activity',
-              style: TextStyle(
+              style: theme.textTheme.titleLarge?.copyWith(
                 color: AppTheme.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          const SizedBox(height: 13),
-          for (var index = 0; index < activities.length; index++)
-            Padding(
-              padding: EdgeInsets.only(
-                bottom: index == activities.length - 1 ? 0 : 13,
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.only(top: 3),
-                    child: Icon(
-                      Icons.update_rounded,
-                      size: 18,
-                      color: AppTheme.primary,
-                    ),
+          const SizedBox(height: 16),
+          for (var index = 0; index < activities.length; index++) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.update_rounded,
+                    size: 18,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        activities[index].title,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (activities[index].subtitle.isNotEmpty) ...[
+                        const SizedBox(height: 4),
                         Text(
-                          activities[index].title,
-                          style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w800,
+                          activities[index].subtitle,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.textSecondary,
+                            height: 1.4,
                           ),
                         ),
-                        if (activities[index].subtitle.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            activities[index].subtitle,
-                            style: const TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 11.5,
-                              height: 1.35,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                        if (activities[index].dateLabel.isNotEmpty) ...[
-                          const SizedBox(height: 3),
-                          Text(
-                            activities[index].dateLabel,
-                            style: const TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
                       ],
-                    ),
+                      if (activities[index].dateLabel.isNotEmpty) ...[
+                        const SizedBox(height: 5),
+                        Text(
+                          activities[index].dateLabel,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
+            if (index != activities.length - 1)
+              const Divider(height: 26, color: AppTheme.border),
+          ],
         ],
       ),
     );
@@ -574,31 +625,35 @@ class _CancelRequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return PremiumCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'Request controls',
-            style: TextStyle(
+            style: theme.textTheme.titleMedium?.copyWith(
               color: AppTheme.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 5),
-          const Text(
+          const SizedBox(height: 6),
+          Text(
             'Cancellation is available only while this request is still eligible to be cancelled.',
-            style: TextStyle(
+            style: theme.textTheme.bodyMedium?.copyWith(
               color: AppTheme.textSecondary,
-              fontSize: 11.5,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
+              height: 1.4,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: theme.colorScheme.error,
+              side: BorderSide(
+                color: theme.colorScheme.error.withValues(alpha: 0.35),
+              ),
+            ),
             onPressed: busy ? null : onCancel,
             icon: busy
                 ? const SizedBox(
@@ -607,7 +662,7 @@ class _CancelRequestCard extends StatelessWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.close_rounded),
-            label: Text(busy ? 'Cancelling...' : 'Cancel request'),
+            label: Text(busy ? 'Cancelling…' : 'Cancel request'),
           ),
         ],
       ),
