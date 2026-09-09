@@ -1,8 +1,10 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/widgets/premium_empty_state.dart';
@@ -14,8 +16,6 @@ import 'service_visual_registry.dart';
 
 const Color _ink = AppTheme.textPrimary;
 const Color _slate = AppTheme.textSecondary;
-const Color _border = AppTheme.border;
-const Color _primary = AppTheme.primary;
 
 class ServiceCatalogueScreen extends ConsumerStatefulWidget {
   const ServiceCatalogueScreen({
@@ -39,6 +39,7 @@ class ServiceCatalogueScreen extends ConsumerStatefulWidget {
 class _ServiceCatalogueScreenState
     extends ConsumerState<ServiceCatalogueScreen> {
   static const String _allCategory = 'All';
+  static const int _pageSize = 50;
 
   final TextEditingController _searchController = TextEditingController();
 
@@ -46,6 +47,7 @@ class _ServiceCatalogueScreenState
   String _query = '';
   int _start = 0;
   Timer? _debounce;
+
   void _search(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 300), () {
@@ -88,20 +90,23 @@ class _ServiceCatalogueScreenState
       key: OmcWidgetKeys.servicesScreen,
       child: servicesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => PremiumEmptyState(
-          icon: Icons.cloud_off_outlined,
-          title: 'Services unavailable',
-          message: serviceCatalogueErrorMessage(error),
-          actionLabel: _query.isNotEmpty || _selectedCategory != _allCategory
-              ? 'Clear filters'
-              : 'Retry',
-          onAction: () {
-            if (_query.isNotEmpty || _selectedCategory != _allCategory) {
-              _clearFilters();
-            } else {
-              ref.invalidate(pageProvider);
-            }
-          },
+        error: (error, _) => Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: PremiumEmptyState(
+            icon: Icons.cloud_off_outlined,
+            title: 'Services unavailable',
+            message: serviceCatalogueErrorMessage(error),
+            actionLabel: _query.isNotEmpty || _selectedCategory != _allCategory
+                ? 'Clear filters'
+                : 'Retry',
+            onAction: () {
+              if (_query.isNotEmpty || _selectedCategory != _allCategory) {
+                _clearFilters();
+              } else {
+                ref.invalidate(pageProvider);
+              }
+            },
+          ),
         ),
         data: (services) {
           final categories = <String>[
@@ -113,6 +118,8 @@ class _ServiceCatalogueScreenState
             }.toList()..sort(),
           ];
           final filteredServices = services;
+          final screenWidth = MediaQuery.sizeOf(context).width;
+          final pageInset = AppLayout.pageInsetFor(screenWidth);
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -123,34 +130,20 @@ class _ServiceCatalogueScreenState
               physics: const AlwaysScrollableScrollPhysics(
                 parent: BouncingScrollPhysics(),
               ),
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 122),
+              padding: EdgeInsets.fromLTRB(
+                pageInset,
+                AppSpacing.md,
+                pageInset,
+                122,
+              ),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               children: [
                 const _PageHeading(),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    TextButton(
-                      onPressed: _start == 0
-                          ? null
-                          : () => setState(
-                              () => _start = (_start - 50).clamp(0, _start),
-                            ),
-                      child: const Text('Previous'),
-                    ),
-                    Text('Page ${_start ~/ 50 + 1}'),
-                    TextButton(
-                      onPressed: pageAsync.value?.nextStart == null
-                          ? null
-                          : () => setState(
-                              () => _start = pageAsync.value!.nextStart!,
-                            ),
-                      child: const Text('Next'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                if (widget.assisted) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _AssistedContextBanner(customerName: widget.customerName),
+                ],
+                const SizedBox(height: AppSpacing.xl),
                 _SearchField(
                   controller: _searchController,
                   query: _query,
@@ -162,7 +155,7 @@ class _ServiceCatalogueScreenState
                   },
                   onFilterTap: () => _openFilterSheet(context, categories),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: AppSpacing.sm),
                 _CategoryStrip(
                   categories: categories,
                   selectedCategory: _selectedCategory,
@@ -171,13 +164,25 @@ class _ServiceCatalogueScreenState
                     _start = 0;
                   }),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: AppSpacing.xl),
                 _SectionHeader(
                   resultCount: filteredServices.length,
                   isFiltered:
                       _query.isNotEmpty || _selectedCategory != _allCategory,
                 ),
-                const SizedBox(height: 9),
+                const SizedBox(height: AppSpacing.sm),
+                _Pager(
+                  page: _start ~/ _pageSize + 1,
+                  canGoPrevious: _start > 0,
+                  canGoNext: pageAsync.value?.nextStart != null,
+                  onPrevious: () => setState(
+                    () => _start = (_start - _pageSize).clamp(0, _start),
+                  ),
+                  onNext: () => setState(
+                    () => _start = pageAsync.value!.nextStart!,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
                 if (services.isEmpty &&
                     _query.isEmpty &&
                     _selectedCategory == _allCategory)
@@ -197,37 +202,9 @@ class _ServiceCatalogueScreenState
                     onAction: _clearFilters,
                   )
                 else
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final width = constraints.maxWidth;
-                      final crossAxisCount = width >= 900
-                          ? 6
-                          : width >= 650
-                          ? 5
-                          : width >= 480
-                          ? 4
-                          : 3;
-
-                      return GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: filteredServices.length,
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: crossAxisCount,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                          mainAxisExtent: 114,
-                        ),
-                        itemBuilder: (context, index) {
-                          final service = filteredServices[index];
-
-                          return _ServiceIconTile(
-                            service: service,
-                            onOpen: () => _openService(service),
-                          );
-                        },
-                      );
-                    },
+                  _ServiceResults(
+                    services: filteredServices,
+                    onOpen: _openService,
                   ),
               ],
             ),
@@ -269,89 +246,74 @@ class _ServiceCatalogueScreenState
       context: context,
       useSafeArea: true,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      showDragHandle: true,
       builder: (sheetContext) {
-        return Container(
-          margin: const EdgeInsets.all(12),
-          padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: _border),
+        final theme = Theme.of(sheetContext);
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.90,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Align(
-                alignment: Alignment.center,
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: _border,
-                    borderRadius: BorderRadius.circular(999),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              0,
+              AppSpacing.lg,
+              AppSpacing.lg,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  header: true,
+                  child: Text(
+                    'Filter services',
+                    style: theme.textTheme.titleLarge,
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Filter services',
-                style: TextStyle(
-                  color: _ink,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 5),
-              const Text(
-                'Choose a service category.',
-                style: TextStyle(
-                  color: _slate,
-                  fontSize: 13,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Wrap(
-                    spacing: 9,
-                    runSpacing: 9,
-                    children: [
-                      for (final category in categories)
-                        _FilterPill(
-                          label: category == _allCategory
-                              ? 'All services'
-                              : _displayCategoryLabel(category),
-                          selected: _selectedCategory == category,
-                          onTap: () {
-                            setState(() {
-                              _selectedCategory = category;
-                              _start = 0;
-                            });
-                            Navigator.of(sheetContext).pop();
-                          },
-                        ),
-                    ],
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  'Choose a service category.',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-              ),
-              if (_selectedCategory != _allCategory) ...[
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () {
-                      setState(() => _selectedCategory = _allCategory);
-                      Navigator.of(sheetContext).pop();
-                    },
-                    child: const Text('Clear category filter'),
-                  ),
+                const SizedBox(height: AppSpacing.xl),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    for (final category in categories)
+                      _FilterPill(
+                        label: category == _allCategory
+                            ? 'All services'
+                            : _displayCategoryLabel(category),
+                        selected: _selectedCategory == category,
+                        onTap: () {
+                          setState(() {
+                            _selectedCategory = category;
+                            _start = 0;
+                          });
+                          Navigator.of(sheetContext).pop();
+                        },
+                      ),
+                  ],
                 ),
+                if (_selectedCategory != _allCategory) ...[
+                  const SizedBox(height: AppSpacing.xl),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        setState(() => _selectedCategory = _allCategory);
+                        Navigator.of(sheetContext).pop();
+                      },
+                      child: const Text('Clear category filter'),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         );
       },
@@ -364,30 +326,82 @@ class _PageHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    final theme = Theme.of(context);
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Services',
-          style: TextStyle(
-            color: _ink,
-            fontSize: 27,
-            height: 1.08,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.55,
+        Semantics(
+          header: true,
+          child: Text(
+            'Services',
+            style: theme.textTheme.headlineMedium?.copyWith(color: _ink),
           ),
         ),
-        SizedBox(height: 5),
+        const SizedBox(height: AppSpacing.xxs),
         Text(
           'Find the right service for your business.',
-          style: TextStyle(
-            color: _slate,
-            fontSize: 13.5,
-            height: 1.4,
-            fontWeight: FontWeight.w600,
-          ),
+          style: theme.textTheme.bodyMedium?.copyWith(color: _slate),
         ),
       ],
+    );
+  }
+}
+
+class _AssistedContextBanner extends StatelessWidget {
+  const _AssistedContextBanner({this.customerName});
+
+  final String? customerName;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final name = customerName?.trim();
+    final identity = name == null || name.isEmpty ? 'Selected customer' : name;
+
+    return Semantics(
+      container: true,
+      label: 'Assisted service selection for $identity',
+      excludeSemantics: true,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppTheme.infoSoft,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          border: Border.all(color: AppTheme.info.withValues(alpha: 0.20)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(
+              Icons.person_search_outlined,
+              color: AppTheme.info,
+              size: 24,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Assisted service selection',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: AppTheme.info,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    identity,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -411,17 +425,16 @@ class _SearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return TextField(
       controller: controller,
       onChanged: onChanged,
       textInputAction: TextInputAction.search,
+      style: theme.textTheme.bodyLarge,
       decoration: InputDecoration(
         hintText: 'Search services',
-        prefixIcon: const Icon(Icons.search_rounded, size: 21),
-        suffixIconConstraints: const BoxConstraints(
-          minWidth: 44,
-          minHeight: 44,
-        ),
+        prefixIcon: const Icon(Icons.search_rounded, size: 24),
+        suffixIconConstraints: const BoxConstraints(minHeight: 56),
         suffixIcon: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -429,30 +442,32 @@ class _SearchField extends StatelessWidget {
               IconButton(
                 tooltip: 'Clear search',
                 onPressed: onClear,
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.close_rounded, size: 19),
+                icon: const Icon(Icons.close_rounded, size: 24),
               ),
             IconButton(
-              tooltip: 'Filter services',
+              tooltip: hasActiveCategory
+                  ? 'Filter services, category filter active'
+                  : 'Filter services',
               onPressed: onFilterTap,
-              visualDensity: VisualDensity.compact,
               icon: Stack(
                 clipBehavior: Clip.none,
                 children: [
                   Icon(
                     Icons.tune_rounded,
-                    size: 20,
-                    color: hasActiveCategory ? AppTheme.primary : _slate,
+                    size: 24,
+                    color: hasActiveCategory
+                        ? theme.colorScheme.onPrimaryContainer
+                        : theme.colorScheme.onSurfaceVariant,
                   ),
                   if (hasActiveCategory)
                     Positioned(
-                      right: -2,
-                      top: -2,
+                      right: -3,
+                      top: -3,
                       child: Container(
-                        width: 7,
-                        height: 7,
-                        decoration: const BoxDecoration(
-                          color: AppTheme.primary,
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.onPrimaryContainer,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -460,24 +475,7 @@ class _SearchField extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 4),
           ],
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 15,
-          vertical: 13,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: _border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: _border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: _primary, width: 1.4),
         ),
       ),
     );
@@ -497,13 +495,16 @@ class _CategoryStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final stripHeight = textScale >= 1.5 ? 64.0 : AppTouchTarget.minimum;
+
     return SizedBox(
-      height: 34,
+      height: stripHeight,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: categories.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 7),
+        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
         itemBuilder: (context, index) {
           final category = categories[index];
 
@@ -525,47 +526,62 @@ class _ServiceFilterChip extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
-    this.compact = true,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(11);
+    final theme = Theme.of(context);
+    final radius = BorderRadius.circular(AppRadius.pill);
+    final foreground = selected
+        ? theme.colorScheme.onPrimaryContainer
+        : theme.colorScheme.onSurfaceVariant;
 
-    return Material(
-      color: selected ? AppTheme.primary.withValues(alpha: 0.10) : Colors.white,
-      borderRadius: radius,
-      child: InkWell(
-        onTap: onTap,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      excludeSemantics: true,
+      child: Material(
+        color: selected
+            ? theme.colorScheme.primaryContainer
+            : theme.colorScheme.surface,
         borderRadius: radius,
-        child: Container(
-          alignment: Alignment.center,
-          constraints: BoxConstraints(minHeight: compact ? 34 : 40),
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 11 : 14,
-            vertical: compact ? 7 : 10,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            border: Border.all(
-              color: selected
-                  ? AppTheme.primary.withValues(alpha: 0.32)
-                  : _border,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: AppTouchTarget.minimum),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
             ),
-          ),
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: selected ? AppTheme.primary : const Color(0xFF686D76),
-              fontSize: compact ? 11 : 11.5,
-              fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+            decoration: BoxDecoration(
+              borderRadius: radius,
+              border: Border.all(
+                color: selected
+                    ? foreground.withValues(alpha: 0.32)
+                    : theme.colorScheme.outlineVariant,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (selected) ...[
+                  Icon(Icons.check_rounded, size: 18, color: foreground),
+                  const SizedBox(width: AppSpacing.xs),
+                ],
+                Text(
+                  label,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: foreground,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -582,92 +598,217 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final countLabel = resultCount == 1
         ? '1 ${isFiltered ? 'result' : 'service'}'
         : '$resultCount ${isFiltered ? 'results' : 'services'}';
 
-    return Row(
-      children: [
-        const Expanded(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final stacked = constraints.maxWidth < 320 || textScale >= 1.5;
+        final title = Semantics(
+          header: true,
           child: Text(
             'Available services',
-            style: TextStyle(
-              color: _ink,
-              fontSize: 16.5,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.15,
-            ),
+            style: theme.textTheme.titleLarge?.copyWith(color: _ink),
           ),
-        ),
-        Text(
+        );
+        final count = Text(
           countLabel,
-          style: const TextStyle(
-            color: _slate,
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
+          style: theme.textTheme.bodyMedium?.copyWith(color: _slate),
+        );
+
+        if (stacked) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              title,
+              const SizedBox(height: AppSpacing.xxs),
+              count,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(child: title),
+            const SizedBox(width: AppSpacing.sm),
+            count,
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _Pager extends StatelessWidget {
+  const _Pager({
+    required this.page,
+    required this.canGoPrevious,
+    required this.canGoNext,
+    required this.onPrevious,
+    required this.onNext,
+  });
+
+  final int page;
+  final bool canGoPrevious;
+  final bool canGoNext;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xxs,
+      children: [
+        TextButton(
+          onPressed: canGoPrevious ? onPrevious : null,
+          child: const Text('Previous'),
+        ),
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: AppTouchTarget.minimum),
+          child: Center(
+            widthFactor: 1,
+            child: Text('Page $page', style: theme.textTheme.bodyMedium),
           ),
         ),
+        TextButton(onPressed: canGoNext ? onNext : null, child: const Text('Next')),
       ],
     );
   }
 }
 
-class _ServiceIconTile extends StatelessWidget {
-  const _ServiceIconTile({required this.service, required this.onOpen});
+class _ServiceResults extends StatelessWidget {
+  const _ServiceResults({required this.services, required this.onOpen});
+
+  final List<ServiceItem> services;
+  final ValueChanged<ServiceItem> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final width = constraints.maxWidth;
+        final oneColumn = width < 300 || textScale >= 1.5;
+        var columns = 2;
+        if (oneColumn) {
+          columns = 1;
+        } else if (width >= 600 && textScale < 1.3) {
+          final candidateWidth = (width - (AppSpacing.sm * 2)) / 3;
+          if (candidateWidth >= 176) columns = 3;
+        }
+        final gap = AppSpacing.sm;
+        final itemWidth = (width - gap * (columns - 1)) / columns;
+
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final service in services)
+              SizedBox(
+                width: itemWidth,
+                child: _ServiceResultCard(
+                  service: service,
+                  listMode: columns == 1,
+                  onOpen: () => onOpen(service),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ServiceResultCard extends StatelessWidget {
+  const _ServiceResultCard({
+    required this.service,
+    required this.listMode,
+    required this.onOpen,
+  });
 
   final ServiceItem service;
+  final bool listMode;
   final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final visual = serviceVisualFor(service);
+    final radius = BorderRadius.circular(AppRadius.card);
+
+    final icon = ExcludeSemantics(
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: visual.color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(AppRadius.control),
+        ),
+        alignment: Alignment.center,
+        child: Icon(visual.icon, color: visual.color, size: 24),
+      ),
+    );
 
     return Semantics(
       button: true,
       label: service.title,
       excludeSemantics: true,
       child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
+        color: theme.colorScheme.surface,
+        borderRadius: radius,
         child: InkWell(
           onTap: onOpen,
-          borderRadius: BorderRadius.circular(16),
-          splashColor: visual.color.withValues(alpha: 0.07),
-          highlightColor: Colors.transparent,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: visual.color.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: visual.color.withValues(alpha: 0.16),
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(visual.icon, color: visual.color, size: 30),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  service.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: _ink,
-                    fontSize: 12.25,
-                    height: 1.18,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.1,
-                  ),
-                ),
-              ],
+          borderRadius: radius,
+          child: Container(
+            constraints: BoxConstraints(minHeight: listMode ? 72 : 112),
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              borderRadius: radius,
+              border: Border.all(color: theme.colorScheme.outlineVariant),
             ),
+            child: listMode
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      icon,
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          service.title,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: _ink,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: theme.colorScheme.onSurfaceVariant,
+                        size: 24,
+                      ),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      icon,
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        service.title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: _ink,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),
@@ -692,42 +833,12 @@ class _ServiceListEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _border),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 28, color: _slate),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: const TextStyle(
-              color: _ink,
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _slate,
-              fontSize: 12.5,
-              height: 1.45,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          if (actionLabel != null && onAction != null) ...[
-            const SizedBox(height: 14),
-            OutlinedButton(onPressed: onAction, child: Text(actionLabel!)),
-          ],
-        ],
-      ),
+    return PremiumEmptyState(
+      icon: icon,
+      title: title,
+      message: message,
+      actionLabel: actionLabel,
+      onAction: onAction,
     );
   }
 }
@@ -749,7 +860,6 @@ class _FilterPill extends StatelessWidget {
       label: label,
       selected: selected,
       onTap: onTap,
-      compact: false,
     );
   }
 }
