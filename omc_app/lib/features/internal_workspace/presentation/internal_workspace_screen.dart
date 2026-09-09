@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
@@ -84,58 +85,15 @@ class _WorkspaceContent extends ConsumerWidget {
             }
           },
         ),
-        if (focus.canShowCustomers && focus.canShowServiceCases) ...[
-          const SizedBox(height: 16),
-          _CustomerSearchCard(
-            onSearch: (value) {
-              final query = value.trim();
-              if (query.isEmpty) return;
-              ref
-                  .read(internalServiceCaseFiltersProvider.notifier)
-                  .setFilters(InternalServiceCaseFilters(search: query));
-              context.go('/internal-workspace/service-cases');
-            },
-          ),
-        ],
-        const SizedBox(height: 18),
-        queueAsync == null
-            ? _OverviewCard(
-                focus: focus,
-                summary: summary,
-                cases: const [],
-                queueUnavailable: true,
-              )
-            : queueAsync.when(
-                loading: () => _OverviewCard(
-                  focus: focus,
-                  summary: summary,
-                  cases: const [],
-                  queueUnavailable: true,
-                ),
-                error: (_, _) => _OverviewCard(
-                  focus: focus,
-                  summary: summary,
-                  cases: const [],
-                  queueUnavailable: true,
-                ),
-                data: (queue) => _OverviewCard(
-                  focus: focus,
-                  summary: summary,
-                  cases: queue.cases,
-                ),
-              ),
-        if (focus.showServicePerformance) ...[
-          const SizedBox(height: 16),
-          _ServicePerformanceCard(summary: summary),
-        ],
         if (focus.canShowServiceCases) ...[
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           _SectionHeader(
-            title: focus.priorityTitle,
+            title: 'Your next work',
+            supporting: focus.priorityTitle,
             actionLabel: 'View all',
             onAction: () => context.go('/internal-workspace/service-cases'),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           queueAsync!.when(
             loading: () => const _PriorityLoading(),
             error: (error, _) => _QueueUnavailable(
@@ -151,8 +109,11 @@ class _WorkspaceContent extends ConsumerWidget {
             ),
           ),
         ],
-        const SizedBox(height: 24),
-        const _SectionHeader(title: 'Work queues'),
+        const SizedBox(height: 28),
+        const _SectionHeader(
+          title: 'Work queues',
+          supporting: 'Open the queue that owns the next operational step.',
+        ),
         const SizedBox(height: 12),
         queueAsync == null
             ? _WorkQueues(
@@ -180,10 +141,73 @@ class _WorkspaceContent extends ConsumerWidget {
                   cases: queue.cases,
                 ),
               ),
-        const SizedBox(height: 24),
-        const _SectionHeader(title: 'Quick actions'),
+        if (focus.canShowCustomers && focus.canShowServiceCases) ...[
+          const SizedBox(height: 28),
+          const _SectionHeader(
+            title: 'Find customer work',
+            supporting:
+                'Search the existing scoped service-case queue by customer or case.',
+          ),
+          const SizedBox(height: 12),
+          _CustomerSearchCard(
+            onSearch: (value) {
+              final query = value.trim();
+              if (query.isEmpty) return;
+              ref
+                  .read(internalServiceCaseFiltersProvider.notifier)
+                  .setFilters(InternalServiceCaseFilters(search: query));
+              context.go('/internal-workspace/service-cases');
+            },
+          ),
+        ],
+        const SizedBox(height: 28),
+        const _SectionHeader(
+          title: 'Workspace overview',
+          supporting: 'Secondary totals for your current capability scope.',
+        ),
+        const SizedBox(height: 12),
+        queueAsync == null
+            ? _OverviewCard(
+                focus: focus,
+                summary: summary,
+                cases: const [],
+                queueUnavailable: true,
+              )
+            : queueAsync.when(
+                loading: () => _OverviewCard(
+                  focus: focus,
+                  summary: summary,
+                  cases: const [],
+                  queueUnavailable: true,
+                ),
+                error: (_, _) => _OverviewCard(
+                  focus: focus,
+                  summary: summary,
+                  cases: const [],
+                  queueUnavailable: true,
+                ),
+                data: (queue) => _OverviewCard(
+                  focus: focus,
+                  summary: summary,
+                  cases: queue.cases,
+                ),
+              ),
+        const SizedBox(height: 28),
+        const _SectionHeader(
+          title: 'Quick actions',
+          supporting: 'Only actions allowed by your current capabilities.',
+        ),
         const SizedBox(height: 12),
         _QuickActions(focus: focus),
+        if (focus.showServicePerformance) ...[
+          const SizedBox(height: 28),
+          const _SectionHeader(
+            title: 'Service performance',
+            supporting: 'Secondary progress across your assigned services.',
+          ),
+          const SizedBox(height: 12),
+          _ServicePerformanceCard(summary: summary),
+        ],
       ],
     );
   }
@@ -197,58 +221,50 @@ class _WorkspaceHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                focus.title,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 30,
-                  height: 1.05,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.7,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                focus.subtitle,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13.5,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        Material(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          child: InkWell(
-            onTap: onRefresh,
-            borderRadius: BorderRadius.circular(15),
-            child: Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: AppTheme.border),
-              ),
-              child: const Icon(
-                Icons.refresh_rounded,
-                color: AppTheme.textPrimary,
-              ),
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stack = constraints.maxWidth < 340 || textScale > 1.35;
+        final identity = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              focus.title,
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
-          ),
-        ),
-      ],
+            const SizedBox(height: 6),
+            Text(
+              focus.subtitle,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+          ],
+        );
+        final refresh = IconButton.outlined(
+          tooltip: 'Refresh workspace',
+          onPressed: onRefresh,
+          icon: const Icon(Icons.refresh_rounded),
+        );
+
+        if (stack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              identity,
+              const SizedBox(height: 14),
+              Align(alignment: Alignment.centerLeft, child: refresh),
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: identity),
+            const SizedBox(width: 12),
+            refresh,
+          ],
+        );
+      },
     );
   }
 }
@@ -279,20 +295,18 @@ class _CustomerSearchCardState extends State<_CustomerSearchCard> {
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      child: TextField(
-        controller: _controller,
-        textInputAction: TextInputAction.search,
-        onSubmitted: widget.onSearch,
-        decoration: InputDecoration(
-          hintText: 'Search customer or service case...',
-          prefixIcon: const Icon(Icons.search_rounded),
-          suffixIcon: IconButton(
-            tooltip: 'Search cases',
-            onPressed: () => widget.onSearch(_controller.text),
-            icon: const Icon(Icons.arrow_forward_rounded),
-          ),
+    return TextField(
+      controller: _controller,
+      textInputAction: TextInputAction.search,
+      onSubmitted: widget.onSearch,
+      decoration: InputDecoration(
+        labelText: 'Search customer or service case',
+        hintText: 'Customer name, ID or case reference',
+        prefixIcon: const Icon(Icons.search_rounded),
+        suffixIcon: IconButton(
+          tooltip: 'Search cases',
+          onPressed: () => widget.onSearch(_controller.text),
+          icon: const Icon(Icons.arrow_forward_rounded),
         ),
       ),
     );
@@ -327,15 +341,12 @@ class _OverviewCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Text(
                   focus.overviewTitle,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
               if (focus.canShowServiceCases && queueUnavailable)
@@ -343,28 +354,47 @@ class _OverviewCard extends StatelessWidget {
                   message: 'Case queue is temporarily unavailable',
                   child: Icon(
                     Icons.cloud_off_outlined,
-                    size: 18,
+                    size: 20,
                     color: AppTheme.textSecondary,
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 15),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: metrics.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 2.35,
-            ),
-            itemBuilder: (context, index) =>
-                _OverviewMetricCard(metric: metrics[index]),
-          ),
+          const SizedBox(height: 14),
+          _AdaptiveMetricWrap(metrics: metrics),
         ],
       ),
+    );
+  }
+}
+
+class _AdaptiveMetricWrap extends StatelessWidget {
+  const _AdaptiveMetricWrap({required this.metrics});
+
+  final List<_OverviewMetric> metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final single = constraints.maxWidth < 300 || textScale >= 1.5;
+        final itemWidth = single
+            ? constraints.maxWidth
+            : (constraints.maxWidth - 10) / 2;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: metrics
+              .map(
+                (metric) => SizedBox(
+                  width: itemWidth,
+                  child: _OverviewMetricCard(metric: metric),
+                ),
+              )
+              .toList(growable: false),
+        );
+      },
     );
   }
 }
@@ -377,40 +407,30 @@ class _OverviewMetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      constraints: const BoxConstraints(minHeight: 72),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppTheme.cardSoft,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         border: Border.all(color: AppTheme.border),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(metric.icon, size: 20, color: metric.color),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   metric.value,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 20,
-                    height: 1,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   metric.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
             ),
@@ -422,30 +442,57 @@ class _OverviewMetricCard extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, this.actionLabel, this.onAction});
+  const _SectionHeader({
+    required this.title,
+    this.supporting,
+    this.actionLabel,
+    this.onAction,
+  });
 
   final String title;
+  final String? supporting;
   final String? actionLabel;
   final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final titleBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 19,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.2,
-            ),
-          ),
-        ),
-        if (actionLabel != null && onAction != null)
-          TextButton(onPressed: onAction, child: Text(actionLabel!)),
+        Text(title, style: Theme.of(context).textTheme.titleLarge),
+        if (supporting?.trim().isNotEmpty == true) ...[
+          const SizedBox(height: 4),
+          Text(supporting!, style: Theme.of(context).textTheme.bodyMedium),
+        ],
       ],
+    );
+
+    if (actionLabel == null || onAction == null) return titleBlock;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stack =
+            constraints.maxWidth < 320 ||
+            MediaQuery.textScalerOf(context).scale(1) > 1.3;
+        if (stack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              titleBlock,
+              const SizedBox(height: 4),
+              TextButton(onPressed: onAction, child: Text(actionLabel!)),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: titleBlock),
+            const SizedBox(width: 8),
+            TextButton(onPressed: onAction, child: Text(actionLabel!)),
+          ],
+        );
+      },
     );
   }
 }
@@ -459,18 +506,20 @@ class _PriorityPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
-      return const PremiumCard(
+      return PremiumCard(
+        padding: const EdgeInsets.all(16),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.check_circle_outline_rounded, color: AppTheme.success),
-            SizedBox(width: 12),
+            const Icon(
+              Icons.check_circle_outline_rounded,
+              color: AppTheme.success,
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 'No service cases need attention in your current scope.',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(context).textTheme.bodyLarge,
               ),
             ),
           ],
@@ -502,16 +551,17 @@ class _PriorityCaseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       onTap: () => _openCase(context, item),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: reason.color.withValues(alpha: 0.09),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(AppRadius.control),
             ),
             child: Icon(reason.icon, color: reason.color, size: 20),
           ),
@@ -521,35 +571,34 @@ class _PriorityCaseCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${item.displayCustomer} · ${item.displayService}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  item.displayCustomer,
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  item.id,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  item.displayService,
+                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
-                const SizedBox(height: 7),
-                Text(
-                  '${reason.label}${_waitingLabel(item)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: reason.color,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
+                const SizedBox(height: 6),
+                SelectableText(
+                  item.id,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(reason.icon, color: reason.color, size: 18),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        '${reason.label}${_waitingLabel(item)}',
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: reason.color,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -574,25 +623,17 @@ class _QueueUnavailable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
+      padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'Case queue unavailable',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.w900,
-            ),
+            style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 6),
-          Text(
-            message,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 10),
+          Text(message, style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded),
@@ -611,9 +652,9 @@ class _PriorityLoading extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Column(
       children: [
-        _LoadingPanel(height: 76),
+        _LoadingPanel(height: 110),
         SizedBox(height: 10),
-        _LoadingPanel(height: 76),
+        _LoadingPanel(height: 110),
       ],
     );
   }
@@ -682,88 +723,85 @@ class _WorkQueues extends StatelessWidget {
     ];
 
     if (items.isEmpty) {
-      return const PremiumCard(
+      return PremiumCard(
+        padding: const EdgeInsets.all(16),
         child: Text(
           'No additional work queues are assigned to this account.',
-          style: TextStyle(
-            color: AppTheme.textSecondary,
-            fontWeight: FontWeight.w600,
-          ),
+          style: Theme.of(context).textTheme.bodyLarge,
         ),
       );
     }
 
-    return GridView.builder(
-      itemCount: items.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 1.72,
+    return PremiumCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (var index = 0; index < items.length; index++) ...[
+            _WorkQueueRow(item: items[index]),
+            if (index != items.length - 1) const Divider(height: 1),
+          ],
+        ],
       ),
-      itemBuilder: (context, index) => _WorkQueueCard(item: items[index]),
     );
   }
 }
 
-class _WorkQueueCard extends StatelessWidget {
-  const _WorkQueueCard({required this.item});
+class _WorkQueueRow extends StatelessWidget {
+  const _WorkQueueRow({required this.item});
 
   final _QueueItem item;
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(12),
-      onTap: () => context.go(item.route),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: AppTheme.primarySoft,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(item.icon, color: AppTheme.primary, size: 19),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+    return Semantics(
+      button: true,
+      label: '${item.label}, ${item.value}. Open queue.',
+      child: InkWell(
+        onTap: () => context.go(item.route),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 64),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  item.value,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 20,
-                    height: 1,
-                    fontWeight: FontWeight.w900,
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppTheme.cardSoft,
+                    borderRadius: BorderRadius.circular(AppRadius.control),
+                  ),
+                  child: Icon(item.icon, color: AppTheme.textSecondary, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.label,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        item.value == '—'
+                            ? 'Queue count unavailable'
+                            : '${item.value} in scope',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  item.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                  ),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppTheme.textSecondary,
                 ),
               ],
             ),
           ),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: AppTheme.textSecondary,
-            size: 18,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -833,77 +871,74 @@ class _QuickActions extends ConsumerWidget {
     ];
 
     if (actions.isEmpty) {
-      return const PremiumCard(
+      return PremiumCard(
+        padding: const EdgeInsets.all(16),
         child: Text(
           'No additional actions are available for this workspace.',
-          style: TextStyle(
-            color: AppTheme.textSecondary,
-            fontWeight: FontWeight.w600,
-          ),
+          style: Theme.of(context).textTheme.bodyLarge,
         ),
       );
     }
 
-    return GridView.builder(
-      itemCount: actions.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 1.05,
+    return PremiumCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (var index = 0; index < actions.length; index++) ...[
+            _QuickActionRow(action: actions[index]),
+            if (index != actions.length - 1) const Divider(height: 1),
+          ],
+        ],
       ),
-      itemBuilder: (context, index) => _QuickActionCard(action: actions[index]),
     );
   }
 }
 
-class _QuickActionCard extends StatelessWidget {
-  const _QuickActionCard({required this.action});
+class _QuickActionRow extends StatelessWidget {
+  const _QuickActionRow({required this.action});
 
   final _QuickAction action;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+    return Semantics(
+      button: true,
       child: InkWell(
         onTap: action.onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.border),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppTheme.primarySoft,
-                  borderRadius: BorderRadius.circular(13),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 64),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppTheme.cardSoft,
+                    borderRadius: BorderRadius.circular(AppRadius.control),
+                  ),
+                  child: Icon(
+                    action.icon,
+                    size: 20,
+                    color: AppTheme.textSecondary,
+                  ),
                 ),
-                child: Icon(action.icon, size: 21, color: AppTheme.primary),
-              ),
-              const SizedBox(height: 9),
-              Text(
-                action.label,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 11,
-                  height: 1.15,
-                  fontWeight: FontWeight.w800,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    action.label,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppTheme.textSecondary,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -925,48 +960,34 @@ class _ServicePerformanceCard extends StatelessWidget {
         : ((completed / assigned) * 100).round().clamp(0, 100);
 
     return PremiumCard(
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'My service performance',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
+            style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 14),
-          Row(
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
             children: [
-              Expanded(
-                child: _PerformanceMetric(
-                  label: 'Active',
-                  value: summary.myActiveServices,
-                ),
+              _PerformanceMetric(
+                label: 'Active',
+                value: summary.myActiveServices,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _PerformanceMetric(label: 'Completed', value: completed),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _PerformanceMetric(
-                  label: 'This month',
-                  value: summary.myCompletedThisMonth,
-                ),
+              _PerformanceMetric(label: 'Completed', value: completed),
+              _PerformanceMetric(
+                label: 'This month',
+                value: summary.myCompletedThisMonth,
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Text(
             '$completionRate% completion rate across $assigned assigned services',
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12.5,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
-            ),
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
         ],
       ),
@@ -983,34 +1004,20 @@ class _PerformanceMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      constraints: const BoxConstraints(minWidth: 120),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: AppTheme.cardSoft,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         border: Border.all(color: AppTheme.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            '$value',
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 19,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          Text('$value', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 3),
+          Text(label, style: Theme.of(context).textTheme.bodyMedium),
         ],
       ),
     );
@@ -1050,15 +1057,13 @@ class _WorkspaceLoading extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: _pagePadding,
       children: const [
-        _LoadingPanel(height: 82),
-        SizedBox(height: 16),
-        _LoadingPanel(height: 78),
-        SizedBox(height: 18),
-        _LoadingPanel(height: 178),
+        _LoadingPanel(height: 92),
         SizedBox(height: 24),
-        _LoadingPanel(height: 76),
-        SizedBox(height: 10),
-        _LoadingPanel(height: 76),
+        _LoadingPanel(height: 120),
+        SizedBox(height: 12),
+        _LoadingPanel(height: 120),
+        SizedBox(height: 24),
+        _LoadingPanel(height: 220),
       ],
     );
   }
@@ -1074,8 +1079,8 @@ class _LoadingPanel extends StatelessWidget {
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: AppTheme.primarySoft,
-        borderRadius: BorderRadius.circular(22),
+        color: AppTheme.processingSoft,
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
     );
   }
