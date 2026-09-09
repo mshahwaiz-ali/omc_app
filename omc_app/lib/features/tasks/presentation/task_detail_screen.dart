@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/app_state.dart';
-import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
 import '../data/task_item.dart';
@@ -31,15 +31,13 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     final capabilities = ref.watch(authControllerProvider).capabilities;
 
     return Scaffold(
-      backgroundColor: OmcPremium.canvas,
-      appBar: AppBar(title: const Text('Task')),
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(title: const Text('Task details')),
       body: SafeArea(
         top: false,
         child: taskAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(20),
+          error: (error, _) => _TaskListView(
             children: [
               AppErrorState.fromError(
                 error: error,
@@ -52,9 +50,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
             ],
           ),
           data: (task) {
-            if (task == null) {
-              return const _MissingTask();
-            }
+            if (task == null) return const _MissingTask();
 
             final canOpenLinkedCase =
                 capabilities.canViewAnyServiceCase &&
@@ -66,64 +62,56 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                 _invalidateTask();
                 await ref.read(taskDetailProvider(widget.taskId).future);
               },
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+              child: _TaskListView(
                 children: [
                   _TaskHero(task: task),
-                  const SizedBox(height: 14),
-                  const _ReadOnlyNotice(),
-                  const SizedBox(height: 14),
-                  _TaskDetails(task: task),
                   if (task.description?.trim().isNotEmpty == true) ...[
-                    const SizedBox(height: 14),
-                    PremiumCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Work notes',
-                            style: TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            task.description!.trim(),
-                            style: const TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 12.5,
-                              height: 1.45,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _DescriptionCard(description: task.description!.trim()),
+                  ],
+                  const SizedBox(height: AppSpacing.lg),
+                  _AssignmentCard(task: task),
+                  if (task.caseReference?.trim().isNotEmpty == true) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    _LinkedCaseCard(
+                      caseReference: task.caseReference!.trim(),
+                      canOpen: canOpenLinkedCase,
                     ),
                   ],
-                  if (canOpenLinkedCase) ...[
-                    const SizedBox(height: 14),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        context.push(
-                          '/my-services/'
-                          '${Uri.encodeComponent(task.caseReference!.trim())}',
-                        );
-                      },
-                      icon: const Icon(Icons.folder_open_outlined),
-                      label: const Text('Open linked service case'),
-                    ),
-                  ],
+                  const SizedBox(height: AppSpacing.lg),
+                  _TaskDetails(task: task),
                 ],
               ),
             );
           },
         ),
       ),
+    );
+  }
+}
+
+class _TaskListView extends StatelessWidget {
+  const _TaskListView({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inset = AppLayout.pageInsetFor(constraints.maxWidth);
+        final horizontal = constraints.maxWidth >
+                AppLayout.generalMaxWidth + inset * 2
+            ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
+            : inset;
+        return ListView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          padding: EdgeInsets.fromLTRB(horizontal, 16, horizontal, 80),
+          children: children,
+        );
+      },
     );
   }
 }
@@ -135,67 +123,72 @@ class _TaskHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _statusColor(task.status);
+    final (statusColor, statusBackground) = _statusPalette(task.status);
+    final due = task.dueDateLabel.trim();
 
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Text(task.title, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            task.id,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Icon(Icons.task_alt_rounded, color: color, size: 24),
+              _StatusBadge(
+                label: task.status,
+                color: statusColor,
+                background: statusBackground,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      task.title,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 19,
-                        height: 1.18,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      task.id,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
+              _StatusBadge(
+                label: task.priority,
+                color: AppTheme.processing,
+                background: AppTheme.processingSoft,
               ),
+              if (due.isNotEmpty)
+                _StatusBadge(
+                  label: 'Due $due',
+                  color: _isOverdue(task) ? AppTheme.danger : AppTheme.processing,
+                  background:
+                      _isOverdue(task) ? AppTheme.dangerSoft : AppTheme.processingSoft,
+                ),
             ],
           ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 7,
-            runSpacing: 7,
-            children: [
-              _Pill(label: task.status, color: color),
-              _Pill(label: task.priority, color: OmcPremium.tasks),
-              const _Pill(label: 'Read-only', color: OmcPremium.system),
-              if (task.assignedTo.trim().isNotEmpty)
-                _Pill(
-                  label: 'Assigned: ${task.assignedTo}',
-                  color: OmcPremium.track,
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: AppTheme.cardSoft,
+              borderRadius: BorderRadius.circular(AppRadius.control),
+              border: Border.all(color: AppTheme.border),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.visibility_outlined,
+                  size: 20,
+                  color: AppTheme.textSecondary,
                 ),
-            ],
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Text(
+                    'Read-only ERPNext Task. Task updates are managed in ERPNext.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -203,43 +196,87 @@ class _TaskHero extends StatelessWidget {
   }
 }
 
-class _ReadOnlyNotice extends StatelessWidget {
-  const _ReadOnlyNotice();
+class _DescriptionCard extends StatelessWidget {
+  const _DescriptionCard({required this.description});
+
+  final String description;
 
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      child: Row(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.visibility_outlined, color: AppTheme.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'Read-only tracking',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'This screen reflects ERPNext Task data. '
-                  'Task updates are managed in ERPNext.',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    height: 1.4,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+          Text('Description', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.xs),
+          Text(description, style: Theme.of(context).textTheme.bodyLarge),
+        ],
+      ),
+    );
+  }
+}
+
+class _AssignmentCard extends StatelessWidget {
+  const _AssignmentCard({required this.task});
+
+  final TaskItem task;
+
+  @override
+  Widget build(BuildContext context) {
+    final assigned = task.assignedTo.trim().isEmpty
+        ? 'Unassigned'
+        : task.assignedTo.trim();
+    final rows = <(String, String)>[
+      ('Assigned to', assigned),
+      if (task.customerName?.trim().isNotEmpty == true)
+        ('Customer', task.customerName!.trim()),
+      if (task.taskType?.trim().isNotEmpty == true)
+        ('Task type', task.taskType!.trim()),
+    ];
+
+    return _DetailCard(title: 'Assignment', rows: rows);
+  }
+}
+
+class _LinkedCaseCard extends StatelessWidget {
+  const _LinkedCaseCard({required this.caseReference, required this.canOpen});
+
+  final String caseReference;
+  final bool canOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Linked service case',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
+          const SizedBox(height: AppSpacing.xs),
+          SelectableText(
+            caseReference,
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          if (canOpen)
+            OutlinedButton.icon(
+              onPressed: () => context.push(
+                '/my-services/${Uri.encodeComponent(caseReference)}',
+              ),
+              icon: const Icon(Icons.folder_open_outlined),
+              label: const Text('Open linked service case'),
+            )
+          else
+            Text(
+              'This task does not grant access to open the linked service case.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+            ),
         ],
       ),
     );
@@ -259,14 +296,6 @@ class _TaskDetails extends StatelessWidget {
         ('Workflow state', task.workflowState),
       if (task.operationStatus.trim().isNotEmpty)
         ('Operation status', task.operationStatus),
-      if (task.customerName?.trim().isNotEmpty == true)
-        ('Customer', task.customerName!.trim()),
-      if (task.taskType?.trim().isNotEmpty == true)
-        ('Task type', task.taskType!.trim()),
-      (
-        'Assigned to',
-        task.assignedTo.trim().isEmpty ? 'Unassigned' : task.assignedTo,
-      ),
       if (task.source?.trim().isNotEmpty == true)
         ('Source', task.source!.trim()),
       if (task.company?.trim().isNotEmpty == true)
@@ -287,22 +316,32 @@ class _TaskDetails extends StatelessWidget {
         ('Service case', task.serviceRequest!.trim()),
     ];
 
+    return _DetailCard(title: 'Record details', rows: rows);
+  }
+}
+
+class _DetailCard extends StatelessWidget {
+  const _DetailCard({required this.title, required this.rows});
+
+  final String title;
+  final List<(String, String)> rows;
+
+  @override
+  Widget build(BuildContext context) {
     return PremiumCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Task details',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 12),
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.sm),
           for (var index = 0; index < rows.length; index++) ...[
             _DetailRow(label: rows[index].$1, value: rows[index].$2),
-            if (index != rows.length - 1) const Divider(height: 18),
+            if (index != rows.length - 1)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                child: Divider(height: 1),
+              ),
           ],
         ],
       ),
@@ -311,9 +350,7 @@ class _TaskDetails extends StatelessWidget {
 }
 
 String _progressLabel(double value) {
-  if (value == value.roundToDouble()) {
-    return '${value.toInt()}%';
-  }
+  if (value == value.roundToDouble()) return '${value.toInt()}%';
   return '${value.toStringAsFixed(1)}%';
 }
 
@@ -325,58 +362,70 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 102,
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stack = constraints.maxWidth < 420 || textScale >= 1.5;
+        final labelWidget = Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
           ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-      ],
+        );
+        final valueWidget = SelectableText(
+          value,
+          style: Theme.of(context).textTheme.bodyMedium,
+        );
+
+        if (stack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              labelWidget,
+              const SizedBox(height: AppSpacing.xxs),
+              valueWidget,
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: 140, child: labelWidget),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(child: valueWidget),
+          ],
+        );
+      },
     );
   }
 }
 
-class _Pill extends StatelessWidget {
-  const _Pill({required this.label, required this.color});
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({
+    required this.label,
+    required this.color,
+    required this.background,
+  });
 
   final String label;
   final Color color;
+  final Color background;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.13)),
+        color: background,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w900,
-        ),
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(color: color),
       ),
     );
   }
@@ -389,31 +438,39 @@ class _MissingTask extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Center(
       child: Padding(
-        padding: EdgeInsets.all(24),
+        padding: EdgeInsets.all(AppSpacing.xl),
         child: Text(
           'This task is no longer available.',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppTheme.textSecondary,
-            fontWeight: FontWeight.w700,
-          ),
         ),
       ),
     );
   }
 }
 
-Color _statusColor(String status) {
+(Color, Color) _statusPalette(String status) {
   switch (status.trim().toLowerCase()) {
     case 'completed':
-      return OmcPremium.success;
+      return (AppTheme.success, AppTheme.successSoft);
     case 'cancelled':
-      return OmcPremium.system;
+      return (AppTheme.processing, AppTheme.processingSoft);
     case 'working':
-      return OmcPremium.track;
+      return (AppTheme.info, AppTheme.infoSoft);
     case 'overdue':
-      return OmcPremium.danger;
+      return (AppTheme.danger, AppTheme.dangerSoft);
     default:
-      return OmcPremium.tasks;
+      return (AppTheme.processing, AppTheme.processingSoft);
   }
+}
+
+bool _isOverdue(TaskItem task) {
+  final status = task.status.trim().toLowerCase().replaceAll('_', ' ');
+  if (status == 'overdue') return true;
+  if (status == 'completed' || status == 'cancelled') return false;
+  final parsed = DateTime.tryParse(task.dueDateLabel.trim());
+  if (parsed == null) return false;
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final due = DateTime(parsed.year, parsed.month, parsed.day);
+  return due.isBefore(today);
 }
