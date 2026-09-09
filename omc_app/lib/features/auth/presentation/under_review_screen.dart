@@ -5,11 +5,11 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/config/support_config.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
+import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../application/auth_controller.dart';
 import '../application/auth_state.dart';
-import '../../../core/resilience/app_failure.dart';
 
 class UnderReviewScreen extends ConsumerStatefulWidget {
   const UnderReviewScreen({super.key});
@@ -50,8 +50,7 @@ class _UnderReviewScreenState extends ConsumerState<UnderReviewScreen> {
 
     setState(() {
       _refreshing = false;
-      _statusMessage =
-          'Your application is still under review. We will notify you after approval.';
+      _statusMessage = 'Your application is still under review.';
     });
   }
 
@@ -82,51 +81,53 @@ class _UnderReviewScreenState extends ConsumerState<UnderReviewScreen> {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      useSafeArea: true,
+      isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 8, 22, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Contact OMC support',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 14),
-              SelectableText(
-                SupportConfig.email,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 10),
-              SelectableText(
-                SupportConfig.phoneNumber,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                SupportConfig.businessHours,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
+      builder: (sheetContext) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Contact OMC support',
+              style: Theme.of(sheetContext).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Email',
+              style: Theme.of(sheetContext).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            SelectableText(
+              SupportConfig.email,
+              style: Theme.of(sheetContext).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Phone',
+              style: Theme.of(sheetContext).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            SelectableText(
+              SupportConfig.phoneNumber,
+              style: Theme.of(sheetContext).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Business hours',
+              style: Theme.of(sheetContext).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              SupportConfig.businessHours,
+              style: Theme.of(sheetContext).textTheme.bodyMedium,
+            ),
+          ],
         ),
       ),
     );
@@ -141,89 +142,101 @@ class _UnderReviewScreenState extends ConsumerState<UnderReviewScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: PremiumCard(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Align(
-                    child: Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(22),
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: PremiumCard(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Align(
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: AppTheme.processingSoft,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.hourglass_top_rounded,
+                          color: AppTheme.textSecondary,
+                          size: 24,
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.hourglass_top_rounded,
-                        color: AppTheme.primary,
-                        size: 30,
-                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Application under review',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    message,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 14,
-                      height: 1.45,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  if (_statusMessage != null) ...[
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 20),
                     Text(
-                      _statusMessage!,
+                      'Application under review',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 13,
-                        height: 1.4,
-                        fontWeight: FontWeight.w700,
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      message,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                    if (_statusMessage != null) ...[
+                      const SizedBox(height: 18),
+                      Semantics(
+                        liveRegion: true,
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppTheme.processingSoft,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppTheme.border),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                Icons.info_outline_rounded,
+                                color: AppTheme.textSecondary,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  _statusMessage!,
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
+                    ],
+                    const SizedBox(height: 24),
+                    AppButton(
+                      label: 'Refresh status',
+                      icon: Icons.refresh_rounded,
+                      isLoading: _refreshing,
+                      onPressed: busy ? null : _refreshStatus,
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: busy ? null : _showSupport,
+                      icon: const Icon(Icons.support_agent_rounded),
+                      label: const Text('Contact support'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      key: OmcWidgetKeys.underReviewLogout,
+                      onPressed: busy ? null : _logout,
+                      icon: _loggingOut
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.logout_rounded),
+                      label: Text(_loggingOut ? 'Signing out...' : 'Sign out'),
                     ),
                   ],
-                  const SizedBox(height: 22),
-                  AppButton(
-                    label: 'Refresh Status',
-                    icon: Icons.refresh_rounded,
-                    isLoading: _refreshing,
-                    onPressed: busy ? null : _refreshStatus,
-                  ),
-                  const SizedBox(height: 10),
-                  OutlinedButton.icon(
-                    onPressed: busy ? null : _showSupport,
-                    icon: const Icon(Icons.support_agent_rounded),
-                    label: const Text('Contact Support'),
-                  ),
-                  const SizedBox(height: 6),
-                  TextButton.icon(
-                    key: OmcWidgetKeys.underReviewLogout,
-                    onPressed: busy ? null : _logout,
-                    icon: _loggingOut
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.logout_rounded),
-                    label: Text(_loggingOut ? 'Signing out...' : 'Sign out'),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
