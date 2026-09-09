@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/providers/core_providers.dart';
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/resilience/app_failure.dart';
+import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/omc_logo.dart';
 import '../data/onboarding_repository.dart';
 
@@ -59,7 +61,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
 
     _pageController.nextPage(
-      duration: const Duration(milliseconds: 320),
+      duration: AppMotion.reducedMotion(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 240),
       curve: Curves.easeOutCubic,
     );
   }
@@ -72,18 +76,28 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
     return Scaffold(
       key: OmcWidgetKeys.onboardingScreen,
-      backgroundColor: const Color(0xFFFBFCFE),
+      backgroundColor: AppTheme.background,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
+            constraints: const BoxConstraints(maxWidth: AppLayout.formMaxWidth),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(22, 14, 22, 22),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
               child: Column(
                 children: [
                   Row(
                     children: [
-                      const OmcLogo.symbol(size: 42, borderRadius: 0),
+                      Container(
+                        width: 48,
+                        height: 48,
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(AppRadius.control),
+                          border: Border.all(color: AppTheme.border),
+                        ),
+                        child: const OmcLogo.symbol(size: 34, borderRadius: 0),
+                      ),
                       const Spacer(),
                       TextButton(
                         key: OmcWidgetKeys.onboardingSkip,
@@ -92,7 +106,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Expanded(
                     child: PageView.builder(
                       controller: _pageController,
@@ -104,36 +118,33 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       },
                     ),
                   ),
-                  if (slides.length > 1) ...[
-                    const SizedBox(height: 12),
-                    _PageDots(count: slides.length, index: _index),
-                  ],
-                  const SizedBox(height: 22),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: _isFinishing ? null : () => _next(slides),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                  const SizedBox(height: 10),
+                  Semantics(
+                    liveRegion: true,
+                    label: 'Page ${_index + 1} of ${slides.length}',
+                    child: ExcludeSemantics(
+                      child: Column(
                         children: [
-                          if (_isFinishing)
-                            const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                                color: Colors.white,
-                              ),
-                            )
-                          else ...[
-                            Text(isLast ? 'Get started' : 'Continue'),
-                            const SizedBox(width: 10),
-                            const Icon(Icons.arrow_forward_rounded, size: 20),
+                          Text(
+                            'Page ${_index + 1} of ${slides.length}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          if (slides.length > 1) ...[
+                            const SizedBox(height: 8),
+                            _PageDots(count: slides.length, index: _index),
                           ],
                         ],
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  AppButton(
+                    label: isLast ? 'Get started' : 'Continue',
+                    icon: isLast
+                        ? Icons.check_rounded
+                        : Icons.arrow_forward_rounded,
+                    isLoading: _isFinishing,
+                    onPressed: _isFinishing ? null : () => _next(slides),
                   ),
                 ],
               ),
@@ -159,53 +170,42 @@ class _OnboardingSlideView extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        return Column(
-          children: [
-            Expanded(
-              flex: 6,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(4, 8, 4, 12),
-                child: _SlideImage(slide: slide, accent: accent),
-              ),
-            ),
-            Expanded(
-              flex: 4,
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Column(
-                    children: [
-                      Text(
-                        slide.title,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 31,
-                          height: 1.08,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.7,
-                        ),
-                      ),
-                      if (supportingText.isNotEmpty) ...[
-                        const SizedBox(height: 14),
-                        Text(
-                          supportingText,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 15.5,
-                            height: 1.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ],
+        final imageHeight = (constraints.maxHeight * 0.48)
+            .clamp(140.0, 300.0)
+            .toDouble();
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    height: imageHeight,
+                    width: double.infinity,
+                    child: _SlideImage(slide: slide, accent: accent),
                   ),
-                ),
+                  const SizedBox(height: 20),
+                  Text(
+                    slide.title,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  if (supportingText.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      supportingText,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                ],
               ),
             ),
-          ],
+          ),
         );
       },
     );
@@ -231,38 +231,22 @@ class _SlideImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final imageUrl = _resolvedImageUrl(slide.imageUrl);
 
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(36),
-              gradient: RadialGradient(
-                center: const Alignment(0, -0.1),
-                radius: 0.95,
-                colors: [
-                  accent.withValues(alpha: 0.16),
-                  accent.withValues(alpha: 0.035),
-                  Colors.transparent,
-                ],
-              ),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppRadius.dialog),
+        border: Border.all(color: accent.withValues(alpha: 0.12)),
+      ),
+      child: imageUrl == null
+          ? Image.asset(slide.assetPath, fit: BoxFit.contain)
+          : Image.network(
+              imageUrl,
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) {
+                return Image.asset(slide.assetPath, fit: BoxFit.contain);
+              },
             ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(26),
-          child: imageUrl == null
-              ? Image.asset(slide.assetPath, fit: BoxFit.contain)
-              : Image.network(
-                  imageUrl,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, _, _) {
-                    return Image.asset(slide.assetPath, fit: BoxFit.contain);
-                  },
-                ),
-        ),
-      ],
     );
   }
 
@@ -296,17 +280,20 @@ class _PageDots extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final reducedMotion = AppMotion.reducedMotion(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         for (var i = 0; i < count; i++)
           AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            width: i == index ? 26 : 8,
+            duration: reducedMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
+            width: i == index ? 24 : 8,
             height: 8,
             margin: const EdgeInsets.symmetric(horizontal: 4),
             decoration: BoxDecoration(
-              color: i == index ? AppTheme.primary : const Color(0xFFD7DEE8),
+              color: i == index ? AppTheme.primary : AppTheme.border,
               borderRadius: BorderRadius.circular(999),
             ),
           ),
