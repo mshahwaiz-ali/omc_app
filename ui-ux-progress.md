@@ -17,7 +17,7 @@ No E001–E146 surface is removed by this consolidation.
 ## Current authority
 
 - Baseline main SHA: `bd2c0d2c704b5ceb9ec7fae00cbf2e3746c94f9b`
-- Latest Phase 4 implementation code head: `d0454bb7a06a44f5fec7e4c2b045f7d041ac0b89`
+- Latest Phase 4 implementation code head: `5321c3e0465e5e7c8ea5f408ed38142a87e1fb84`
 - Blueprint source-audit parent: `b42ed754fdb58dcd672497ba2e2e612658e1b882`
 - Backend: out of scope unless a genuine blocking defect is proven.
 - Functional/navigation/provider/payload authority: frozen per `ui-ux.md` J1/J2 and lifecycle clarification.
@@ -29,7 +29,7 @@ No E001–E146 surface is removed by this consolidation.
 | 1 — Design System V2 + shared primitives | **SOURCE COMPLETE** — runtime validation pending | Shared design foundation and primitive migration |
 | 2 — Shell/navigation/global UI | **SOURCE COMPLETE** — runtime validation pending | E042, E043, E062–E067, E090 plus shared shell/header work |
 | 3 — Customer journey + operations | **SOURCE COMPLETE** — runtime validation pending | **E001–E025** |
-| 4 — Customer tools + account/auth | **IN PROGRESS** | **E026–E036 source-complete**; continue with E037 |
+| 4 — Customer tools + account/auth | **IN PROGRESS** | **E026–E037 source-complete**; continue with E038 |
 | 5 — Internal/staff + final QA closure | PENDING | — |
 
 ## Phase 1 source batches
@@ -125,7 +125,7 @@ No E001–E146 surface is removed by this consolidation.
 - Notification preference save/retry authority is unchanged; Push preference switch still renders only when `pushProviderOperational`. `PushDeviceSettingsTile` remains the Android device permission/registration owner.
 - Biometric disable/enroll, current-password verification, secure enrollment invalidations, legal `http/https` launcher + backend-text fallback, deletion support request and logout/session clearing remain the same functional flows.
 
-### E031–E036 Auth/account entry
+### E031–E037 Auth/account entry
 
 - **E031 Change password** — `defe4fc13d85480c7a0e90bcb66284b0ae5f7c10`. Presentation polished only; current/new/confirm validation, `changePassword(...)`, biometric clearing, logout and `/login` transition remain unchanged.
 - **E032 Splash / startup** — `f175f259149a51f7d77cc3e75780150cdae957e4`. `checkSession()`, onboarding preference routing, retry behavior and no-minimum-delay startup contract preserved.
@@ -133,6 +133,7 @@ No E001–E146 surface is removed by this consolidation.
 - **E034 Login** — `c2fe41d25037d204d85fbf14bda4399370ea2b8d`. Identifier/password, biometric account selection, guest startup, pending/home redirects, activation/forgot/signup/help routes and normalized failure authority unchanged.
 - **E035 Signup flow** — presentation commit `d5e9f1d54f32e26a1c7f463efdd00984ed62caf5`; source parity rechecked before closure. Four-step constructor/callback mapping is intact; `roles = ['Customer']` remains authoritative; username normalization/availability, referral validation/consent, exact signup payload, cooldown clamp/resend and `DirtyFormController` remain unchanged. `SignupBottomActions` stacks for narrow/large-text layouts.
 - **E036 Forgot password** — `d0454bb7a06a44f5fec7e4c2b045f7d041ac0b89`. Presentation hierarchy now follows identifier → send reset link → neutral check-email result → login. Exact `requestPasswordReset(identifier: _identifierController.text.trim())` call and identifier validation remain unchanged; failure stays inline and success copy remains anti-enumeration-safe.
+- **E037 Reset password** — `5321c3e0465e5e7c8ea5f408ed38142a87e1fb84`. `/reset-password` still receives the query token and `/app/reset-password` still preserves query parameters. Exact `resetPassword(token, newPassword, confirmPassword)` repository call and password validation remain unchanged. Missing tokens never show the form; authoritative backend `status == 'invalid_or_expired'` now replaces the form with the new-link recovery state, while validation/network failures keep entered form state. Completed state still returns to login.
 
 ## Source-level parity checks performed
 
@@ -143,6 +144,7 @@ No E001–E146 surface is removed by this consolidation.
 - E029/E030 were staged first and routed together only after their edit/security contracts were mapped.
 - E035 was closed only after re-reading `signup_steps.dart` and `signup_screen.dart` on the current main and verifying shared widget constructors, callbacks, validators, form keys, payload fields, username/referral behavior, cooldown and dirty-form authority.
 - E036 was re-read after commit; its repository call, identifier validation and neutral success/failure semantics remain unchanged.
+- E037 was checked against the actual router, repository and backend reset contract. Only backend `invalid_or_expired` is treated as an invalid-link presentation state; thrown password-validation/network failures do not bypass or discard the form.
 - No backend, API schema, provider authority, payment-first lifecycle or ERPNext core file was intentionally changed by these UI batches.
 
 ## Validation not yet available in this environment
@@ -157,7 +159,7 @@ Source-complete does not mean runtime-validated. Phase 5 must close the final an
 
 ## Exact next batch
 
-1. Continue with **E037 Reset password** in exact `ui-ux.md` order.
-2. Preserve query token handling, invalid/missing/expired link behavior, exact repository payload, completed state and new-link/login actions.
-3. Do not expose the password form as valid when token state is invalid.
+1. Continue with **E038 Activate existing account** in exact `ui-ux.md` order.
+2. Preserve the registered-email request payload, existing validation, neutral check-email response and login action.
+3. Do not introduce automatic login or reinterpret account activation as service/payment activation.
 4. Continue updating this ledger only after code commits are authoritative on `main`.
