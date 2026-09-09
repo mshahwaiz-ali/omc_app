@@ -42,7 +42,7 @@ import '../features/payments/presentation/payments_screen.dart';
 import '../features/profile/presentation/my_referrals_screen.dart';
 import '../features/profile/presentation/referral_detail_screen.dart';
 import '../features/profile/presentation/edit_profile_screen.dart';
-import '../features/profile/presentation/profile_screen.dart';
+import '../features/profile/presentation/profile_v2_screen.dart';
 import '../features/service_catalogue/presentation/service_catalogue_screen.dart';
 import '../features/service_catalogue/presentation/service_detail_screen.dart';
 import '../features/service_requests/presentation/my_services_screen.dart';
@@ -334,9 +334,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final serviceId = Uri.decodeComponent(
             state.pathParameters['serviceId'] ?? '',
           );
-          // The draft owns an app bar and a persistent submit bar. Keep it out
-          // of ShellNavScaffold so two nested Scaffold bottom bars cannot
-          // compete for the same layout space on Android.
           return ServiceRequestDraftScreen(
             serviceId: serviceId,
             assisted: state.uri.queryParameters['assisted'] == '1',
@@ -514,7 +511,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/profile',
         name: 'profile',
         builder: (context, state) =>
-            _withShell(ShellNavScaffold.moreIndex, const ProfileScreen()),
+            _withShell(ShellNavScaffold.moreIndex, const ProfileV2Screen()),
       ),
       GoRoute(
         path: '/profile/edit',
