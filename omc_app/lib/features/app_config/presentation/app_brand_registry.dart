@@ -10,13 +10,22 @@ class OmcAppColors {
     required this.accentSoft,
     required this.accentBorder,
     required this.accentPressed,
+    required this.accentInk,
+    required this.accentFocus,
   });
 
+  /// Exact backend-configured accent value. Do not replace or normalize this
+  /// into a different brand color for filled primary controls.
   final Color accent;
   final Color onAccent;
   final Color accentSoft;
   final Color accentBorder;
   final Color accentPressed;
+
+  /// Derived presentation-only tones used when the configured accent itself
+  /// does not have enough contrast on a light surface.
+  final Color accentInk;
+  final Color accentFocus;
 
   factory OmcAppColors.resolve({
     String? accentColor,
@@ -34,6 +43,8 @@ class OmcAppColors {
       accentSoft: accent.withValues(alpha: 0.08),
       accentBorder: accent.withValues(alpha: 0.22),
       accentPressed: _darken(accent, 0.10),
+      accentInk: _contrastSafeSurfaceColor(accent, minimumRatio: 4.5),
+      accentFocus: _contrastSafeSurfaceColor(accent, minimumRatio: 3.0),
     );
   }
 }
@@ -76,6 +87,23 @@ Color _readableForeground(Color background) {
   final darkContrast = _contrastRatio(background, darkForeground);
   final lightContrast = _contrastRatio(background, lightForeground);
   return darkContrast >= lightContrast ? darkForeground : lightForeground;
+}
+
+Color _contrastSafeSurfaceColor(
+  Color source, {
+  required double minimumRatio,
+}) {
+  const surface = Colors.white;
+  if (_contrastRatio(source, surface) >= minimumRatio) return source;
+
+  final hsl = HSLColor.fromColor(source);
+  for (var step = 1; step <= 24; step += 1) {
+    final lightness = (hsl.lightness - (step * 0.025)).clamp(0.0, 1.0);
+    final candidate = hsl.withLightness(lightness).toColor();
+    if (_contrastRatio(candidate, surface) >= minimumRatio) return candidate;
+  }
+
+  return Colors.black;
 }
 
 double _contrastRatio(Color first, Color second) {

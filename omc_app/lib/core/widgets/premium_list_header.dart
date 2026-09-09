@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/design_tokens.dart';
+import '../../app/theme.dart';
 
 class PremiumListHeader extends StatelessWidget {
   const PremiumListHeader({
@@ -30,21 +31,23 @@ class PremiumListHeader extends StatelessWidget {
         final stackMeta =
             cleanMeta != null &&
             cleanMeta.isNotEmpty &&
-            (constraints.maxWidth < 420 || textScale > 1.25);
+            (constraints.maxWidth < 420 || textScale >= 1.3);
 
         final heading = Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(AppRadius.medium),
+            ExcludeSemantics(
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                ),
+                child: Icon(icon, color: AppTheme.textSecondary, size: 20),
               ),
-              child: Icon(icon, color: accent, size: 22),
             ),
-            const SizedBox(width: 13),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,19 +56,19 @@ class PremiumListHeader extends StatelessWidget {
                     header: true,
                     child: Text(
                       title,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        height: 1.08,
+                      softWrap: true,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                      height: 1.4,
+                    softWrap: true,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textSecondary,
                     ),
                   ),
                 ],
@@ -79,7 +82,7 @@ class PremiumListHeader extends StatelessWidget {
         );
 
         return Padding(
-          padding: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.only(bottom: AppSpacing.xs),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -87,7 +90,7 @@ class PremiumListHeader extends StatelessWidget {
               if (stackMeta) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Padding(
-                  padding: const EdgeInsets.only(left: 57),
+                  padding: const EdgeInsets.only(left: 52),
                   child: _MetaBadge(label: cleanMeta, accent: accent),
                 ),
               ],
@@ -116,17 +119,19 @@ class _MetaBadge extends StatelessWidget {
         decoration: BoxDecoration(
           color: accent.withValues(alpha: 0.075),
           borderRadius: BorderRadius.circular(AppRadius.pill),
-          border: Border.all(color: accent.withValues(alpha: 0.12)),
+          border: Border.all(color: accent.withValues(alpha: 0.16)),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          child: Text(
-            label,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: accent,
-              fontWeight: FontWeight.w900,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 220),
+            child: Text(
+              label,
+              softWrap: true,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ),

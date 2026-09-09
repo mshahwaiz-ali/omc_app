@@ -33,43 +33,56 @@ class AppButton extends StatelessWidget {
             onPressed!();
           };
 
+    final foreground = Theme.of(context).colorScheme.onPrimary;
     final button = FilledButton(
       onPressed: effectiveOnPressed,
       style: FilledButton.styleFrom(
-        minimumSize: const Size(0, AppTouchTarget.prominentButtonHeight),
+        minimumSize: const Size(0, AppTouchTarget.primaryButtonHeight),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.control),
         ),
       ),
-      child: AnimatedSwitcher(
-        duration: AppMotion.durationFor(context, AppMotion.quick),
-        child: isLoading
-            ? const SizedBox(
-                key: ValueKey('loading'),
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2.4),
-              )
-            : Row(
-                key: const ValueKey('content'),
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (icon != null) ...[
-                    Flexible(flex: 0, child: Icon(icon, size: 20)),
-                    const SizedBox(width: AppSpacing.xs),
-                  ],
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (icon != null) ...[
+                  Flexible(flex: 0, child: Icon(icon, size: 20)),
+                  const SizedBox(width: AppSpacing.xs),
+                ],
+                Flexible(
+                  child: Text(
+                    label,
+                    softWrap: true,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      height: 1.25,
                     ),
                   ),
-                ],
+                ),
+              ],
+            ),
+          ),
+          if (isLoading)
+            Positioned(
+              right: 0,
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: foreground,
+                ),
               ),
+            ),
+        ],
       ),
     );
 

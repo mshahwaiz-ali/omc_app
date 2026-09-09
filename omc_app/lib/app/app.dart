@@ -51,10 +51,10 @@ ThemeData _withAccentTheme(ThemeData base, OmcAppColors colors) {
     primary: colors.accent,
     onPrimary: colors.onAccent,
     primaryContainer: colors.accentSoft,
-    onPrimaryContainer: colors.accent,
+    onPrimaryContainer: colors.accentInk,
   );
 
-  final rounded18 = RoundedRectangleBorder(
+  final controlShape = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(AppRadius.control),
   );
 
@@ -62,7 +62,7 @@ ThemeData _withAccentTheme(ThemeData base, OmcAppColors colors) {
     colorScheme: scheme,
     splashColor: colors.accentSoft,
     highlightColor: colors.accent.withValues(alpha: 0.05),
-    focusColor: colors.accent.withValues(alpha: 0.10),
+    focusColor: colors.accentFocus.withValues(alpha: 0.12),
     progressIndicatorTheme: ProgressIndicatorThemeData(
       color: colors.accent,
       linearTrackColor: colors.accentSoft,
@@ -71,18 +71,18 @@ ThemeData _withAccentTheme(ThemeData base, OmcAppColors colors) {
     inputDecorationTheme: base.inputDecorationTheme.copyWith(
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.control),
-        borderSide: BorderSide(color: colors.accent, width: 1.5),
+        borderSide: BorderSide(color: colors.accentFocus, width: 2),
       ),
     ),
     textSelectionTheme: TextSelectionThemeData(
-      cursorColor: colors.accent,
+      cursorColor: colors.accentInk,
       selectionColor: colors.accent.withValues(alpha: 0.22),
-      selectionHandleColor: colors.accent,
+      selectionHandleColor: colors.accentInk,
     ),
     iconButtonTheme: IconButtonThemeData(
       style: IconButton.styleFrom(
         minimumSize: const Size.square(AppTouchTarget.minimum),
-        foregroundColor: colors.accent,
+        foregroundColor: colors.accentInk,
         padding: const EdgeInsets.all(AppSpacing.sm),
       ),
     ),
@@ -92,10 +92,18 @@ ThemeData _withAccentTheme(ThemeData base, OmcAppColors colors) {
         backgroundColor: colors.accent,
         foregroundColor: colors.onAccent,
         disabledBackgroundColor: const Color(0xFFE2E8F0),
-        disabledForegroundColor: const Color(0xFF94A3B8),
+        disabledForegroundColor: const Color(0xFF64748B),
         elevation: 0,
-        shape: rounded18,
-        textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.sm,
+        ),
+        shape: controlShape,
+        textStyle: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          height: 1.25,
+        ),
       ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
@@ -104,28 +112,45 @@ ThemeData _withAccentTheme(ThemeData base, OmcAppColors colors) {
         backgroundColor: colors.accent,
         foregroundColor: colors.onAccent,
         disabledBackgroundColor: const Color(0xFFE2E8F0),
-        disabledForegroundColor: const Color(0xFF94A3B8),
+        disabledForegroundColor: const Color(0xFF64748B),
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        shape: rounded18,
-        textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.sm,
+        ),
+        shape: controlShape,
+        textStyle: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          height: 1.25,
+        ),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(AppTouchTarget.minimum),
-        foregroundColor: colors.accent,
-        side: BorderSide(color: colors.accentBorder),
-        shape: rounded18,
-        textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+        minimumSize: const Size.fromHeight(AppTouchTarget.secondaryButtonHeight),
+        foregroundColor: colors.accentInk,
+        side: BorderSide(color: colors.accentFocus),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        shape: controlShape,
+        textStyle: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          height: 1.25,
+        ),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         minimumSize: const Size(AppTouchTarget.minimum, AppTouchTarget.minimum),
-        foregroundColor: colors.accent,
+        foregroundColor: colors.accentInk,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+        textStyle: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          height: 1.25,
+        ),
       ),
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
@@ -144,12 +169,12 @@ ThemeData _withAccentTheme(ThemeData base, OmcAppColors colors) {
         return Colors.transparent;
       }),
       checkColor: WidgetStatePropertyAll(colors.onAccent),
-      side: const BorderSide(color: Color(0xFFCBD3DF), width: 1.5),
+      side: const BorderSide(color: AppTheme.controlOutline, width: 1.4),
     ),
     radioTheme: RadioThemeData(
       fillColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.selected)) return colors.accent;
-        return const Color(0xFF94A3B8);
+        if (states.contains(WidgetState.selected)) return colors.accentFocus;
+        return AppTheme.controlOutline;
       }),
     ),
     switchTheme: SwitchThemeData(
@@ -164,11 +189,45 @@ ThemeData _withAccentTheme(ThemeData base, OmcAppColors colors) {
     ),
     chipTheme: base.chipTheme.copyWith(
       selectedColor: colors.accentSoft,
-      checkmarkColor: colors.accent,
-      secondaryLabelStyle: TextStyle(
-        color: colors.accent,
-        fontWeight: FontWeight.w800,
+      checkmarkColor: colors.accentInk,
+      secondaryLabelStyle: base.textTheme.labelMedium?.copyWith(
+        color: colors.accentInk,
+        fontWeight: FontWeight.w600,
       ),
+    ),
+    datePickerTheme: base.datePickerTheme.copyWith(
+      headerBackgroundColor: colors.accentSoft,
+      headerForegroundColor: AppTheme.textPrimary,
+      dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return AppTheme.textSecondary.withValues(alpha: 0.45);
+        }
+        if (states.contains(WidgetState.selected)) return colors.onAccent;
+        return AppTheme.textPrimary;
+      }),
+      dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return colors.accent;
+        return Colors.transparent;
+      }),
+      todayForegroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return colors.onAccent;
+        return colors.accentInk;
+      }),
+      todayBorder: BorderSide(color: colors.accentFocus, width: 2),
+      yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return colors.onAccent;
+        return AppTheme.textPrimary;
+      }),
+      yearBackgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return colors.accent;
+        return Colors.transparent;
+      }),
+    ),
+    timePickerTheme: base.timePickerTheme.copyWith(
+      dialHandColor: colors.accent,
+      entryModeIconColor: colors.accentInk,
+      hourMinuteColor: colors.accentSoft,
+      dayPeriodColor: colors.accentSoft,
     ),
   );
 }

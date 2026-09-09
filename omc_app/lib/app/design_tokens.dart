@@ -15,13 +15,17 @@ class AppSpacing {
 class AppRadius {
   const AppRadius._();
 
-  static const double small = 12;
-  static const double medium = 16;
-  static const double control = 18;
-  static const double large = 22;
-  static const double card = 24;
+  /// Design System V2 radius family.
+  static const double control = 12;
+  static const double card = 16;
+  static const double dialog = 20;
   static const double sheet = 24;
   static const double pill = 999;
+
+  /// Source-compatible aliases while feature-local styling is migrated.
+  static const double small = control;
+  static const double medium = card;
+  static const double large = card;
 }
 
 class AppTouchTarget {
@@ -30,13 +34,28 @@ class AppTouchTarget {
   /// Material/Android accessibility guidance uses 48 logical pixels as the
   /// minimum interactive target. Visual glyphs may remain smaller inside it.
   static const double minimum = 48;
-  static const double primaryButtonHeight = 52;
-  static const double prominentButtonHeight = 54;
+  static const double secondaryButtonHeight = 52;
+  static const double primaryButtonHeight = 56;
+  static const double prominentButtonHeight = primaryButtonHeight;
 
   static const BoxConstraints constraints = BoxConstraints(
     minWidth: minimum,
     minHeight: minimum,
   );
+}
+
+class AppLayout {
+  const AppLayout._();
+
+  static const double generalMaxWidth = 840;
+  static const double formMaxWidth = 560;
+  static const double readingMaxWidth = 680;
+
+  static double pageInsetFor(double width) {
+    if (width < 360) return AppSpacing.md;
+    if (width >= 600) return AppSpacing.xl;
+    return AppSpacing.lg;
+  }
 }
 
 class AppMotion {

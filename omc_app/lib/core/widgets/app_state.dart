@@ -120,7 +120,7 @@ class AppConfigurationState extends StatelessWidget {
       message: message,
       icon: Icons.settings_suggest_outlined,
       accentColor: AppTheme.warning,
-      surfaceColor: const Color(0xFFFFF7ED),
+      surfaceColor: AppTheme.warningSoft,
       actionLabel: actionLabel,
       onAction: onAction,
       compact: compact,
@@ -151,7 +151,7 @@ class AppAccessState extends StatelessWidget {
       message: message,
       icon: Icons.lock_outline_rounded,
       accentColor: AppTheme.info,
-      surfaceColor: const Color(0xFFEFF6FF),
+      surfaceColor: AppTheme.infoSoft,
       actionLabel: actionLabel,
       onAction: onAction,
       compact: compact,
@@ -191,10 +191,10 @@ class AppStateView extends StatelessWidget {
       liveRegion: true,
       child: Container(
         width: double.infinity,
-        padding: EdgeInsets.all(compact ? 18 : AppSpacing.xl),
+        padding: EdgeInsets.all(compact ? AppSpacing.md : AppSpacing.lg),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(AppRadius.large),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           border: Border.all(color: AppTheme.border),
         ),
         child: Column(
@@ -202,15 +202,13 @@ class AppStateView extends StatelessWidget {
           children: [
             ExcludeSemantics(
               child: Container(
-                width: compact ? AppTouchTarget.minimum : 60,
-                height: compact ? AppTouchTarget.minimum : 60,
+                width: compact ? AppTouchTarget.minimum : 56,
+                height: compact ? AppTouchTarget.minimum : 56,
                 decoration: BoxDecoration(
                   color: surfaceColor,
-                  borderRadius: BorderRadius.circular(
-                    compact ? AppRadius.medium : AppRadius.control,
-                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
                 ),
-                child: Icon(icon, color: accentColor, size: compact ? 24 : 30),
+                child: Icon(icon, color: accentColor, size: compact ? 24 : 28),
               ),
             ),
             SizedBox(height: compact ? AppSpacing.sm : AppSpacing.md),
@@ -219,32 +217,30 @@ class AppStateView extends StatelessWidget {
               child: Text(
                 title,
                 textAlign: TextAlign.center,
+                softWrap: true,
                 style:
                     (compact
                             ? theme.textTheme.titleMedium
                             : theme.textTheme.titleLarge)
                         ?.copyWith(
                           color: AppTheme.textPrimary,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               message,
               textAlign: TextAlign.center,
+              softWrap: true,
               style:
                   (compact
-                          ? theme.textTheme.bodySmall
-                          : theme.textTheme.bodyMedium)
-                      ?.copyWith(
-                        color: AppTheme.textSecondary,
-                        height: 1.4,
-                        fontWeight: FontWeight.w600,
-                      ),
+                          ? theme.textTheme.bodyMedium
+                          : theme.textTheme.bodyLarge)
+                      ?.copyWith(color: AppTheme.textSecondary),
             ),
             if (actionLabel != null && onAction != null) ...[
-              SizedBox(height: compact ? 14 : 18),
+              SizedBox(height: compact ? AppSpacing.sm : AppSpacing.md),
               AppButton(
                 label: actionLabel!,
                 icon: actionIcon,

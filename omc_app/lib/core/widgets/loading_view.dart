@@ -10,6 +10,7 @@ class LoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Semantics(
       liveRegion: true,
       label: message,
@@ -23,15 +24,16 @@ class LoadingView extends StatelessWidget {
                 const SizedBox(
                   width: 28,
                   height: 28,
-                  child: CircularProgressIndicator(strokeWidth: 2.6),
+                  child: CircularProgressIndicator(strokeWidth: 2.4),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
                   message,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  softWrap: true,
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     color: AppTheme.textSecondary,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ],
