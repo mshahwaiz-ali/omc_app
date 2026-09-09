@@ -81,7 +81,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: OmcWidgetKeys.splashScreen,
-      backgroundColor: const Color(0xFFFBFCFE),
+      backgroundColor: AppTheme.background,
       body: SafeArea(
         child: Center(
           child: _startupError == null
@@ -104,37 +104,38 @@ class _SplashFailure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      key: OmcWidgetKeys.startupError,
-      padding: const EdgeInsets.all(28),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
+        key: OmcWidgetKeys.startupError,
+        constraints: const BoxConstraints(maxWidth: AppLayout.formMaxWidth),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const OmcLogo.symbol(size: 76, borderRadius: 0),
-            const SizedBox(height: 26),
-            const Text(
+            Container(
+              width: 80,
+              height: 80,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppRadius.card),
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: const OmcLogo.symbol(size: 56, borderRadius: 0),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Text(
               'OMC could not start',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-              ),
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 14,
-                height: 1.45,
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: AppSpacing.xl),
             AppButton(
               label: 'Try again',
               icon: Icons.refresh_rounded,
@@ -160,49 +161,43 @@ class _SplashContent extends StatelessWidget {
       liveRegion: true,
       label: 'Starting OMC',
       child: ExcludeSemantics(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 126,
-              height: 126,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(34),
-                border: Border.all(color: const Color(0xFFE8EDF5)),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x120F172A),
-                    blurRadius: 32,
-                    offset: Offset(0, 16),
-                  ),
-                ],
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 96,
+                height: 96,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppRadius.dialog),
+                  border: Border.all(color: AppTheme.border),
+                ),
+                child: const OmcLogo.symbol(size: 68, borderRadius: 0),
               ),
-              padding: const EdgeInsets.all(17),
-              child: const OmcLogo.symbol(size: 92, borderRadius: 0),
-            ),
-            const SizedBox(height: 20),
-            if (reducedMotion)
-              const Text(
+              const SizedBox(height: AppSpacing.lg),
+              Text(
                 'Starting OMC',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              )
-            else
-              const SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.6,
-                  color: AppTheme.primary,
-                  backgroundColor: Color(0x12111827),
-                  strokeCap: StrokeCap.round,
-                ),
+                style: Theme.of(context).textTheme.titleMedium,
+                textAlign: TextAlign.center,
               ),
-          ],
+              const SizedBox(height: AppSpacing.sm),
+              if (reducedMotion)
+                const Icon(
+                  Icons.hourglass_top_rounded,
+                  color: AppTheme.textSecondary,
+                  size: 24,
+                )
+              else
+                const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                ),
+            ],
+          ),
         ),
       ),
     );
