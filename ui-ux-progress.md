@@ -17,7 +17,7 @@ No E001–E146 surface is removed by this consolidation.
 ## Current authority
 
 - Baseline main SHA: `bd2c0d2c704b5ceb9ec7fae00cbf2e3746c94f9b`
-- Current implementation head being assembled: `1ec9bc338e4cd05fea606380897f2fd5f55aa745`
+- Current implementation head being assembled: `40db6ff4c0aa365cbd92f235c0e4bdc47078946d`
 - Blueprint source-audit parent: `b42ed754fdb58dcd672497ba2e2e612658e1b882`
 - Backend: out of scope unless a genuine blocking defect is proven.
 - Functional/navigation/provider/payload authority: frozen per `ui-ux.md` J1/J2 and lifecycle clarification.
@@ -86,7 +86,7 @@ The current fallback implementation is a 2,000+ line operational screen containi
 ### E014 Document Preview — `4801a5f2239072f11acea7cf085165ee36d7eee5`
 Full file identity, zoom/pan guidance, viewer semantics and unsupported/corrupt recovery added. `PdfViewer.data(bytes, sourceName: fileName)`, local image bytes and no-unsafe-URL-fallback behavior preserved.
 
-### E013 Document Detail — `1ec9bc338e4cd05fea606380897f2fd5f55aa745`
+### E013 Document Detail — `40db6ff4c0aa365cbd92f235c0e4bdc47078946d`
 Reordered to document identity/status → primary file action → details. Removed the static `_DocumentTimelinePlaceholder`; removed decorative gradient/three-equal-stat competition; assisted customer context now appears when provided. Exact document providers, attachment picker, `uploadDocumentAttachments`, `invalidateDocumentMutation`, and validated `http/https` external-link policy are preserved.
 
 ## Validation actually run
@@ -101,7 +101,7 @@ Reordered to document identity/status → primary file action → details. Remov
 
 ## Exact next batch
 
-1. Fast-forward the E013 replay commit on top of this ledger line without force-push.
+1. Fast-forward the E013 replay commit on top of the latest ledger head without force-push.
 2. Continue E012 Documents list and E015 review workspace where edit boundaries are safe.
 3. Move into E016–E017 Payments list/detail with exact status-to-action and review payload parity.
 4. Return to E011 only through a safe atomic migration boundary; do not weaken historical/capability/admin mutation safeguards.
