@@ -17,7 +17,7 @@ No E001–E146 surface is removed by this consolidation.
 ## Current authority
 
 - Baseline main SHA: `bd2c0d2c704b5ceb9ec7fae00cbf2e3746c94f9b`
-- Current implementation main before this ledger update: `715137d58151d5fa66ee603365bc87cf18732429`
+- Current implementation main before this ledger update: `f9ec8afa866f59829423a06a973a661e09f52805`
 - Blueprint source-audit parent: `b42ed754fdb58dcd672497ba2e2e612658e1b882`
 - Backend: out of scope unless a genuine blocking defect is proven.
 - Functional/navigation/provider/payload authority: frozen per `ui-ux.md` J1/J2 and lifecycle clarification.
@@ -28,7 +28,7 @@ No E001–E146 surface is removed by this consolidation.
 |---|---|---|
 | 1 — Design System V2 + shared primitives | COMPLETE — source implementation; Flutter runtime validation pending | Shared foundation complete; no E ticket marked complete solely from theme/component work |
 | 2 — Shell/navigation/global UI | COMPLETE — source implementation; Flutter/runtime/U validation pending | E042, E043, E062, E063, E064, E065, E066, E067 and E090 source-complete; runtime/device acceptance still pending |
-| 3 — Customer journey + operations | IN PROGRESS | Begin E001–E017 and E022–E025 plus their owned inline/modal/platform surfaces |
+| 3 — Customer journey + operations | IN PROGRESS | E005, E006, E007, E008, E009 and E010 source-complete; E011 next; E001–E004 and E012 onward remain in this phase |
 | 4 — Customer tools + account/auth | PENDING | — |
 | 5 — Internal/staff + final QA closure | PENDING | — |
 
@@ -136,11 +136,67 @@ Header title26/supporting15 now wrap without important-text ellipsis. `preferred
 - Access-denied feedback and capability checks remain in their existing owners.
 - Global sheet/dialog geometry is supplied by the Phase 1 theme; feature-specific sheets remain owned by their later surface phases so their state/callback contracts can be inspected locally.
 
+## Completed Phase 3 batches
+
+### E005 Service catalogue — `426ab8cf5d5893ae28aecb9402a07ebe95248fad`
+
+Commit: `ui: redesign service catalogue`
+
+File changed:
+- `omc_app/lib/features/service_catalogue/presentation/service_catalogue_screen_impl.dart`
+
+Source-complete presentation migration: full-width search and readable filters, result/pager hierarchy, two natural-height columns on ordinary phones and a one-column list at narrow/large text. Debounced query, category, pagination provider state, assisted customer parameters and service routes remain unchanged.
+
+### E006 Service detail — `2ad6114ce65e6a56c29a0f94084b821ae7bec52d`
+
+Commit: `ui: redesign service detail journey`
+
+File changed:
+- `omc_app/lib/features/service_catalogue/presentation/service_detail_screen_impl.dart`
+
+Source-complete hierarchy: service identity → price/time → overview → requirements/documents → process → support → Start. Active-request duplicate lookup, resume/new-request choice, guest/pending routing, assisted query parameters and service-case destinations remain unchanged.
+
+### E007 + E008 Request draft and assisted customer selector — `c79f01ea840b4e798ca11c8d6088e62b324bfbd7`
+
+Commit: `ui: redesign request draft and assisted customer flow`
+
+Files changed:
+- `omc_app/lib/features/service_requests/presentation/assisted_customer_card.dart`
+- `omc_app/lib/features/service_requests/presentation/service_request_draft_service_sections.dart`
+- `omc_app/lib/features/service_requests/presentation/service_request_draft_form_sections.dart`
+
+Source-complete one-form presentation migration: service summary → customer context → contact details → service information → review/document guidance → expandable post-submit stages → sticky Submit request action. Assisted selection keeps mode/search/customer/consent authority and distinguishes loading/error/empty. Long customer/service names and controls reflow at large text.
+
+`service_request_draft_screen.dart` submission/state code was deliberately not modified. Source re-read after the commit confirms identical `ServiceRequestPayload` construction including `attachments: const []`, identical discount/assisted validation, `MutationIntent` idempotency, repository call, dirty-form state, tracking invalidation and returned-request navigation.
+
+### E009 My requests / tracking — `1c533efa00b22aff1ad595331fbbea99fc810194`
+
+Commit: `ui: redesign customer request tracking`
+
+File changed:
+- `omc_app/lib/features/service_requests/presentation/my_services_screen.dart`
+
+Source-complete request list hierarchy: service → status → next step/summary → date/reference/action. Search corpus, filter matching, sort behavior, lifecycle/operational state derivation, historical/terminal safeguards and internal assisted route parameters remain unchanged. Status/actions stack at narrow/large text instead of compressing into 10–11px metadata.
+
+### E010 Canonical customer request detail — `f9ec8afa866f59829423a06a973a661e09f52805`
+
+Commit: `ui: redesign customer request detail`
+
+Files changed:
+- `omc_app/lib/features/service_requests/presentation/customer_service_case_detail_screen.dart`
+- `omc_app/lib/features/service_requests/presentation/customer_service_case_detail_sections.dart`
+- `omc_app/lib/features/service_requests/presentation/customer_service_case_detail_evidence.dart`
+
+Source-complete hierarchy now prioritizes service/status → backend-authoritative next action → lifecycle → required documents → payment evidence → activity → secondary cancellation. Existing document upload identity/picker/repository payload and invalidations are unchanged. Payment preparation remains distinct from payment availability/pay-now, and rejected-document remarks are visibly readable. Cancellation still calls the same repository and invalidates canonical detail, tracking and Home summary; only its presentation is now explicitly destructive and large-text safe.
+
 ## Validation actually run
 
 - GitHub `main` rechecked before each editing batch; no unexpected concurrent source change was present.
 - Changed source and representative callers were re-read after commits.
 - GitHub combined commit status for Phase 2 implementation heads checked repeatedly, including `715137d5...`: **no status checks reported**.
+- E007 submission source was re-read after the UI commit and confirmed to retain `attachments: const []`, MutationIntent/idempotency, payload fields and repository call.
+- E010 required-document upload source was re-read after the UI commit and confirmed to retain `serviceRequestId`, `documentKey`, `documentTitle`, `documentType`, attachment data and dependent invalidations.
+- E010 cancellation source was re-read after the UI commit and confirmed to retain the same cancellation repository call and canonical detail/tracking/Home invalidations.
 - Local Flutter/Dart: **NOT RUN — Flutter toolchain unavailable in this execution environment.**
 - `flutter analyze`: **NOT RUN**.
 - Flutter tests: **NOT RUN**.
@@ -152,8 +208,8 @@ Header title26/supporting15 now wrap without important-text ellipsis. `preferred
 
 Core customer journey + customer operations. Work from the live E tables rather than broad screen labels:
 - E001–E004 Home/dashboard variants
-- E005–E008 catalogue, service detail, request draft and assisted customer selector
-- E009–E011 requests/tracking/canonical + assisted details
+- E005–E010 source-complete as recorded above
+- E011 assisted / operational request detail — next
 - E012–E015 documents/list/detail/preview/review-owned customer paths
 - E016–E017 payments/list/detail/review-owned customer paths
 - E022–E025 alerts and support customer/conversation paths
@@ -161,7 +217,7 @@ Core customer journey + customer operations. Work from the live E tables rather 
 
 ## Exact next batch
 
-1. Inspect current E001–E011 source and actual shared/home/service/request callers.
-2. Modernize Home → Services → Service Detail → Request Draft → Requests/Tracking without changing provider/payload/lifecycle authority.
-3. Preserve `attachments: []` in the request draft and keep required-document collection on post-request document/case surfaces.
-4. Add/update focused source/widget contracts where safe, then re-read main and available status evidence before moving into Documents/Payments.
+1. Complete E011 assisted/operational detail while preserving all historical safeguards, document upload/review authority, administrative reassignment/sync/discount mutations and their existing invalidations.
+2. Replace the compressed horizontal operational progress presentation with readable non-clipping progression and move administrative controls after customer/evidence context.
+3. Then enter E012–E017 Documents and Payments, preserving authenticated preview/download, ownership, upload cancellation, status-to-action mapping and payment verification semantics.
+4. E001–E004 Home/dashboard variants remain Phase 3 work and must be closed before Phase 3 is marked complete.
