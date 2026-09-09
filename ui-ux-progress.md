@@ -17,7 +17,7 @@ No E001–E146 surface is removed by this consolidation.
 ## Current authority
 
 - Baseline main SHA: `bd2c0d2c704b5ceb9ec7fae00cbf2e3746c94f9b`
-- Latest Phase 3 implementation code head: `f0614a538c0a58e177af2e36d84150ddfaaace37`
+- Latest Phase 4 implementation code head: `fef551a364f30de59e3434e3f2a02e4018b60c00`
 - Blueprint source-audit parent: `b42ed754fdb58dcd672497ba2e2e612658e1b882`
 - Backend: out of scope unless a genuine blocking defect is proven.
 - Functional/navigation/provider/payload authority: frozen per `ui-ux.md` J1/J2 and lifecycle clarification.
@@ -29,7 +29,7 @@ No E001–E146 surface is removed by this consolidation.
 | 1 — Design System V2 + shared primitives | **SOURCE COMPLETE** — runtime validation pending | Shared design foundation and primitive migration |
 | 2 — Shell/navigation/global UI | **SOURCE COMPLETE** — runtime validation pending | E042, E043, E062–E067, E090 plus shared shell/header work |
 | 3 — Customer journey + operations | **SOURCE COMPLETE** — runtime validation pending | **E001–E025** |
-| 4 — Customer tools + account/auth | **IN PROGRESS NEXT** | — |
+| 4 — Customer tools + account/auth | **IN PROGRESS** | **E026–E030 source-complete**; auth/account-entry tickets continue next |
 | 5 — Internal/staff + final QA closure | PENDING | — |
 
 ## Phase 1 source batches
@@ -91,12 +91,48 @@ No E001–E146 surface is removed by this consolidation.
 - **E024 Support hub** — `599f36a6…`. Staff queue first; approved customer tickets before create; public direct channels first; duplicate-ticket prevention, paging, assign-to-me and WhatsApp ready-message unchanged.
 - **E025 Support conversation** — `e5ce61d4…`. 4-second refresh/read acknowledgement, reply/status calls, attachment constraints and retry cache unchanged.
 
+## Phase 4 customer tools / account source completion so far
+
+### E026 Expense Tracker
+
+- V2 presentation created in `d8219848e990362c896c6bbd3866be50df2c2935`; routed in `457a320ebab9b7d6c3a108feaefc5031189c8a63`.
+- Existing controller/repository remains authoritative. Session-epoch protections, local/cloud storage mode, bulk sync, cloud `start/month` paging, 100-row continuation, pending-local preservation, export cancellation, JSON import validation, archive/clear behavior, receipt extensions and transaction payload fields remain unchanged.
+- Presentation now prioritizes balance/income/expenses → Add transaction → period/category filters → ledger rows → optional summaries → local/cloud status, with data tools in the existing header menu.
+
+### E027 Monthly Budget
+
+- V2 presentation created in `68aa7b146b7fd0fdc9f51190076867bcc82a49ec`; routed in `0ed4d633998987e6774923223822750480a8c2fc`.
+- Exact month/category/`limit_amount`/threshold/active payload and local-vs-cloud save authority are retained, along with the same budget/spending providers and invalidations.
+- Budget rows now show Spent, Limit, Remaining/Over by, warning threshold and explicit Within budget / Near warning threshold / Over budget text. Progress remains visually clamped while actual over-budget amount stays visible.
+
+### E028 Profile
+
+- V2 presentation created in `d427354476e8a22d202f7fe9f4d4af10e90472fb`; routed in `117eefad2dffadb65ddfb186c5f52837e957663e`.
+- Gallery selection remains `1200×1200`, quality `88`; upload remains `uploadProfileImage(filePath, fileName)` with profile refresh. Support remains topic `Profile / account support` through `createSupportTicket`.
+- Hierarchy is identity/photo → account state → personal/contact → business/tax or internal access → Manage profile → support. Verified identity values remain display-only on Profile.
+
+### E029 Profile details editor
+
+- V2 presentation created in `f4b88ecf81005ad162f8a15cdc9ce8de61c2c4cf`; routed in `fef551a364f30de59e3434e3f2a02e4018b60c00`.
+- Existing payload builders are retained: full name; changed-only phone/WhatsApp/address; changed-only internal education/experience/remarks; protected CNIC/NTN/company single-field payloads.
+- Backend `ProfileEditMode` policy remains the authority for Add / Update once / Locked / Unavailable. CNIC 13-digit, NTN 7–9 digit and company-name validation are retained, along with the one-time confirmation and `DirtyFormController` behavior.
+- `Env.workAddressMapsEnabled` continues hiding the legacy address editor for non-internal users when the maps workflow owns that field.
+
+### E030 Settings
+
+- V2 presentation created in `da8579e98df3db2992f0237d6436a38f6c261fc5`; routed together with E029 in `fef551a364f30de59e3434e3f2a02e4018b60c00`.
+- Hierarchy is Profile → Security → Notifications → Legal → About/version → Account actions. “Profile preferences” is renamed **Profile** while retaining `/profile/edit`. The static “Account sync” explanatory row is removed.
+- Notification preference save/retry authority is unchanged; Push preference switch still renders only when `pushProviderOperational`. `PushDeviceSettingsTile` remains the Android device permission/registration owner.
+- Biometric disable/enroll, current-password verification, secure enrollment invalidations, legal `http/https` launcher + backend-text fallback, deletion support request and logout/session clearing remain the same functional flows.
+
 ## Source-level parity checks performed
 
-- GitHub `main` rechecked before meaningful editing batches; all ref updates were fast-forward, no force push.
-- Critical repository calls, provider invalidations, capability gates, route parameters and payload strings were re-read after high-risk customer/document/payment/support/E011 changes.
+- GitHub `main` rechecked before meaningful editing batches; all source changes remained on `main`, no feature branch was created.
+- Critical repository calls, provider invalidations, capability gates, route parameters and payload strings were re-read after high-risk customer/document/payment/support/E011 and Phase 4 account changes.
 - E011 operational rewrite was staged separately, checked against actual `AuthCapabilities`, `AdminCaseOptions`, `DocumentPickResult`, shared header/state/status constructors, then switched through the small dispatcher atomically.
-- No backend, API schema, provider authority, payment-first lifecycle or ERPNext core file was intentionally changed by Phase 3 UI work.
+- E026/E027 use isolated V2 presentations while legacy screens remain untouched; public providers/controllers/storage semantics are reused rather than reimplemented as backend state.
+- E029/E030 were staged first and routed together only after their edit/security contracts were mapped.
+- No backend, API schema, provider authority, payment-first lifecycle or ERPNext core file was intentionally changed by these UI batches.
 
 ## Validation not yet available in this environment
 
@@ -110,6 +146,6 @@ Source-complete does not mean runtime-validated. Phase 5 must close the final an
 
 ## Exact next batch
 
-1. Start **Phase 4 — Customer tools + Profile/Settings/Auth** from the E-ticket order in `ui-ux.md`.
-2. Preserve all provider/mutation/security authority; keep Profile and Settings terminology/IA decisions from D/G.
+1. Continue **Phase 4 auth/account-entry tickets after E030** in the exact `ui-ux.md` order.
+2. Preserve auth redirect, remembered-account/biometric behavior, token handling, DirtyFormController and backend validation payloads exactly.
 3. Continue updating this ledger only after code commits are authoritative on `main`.
