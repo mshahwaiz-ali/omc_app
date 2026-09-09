@@ -18,6 +18,8 @@ import '../data/profile_summary.dart';
 
 bool _profileV2PhotoUploadInFlight = false;
 bool _profileV2SupportSubmissionInFlight = false;
+final ValueNotifier<bool> _profileV2PhotoUploading = ValueNotifier<bool>(false);
+final Map<String, String> _profileV2SupportDraftsByOwner = <String, String>{};
 
 class ProfileV2Screen extends ConsumerWidget {
   const ProfileV2Screen({super.key});
@@ -343,19 +345,33 @@ class _IdentityCard extends StatelessWidget {
           Positioned(
             right: -8,
             bottom: -8,
-            child: Material(
-              color: AppTheme.textPrimary,
-              shape: const CircleBorder(),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: onChangePhoto,
-                child: const SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: Icon(
-                    Icons.camera_alt_outlined,
-                    color: Colors.white,
-                    size: 20,
+            child: Tooltip(
+              message: 'Change profile photo',
+              child: Material(
+                color: AppTheme.textPrimary,
+                shape: const CircleBorder(),
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _profileV2PhotoUploading,
+                  builder: (context, uploading, _) => InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: uploading ? null : onChangePhoto,
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: uploading
+                          ? const Padding(
+                              padding: EdgeInsets.all(14),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.camera_alt_outlined,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                    ),
                   ),
                 ),
               ),
@@ -386,27 +402,63 @@ class _IdentityCard extends StatelessWidget {
       ],
     );
 
-    return PremiumCard(
-      padding: const EdgeInsets.all(20),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final stack = constraints.maxWidth < 360 || textScaler > 1.35;
-          if (stack) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [avatar, const SizedBox(height: 20), identity],
-            );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              avatar,
-              const SizedBox(width: 20),
-              Expanded(child: identity),
+    return ValueListenableBuilder<bool>(
+      valueListenable: _profileV2PhotoUploading,
+      builder: (context, uploading, _) {
+        final identityArea = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            identity,
+            if (uploading) ...[
+              const SizedBox(height: 12),
+              Semantics(
+                liveRegion: true,
+                label: 'Uploading profile photo',
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Uploading profile photo…',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
-          );
-        },
-      ),
+          ],
+        );
+
+        return PremiumCard(
+          padding: const EdgeInsets.all(20),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final stack = constraints.maxWidth < 360 || textScaler > 1.35;
+              if (stack) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [avatar, const SizedBox(height: 20), identityArea],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  avatar,
+                  const SizedBox(width: 20),
+                  Expanded(child: identityArea),
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }
@@ -803,6 +855,7 @@ Future<void> _changeProfilePhoto(BuildContext context, WidgetRef ref) async {
 
     if (image == null) return;
     if (!context.mounted) return;
+    _profileV2PhotoUploading.value = true;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Uploading profile photo...')),
     );
@@ -829,6 +882,7 @@ Future<void> _changeProfilePhoto(BuildContext context, WidgetRef ref) async {
       SnackBar(content: Text(failure.message)),
     );
   } finally {
+    _profileV2PhotoUploading.value = false;
     _profileV2PhotoUploadInFlight = false;
   }
 }
@@ -838,14 +892,27 @@ Future<void> _showProfileSupportSheet(
   WidgetRef ref,
   ProfileSummary profile,
 ) async {
-  final controller = TextEditingController();
+  final authUserId = ref.read(authControllerProvider).userId?.trim();
+  final ownerKey = authUserId?.isNotEmpty == true
+      ? authUserId!
+      : profile.email.trim().toLowerCase();
+  final controller = TextEditingController(
+    text: _profileV2SupportDraftsByOwner[ownerKey] ?? '',
+  );
   final message = await showModalBottomSheet<String>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     builder: (sheetContext) => _ProfileSupportSheet(controller: controller),
   );
+  final currentDraft = controller.text.trim();
   controller.dispose();
+
+  if (currentDraft.isEmpty) {
+    _profileV2SupportDraftsByOwner.remove(ownerKey);
+  } else {
+    _profileV2SupportDraftsByOwner[ownerKey] = currentDraft;
+  }
 
   final cleanMessage = message?.trim();
   if (cleanMessage == null || cleanMessage.isEmpty || !context.mounted) return;
@@ -853,7 +920,7 @@ Future<void> _showProfileSupportSheet(
   if (_profileV2SupportSubmissionInFlight) {
     _showPendingSnack(
       context,
-      'A profile request is already being submitted.',
+      'A profile request is already being submitted. Your message is retained.',
     );
     return;
   }
@@ -865,6 +932,7 @@ Future<void> _showProfileSupportSheet(
           message: cleanMessage,
         );
 
+    _profileV2SupportDraftsByOwner.remove(ownerKey);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -872,15 +940,16 @@ Future<void> _showProfileSupportSheet(
       ),
     );
   } catch (error) {
+    _profileV2SupportDraftsByOwner[ownerKey] = cleanMessage;
     if (!context.mounted) return;
     final failure = AppFailureClassifier.classify(
       error,
       fallbackTitle: 'Request not submitted',
       fallbackMessage:
-          'Could not submit request right now. Your entered details were not changed.',
+          'Could not submit request right now. Your message is retained so you can retry.',
     );
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(failure.message)),
+      SnackBar(content: Text('${failure.message} Your message is retained.')),
     );
   } finally {
     _profileV2SupportSubmissionInFlight = false;
