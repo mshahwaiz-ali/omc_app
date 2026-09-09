@@ -6,6 +6,8 @@ import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_state.dart';
+import '../../../core/widgets/omc_premium.dart';
+import '../../../core/widgets/premium_card.dart';
 import '../../home/data/home_dashboard_repository.dart';
 import '../data/notification_item.dart';
 import '../data/notifications_repository.dart';
@@ -53,15 +55,16 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics(),
                 ),
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 144),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
                 children: [
                   _Header(
                     unreadCount: loadedUnread,
                     onReadAll: loadedUnread > 0 && !_markingAllRead
                         ? () => _markAllAsRead()
                         : null,
+                    markingAllRead: _markingAllRead,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   if (visible.isEmpty)
                     const _EmptyState(unreadOnly: false)
                   else
@@ -71,7 +74,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                       onDismiss: _dismiss,
                     ),
                   if (_hasMore) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     OutlinedButton.icon(
                       onPressed: _loadingMore ? null : _loadMore,
                       icon: _loadingMore
@@ -80,7 +83,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.expand_more_rounded),
-                      label: Text(_loadingMore ? 'Loading' : 'Load more'),
+                      label: Text(
+                        _loadingMore ? 'Loading alerts' : 'Load more alerts',
+                      ),
                     ),
                   ],
                 ],
@@ -241,48 +246,89 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.unreadCount, required this.onReadAll});
+  const _Header({
+    required this.unreadCount,
+    required this.onReadAll,
+    required this.markingAllRead,
+  });
+
   final int unreadCount;
   final VoidCallback? onReadAll;
+  final bool markingAllRead;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Notifications',
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stack =
+            constraints.maxWidth < 350 ||
+            MediaQuery.textScalerOf(context).scale(1) >= 1.4;
+        final identity = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Semantics(
+              header: true,
+              child: Text(
+                'Alerts',
                 style: TextStyle(
                   color: AppTheme.textPrimary,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.4,
+                  fontSize: 26,
+                  height: 1.12,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 3),
-              Text(
-                unreadCount == 0
-                    ? 'You are all caught up'
-                    : '$unreadCount unread ${unreadCount == 1 ? 'update' : 'updates'}',
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              unreadCount == 0
+                  ? 'You are all caught up'
+                  : '$unreadCount unread ${unreadCount == 1 ? 'update' : 'updates'}',
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 15,
+                height: 1.4,
+                fontWeight: FontWeight.w500,
               ),
+            ),
+          ],
+        );
+        final action = onReadAll == null
+            ? null
+            : TextButton.icon(
+                onPressed: onReadAll,
+                icon: markingAllRead
+                    ? const SizedBox.square(
+                        dimension: 17,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.done_all_rounded),
+                label: Text(markingAllRead ? 'Marking read' : 'Mark all read'),
+              );
+
+        if (stack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              identity,
+              if (action != null) ...[
+                const SizedBox(height: 8),
+                action,
+              ],
             ],
-          ),
-        ),
-        if (onReadAll != null)
-          TextButton.icon(
-            onPressed: onReadAll,
-            icon: const Icon(Icons.done_all_rounded, size: 18),
-            label: const Text('Read all'),
-          ),
-      ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: identity),
+            if (action != null) ...[
+              const SizedBox(width: 12),
+              action,
+            ],
+          ],
+        );
+      },
     );
   }
 }
@@ -293,161 +339,182 @@ class _NotificationList extends StatelessWidget {
     required this.onOpen,
     required this.onDismiss,
   });
+
   final List<NotificationItem> items;
   final Future<void> Function(NotificationItem) onOpen;
   final Future<bool> Function(NotificationItem) onDismiss;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE7EAF0)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: Column(
-          children: [
-            for (var i = 0; i < items.length; i++) ...[
-              Dismissible(
-                key: ValueKey(items[i].id),
-                direction: DismissDirection.endToStart,
-                confirmDismiss: (_) => onDismiss(items[i]),
-                background: Container(
-                  color: const Color(0xFFDC2626),
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.symmetric(horizontal: 22),
-                  child: const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.clear_rounded, color: Colors.white),
-                      Text(
-                        'Clear',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                child: _NotificationRow(
-                  item: items[i],
-                  onTap: () => onOpen(items[i]),
-                ),
+    return Column(
+      children: [
+        for (var i = 0; i < items.length; i++) ...[
+          Dismissible(
+            key: ValueKey(items[i].id),
+            direction: DismissDirection.endToStart,
+            confirmDismiss: (_) => onDismiss(items[i]),
+            background: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.symmetric(horizontal: 22),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.error,
+                borderRadius: BorderRadius.circular(16),
               ),
-              if (i != items.length - 1) const Divider(height: 1, indent: 64),
-            ],
-          ],
-        ),
-      ),
+              child: const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.clear_rounded, color: Colors.white),
+                  SizedBox(height: 3),
+                  Text(
+                    'Clear',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            child: _NotificationRow(
+              item: items[i],
+              onTap: () => onOpen(items[i]),
+            ),
+          ),
+          if (i != items.length - 1) const SizedBox(height: 10),
+        ],
+      ],
     );
   }
 }
 
 class _NotificationRow extends StatelessWidget {
   const _NotificationRow({required this.item, required this.onTap});
+
   final NotificationItem item;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final colour = _typeColour(item.type);
-    return Material(
-      color: item.isRead
-          ? Colors.white
-          : Theme.of(context).colorScheme.primary.withValues(alpha: 0.035),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: colour.withValues(alpha: 0.09),
-                  borderRadius: BorderRadius.circular(13),
+    final color = _typeColor(item.type);
+
+    return Semantics(
+      button: true,
+      label:
+          '${item.isRead ? 'Read' : 'Unread'} ${item.type.label}: ${item.title}. ${item.message}',
+      child: PremiumCard(
+        padding: EdgeInsets.zero,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(_typeIcon(item.type), color: color, size: 22),
                 ),
-                child: Icon(_typeIcon(item.type), color: colour, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        if (!item.isRead)
-                          Container(
-                            width: 7,
-                            height: 7,
-                            margin: const EdgeInsets.only(right: 7),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary,
-                              shape: BoxShape.circle,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item.title,
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 16,
+                                height: 1.3,
+                                fontWeight: item.isRead
+                                    ? FontWeight.w600
+                                    : FontWeight.w700,
+                              ),
                             ),
                           ),
-                        Expanded(
-                          child: Text(
-                            item.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 14,
-                              fontWeight: item.isRead
-                                  ? FontWeight.w700
-                                  : FontWeight.w900,
+                          if (!item.isRead) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              width: 9,
+                              height: 9,
+                              margin: const EdgeInsets.only(top: 5),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary,
+                                shape: BoxShape.circle,
+                              ),
                             ),
-                          ),
-                        ),
-                        if (item.createdAtLabel != null) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            item.createdAtLabel!,
-                            style: const TextStyle(
-                              color: AppTheme.textMuted,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          ],
                         ],
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.message,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        height: 1.35,
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      [
-                        item.type.label,
-                        if (item.reference != null) item.reference!,
-                      ].join(' • '),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: colour,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
+                      const SizedBox(height: 6),
+                      Text(
+                        item.message,
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 14,
+                          height: 1.45,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            item.type.label,
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (item.reference?.trim().isNotEmpty == true)
+                            Text(
+                              item.reference!.trim(),
+                              style: const TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          if (item.createdAtLabel?.trim().isNotEmpty == true)
+                            Text(
+                              item.createdAtLabel!.trim(),
+                              style: const TextStyle(
+                                color: AppTheme.textMuted,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 6),
+                const Padding(
+                  padding: EdgeInsets.only(top: 10),
+                  child: Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppTheme.textSecondary,
+                    size: 22,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -455,12 +522,12 @@ class _NotificationRow extends StatelessWidget {
   }
 }
 
-Color _typeColour(AppNotificationType type) => switch (type) {
-  AppNotificationType.documentRequest => const Color(0xFF4F46E5),
-  AppNotificationType.paymentAlert => const Color(0xFF047857),
-  AppNotificationType.serviceUpdate => const Color(0xFFB42318),
-  AppNotificationType.taskUpdate => const Color(0xFFB42318),
-  AppNotificationType.general => const Color(0xFF475569),
+Color _typeColor(AppNotificationType type) => switch (type) {
+  AppNotificationType.documentRequest => AppTheme.warning,
+  AppNotificationType.paymentAlert => AppTheme.success,
+  AppNotificationType.serviceUpdate => AppTheme.info,
+  AppNotificationType.taskUpdate => AppTheme.info,
+  AppNotificationType.general => AppTheme.textSecondary,
 };
 
 IconData _typeIcon(AppNotificationType type) => switch (type) {
@@ -473,82 +540,108 @@ IconData _typeIcon(AppNotificationType type) => switch (type) {
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.unreadOnly});
+
   final bool unreadOnly;
+
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 56, horizontal: 20),
-    child: Column(
-      children: [
-        const Icon(
-          Icons.notifications_none_rounded,
-          color: AppTheme.textMuted,
-          size: 38,
-        ),
-        const SizedBox(height: 12),
-        Text(
-          unreadOnly ? 'No unread notifications' : "You're all caught up",
-          style: const TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.notifications_none_rounded,
+            color: AppTheme.textMuted,
+            size: 40,
           ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          unreadOnly
-              ? 'New unread updates will appear here.'
-              : 'Service, document, payment and account updates will appear here.',
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 12.5,
-            height: 1.4,
+          const SizedBox(height: 12),
+          Text(
+            unreadOnly ? 'No unread alerts' : "You're all caught up",
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(height: 7),
+          Text(
+            unreadOnly
+                ? 'New unread updates will appear here.'
+                : 'Service, document, payment and account updates will appear here.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 15,
+              height: 1.45,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.error, required this.onRetry});
+
   final Object error;
   final VoidCallback onRetry;
+
   @override
-  Widget build(BuildContext context) => ListView(
-    physics: const AlwaysScrollableScrollPhysics(),
-    padding: const EdgeInsets.fromLTRB(16, 12, 16, 144),
-    children: [
-      const _Header(unreadCount: 0, onReadAll: null),
-      const SizedBox(height: 24),
-      AppErrorState.fromError(
-        error: error,
-        onRetry: onRetry,
-        fallbackTitle: 'Notifications unavailable',
-        fallbackMessage:
-            'We could not load your notifications. Please try again.',
-        compact: true,
-      ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
+      children: [
+        const _Header(
+          unreadCount: 0,
+          onReadAll: null,
+          markingAllRead: false,
+        ),
+        const SizedBox(height: 20),
+        AppErrorState.fromError(
+          error: error,
+          onRetry: onRetry,
+          fallbackTitle: 'Alerts unavailable',
+          fallbackMessage: 'We could not load your alerts. Please try again.',
+          compact: true,
+        ),
+      ],
+    );
+  }
 }
 
 class _LoadingView extends StatelessWidget {
   const _LoadingView();
+
   @override
-  Widget build(BuildContext context) => ListView.separated(
-    physics: const AlwaysScrollableScrollPhysics(),
-    padding: const EdgeInsets.fromLTRB(16, 12, 16, 144),
-    itemCount: 6,
-    separatorBuilder: (_, index) => SizedBox(height: index == 0 ? 18 : 1),
-    itemBuilder: (_, index) => index == 0
-        ? const _Header(unreadCount: 0, onReadAll: null)
-        : Container(
-            height: 86,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: const Color(0xFFE7EAF0)),
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
+      children: [
+        const _Header(
+          unreadCount: 0,
+          onReadAll: null,
+          markingAllRead: false,
+        ),
+        const SizedBox(height: 18),
+        for (var index = 0; index < 4; index++) ...[
+          PremiumCard(
+            padding: const EdgeInsets.all(16),
+            child: Container(
+              height: 76,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
-  );
+          if (index != 3) const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
 }
