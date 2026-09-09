@@ -41,78 +41,87 @@ class PaymentActionCard extends StatelessWidget {
         payment.status != PaymentStatus.paid &&
         payment.status != PaymentStatus.cancelled &&
         onUploadReceipt != null;
+    final instructions = payment.paymentInstructions?.trim();
+    final bankDetails = payment.bankAccountDetails?.trim();
 
     return PremiumCard(
       padding: const EdgeInsets.all(18),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Row(
-            children: [
-              _ActionHeaderIcon(),
-              SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Payment actions',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Complete payment, upload proof when required, and track verification.',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
+          const Semantics(
+            header: true,
+            child: Text(
+              'Next payment step',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 17,
+                height: 1.2,
+                fontWeight: FontWeight.w700,
               ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          if (canOpenPaymentAction) ...[
-            _ActionTile(
-              icon: payment.onlineGatewayAvailable
-                  ? Icons.lock_outline_rounded
-                  : Icons.payment_rounded,
-              title: paymentActionLabel,
-              subtitle: payment.onlineGatewayAvailable
-                  ? 'Open the secure payment checkout.'
-                  : 'Open the available payment channel for this payment.',
-              enabled: true,
-              onTap: onPayNow,
             ),
-            const SizedBox(height: 10),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            _nextStepMessage(payment, isUploadingReceipt),
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 15,
+              height: 1.45,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (instructions?.isNotEmpty == true ||
+              bankDetails?.isNotEmpty == true) ...[
+            const SizedBox(height: 16),
+            _PaymentInstructions(
+              instructions: instructions,
+              bankDetails: bankDetails,
+            ),
+          ],
+          if (canOpenPaymentAction) ...[
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: onPayNow,
+              icon: Icon(
+                payment.onlineGatewayAvailable
+                    ? Icons.lock_outline_rounded
+                    : Icons.payment_rounded,
+              ),
+              label: Text(paymentActionLabel),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              payment.onlineGatewayAvailable
+                  ? 'Opens the secure payment checkout.'
+                  : 'Opens the available payment channel for this payment.',
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 13,
+                height: 1.35,
+              ),
+            ),
           ],
           if (canUploadReceipt || isUploadingReceipt) ...[
-            _ActionTile(
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
               key: OmcWidgetKeys.paymentUploadReceipt,
+              onPressed: isUploadingReceipt || !canUploadReceipt
+                  ? null
+                  : onUploadReceipt,
               icon: isUploadingReceipt
-                  ? Icons.hourglass_top_rounded
-                  : Icons.upload_file_rounded,
-              title: isUploadingReceipt
-                  ? 'Uploading payment proof'
-                  : 'Upload payment proof',
-              subtitle: isUploadingReceipt
-                  ? 'Please wait while the payment proof is uploaded.'
-                  : payment.status == PaymentStatus.rejected
-                  ? 'Upload corrected proof for finance review.'
-                  : 'Attach payment proof for verification.',
-              enabled: !isUploadingReceipt && canUploadReceipt,
-              onTap: canUploadReceipt ? onUploadReceipt : null,
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.upload_file_rounded),
+              label: Text(
+                isUploadingReceipt
+                    ? 'Uploading payment proof'
+                    : payment.status == PaymentStatus.rejected
+                    ? 'Upload corrected payment proof'
+                    : 'Upload payment proof',
+              ),
             ),
             if (isUploadingReceipt) ...[
               const SizedBox(height: 10),
@@ -120,28 +129,133 @@ class PaymentActionCard extends StatelessWidget {
                 progress: uploadProgress,
                 onCancel: onCancelUpload,
               ),
+            ] else ...[
+              const SizedBox(height: 6),
+              const Text(
+                'Uploading proof submits evidence for OMC review; it does not confirm that payment has been verified.',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
             ],
-            const SizedBox(height: 10),
           ],
-          _ActionTile(
-            icon: Icons.receipt_long_outlined,
-            title: 'View Invoice',
-            subtitle: canOpenInvoice
-                ? 'Open the official Sales Invoice.'
-                : 'Invoice is not available yet.',
-            enabled: canOpenInvoice,
-            onTap: onInvoice,
+          const Divider(height: 30),
+          const Semantics(
+            header: true,
+            child: Text(
+              'Payment evidence',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
           const SizedBox(height: 10),
-          _ActionTile(
-            icon: Icons.verified_outlined,
-            title: 'View Payment Proof',
-            subtitle: canOpenPaymentProof
-                ? 'Open the submitted payment proof.'
-                : 'Payment proof has not been submitted yet.',
-            enabled: canOpenPaymentProof,
-            onTap: onReceipt,
+          OutlinedButton.icon(
+            onPressed: canOpenInvoice ? onInvoice : null,
+            icon: const Icon(Icons.receipt_long_outlined),
+            label: Text(
+              canOpenInvoice ? 'View invoice' : 'Invoice not available yet',
+            ),
           ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: canOpenPaymentProof ? onReceipt : null,
+            icon: const Icon(Icons.verified_outlined),
+            label: Text(
+              canOpenPaymentProof
+                  ? 'View submitted payment proof'
+                  : 'Payment proof not submitted yet',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _nextStepMessage(PaymentItem payment, bool uploading) {
+    if (uploading) {
+      return 'Your payment proof is uploading. You can cancel the upload before it completes.';
+    }
+    switch (payment.status) {
+      case PaymentStatus.pending:
+        return 'Complete the available payment step, then submit payment proof when required.';
+      case PaymentStatus.overdue:
+        return 'This payment is overdue. Complete the available payment step as soon as possible.';
+      case PaymentStatus.rejected:
+        return 'OMC rejected the submitted proof. Upload corrected payment proof for another review.';
+      case PaymentStatus.receiptSubmitted:
+      case PaymentStatus.underReview:
+        return 'Payment proof has been submitted and is awaiting OMC verification. No paid status is implied yet.';
+      case PaymentStatus.paid:
+        return 'This payment is marked paid. Evidence remains available below for reference.';
+      case PaymentStatus.cancelled:
+        return 'This payment record is cancelled and no payment action is available.';
+    }
+  }
+}
+
+class _PaymentInstructions extends StatelessWidget {
+  const _PaymentInstructions({this.instructions, this.bankDetails});
+
+  final String? instructions;
+  final String? bankDetails;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Payment instructions',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (instructions?.isNotEmpty == true) ...[
+            const SizedBox(height: 6),
+            SelectableText(
+              instructions!,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 14,
+                height: 1.45,
+              ),
+            ),
+          ],
+          if (bankDetails?.isNotEmpty == true) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'Bank / channel details',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            SelectableText(
+              bankDetails!,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 14,
+                height: 1.45,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -167,9 +281,9 @@ class _UploadProgressPanel extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppTheme.primary.withValues(alpha: 0.045),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.10)),
+          color: AppTheme.info.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.info.withValues(alpha: 0.14)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -183,139 +297,31 @@ class _UploadProgressPanel extends StatelessWidget {
                         : 'Uploading payment proof — $percent%',
                     style: const TextStyle(
                       color: AppTheme.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 TextButton.icon(
                   onPressed: onCancel,
-                  icon: const Icon(Icons.close_rounded, size: 18),
+                  icon: const Icon(Icons.close_rounded),
                   label: const Text('Cancel'),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             LinearProgressIndicator(value: normalized),
+            const SizedBox(height: 8),
+            const Text(
+              'Upload progress only. Payment remains unverified until OMC completes its review.',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ActionHeaderIcon extends StatelessWidget {
-  const _ActionHeaderIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: AppTheme.primary.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.08)),
-      ),
-      child: const Icon(Icons.bolt_rounded, color: AppTheme.primary, size: 22),
-    );
-  }
-}
-
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.enabled = true,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback? onTap;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = enabled ? AppTheme.primary : AppTheme.textSecondary;
-
-    return Material(
-      color: enabled
-          ? AppTheme.primary.withValues(alpha: 0.045)
-          : Colors.black.withValues(alpha: 0.025),
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: enabled ? onTap : null,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: enabled ? 0.10 : 0.06),
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(
-                    color: color.withValues(alpha: enabled ? 0.10 : 0.06),
-                  ),
-                ),
-                child: Icon(icon, color: color, size: 21),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: enabled
-                            ? AppTheme.textPrimary
-                            : AppTheme.textSecondary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: enabled
-                      ? Colors.white.withValues(alpha: 0.72)
-                      : Colors.black.withValues(alpha: 0.025),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.chevron_right_rounded,
-                  color: enabled ? AppTheme.primary : AppTheme.textSecondary,
-                  size: 20,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
