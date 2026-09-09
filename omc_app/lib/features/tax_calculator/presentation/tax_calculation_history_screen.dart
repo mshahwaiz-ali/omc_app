@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/theme.dart';
+import '../../../core/widgets/loading_view.dart';
+import '../../../core/widgets/omc_premium.dart';
+import '../../../core/widgets/premium_card.dart';
 import '../data/tax_calculation_repository.dart';
 
 class TaxCalculationHistoryScreen extends ConsumerStatefulWidget {
@@ -37,19 +41,25 @@ class _TaxCalculationHistoryScreenState
     final repository = ref.watch(taxCalculationRepositoryProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tax Estimate History')),
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        backgroundColor: AppTheme.background,
+        surfaceTintColor: Colors.transparent,
+        title: const Text('Tax estimate history'),
+      ),
       body: FutureBuilder<List<TaxCalculationHistoryItem>>(
         future: repository.getHistory(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const LoadingView(message: 'Loading tax estimate history');
           }
 
           if (snapshot.hasError) {
-            return _StateMessage(
+            return const _StateMessage(
               icon: Icons.error_outline_rounded,
               title: 'History unavailable',
-              message: _friendlyError(snapshot.error),
+              message:
+                  'Saved tax estimates could not be loaded right now. Try again from this screen.',
             );
           }
 
@@ -65,42 +75,52 @@ class _TaxCalculationHistoryScreenState
 
           final filteredItems = items.where(_matchesFilters).toList();
 
-          return RefreshIndicator(
+          return RefreshIndicator.adaptive(
             onRefresh: () async =>
                 ref.invalidate(taxCalculationRepositoryProvider),
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-              itemCount: filteredItems.length + 1,
-              separatorBuilder: (_, index) =>
-                  SizedBox(height: index == 0 ? 14 : 10),
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return _HistoryFiltersCard(
-                    incomeTypes: _incomeTypeFilters,
-                    filerStatuses: _filerStatusFilters,
-                    selectedIncomeType: _selectedIncomeType,
-                    selectedFilerStatus: _selectedFilerStatus,
-                    resultCount: filteredItems.length,
-                    totalCount: items.length,
-                    onIncomeTypeSelected: (value) {
-                      setState(() => _selectedIncomeType = value);
-                    },
-                    onFilerStatusSelected: (value) {
-                      setState(() => _selectedFilerStatus = value);
-                    },
-                  );
-                }
-
-                if (filteredItems.isEmpty) {
-                  return const _InlineEmptyState(
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+              children: [
+                _HistoryFilterSummary(
+                  incomeTypes: _incomeTypeFilters,
+                  filerStatuses: _filerStatusFilters,
+                  selectedIncomeType: _selectedIncomeType,
+                  selectedFilerStatus: _selectedFilerStatus,
+                  resultCount: filteredItems.length,
+                  totalCount: items.length,
+                  onIncomeTypeSelected: (value) {
+                    setState(() => _selectedIncomeType = value);
+                  },
+                  onFilerStatusSelected: (value) {
+                    setState(() => _selectedFilerStatus = value);
+                  },
+                  onClear: () {
+                    setState(() {
+                      _selectedIncomeType = _all;
+                      _selectedFilerStatus = _all;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                if (filteredItems.isEmpty)
+                  const _InlineEmptyState(
                     icon: Icons.filter_alt_off_rounded,
                     title: 'No estimates for these filters',
-                    message: 'Try another income type or filer status.',
-                  );
-                }
-
-                return _HistoryCard(item: filteredItems[index - 1]);
-              },
+                    message:
+                        'Your saved estimates still exist. Try another income type or filer status.',
+                  )
+                else
+                  for (var index = 0;
+                      index < filteredItems.length;
+                      index++) ...[
+                    _HistoryCard(item: filteredItems[index]),
+                    if (index != filteredItems.length - 1)
+                      const SizedBox(height: 10),
+                  ],
+              ],
             ),
           );
         },
@@ -124,8 +144,8 @@ class _TaxCalculationHistoryScreenState
   }
 }
 
-class _HistoryFiltersCard extends StatelessWidget {
-  const _HistoryFiltersCard({
+class _HistoryFilterSummary extends StatelessWidget {
+  const _HistoryFilterSummary({
     required this.incomeTypes,
     required this.filerStatuses,
     required this.selectedIncomeType,
@@ -134,6 +154,7 @@ class _HistoryFiltersCard extends StatelessWidget {
     required this.totalCount,
     required this.onIncomeTypeSelected,
     required this.onFilerStatusSelected,
+    required this.onClear,
   });
 
   final List<String> incomeTypes;
@@ -144,67 +165,62 @@ class _HistoryFiltersCard extends StatelessWidget {
   final int totalCount;
   final ValueChanged<String> onIncomeTypeSelected;
   final ValueChanged<String> onFilerStatusSelected;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
+    final activeFilters =
+        selectedIncomeType != 'All' || selectedFilerStatus != 'All';
     final countLabel = resultCount == totalCount
         ? '$totalCount estimate${totalCount == 1 ? '' : 's'}'
         : '$resultCount of $totalCount estimates';
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-        side: BorderSide(
-          color: Theme.of(
-            context,
-          ).colorScheme.outlineVariant.withValues(alpha: 0.65),
+    return PremiumCard(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 8),
+        childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+        title: const Text(
+          'Filters',
+          style: TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Filter estimates',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-                  ),
-                ),
-                Text(
-                  countLabel,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _FilterRow(
-              title: 'Income type',
-              values: incomeTypes,
-              selectedValue: selectedIncomeType,
-              onSelected: onIncomeTypeSelected,
-            ),
-            const SizedBox(height: 12),
-            _FilterRow(
-              title: 'Filer status',
-              values: filerStatuses,
-              selectedValue: selectedFilerStatus,
-              onSelected: onFilerStatusSelected,
-            ),
-          ],
+        subtitle: Text(
+          '$countLabel · $selectedIncomeType · $selectedFilerStatus',
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 14,
+            height: 1.35,
+          ),
         ),
+        trailing: activeFilters
+            ? TextButton(onPressed: onClear, child: const Text('Clear'))
+            : const Icon(Icons.expand_more_rounded),
+        children: [
+          _FilterGroup(
+            title: 'Income type',
+            values: incomeTypes,
+            selectedValue: selectedIncomeType,
+            onSelected: onIncomeTypeSelected,
+          ),
+          const SizedBox(height: 16),
+          _FilterGroup(
+            title: 'Filer status',
+            values: filerStatuses,
+            selectedValue: selectedFilerStatus,
+            onSelected: onFilerStatusSelected,
+          ),
+        ],
       ),
     );
   }
 }
 
-class _FilterRow extends StatelessWidget {
-  const _FilterRow({
+class _FilterGroup extends StatelessWidget {
+  const _FilterGroup({
     required this.title,
     required this.values,
     required this.selectedValue,
@@ -223,99 +239,26 @@ class _FilterRow extends StatelessWidget {
       children: [
         Text(
           title,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          child: Row(
-            children: [
-              for (final value in values) ...[
-                _FilterChip(
-                  label: value,
-                  selected: selectedValue == value,
-                  onTap: () => onSelected(value),
-                ),
-                const SizedBox(width: 8),
-              ],
-            ],
+          style: const TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
           ),
         ),
-      ],
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      selectedColor: colorScheme.primaryContainer,
-      labelStyle: TextStyle(
-        color: selected
-            ? colorScheme.onPrimaryContainer
-            : colorScheme.onSurface,
-        fontWeight: FontWeight.w800,
-      ),
-      side: BorderSide(
-        color: selected
-            ? colorScheme.primary.withValues(alpha: 0.35)
-            : colorScheme.outlineVariant.withValues(alpha: 0.8),
-      ),
-    );
-  }
-}
-
-class _InlineEmptyState extends StatelessWidget {
-  const _InlineEmptyState({
-    required this.icon,
-    required this.title,
-    required this.message,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-      child: Padding(
-        padding: const EdgeInsets.all(22),
-        child: Column(
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
-            Icon(icon, size: 34),
-            const SizedBox(height: 10),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            Text(message, textAlign: TextAlign.center),
+            for (final value in values)
+              ChoiceChip(
+                label: Text(value),
+                selected: selectedValue == value,
+                onSelected: (_) => onSelected(value),
+              ),
           ],
         ),
-      ),
+      ],
     );
   }
 }
@@ -327,109 +270,105 @@ class _HistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-        side: BorderSide(
-          color: Theme.of(
-            context,
-          ).colorScheme.outlineVariant.withValues(alpha: 0.65),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    item.taxYear.isEmpty ? 'Saved tax estimate' : item.taxYear,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                if (item.linkedServiceRequest.trim().isNotEmpty)
-                  const Icon(Icons.task_alt_rounded, size: 18),
-              ],
-            ),
-            if (item.createdOn.trim().isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                item.createdOn,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+    final taxYear = item.taxYear.trim().isEmpty ? 'Tax year not labelled' : item.taxYear.trim();
+    final date = item.createdOn.trim();
+    final linkedRequest = item.linkedServiceRequest.trim();
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _MetaPill(label: taxYear),
+              if (date.isNotEmpty) _MetaPill(label: date),
+              if (item.incomeType.trim().isNotEmpty)
+                _MetaPill(label: item.incomeType.trim()),
+              if (item.filerStatus.trim().isNotEmpty)
+                _MetaPill(label: item.filerStatus.trim()),
             ],
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _Chip(
-                  label: item.incomeType.isEmpty ? 'Income' : item.incomeType,
-                ),
-                _Chip(
-                  label: item.filerStatus.isEmpty
-                      ? 'Filer Status'
-                      : item.filerStatus,
-                ),
-              ],
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Estimated annual tax',
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 14,
             ),
-            const SizedBox(height: 14),
-            _KeyValue(
-              label: 'Annual Income',
-              value: _formatMoney(item.annualIncome),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _formatMoney(item.estimatedAnnualTax),
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 28,
+              height: 1.2,
+              fontWeight: FontWeight.w700,
             ),
-            _KeyValue(
-              label: 'Estimated Annual Tax',
-              value: _formatMoney(item.estimatedAnnualTax),
-              strong: true,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Annual income ${_formatMoney(item.annualIncome)}',
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 15,
+              height: 1.4,
             ),
-            _KeyValue(
-              label: 'Monthly Tax',
-              value: _formatMoney(item.monthlyTax),
+          ),
+          const SizedBox(height: 12),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.zero,
+            title: const Text(
+              'Estimate details',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
-            _KeyValue(
-              label: 'Effective Rate',
-              value: '${item.effectiveTaxRate.toStringAsFixed(2)}%',
-            ),
-            if (item.linkedServiceRequest.trim().isNotEmpty) ...[
-              const Divider(height: 20),
+            children: [
               _KeyValue(
-                label: 'Linked Service Request',
-                value: item.linkedServiceRequest,
-                strong: true,
+                label: 'Monthly tax',
+                value: _formatMoney(item.monthlyTax),
               ),
+              _KeyValue(
+                label: 'Effective rate',
+                value: '${item.effectiveTaxRate.toStringAsFixed(2)}%',
+              ),
+              if (linkedRequest.isNotEmpty)
+                _KeyValue(
+                  label: 'Linked service request',
+                  value: linkedRequest,
+                  strong: true,
+                ),
             ],
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip({required this.label});
+class _MetaPill extends StatelessWidget {
+  const _MetaPill({required this.label});
 
   final String label;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondaryContainer,
+        color: AppTheme.processingSoft,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.onSecondaryContainer,
-          fontWeight: FontWeight.w700,
+        style: const TextStyle(
+          color: AppTheme.processing,
+          fontSize: 13,
+          height: 1.35,
         ),
       ),
     );
@@ -450,20 +389,79 @@ class _KeyValue extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: Text(label)),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 15,
+              ),
+            ),
+          ),
           const SizedBox(width: 12),
           Flexible(
             child: Text(
               value,
               textAlign: TextAlign.end,
               style: TextStyle(
-                fontWeight: strong ? FontWeight.w900 : FontWeight.w600,
+                color: AppTheme.textPrimary,
+                fontSize: 15,
+                fontWeight: strong ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineEmptyState extends StatelessWidget {
+  const _InlineEmptyState({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        children: [
+          OmcIconBadge(
+            icon: icon,
+            color: AppTheme.textSecondary,
+            size: 44,
+            iconSize: 22,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 15,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -490,15 +488,32 @@ class _StateMessage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 46),
+            OmcIconBadge(
+              icon: icon,
+              color: AppTheme.textSecondary,
+              size: 48,
+              iconSize: 24,
+            ),
             const SizedBox(height: 14),
             Text(
               title,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 21,
+                fontWeight: FontWeight.w600,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            Text(message, textAlign: TextAlign.center),
+            Text(
+              message,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 15,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -507,20 +522,13 @@ class _StateMessage extends StatelessWidget {
 }
 
 String _formatMoney(double value) {
-  final rounded = value.round().toString();
+  final negative = value < 0;
+  final rounded = value.abs().round().toString();
   final buffer = StringBuffer();
   for (var index = 0; index < rounded.length; index++) {
     final positionFromEnd = rounded.length - index;
     buffer.write(rounded[index]);
     if (positionFromEnd > 1 && positionFromEnd % 3 == 1) buffer.write(',');
   }
-  return 'PKR ${buffer.toString()}';
-}
-
-String _friendlyError(Object? error) {
-  final text = error?.toString().trim() ?? '';
-  if (text.isEmpty) return 'Something went wrong. Please try again.';
-  return text
-      .replaceFirst('Exception: ', '')
-      .replaceFirst('DioException [bad response]: ', '');
+  return 'PKR ${negative ? '-' : ''}${buffer.toString()}';
 }
