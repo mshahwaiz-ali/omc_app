@@ -4,11 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/providers/effective_capabilities_provider.dart';
+import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/loading_view.dart';
+import '../../../core/widgets/omc_premium.dart';
+import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../data/tax_calculation_repository.dart';
@@ -77,15 +80,12 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
 
     return Scaffold(
       key: OmcWidgetKeys.taxScreen,
-      backgroundColor: const Color(0xFFF6F7F9),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF6F7F9),
+        backgroundColor: AppTheme.background,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          'Tax Calculator',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
+        title: const Text('Tax calculator'),
         actions: [
           if (_canOpenHistory(authState, capabilities))
             IconButton(
@@ -104,7 +104,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
 
           if (snapshot.hasError) {
             return Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: AppErrorState.fromError(
                 error: snapshot.error!,
                 onRetry: _retryConfig,
@@ -118,7 +118,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
           final config = snapshot.data;
           if (config == null) {
             return Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: AppErrorState(
                 title: 'Calculator settings unavailable',
                 message:
@@ -130,7 +130,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
 
           if (!config.enabled) {
             return Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: AppConfigurationState(
                 title: config.stateTitle,
                 message: config.stateMessage,
@@ -140,7 +140,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
 
           if (config.activeTaxYear == null) {
             return const Padding(
-              padding: EdgeInsets.all(16),
+              padding: EdgeInsets.all(20),
               child: AppConfigurationState(
                 title: 'Tax calculator is not configured',
                 message:
@@ -153,13 +153,19 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
           final activeAdvancedFields = config.advancedFields
               .where((field) => field.appliesTo(_incomeType))
               .toList(growable: false);
+          final currency = config.activeTaxYear!.currency.trim().isEmpty
+              ? 'PKR'
+              : config.activeTaxYear!.currency.trim();
 
-          return RefreshIndicator(
+          return RefreshIndicator.adaptive(
             onRefresh: _refreshConfig,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
               children: [
-                _HeaderCard(
+                _TaxYearSection(
                   config: config,
                   selectedTaxYear:
                       _selectedTaxYear ?? config.activeTaxYear?.name,
@@ -181,12 +187,18 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                     });
                   },
                 ),
-                const SizedBox(height: 14),
-                _InputCard(
+                const SizedBox(height: 24),
+                const _SectionHeader(
+                  title: 'Income details',
+                  subtitle: 'Enter the values used for this server-calculated estimate.',
+                ),
+                const SizedBox(height: 10),
+                _IncomeSection(
                   incomeType: _incomeType,
                   incomeMode: _incomeMode,
                   filerStatus: _filerStatus,
                   amountController: _amountController,
+                  currency: currency,
                   onIncomeTypeChanged: (value) {
                     setState(() {
                       _incomeType = value;
@@ -220,6 +232,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                     fields: activeAdvancedFields,
                     controllers: _advancedControllers,
                     values: _advancedValues,
+                    currency: currency,
                     onToggle: () =>
                         setState(() => _showAdvanced = !_showAdvanced),
                     onChanged: (key, value) {
@@ -234,6 +247,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                     icon: Icons.warning_amber_rounded,
                     title: 'Check calculation input',
                     message: _validationMessage!,
+                    tone: AppTheme.warning,
                   ),
                 ],
                 const SizedBox(height: 16),
@@ -257,12 +271,13 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                   ),
                 ],
                 if (_result != null) ...[
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 28),
                   _ResultSection(
                     result: _result!,
                     config: config,
                     authState: authState,
                     capabilities: capabilities,
+                    currency: currency,
                     isStartingService: _isStartingService,
                     onCtaPressed: () =>
                         _handleCta(repository, config, authState, capabilities),
@@ -423,8 +438,8 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
   }
 }
 
-class _HeaderCard extends StatelessWidget {
-  const _HeaderCard({
+class _TaxYearSection extends StatelessWidget {
+  const _TaxYearSection({
     required this.config,
     required this.selectedTaxYear,
     required this.onTaxYearChanged,
@@ -436,125 +451,85 @@ class _HeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final year = config.activeTaxYear;
+    final active = config.activeTaxYear;
     final years = config.availableTaxYears.isEmpty
-        ? [?year]
+        ? <TaxYearInfo>[if (active != null) active]
         : config.availableTaxYears;
     final currentValue = years.any((item) => item.name == selectedTaxYear)
         ? selectedTaxYear
-        : year?.name;
+        : active?.name;
 
-    return _Card(
+    return PremiumCard(
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFDECEF),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: const Icon(
-                  Icons.calculate_outlined,
-                  color: Color(0xFFDA1735),
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 13),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Estimate your tax',
-                      style: TextStyle(
-                        fontSize: 20,
-                        height: 1.15,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.35,
-                      ),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      'Choose a tax year and calculate using OMC tax rules.',
-                      style: TextStyle(
-                        color: Color(0xFF667085),
-                        height: 1.35,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          const _SectionHeader(
+            title: 'Tax year & rules',
+            subtitle: 'Select the backend tax-year configuration for this estimate.',
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             initialValue: currentValue,
             isExpanded: true,
-            decoration: InputDecoration(
-              labelText: 'Tax Year',
-              prefixIcon: const Icon(Icons.calendar_month_outlined),
-              filled: true,
-              fillColor: const Color(0xFFF8F9FB),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-                borderSide: const BorderSide(color: Color(0xFFE3E7ED)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-                borderSide: const BorderSide(color: Color(0xFFE3E7ED)),
-              ),
+            decoration: const InputDecoration(
+              labelText: 'Tax year',
+              prefixIcon: Icon(Icons.calendar_month_outlined),
             ),
             items: years
                 .map(
                   (item) => DropdownMenuItem(
                     value: item.name,
-                    child: Text(
-                      item.title,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
+                    child: Text(item.title),
                   ),
                 )
                 .toList(growable: false),
             onChanged: years.length > 1 ? onTaxYearChanged : null,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Wrap(
-            spacing: 8,
+            spacing: 10,
             runSpacing: 8,
             children: [
-              _Chip(
-                icon: year?.verified == true
+              _InfoPill(
+                icon: active?.verified == true
                     ? Icons.verified_rounded
                     : Icons.rule_rounded,
-                label: year == null
+                label: active == null
                     ? 'Configured tax rules'
-                    : '${year.currency} · ${year.verified ? 'Verified slabs' : 'Configured slabs'}',
+                    : '${active.currency} · ${active.verified ? 'Verified rules' : 'Configured rules'}',
               ),
               if (config.filingDeadlineAlert.trim().isNotEmpty)
-                _Chip(
+                _InfoPill(
                   icon: Icons.event_available_rounded,
                   label: config.filingDeadlineAlert.trim(),
                 ),
             ],
           ),
+          if (active?.publicNote.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 12),
+            Text(
+              active!.publicNote.trim(),
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 15,
+                height: 1.4,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _InputCard extends StatelessWidget {
-  const _InputCard({
+class _IncomeSection extends StatelessWidget {
+  const _IncomeSection({
     required this.incomeType,
     required this.incomeMode,
     required this.filerStatus,
     required this.amountController,
+    required this.currency,
     required this.onIncomeTypeChanged,
     required this.onIncomeModeChanged,
     required this.onFilerStatusChanged,
@@ -564,37 +539,34 @@ class _InputCard extends StatelessWidget {
   final TaxIncomeMode incomeMode;
   final TaxFilerStatus filerStatus;
   final TextEditingController amountController;
+  final String currency;
   final ValueChanged<TaxIncomeType> onIncomeTypeChanged;
   final ValueChanged<TaxIncomeMode> onIncomeModeChanged;
   final ValueChanged<TaxFilerStatus> onFilerStatusChanged;
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
+    return PremiumCard(
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(
-            title: 'Calculation details',
-            subtitle: 'Enter the income information used for this estimate.',
-          ),
-          const SizedBox(height: 14),
-          _SegmentBlock<TaxIncomeType>(
-            title: 'Income Type',
+          _ChoiceGroup<TaxIncomeType>(
+            title: 'Income type',
             selected: incomeType,
             values: TaxIncomeType.values,
             label: (value) => value.label,
             onChanged: onIncomeTypeChanged,
           ),
-          const SizedBox(height: 14),
-          _SegmentBlock<TaxIncomeMode>(
-            title: 'Income Mode',
+          const SizedBox(height: 20),
+          _ChoiceGroup<TaxIncomeMode>(
+            title: 'Income mode',
             selected: incomeMode,
             values: TaxIncomeMode.values,
             label: (value) => value.label,
             onChanged: onIncomeModeChanged,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 20),
           TextField(
             controller: amountController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -603,19 +575,14 @@ class _InputCard extends StatelessWidget {
             ],
             decoration: InputDecoration(
               labelText: incomeMode == TaxIncomeMode.monthly
-                  ? 'Monthly Income Amount'
-                  : 'Annual Income Amount',
-              prefixText: 'PKR ',
-              filled: true,
-              fillColor: const Color(0xFFF8F9FB),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
+                  ? 'Monthly income amount'
+                  : 'Annual income amount',
+              prefixText: '$currency ',
             ),
           ),
-          const SizedBox(height: 14),
-          _SegmentBlock<TaxFilerStatus>(
-            title: 'Filer Status',
+          const SizedBox(height: 20),
+          _ChoiceGroup<TaxFilerStatus>(
+            title: 'Filer status',
             selected: filerStatus,
             values: TaxFilerStatus.values,
             label: (value) => value.label,
@@ -633,6 +600,7 @@ class _AdvancedSection extends StatelessWidget {
     required this.fields,
     required this.controllers,
     required this.values,
+    required this.currency,
     required this.onToggle,
     required this.onChanged,
   });
@@ -641,27 +609,31 @@ class _AdvancedSection extends StatelessWidget {
   final List<TaxInputField> fields;
   final Map<String, TextEditingController> controllers;
   final Map<String, dynamic> values;
+  final String currency;
   final VoidCallback onToggle;
   final void Function(String key, dynamic value) onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
       child: Column(
         children: [
           InkWell(
-            borderRadius: BorderRadius.circular(16),
             onTap: onToggle,
+            borderRadius: BorderRadius.circular(12),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
+              padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Expanded(
-                    child: _SectionTitle(
+                    child: _SectionHeader(
                       title: 'Refine calculation',
-                      subtitle: 'Optional fields change by income type.',
+                      subtitle: 'Optional backend-configured fields for this income type.',
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Icon(
                     expanded
                         ? Icons.expand_less_rounded
@@ -672,15 +644,16 @@ class _AdvancedSection extends StatelessWidget {
             ),
           ),
           if (expanded) ...[
-            const SizedBox(height: 14),
-            for (final field in fields) ...[
+            const SizedBox(height: 16),
+            for (var index = 0; index < fields.length; index++) ...[
               _AdvancedField(
-                field: field,
-                controller: controllers[field.fieldKey]!,
-                value: values[field.fieldKey],
-                onChanged: (value) => onChanged(field.fieldKey, value),
+                field: fields[index],
+                controller: controllers[fields[index].fieldKey]!,
+                value: values[fields[index].fieldKey],
+                currency: currency,
+                onChanged: (value) => onChanged(fields[index].fieldKey, value),
               ),
-              const SizedBox(height: 12),
+              if (index != fields.length - 1) const SizedBox(height: 16),
             ],
           ],
         ],
@@ -694,12 +667,14 @@ class _AdvancedField extends StatelessWidget {
     required this.field,
     required this.controller,
     required this.value,
+    required this.currency,
     required this.onChanged,
   });
 
   final TaxInputField field;
   final TextEditingController controller;
   final dynamic value;
+  final String currency;
   final ValueChanged<dynamic> onChanged;
 
   @override
@@ -708,8 +683,16 @@ class _AdvancedField extends StatelessWidget {
     if (type == 'toggle' || type == 'check') {
       return SwitchListTile.adaptive(
         contentPadding: EdgeInsets.zero,
-        title: Text(field.label),
-        subtitle: field.helpText.isEmpty ? null : Text(field.helpText),
+        title: Text(
+          field.label,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+        ),
+        subtitle: field.helpText.isEmpty
+            ? null
+            : Text(
+                field.helpText,
+                style: const TextStyle(fontSize: 14, height: 1.4),
+              ),
         value:
             value == true ||
             value?.toString() == '1' ||
@@ -721,10 +704,10 @@ class _AdvancedField extends StatelessWidget {
     if (type == 'select' && field.options.isNotEmpty) {
       return DropdownButtonFormField<String>(
         initialValue: field.options.contains(value) ? value?.toString() : null,
+        isExpanded: true,
         decoration: InputDecoration(
           labelText: field.label,
           helperText: field.helpText.isEmpty ? null : field.helpText,
-          border: const OutlineInputBorder(),
         ),
         items: field.options
             .map(
@@ -747,8 +730,7 @@ class _AdvancedField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: field.label,
         helperText: field.helpText.isEmpty ? null : field.helpText,
-        prefixText: type == 'number' ? 'PKR ' : null,
-        border: const OutlineInputBorder(),
+        prefixText: type == 'number' ? '$currency ' : null,
       ),
     );
   }
@@ -760,6 +742,7 @@ class _ResultSection extends StatelessWidget {
     required this.config,
     required this.authState,
     required this.capabilities,
+    required this.currency,
     required this.isStartingService,
     required this.onCtaPressed,
   });
@@ -768,6 +751,7 @@ class _ResultSection extends StatelessWidget {
   final TaxCalculatorConfig config;
   final AuthState authState;
   final AuthCapabilities capabilities;
+  final String currency;
   final bool isStartingService;
   final VoidCallback onCtaPressed;
 
@@ -776,107 +760,106 @@ class _ResultSection extends StatelessWidget {
     final cta = result.cta.button.trim().isNotEmpty ? result.cta : config.cta;
     final ctaTitle = _ctaTitleFor(authState, capabilities, cta.title);
     final ctaButton = _ctaButtonFor(authState, capabilities, cta.button);
+    final source = result.source;
+    final note = (result.note ?? config.disclaimer).trim();
+    final steps = result.recommendedNextSteps.isNotEmpty
+        ? result.recommendedNextSteps
+        : config.recommendedNextSteps;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Card(
+        const _SectionHeader(
+          title: 'Your estimate',
+          subtitle: 'Calculated by the backend using the selected tax configuration.',
+        ),
+        const SizedBox(height: 10),
+        PremiumCard(
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Estimated Annual Tax',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                _formatMoney(result.estimatedAnnualTax),
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
+                'Estimated annual tax',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 15,
                 ),
               ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _MetricTile(
-                    label: 'Annual Income',
-                    value: _formatMoney(result.annualIncome),
-                  ),
-                  _MetricTile(
-                    label: 'Monthly Tax',
-                    value: _formatMoney(result.monthlyTax),
-                  ),
-                  _MetricTile(
-                    label: 'Monthly Take-home',
-                    value: _formatMoney(result.monthlyTakeHome),
-                  ),
-                  _MetricTile(
-                    label: 'Effective Rate',
-                    value: '${result.effectiveTaxRate.toStringAsFixed(2)}%',
-                  ),
-                ],
+              const SizedBox(height: 5),
+              Text(
+                _formatMoney(result.estimatedAnnualTax, currency),
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 28,
+                  height: 1.2,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 18),
+              _ResultMetricRow(
+                label: 'Monthly tax',
+                value: _formatMoney(result.monthlyTax, currency),
+              ),
+              const Divider(height: 20),
+              _ResultMetricRow(
+                label: 'Effective tax rate',
+                value: '${result.effectiveTaxRate.toStringAsFixed(2)}%',
+              ),
+              const Divider(height: 20),
+              _ResultMetricRow(
+                label: 'Monthly take-home',
+                value: _formatMoney(result.monthlyTakeHome, currency),
+              ),
+              const Divider(height: 20),
+              _ResultMetricRow(
+                label: 'Annual income',
+                value: _formatMoney(result.annualIncome, currency),
               ),
             ],
           ),
         ),
-        if (config.showBreakdown && result.breakdown.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          _BreakdownCard(result: result),
-        ],
-        if (config.showFilerComparison && result.comparison != null) ...[
-          const SizedBox(height: 12),
-          _ComparisonCard(comparison: result.comparison!),
-        ],
-        if (config.showTaxHealthScore && result.taxHealth != null) ...[
+        const SizedBox(height: 12),
+        _ResultDetails(
+          result: result,
+          config: config,
+          currency: currency,
+          steps: steps,
+          note: note,
+        ),
+        if (source != null) ...[
           const SizedBox(height: 12),
           _NoticeCard(
-            icon: Icons.health_and_safety_rounded,
-            title: 'Tax Readiness: ${result.taxHealth!.score}',
-            message: result.taxHealth!.reason,
+            icon: source.verified
+                ? Icons.verified_outlined
+                : Icons.rule_outlined,
+            title: source.taxYear.trim().isEmpty
+                ? 'Calculation source'
+                : 'Calculation source · ${source.taxYear}',
+            message: [
+              if (source.publicNote.trim().isNotEmpty) source.publicNote.trim(),
+              if (source.lastVerifiedOn.trim().isNotEmpty)
+                'Last verified ${source.lastVerifiedOn.trim()}',
+            ].join('\n'),
+            tone: source.verified ? AppTheme.success : AppTheme.processing,
           ),
         ],
-        if (result.recommendedNextSteps.isNotEmpty ||
-            config.recommendedNextSteps.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          _StepsCard(
-            steps: result.recommendedNextSteps.isNotEmpty
-                ? result.recommendedNextSteps
-                : config.recommendedNextSteps,
-          ),
-        ],
-        if (result.insights.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          for (final insight in result.insights) ...[
-            _NoticeCard(
-              icon: Icons.tips_and_updates_rounded,
-              title: insight.title,
-              message: insight.message,
-            ),
-            const SizedBox(height: 12),
-          ],
-        ],
-        if ((result.note ?? config.disclaimer).trim().isNotEmpty) ...[
-          _NoticeCard(
-            icon: Icons.info_outline_rounded,
-            title: 'Estimate note',
-            message: (result.note ?? config.disclaimer).trim(),
-          ),
-          const SizedBox(height: 12),
-        ],
-        _Card(
+        const SizedBox(height: 16),
+        PremiumCard(
+          padding: const EdgeInsets.all(20),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
                 ctaTitle,
                 style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                  color: AppTheme.textPrimary,
+                  fontSize: 17,
+                  height: 1.3,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               AppButton(
                 label: ctaButton,
                 icon: Icons.arrow_forward_rounded,
@@ -886,131 +869,92 @@ class _ResultSection extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 220),
       ],
     );
   }
 }
 
-class _BreakdownCard extends StatelessWidget {
-  const _BreakdownCard({required this.result});
+class _ResultDetails extends StatelessWidget {
+  const _ResultDetails({
+    required this.result,
+    required this.config,
+    required this.currency,
+    required this.steps,
+    required this.note,
+  });
 
   final TaxCalculationResult result;
-
-  @override
-  Widget build(BuildContext context) {
-    final data = result.breakdown;
-    return _Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _SectionTitle(
-            title: 'Tax Breakdown',
-            subtitle: 'Tax slab calculation details.',
-          ),
-          const SizedBox(height: 12),
-          _KeyValue(
-            label: 'Slab Used',
-            value: data['slab_label']?.toString() ?? '-',
-          ),
-          _KeyValue(
-            label: 'Taxable Income',
-            value: _formatMoney(_num(data['taxable_income'])),
-          ),
-          _KeyValue(
-            label: 'Fixed Tax',
-            value: _formatMoney(_num(data['fixed_tax'])),
-          ),
-          _KeyValue(
-            label: 'Rate',
-            value: '${_num(data['rate_percent']).toStringAsFixed(2)}%',
-          ),
-          _KeyValue(
-            label: 'Tax Before Credits',
-            value: _formatMoney(_num(data['tax_before_credits'])),
-          ),
-          _KeyValue(
-            label: 'Credits',
-            value: _formatMoney(_num(data['credits'])),
-          ),
-          const Divider(height: 20),
-          _KeyValue(
-            label: 'Final Estimated Tax',
-            value: _formatMoney(result.estimatedAnnualTax),
-            strong: true,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ComparisonCard extends StatelessWidget {
-  const _ComparisonCard({required this.comparison});
-
-  final TaxComparison comparison;
-
-  @override
-  Widget build(BuildContext context) {
-    return _Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _SectionTitle(
-            title: 'Filer vs Non-Filer',
-            subtitle: 'See the possible tax difference.',
-          ),
-          const SizedBox(height: 12),
-          _KeyValue(
-            label: 'Active Filer',
-            value: _formatMoney(comparison.activeFilerTax),
-          ),
-          _KeyValue(
-            label: 'Non-Filer',
-            value: _formatMoney(comparison.nonFilerTax),
-          ),
-          const Divider(height: 20),
-          _KeyValue(
-            label: 'Possible Difference',
-            value: _formatMoney(comparison.possibleDifference),
-            strong: true,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StepsCard extends StatelessWidget {
-  const _StepsCard({required this.steps});
-
+  final TaxCalculatorConfig config;
+  final String currency;
   final List<String> steps;
+  final String note;
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
+    final hasBreakdown = config.showBreakdown && result.breakdown.isNotEmpty;
+    final hasComparison = config.showFilerComparison && result.comparison != null;
+    final hasGuidance =
+        (config.showTaxHealthScore && result.taxHealth != null) ||
+        steps.isNotEmpty ||
+        result.insights.isNotEmpty ||
+        config.requiredDocuments.isNotEmpty ||
+        note.isNotEmpty;
+
+    if (!hasBreakdown && !hasComparison && !hasGuidance) {
+      return const SizedBox.shrink();
+    }
+
+    return PremiumCard(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(
-            title: 'Recommended next steps',
-            subtitle: 'Guidance from OMC.',
-          ),
-          const SizedBox(height: 8),
-          for (var index = 0; index < steps.length; index++)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${index + 1}.',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+          if (hasBreakdown)
+            ExpansionTile(
+              title: const Text('Tax breakdown'),
+              subtitle: const Text('Slab and taxable-income details'),
+              childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+              children: [_BreakdownContent(result: result, currency: currency)],
+            ),
+          if (hasComparison)
+            ExpansionTile(
+              title: const Text('Filer comparison'),
+              subtitle: const Text('Backend filer/non-filer comparison'),
+              childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+              children: [
+                _ComparisonContent(
+                  comparison: result.comparison!,
+                  currency: currency,
+                ),
+              ],
+            ),
+          if (hasGuidance)
+            ExpansionTile(
+              title: const Text('Guidance & notes'),
+              subtitle: const Text('Readiness, next steps and estimate notes'),
+              childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+              children: [
+                if (config.showTaxHealthScore && result.taxHealth != null)
+                  _GuidanceBlock(
+                    title: 'Tax readiness · ${result.taxHealth!.score}',
+                    body: result.taxHealth!.reason,
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(steps[index])),
-                ],
-              ),
+                if (steps.isNotEmpty)
+                  _NumberedList(title: 'Recommended next steps', items: steps),
+                if (config.requiredDocuments.isNotEmpty)
+                  _BulletList(
+                    title: 'Required documents',
+                    items: config.requiredDocuments,
+                  ),
+                for (final insight in result.insights)
+                  _GuidanceBlock(
+                    title: insight.title.trim().isEmpty
+                        ? 'Tax insight'
+                        : insight.title.trim(),
+                    body: insight.message,
+                  ),
+                if (note.isNotEmpty)
+                  _GuidanceBlock(title: 'Estimate note', body: note),
+              ],
             ),
         ],
       ),
@@ -1018,8 +962,80 @@ class _StepsCard extends StatelessWidget {
   }
 }
 
-class _SegmentBlock<T> extends StatelessWidget {
-  const _SegmentBlock({
+class _BreakdownContent extends StatelessWidget {
+  const _BreakdownContent({required this.result, required this.currency});
+
+  final TaxCalculationResult result;
+  final String currency;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = result.breakdown;
+    return Column(
+      children: [
+        _KeyValue(label: 'Slab used', value: data['slab_label']?.toString() ?? '-'),
+        _KeyValue(
+          label: 'Taxable income',
+          value: _formatMoney(_num(data['taxable_income']), currency),
+        ),
+        _KeyValue(
+          label: 'Fixed tax',
+          value: _formatMoney(_num(data['fixed_tax']), currency),
+        ),
+        _KeyValue(
+          label: 'Rate',
+          value: '${_num(data['rate_percent']).toStringAsFixed(2)}%',
+        ),
+        _KeyValue(
+          label: 'Tax before credits',
+          value: _formatMoney(_num(data['tax_before_credits']), currency),
+        ),
+        _KeyValue(
+          label: 'Credits',
+          value: _formatMoney(_num(data['credits']), currency),
+        ),
+        const Divider(height: 20),
+        _KeyValue(
+          label: 'Final estimated tax',
+          value: _formatMoney(result.estimatedAnnualTax, currency),
+          strong: true,
+        ),
+      ],
+    );
+  }
+}
+
+class _ComparisonContent extends StatelessWidget {
+  const _ComparisonContent({required this.comparison, required this.currency});
+
+  final TaxComparison comparison;
+  final String currency;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _KeyValue(
+          label: 'Active filer',
+          value: _formatMoney(comparison.activeFilerTax, currency),
+        ),
+        _KeyValue(
+          label: 'Non-filer',
+          value: _formatMoney(comparison.nonFilerTax, currency),
+        ),
+        const Divider(height: 20),
+        _KeyValue(
+          label: 'Possible difference',
+          value: _formatMoney(comparison.possibleDifference, currency),
+          strong: true,
+        ),
+      ],
+    );
+  }
+}
+
+class _ChoiceGroup<T> extends StatelessWidget {
+  const _ChoiceGroup({
     required this.title,
     required this.selected,
     required this.values,
@@ -1038,22 +1054,64 @@ class _SegmentBlock<T> extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+        Text(
+          title,
+          style: const TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          child: SegmentedButton<T>(
-            showSelectedIcon: false,
-            segments: values
-                .map(
-                  (value) => ButtonSegment<T>(
-                    value: value,
-                    label: Text(label(value), overflow: TextOverflow.ellipsis),
-                  ),
-                )
-                .toList(growable: false),
-            selected: {selected},
-            onSelectionChanged: (selection) => onChanged(selection.first),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final value in values)
+              ChoiceChip(
+                selected: value == selected,
+                showCheckmark: true,
+                label: Text(label(value)),
+                onSelected: (_) => onChanged(value),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ResultMetricRow extends StatelessWidget {
+  const _ResultMetricRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 15,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 20,
+              height: 1.25,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
@@ -1061,29 +1119,74 @@ class _SegmentBlock<T> extends StatelessWidget {
   }
 }
 
-class _MetricTile extends StatelessWidget {
-  const _MetricTile({required this.label, required this.value});
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, this.subtitle});
 
+  final String title;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Semantics(
+          header: true,
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 21,
+              height: 1.25,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            subtitle!,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 15,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _InfoPill extends StatelessWidget {
+  const _InfoPill({required this.icon, required this.label});
+
+  final IconData icon;
   final String label;
-  final String value;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: MediaQuery.sizeOf(context).width > 420 ? 170 : double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: Theme.of(
-          context,
-        ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(16),
+        color: AppTheme.processingSoft,
+        borderRadius: BorderRadius.circular(999),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 4),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
+          Icon(icon, size: 16, color: AppTheme.processing),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.processing,
+                fontSize: 13,
+                height: 1.35,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1095,19 +1198,22 @@ class _NoticeCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.message,
+    required this.tone,
   });
 
   final IconData icon;
   final String title;
   final String message;
+  final Color tone;
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon),
+          Icon(icon, color: tone, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -1115,11 +1221,22 @@ class _NoticeCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 if (message.trim().isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text(message.trim()),
+                  Text(
+                    message.trim(),
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 15,
+                      height: 1.4,
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -1130,84 +1247,136 @@ class _NoticeCard extends StatelessWidget {
   }
 }
 
-class _Card extends StatelessWidget {
-  const _Card({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-        side: BorderSide(
-          color: Theme.of(
-            context,
-          ).colorScheme.outlineVariant.withValues(alpha: 0.65),
-        ),
-      ),
-      child: Padding(padding: const EdgeInsets.all(16), child: child),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, this.subtitle});
+class _GuidanceBlock extends StatelessWidget {
+  const _GuidanceBlock({required this.title, required this.body});
 
   final String title;
-  final String? subtitle;
+  final String body;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-        ),
-        if (subtitle != null) ...[
-          const SizedBox(height: 2),
-          Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (body.trim().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              body.trim(),
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 15,
+                height: 1.4,
+              ),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip({required this.icon, required this.label});
+class _NumberedList extends StatelessWidget {
+  const _NumberedList({required this.title, required this.items});
 
-  final IconData icon;
-  final String label;
+  final String title;
+  final List<String> items;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            size: 15,
-            color: Theme.of(context).colorScheme.onSecondaryContainer,
-          ),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSecondaryContainer,
-                fontWeight: FontWeight.w700,
-              ),
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
             ),
           ),
+          const SizedBox(height: 6),
+          for (var index = 0; index < items.length; index++)
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    child: Text(
+                      '${index + 1}.',
+                      style: const TextStyle(fontSize: 15),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      items[index],
+                      style: const TextStyle(fontSize: 15, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BulletList extends StatelessWidget {
+  const _BulletList({required this.title, required this.items});
+
+  final String title;
+  final List<String> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (final item in items)
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2),
+                    child: Text('•', style: TextStyle(fontSize: 16)),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      item,
+                      style: const TextStyle(fontSize: 15, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -1227,18 +1396,31 @@ class _KeyValue extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = TextStyle(
-      fontWeight: strong ? FontWeight.w900 : FontWeight.w600,
-    );
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: Text(label)),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 15,
+              ),
+            ),
+          ),
           const SizedBox(width: 12),
           Flexible(
-            child: Text(value, textAlign: TextAlign.end, style: style),
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 15,
+                fontWeight: strong ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
           ),
         ],
       ),
@@ -1299,13 +1481,14 @@ double _num(Object? value) {
       0;
 }
 
-String _formatMoney(double value) {
-  final rounded = value.round().toString();
+String _formatMoney(double value, String currency) {
+  final negative = value < 0;
+  final rounded = value.abs().round().toString();
   final buffer = StringBuffer();
   for (var index = 0; index < rounded.length; index++) {
     final positionFromEnd = rounded.length - index;
     buffer.write(rounded[index]);
     if (positionFromEnd > 1 && positionFromEnd % 3 == 1) buffer.write(',');
   }
-  return 'PKR ${buffer.toString()}';
+  return '${currency.trim().isEmpty ? 'PKR' : currency.trim()} ${negative ? '-' : ''}${buffer.toString()}';
 }
