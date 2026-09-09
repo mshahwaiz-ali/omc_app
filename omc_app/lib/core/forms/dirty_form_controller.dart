@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/theme.dart';
+
 class DirtyFormController extends ChangeNotifier {
   bool _isDirty = false;
   bool _isSubmitting = false;
@@ -89,6 +91,10 @@ Future<bool> showDiscardChangesDialog(BuildContext context) async {
               child: const Text('Stay'),
             ),
             FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.danger,
+                foregroundColor: Colors.white,
+              ),
               onPressed: () => Navigator.of(dialogContext).pop(true),
               child: const Text('Discard'),
             ),

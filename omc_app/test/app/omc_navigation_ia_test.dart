@@ -56,19 +56,16 @@ void main() {
 
     expect(
       groups.map((group) => group.title).toList(),
-      ['My OMC', 'Tax & knowledge', 'Tools & support', 'Account'],
+      ['My OMC', 'Tax & knowledge', 'Tools & help', 'Account'],
     );
     final taxKnowledge = groups.singleWhere(
       (group) => group.title == 'Tax & knowledge',
     );
     expect(
       taxKnowledge.items.map((item) => item.label),
-      containsAllInOrder(['Tax', 'Knowledge']),
+      containsAllInOrder(['Tax calculator', 'Knowledge & news']),
     );
-    expect(
-      groups.first.items.map((item) => item.label),
-      contains('Alerts'),
-    );
+    expect(groups.first.items.map((item) => item.label), contains('Alerts'));
   });
 
   test(
@@ -94,6 +91,7 @@ void main() {
 
       expect(labels, contains('Workspace'));
       expect(labels, contains('Payments'));
+      expect(labels, contains('Tax calculator'));
       expect(labels, isNot(contains('Customers')));
       expect(labels, isNot(contains('Leads')));
       expect(labels, isNot(contains('Documents')));

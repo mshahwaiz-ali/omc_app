@@ -68,7 +68,7 @@ List<OmcNavigationGroup> buildOmcMoreNavigation({
   final groups = <OmcNavigationGroup>[];
   final omc = <OmcNavigationItem>[];
   final taxKnowledge = <OmcNavigationItem>[];
-  final toolsSupport = <OmcNavigationItem>[];
+  final toolsHelp = <OmcNavigationItem>[];
   final account = <OmcNavigationItem>[];
 
   // Home, Services and Requests already live in the persistent bottom nav.
@@ -92,31 +92,37 @@ List<OmcNavigationGroup> buildOmcMoreNavigation({
     }
   }
 
-  // Tax and knowledge are mandatory high-value destinations when available,
-  // so they remain a first-level group rather than being buried among tools.
+  // Tax and knowledge are high-value destinations when available, so they
+  // remain a first-level group rather than being buried among optional tools.
   if (capabilities.canUseTaxCalculator) {
     taxKnowledge.add(
-      const OmcNavigationItem(OmcNavigationActionId.tax, 'Tax'),
+      const OmcNavigationItem(
+        OmcNavigationActionId.tax,
+        'Tax calculator',
+      ),
     );
   }
   if (features.knowledgeEnabled) {
     taxKnowledge.add(
-      const OmcNavigationItem(OmcNavigationActionId.knowledge, 'Knowledge'),
+      const OmcNavigationItem(
+        OmcNavigationActionId.knowledge,
+        'Knowledge & news',
+      ),
     );
   }
 
   if (features.expenseTrackerEnabled) {
-    toolsSupport.add(
+    toolsHelp.add(
       const OmcNavigationItem(OmcNavigationActionId.expense, 'Expense'),
     );
     if (capabilities.isApproved) {
-      toolsSupport.add(
+      toolsHelp.add(
         const OmcNavigationItem(OmcNavigationActionId.budget, 'Budget'),
       );
     }
   }
   if (features.supportEnabled) {
-    toolsSupport.add(
+    toolsHelp.add(
       const OmcNavigationItem(OmcNavigationActionId.support, 'Support'),
     );
   }
@@ -140,8 +146,8 @@ List<OmcNavigationGroup> buildOmcMoreNavigation({
   if (taxKnowledge.isNotEmpty) {
     groups.add(OmcNavigationGroup('Tax & knowledge', taxKnowledge));
   }
-  if (toolsSupport.isNotEmpty) {
-    groups.add(OmcNavigationGroup('Tools & support', toolsSupport));
+  if (toolsHelp.isNotEmpty) {
+    groups.add(OmcNavigationGroup('Tools & help', toolsHelp));
   }
   if (account.isNotEmpty) groups.add(OmcNavigationGroup('Account', account));
   return groups;
@@ -215,7 +221,12 @@ List<OmcNavigationGroup> _internalMoreNavigation(
     manage.add(const OmcNavigationItem(OmcNavigationActionId.leads, 'Leads'));
   }
   if (capabilities.canUseTaxCalculator) {
-    tools.add(const OmcNavigationItem(OmcNavigationActionId.tax, 'Tax'));
+    tools.add(
+      const OmcNavigationItem(
+        OmcNavigationActionId.tax,
+        'Tax calculator',
+      ),
+    );
   }
   if (features.expenseTrackerEnabled) {
     tools.add(
@@ -225,7 +236,10 @@ List<OmcNavigationGroup> _internalMoreNavigation(
   }
   if (features.knowledgeEnabled) {
     tools.add(
-      const OmcNavigationItem(OmcNavigationActionId.knowledge, 'Knowledge'),
+      const OmcNavigationItem(
+        OmcNavigationActionId.knowledge,
+        'Knowledge & news',
+      ),
     );
   }
 

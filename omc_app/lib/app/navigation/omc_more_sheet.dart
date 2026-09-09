@@ -205,8 +205,9 @@ class _NavigationGroup extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
           child: Text(
             group.title,
-            style: theme.textTheme.titleSmall?.copyWith(
+            style: theme.textTheme.labelMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ),
@@ -299,10 +300,11 @@ class _NavigationRow extends StatelessWidget {
                 Expanded(
                   child: Text(
                     item.label,
-                    style: theme.textTheme.titleMedium?.copyWith(
+                    style: theme.textTheme.bodyLarge?.copyWith(
                       color: destructive
                           ? AppTheme.danger
                           : AppTheme.textPrimary,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
