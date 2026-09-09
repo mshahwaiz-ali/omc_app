@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
+import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../data/task_item.dart';
 import '../data/tasks_repository.dart';
@@ -40,28 +42,22 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   ];
 
   final _tasks = <TaskItem>[];
-
   String _query = '';
   String _statusFilter = 'All';
   String _priorityFilter = 'All';
-
   bool _loading = true;
   bool _loadingMore = false;
   bool _hasMore = false;
   int? _nextStart;
   Object? _error;
-
   int _requestGeneration = 0;
   Timer? _searchDebounce;
 
   @override
   void initState() {
     super.initState();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _reload();
-      }
+      if (mounted) _reload();
     });
   }
 
@@ -73,7 +69,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
   Future<void> _reload() async {
     final generation = ++_requestGeneration;
-
     setState(() {
       _loading = true;
       _loadingMore = false;
@@ -81,18 +76,14 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     });
 
     try {
-      final page = await ref
-          .read(tasksRepositoryProvider)
-          .fetchTasksPage(
+      final page = await ref.read(tasksRepositoryProvider).fetchTasksPage(
             limitStart: 0,
             pageLength: 50,
             search: _query,
             status: _statusFilter,
             priority: _priorityFilter,
           );
-
       if (!mounted || generation != _requestGeneration) return;
-
       setState(() {
         _tasks
           ..clear()
@@ -103,7 +94,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       });
     } catch (error) {
       if (!mounted || generation != _requestGeneration) return;
-
       setState(() {
         _error = error;
         _loading = false;
@@ -114,132 +104,102 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   Future<void> _loadMore() async {
     final nextStart = _nextStart;
     if (_loadingMore || !_hasMore || nextStart == null) return;
-
     final generation = _requestGeneration;
-
-    setState(() {
-      _loadingMore = true;
-    });
+    setState(() => _loadingMore = true);
 
     try {
-      final page = await ref
-          .read(tasksRepositoryProvider)
-          .fetchTasksPage(
+      final page = await ref.read(tasksRepositoryProvider).fetchTasksPage(
             limitStart: nextStart,
             pageLength: 50,
             search: _query,
             status: _statusFilter,
             priority: _priorityFilter,
           );
-
       if (!mounted || generation != _requestGeneration) return;
-
       final seen = _tasks.map((task) => task.id).toSet();
-
       setState(() {
         for (final task in page.tasks) {
-          if (seen.add(task.id)) {
-            _tasks.add(task);
-          }
+          if (seen.add(task.id)) _tasks.add(task);
         }
-
         _hasMore = page.hasMore;
         _nextStart = page.nextStart;
         _loadingMore = false;
       });
     } catch (error) {
       if (!mounted || generation != _requestGeneration) return;
-
       setState(() {
         _error = error;
         _loadingMore = false;
       });
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(_backendErrorMessage(error))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_backendErrorMessage(error))),
+      );
     }
   }
 
   void _onQueryChanged(String value) {
-    setState(() {
-      _query = value;
-    });
-
+    setState(() => _query = value);
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 350), _reload);
   }
 
   void _onStatusChanged(String value) {
     if (_statusFilter == value) return;
-
     _searchDebounce?.cancel();
-
-    setState(() {
-      _statusFilter = value;
-    });
-
+    setState(() => _statusFilter = value);
     _reload();
   }
 
   Future<void> _showPriorityFilter() async {
     var selected = _priorityFilter;
-
     final result = await showModalBottomSheet<String>(
       context: context,
       useSafeArea: true,
+      isScrollControlled: true,
       showDragHandle: true,
-      backgroundColor: Colors.white,
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                0,
+                AppSpacing.lg,
+                AppSpacing.xl,
+              ),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Priority',
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                    ),
+                  Text(
+                    'Priority filter',
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  const SizedBox(height: 5),
-                  const Text(
-                    'Filter the ERP Task list by priority.',
-                    style: TextStyle(
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'This filter is applied by the backend before paging.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppTheme.textSecondary,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: AppSpacing.lg),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: AppSpacing.xs,
+                    runSpacing: AppSpacing.xs,
                     children: [
                       for (final priority in _priorities)
                         ChoiceChip(
                           selected: selected == priority,
                           label: Text(priority),
-                          onSelected: (_) {
-                            setSheetState(() {
-                              selected = priority;
-                            });
-                          },
+                          onSelected: (_) =>
+                              setSheetState(() => selected = priority),
                         ),
                     ],
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: AppSpacing.xl),
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: () {
-                        Navigator.of(sheetContext).pop(selected);
-                      },
+                      onPressed: () => Navigator.of(sheetContext).pop(selected),
                       child: const Text('Apply filter'),
                     ),
                   ),
@@ -252,33 +212,28 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     );
 
     if (!mounted || result == null || result == _priorityFilter) return;
-
-    setState(() {
-      _priorityFilter = result;
-    });
-
+    setState(() => _priorityFilter = result);
     await _reload();
   }
 
   void _clearFilters() {
     _searchDebounce?.cancel();
-
     setState(() {
       _query = '';
       _statusFilter = 'All';
       _priorityFilter = 'All';
     });
-
     _reload();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFD),
+      backgroundColor: AppTheme.background,
       body: SafeArea(
+        top: true,
         bottom: false,
-        child: RefreshIndicator(
+        child: RefreshIndicator.adaptive(
           onRefresh: _reload,
           child: _loading && _tasks.isEmpty
               ? const _TasksLoadingView()
@@ -340,253 +295,147 @@ class _TasksContent extends StatelessWidget {
         statusFilter != 'All' ||
         priorityFilter != 'All';
 
-    return CustomScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _TasksPageHeader(
-                  metaLabel: hasMore ? '${tasks.length}+' : '${tasks.length}',
-                ),
-                const SizedBox(height: 16),
-                _SearchBar(
-                  query: query,
-                  onChanged: onQueryChanged,
-                  onOpenFilters: onOpenPriorityFilter,
-                  filtersActive: priorityFilter != 'All',
-                ),
-                const SizedBox(height: 12),
-                _StatusTabs(
-                  statuses: statuses,
-                  selected: statusFilter,
-                  onSelected: onStatusChanged,
-                ),
-                if (priorityFilter != 'All') ...[
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.flag_outlined,
-                        size: 16,
-                        color: AppTheme.textSecondary,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Priority: $priorityFilter',
-                        style: const TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 18),
-                if (tasks.isEmpty)
-                  PremiumEmptyState(
-                    icon: Icons.assignment_outlined,
-                    title: hasFilters ? 'No matching tasks' : 'No tasks',
-                    message: hasFilters
-                        ? 'No ERP Task matches the current search or filters.'
-                        : 'No ERP Tasks are currently available.',
-                    actionLabel: hasFilters ? 'Clear filters' : null,
-                    onAction: hasFilters ? onClearFilters : null,
-                  )
-                else
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          hasMore
-                              ? '${tasks.length} tasks loaded'
-                              : '${tasks.length} '
-                                    '${tasks.length == 1 ? 'task' : 'tasks'}',
-                          style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      if (hasFilters)
-                        TextButton(
-                          onPressed: onClearFilters,
-                          child: const Text('Clear filters'),
-                        ),
-                    ],
-                  ),
-                if (tasks.isNotEmpty) const SizedBox(height: 8),
-              ],
-            ),
+    return _TaskListView(
+      children: [
+        const _TasksPageHeader(),
+        const SizedBox(height: AppSpacing.xl),
+        _SearchAndPriority(
+          query: query,
+          onChanged: onQueryChanged,
+          onOpenPriorityFilter: onOpenPriorityFilter,
+          priorityFilter: priorityFilter,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text('Status', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: AppSpacing.xs),
+        _StatusTabs(
+          statuses: statuses,
+          selected: statusFilter,
+          onSelected: onStatusChanged,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Search, status and priority filters are applied by the backend before paging.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
           ),
         ),
-        if (tasks.isNotEmpty)
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _TaskCard(task: tasks[index]),
-                ),
-                childCount: tasks.length,
+        if (hasFilters) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: onClearFilters,
+              child: const Text('Clear filters'),
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.xl),
+        _ResultsHeading(count: tasks.length, hasMore: hasMore),
+        const SizedBox(height: AppSpacing.sm),
+        if (tasks.isEmpty)
+          PremiumEmptyState(
+            icon: Icons.assignment_outlined,
+            title: hasFilters ? 'No matching tasks' : 'No tasks',
+            message: hasFilters
+                ? 'No ERP Task matches the current backend search or filters.'
+                : 'No ERP Tasks are currently available.',
+            actionLabel: hasFilters ? 'Clear filters' : null,
+            onAction: hasFilters ? onClearFilters : null,
+          )
+        else
+          for (var index = 0; index < tasks.length; index++) ...[
+            _TaskCard(task: tasks[index]),
+            if (index != tasks.length - 1)
+              const SizedBox(height: AppSpacing.sm),
+          ],
+        if (tasks.isNotEmpty && hasMore) ...[
+          const SizedBox(height: AppSpacing.md),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: loadingMore ? null : onLoadMore,
+              icon: loadingMore
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.expand_more_rounded),
+              label: Text(
+                loadingMore ? 'Loading more tasks' : 'Load more tasks',
               ),
             ),
           ),
-        if (tasks.isNotEmpty && hasMore)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-              child: OutlinedButton.icon(
-                onPressed: loadingMore ? null : onLoadMore,
-                icon: loadingMore
-                    ? const SizedBox(
-                        width: 17,
-                        height: 17,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.expand_more_rounded),
-                label: Text(loadingMore ? 'Loading more...' : 'Load more'),
-              ),
-            ),
-          ),
-        const SliverToBoxAdapter(child: SizedBox(height: 154)),
+        ],
       ],
+    );
+  }
+}
+
+class _TaskListView extends StatelessWidget {
+  const _TaskListView({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inset = AppLayout.pageInsetFor(constraints.maxWidth);
+        final horizontal = constraints.maxWidth >
+                AppLayout.generalMaxWidth + inset * 2
+            ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
+            : inset;
+        return ListView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          padding: EdgeInsets.fromLTRB(horizontal, 18, horizontal, 164),
+          children: children,
+        );
+      },
     );
   }
 }
 
 class _TasksPageHeader extends StatelessWidget {
-  const _TasksPageHeader({required this.metaLabel});
-
-  final String metaLabel;
+  const _TasksPageHeader();
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _TaskHeaderBackButton(
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/more');
-            }
-          },
+        Text('Tasks', style: Theme.of(context).textTheme.headlineMedium),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Read-only ERP Task tracking for internal staff.',
+          style: Theme.of(context).textTheme.bodyLarge,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Tasks',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    color: const Color(0xFF10182D),
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.7,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Read-only ERP Task tracking for internal staff.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF64748B),
-                    fontWeight: FontWeight.w600,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        _TaskHeaderCountBadge(label: metaLabel),
       ],
     );
   }
 }
 
-class _TaskHeaderBackButton extends StatelessWidget {
-  const _TaskHeaderBackButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-        side: const BorderSide(color: Color(0xFFE8ECF3)),
-      ),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(15),
-        child: const SizedBox(
-          width: 46,
-          height: 46,
-          child: Icon(Icons.arrow_back_rounded, color: Color(0xFF111827)),
-        ),
-      ),
-    );
-  }
-}
-
-class _TaskHeaderCountBadge extends StatelessWidget {
-  const _TaskHeaderCountBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 58),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        color: AppTheme.primarySoft,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: AppTheme.primary,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
-
-class _SearchBar extends StatefulWidget {
-  const _SearchBar({
+class _SearchAndPriority extends StatefulWidget {
+  const _SearchAndPriority({
     required this.query,
     required this.onChanged,
-    required this.onOpenFilters,
-    required this.filtersActive,
+    required this.onOpenPriorityFilter,
+    required this.priorityFilter,
   });
 
   final String query;
   final ValueChanged<String> onChanged;
-  final VoidCallback onOpenFilters;
-  final bool filtersActive;
+  final VoidCallback onOpenPriorityFilter;
+  final String priorityFilter;
 
   @override
-  State<_SearchBar> createState() => _SearchBarState();
+  State<_SearchAndPriority> createState() => _SearchAndPriorityState();
 }
 
-class _SearchBarState extends State<_SearchBar> {
+class _SearchAndPriorityState extends State<_SearchAndPriority> {
   late final TextEditingController _controller;
 
   @override
@@ -596,9 +445,8 @@ class _SearchBarState extends State<_SearchBar> {
   }
 
   @override
-  void didUpdateWidget(covariant _SearchBar oldWidget) {
+  void didUpdateWidget(covariant _SearchAndPriority oldWidget) {
     super.didUpdateWidget(oldWidget);
-
     if (_controller.text != widget.query) {
       _controller.value = TextEditingValue(
         text: widget.query,
@@ -615,68 +463,60 @@ class _SearchBarState extends State<_SearchBar> {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: TextField(
-            controller: _controller,
-            onChanged: widget.onChanged,
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              hintText: 'Search task ID, title or description...',
-              prefixIcon: const Icon(Icons.search_rounded),
-              suffixIcon: _controller.text.isEmpty
-                  ? null
-                  : IconButton(
-                      tooltip: 'Clear search',
-                      onPressed: () {
-                        _controller.clear();
-                        widget.onChanged('');
-                        setState(() {});
-                      },
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-              filled: true,
-              fillColor: Colors.white,
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: const BorderSide(color: Color(0xFFE5EAF1)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: const BorderSide(color: AppTheme.primary),
-              ),
-            ),
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stack = constraints.maxWidth < 360 || textScale >= 1.5;
+        final search = TextField(
+          controller: _controller,
+          onChanged: widget.onChanged,
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            labelText: 'Search tasks',
+            hintText: 'Task ID, title or description',
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: _controller.text.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: 'Clear search',
+                    onPressed: () {
+                      _controller.clear();
+                      widget.onChanged('');
+                      setState(() {});
+                    },
+                    icon: const Icon(Icons.close_rounded),
+                  ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Material(
-          color: widget.filtersActive ? AppTheme.primarySoft : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            onTap: widget.onOpenFilters,
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: widget.filtersActive
-                      ? AppTheme.primary.withValues(alpha: 0.3)
-                      : const Color(0xFFE5EAF1),
-                ),
-              ),
-              child: Icon(
-                Icons.tune_rounded,
-                color: widget.filtersActive
-                    ? AppTheme.primary
-                    : const Color(0xFF172033),
-              ),
-            ),
+        );
+        final priority = OutlinedButton.icon(
+          onPressed: widget.onOpenPriorityFilter,
+          icon: const Icon(Icons.flag_outlined),
+          label: Text(
+            widget.priorityFilter == 'All'
+                ? 'Priority'
+                : 'Priority: ${widget.priorityFilter}',
           ),
-        ),
-      ],
+        );
+
+        if (stack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              search,
+              const SizedBox(height: AppSpacing.xs),
+              priority,
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: search),
+            const SizedBox(width: AppSpacing.xs),
+            priority,
+          ],
+        );
+      },
     );
   }
 }
@@ -696,6 +536,7 @@ class _StatusTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
       child: Row(
         children: [
           for (final status in statuses) ...[
@@ -704,10 +545,43 @@ class _StatusTabs extends StatelessWidget {
               label: Text(status),
               onSelected: (_) => onSelected(status),
             ),
-            const SizedBox(width: 8),
+            if (status != statuses.last)
+              const SizedBox(width: AppSpacing.xs),
           ],
         ],
       ),
+    );
+  }
+}
+
+class _ResultsHeading extends StatelessWidget {
+  const _ResultsHeading({required this.count, required this.hasMore});
+
+  final int count;
+  final bool hasMore;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            'Task queue',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Flexible(
+          child: Text(
+            hasMore ? '$count loaded · more available' : '$count loaded',
+            textAlign: TextAlign.end,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -719,128 +593,176 @@ class _TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final contextText =
-        [
-              task.customerName,
-              task.taskType,
-              task.serviceRequest,
-              task.supportTicket,
-            ]
-            .whereType<String>()
-            .where((value) => value.trim().isNotEmpty)
-            .join('  •  ');
+    final due = task.dueDateLabel.trim();
+    final assigned = task.assignedTo.trim().isEmpty
+        ? 'Unassigned'
+        : task.assignedTo.trim();
+    final contextRows = <_TaskContext>[
+      if (task.customerName?.trim().isNotEmpty == true)
+        _TaskContext('Customer', task.customerName!.trim()),
+      if (task.taskType?.trim().isNotEmpty == true)
+        _TaskContext('Type', task.taskType!.trim()),
+      if (task.serviceRequest?.trim().isNotEmpty == true)
+        _TaskContext('Service request', task.serviceRequest!.trim()),
+      if (task.supportTicket?.trim().isNotEmpty == true)
+        _TaskContext('Support ticket', task.supportTicket!.trim()),
+    ];
 
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: () {
-          context.push('/tasks/${Uri.encodeComponent(task.id)}');
-        },
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 15, 14, 15),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFE9EDF3)),
+    return PremiumCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      onTap: () => context.push('/tasks/${Uri.encodeComponent(task.id)}'),
+      semanticLabel:
+          '${task.title}. ${task.status}. Priority ${task.priority}. ${due.isNotEmpty ? 'Due $due.' : ''} Assigned $assigned. Open read-only task details.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(task.title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            task.id,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
           ),
-          child: Row(
+          const SizedBox(height: AppSpacing.sm),
+          _TaskStatusBadge(label: task.status),
+          const SizedBox(height: AppSpacing.md),
+          _DuePriorityRow(
+            due: due,
+            priority: task.priority,
+            overdue: _isOverdue(task),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _LabelValue(
+            icon: Icons.person_outline_rounded,
+            label: 'Assigned to',
+            value: assigned,
+          ),
+          if (contextRows.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+              child: Divider(height: 1),
+            ),
+            Text(
+              'Service context',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            for (var index = 0; index < contextRows.length; index++) ...[
+              _LabelValue(
+                icon: Icons.link_rounded,
+                label: contextRows[index].label,
+                value: contextRows[index].value,
+              ),
+              if (index != contextRows.length - 1)
+                const SizedBox(height: AppSpacing.sm),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DuePriorityRow extends StatelessWidget {
+  const _DuePriorityRow({
+    required this.due,
+    required this.priority,
+    required this.overdue,
+  });
+
+  final String due;
+  final String priority;
+  final bool overdue;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[
+      _LabelValue(
+        icon: Icons.calendar_today_outlined,
+        label: 'Due',
+        value: due.isEmpty ? 'Not added' : due,
+        color: overdue ? AppTheme.danger : null,
+      ),
+      _LabelValue(
+        icon: Icons.flag_outlined,
+        label: 'Priority',
+        value: priority.trim().isEmpty ? 'Not added' : priority,
+      ),
+    ];
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stack = constraints.maxWidth < 420 || textScale >= 1.5;
+        if (stack) {
+          return Column(
+            children: [rows[0], const SizedBox(height: AppSpacing.sm), rows[1]],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: rows[0]),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(child: rows[1]),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _LabelValue extends StatelessWidget {
+  const _LabelValue({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveColor = color ?? AppTheme.textPrimary;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: color ?? AppTheme.textSecondary),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppTheme.primarySoft,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.task_alt_rounded,
-                  color: AppTheme.primary,
-                  size: 22,
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppTheme.textSecondary,
                 ),
               ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            task.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 15.5,
-                              height: 1.25,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        const Icon(
-                          Icons.chevron_right_rounded,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      task.id,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (contextText.isNotEmpty) ...[
-                      const SizedBox(height: 5),
-                      Text(
-                        contextText,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 11.5,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _TaskStatusBadge(label: task.status),
-                        _TaskMetadata(
-                          icon: Icons.person_outline_rounded,
-                          label: task.assignedTo.trim().isEmpty
-                              ? 'Unassigned'
-                              : task.assignedTo,
-                        ),
-                        _TaskMetadata(
-                          icon: Icons.flag_outlined,
-                          label: task.priority,
-                        ),
-                        if (task.dueDateLabel.trim().isNotEmpty)
-                          _TaskMetadata(
-                            icon: Icons.calendar_today_outlined,
-                            label: task.dueDateLabel,
-                            isAttention: _isOverdue(task),
-                          ),
-                      ],
-                    ),
-                  ],
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                value,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: effectiveColor,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
+}
+
+class _TaskContext {
+  const _TaskContext(this.label, this.value);
+  final String label;
+  final String value;
 }
 
 class _TaskStatusBadge extends StatelessWidget {
@@ -851,77 +773,33 @@ class _TaskStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final value = _normalise(label);
-
-    final background = switch (value) {
-      'completed' => const Color(0xFFE8F7EE),
-      'cancelled' => const Color(0xFFF3F5F7),
-      'overdue' => const Color(0xFFFDECEC),
-      'working' => const Color(0xFFEAF2FF),
-      _ => AppTheme.primarySoft,
+    final (foreground, background) = switch (value) {
+      'completed' => (AppTheme.success, AppTheme.successSoft),
+      'cancelled' => (AppTheme.processing, AppTheme.processingSoft),
+      'overdue' => (AppTheme.danger, AppTheme.dangerSoft),
+      'working' => (AppTheme.info, AppTheme.infoSoft),
+      _ => (AppTheme.processing, AppTheme.processingSoft),
     };
 
-    final foreground = switch (value) {
-      'completed' => const Color(0xFF15803D),
-      'cancelled' => AppTheme.textSecondary,
-      'overdue' => const Color(0xFFB42318),
-      'working' => const Color(0xFF1D4ED8),
-      _ => AppTheme.primary,
-    };
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: foreground,
-          fontSize: 10.5,
-          fontWeight: FontWeight.w800,
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
         ),
-      ),
-    );
-  }
-}
-
-class _TaskMetadata extends StatelessWidget {
-  const _TaskMetadata({
-    required this.icon,
-    required this.label,
-    this.isAttention = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool isAttention;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isAttention
-        ? const Color(0xFFB42318)
-        : AppTheme.textSecondary;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: color, size: 14),
-        const SizedBox(width: 4),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 180),
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: foreground.withValues(alpha: 0.24)),
+        ),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: foreground,
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -931,13 +809,14 @@ class _TasksLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 154),
-      children: const [
-        _TasksPageHeader(metaLabel: '...'),
-        SizedBox(height: 22),
-        LinearProgressIndicator(minHeight: 3),
+    return const _TaskListView(
+      children: [
+        _TasksPageHeader(),
+        SizedBox(height: AppSpacing.xl),
+        PremiumCard(
+          padding: EdgeInsets.all(AppSpacing.xl),
+          child: Center(child: CircularProgressIndicator()),
+        ),
       ],
     );
   }
@@ -951,12 +830,10 @@ class _TasksErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 154),
+    return _TaskListView(
       children: [
-        const _TasksPageHeader(metaLabel: '!'),
-        const SizedBox(height: 24),
+        const _TasksPageHeader(),
+        const SizedBox(height: AppSpacing.xl),
         PremiumEmptyState(
           icon: Icons.cloud_off_rounded,
           title: 'Tasks unavailable',
@@ -971,17 +848,14 @@ class _TasksErrorView extends StatelessWidget {
 
 bool _isOverdue(TaskItem task) {
   final status = _normalise(task.status);
-
   if (status == 'overdue') return true;
   if (status == 'completed' || status == 'cancelled') return false;
 
   final parsed = DateTime.tryParse(task.dueDateLabel.trim());
   if (parsed == null) return false;
-
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   final due = DateTime(parsed.year, parsed.month, parsed.day);
-
   return due.isBefore(today);
 }
 
