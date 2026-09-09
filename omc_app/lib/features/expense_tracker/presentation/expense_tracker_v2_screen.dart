@@ -380,7 +380,11 @@ class ExpenseTrackerV2Screen extends ConsumerWidget {
           child: SingleChildScrollView(
             child: SelectableText(
               encoded,
-              style: Theme.of(context).textTheme.bodySmall,
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 14,
+                height: 1.4,
+              ),
             ),
           ),
         ),
@@ -397,7 +401,6 @@ class ExpenseTrackerV2Screen extends ConsumerWidget {
   void _showImportDialog(BuildContext context, WidgetRef ref) {
     final controller = TextEditingController();
     var importing = false;
-
     showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
