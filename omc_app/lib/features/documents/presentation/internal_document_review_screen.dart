@@ -7,25 +7,18 @@ import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_state.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
-import '../../../core/widgets/premium_info_chip.dart';
 import '../../../core/widgets/premium_list_header.dart';
 import '../../auth/application/auth_controller.dart';
 import '../data/document_item.dart';
 import '../data/documents_repository.dart';
 import 'document_preview_screen.dart';
 
-const _documentIndigo = Color(0xFF4F46E5);
-const _reviewTeal = Color(0xFF0F9F8F);
-const _approvedGreen = Color(0xFF159A62);
-const _actionAmber = Color(0xFFF59E0B);
-const _rejectedRed = Color(0xFFE5484D);
-const _archivedSlate = Color(0xFF64748B);
-
 enum _ReviewFilter {
   all('All', null),
-  needsReview('Needs Review', 'needs_review'),
+  needsReview('Needs review', 'needs_review'),
   rejected('Rejected', 'rejected'),
   approved('Approved', 'approved'),
   archived('Archived', 'archived');
@@ -238,6 +231,7 @@ class _InternalDocumentReviewScreenState
         builder: (context, setDialogState) => UnsavedChangesGuard(
           controller: dirtyFormController,
           child: AlertDialog(
+            scrollable: true,
             title: const Text('Reject document'),
             content: TextField(
               controller: controller,
@@ -257,6 +251,10 @@ class _InternalDocumentReviewScreenState
                 child: const Text('Cancel'),
               ),
               FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(dialogContext).colorScheme.error,
+                  foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+                ),
                 onPressed: controller.text.trim().isEmpty
                     ? null
                     : () {
@@ -264,7 +262,7 @@ class _InternalDocumentReviewScreenState
                         dirtyFormController.submissionSucceeded();
                         Navigator.of(dialogContext).pop(value);
                       },
-                child: const Text('Reject'),
+                child: const Text('Reject document'),
               ),
             ],
           ),
@@ -353,59 +351,33 @@ class _InternalDocumentReviewScreenState
               }
               final documents = _mergeDocuments(page.items);
 
-              return Stack(
-                children: [
-                  _ReviewContent(
-                    documents: documents,
-                    searchController: _searchController,
-                    query: _query,
-                    selectedFilter: _selectedFilter,
-                    selectedCustomerProfile: _selectedCustomerProfile,
-                    selectedDocumentType: _selectedDocumentType,
-                    selectedServiceReference: _selectedServiceReference,
-                    busyDocumentId: _busyDocumentId,
-                    canReviewDocuments: canReviewDocuments,
-                    onQueryChanged: (value) =>
-                        setState(() => _query = value.trim().toLowerCase()),
-                    onClearQuery: () {
-                      _searchController.clear();
-                      setState(() => _query = '');
-                    },
-                    onFilterSelected: _selectFilter,
-                    onCustomerSelected: _selectCustomer,
-                    onDocumentTypeSelected: _selectDocumentType,
-                    onServiceSelected: _selectService,
-                    onPreview: _openDocumentPreview,
-                    onApprove: (document) =>
-                        _reviewDocument(document, 'Approved'),
-                    onReject: _rejectWithRemarks,
-                  ),
-                  if (_hasMore)
-                    Positioned(
-                      left: 20,
-                      right: 20,
-                      bottom: 88,
-                      child: SafeArea(
-                        top: false,
-                        child: FilledButton.tonalIcon(
-                          onPressed: _loadingMore ? null : _loadMore,
-                          icon: _loadingMore
-                              ? const SizedBox.square(
-                                  dimension: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.expand_more_rounded),
-                          label: Text(
-                            _loadingMore
-                                ? 'Loading review queue'
-                                : 'Load more documents',
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+              return _ReviewContent(
+                documents: documents,
+                searchController: _searchController,
+                query: _query,
+                selectedFilter: _selectedFilter,
+                selectedCustomerProfile: _selectedCustomerProfile,
+                selectedDocumentType: _selectedDocumentType,
+                selectedServiceReference: _selectedServiceReference,
+                busyDocumentId: _busyDocumentId,
+                canReviewDocuments: canReviewDocuments,
+                hasMore: _hasMore,
+                loadingMore: _loadingMore,
+                onLoadMore: _loadMore,
+                onQueryChanged: (value) =>
+                    setState(() => _query = value.trim().toLowerCase()),
+                onClearQuery: () {
+                  _searchController.clear();
+                  setState(() => _query = '');
+                },
+                onFilterSelected: _selectFilter,
+                onCustomerSelected: _selectCustomer,
+                onDocumentTypeSelected: _selectDocumentType,
+                onServiceSelected: _selectService,
+                onPreview: _openDocumentPreview,
+                onApprove: (document) =>
+                    _reviewDocument(document, 'Approved'),
+                onReject: _rejectWithRemarks,
               );
             },
           ),
@@ -426,6 +398,9 @@ class _ReviewContent extends StatelessWidget {
     required this.selectedServiceReference,
     required this.busyDocumentId,
     required this.canReviewDocuments,
+    required this.hasMore,
+    required this.loadingMore,
+    required this.onLoadMore,
     required this.onQueryChanged,
     required this.onClearQuery,
     required this.onFilterSelected,
@@ -446,6 +421,9 @@ class _ReviewContent extends StatelessWidget {
   final String? selectedServiceReference;
   final String? busyDocumentId;
   final bool canReviewDocuments;
+  final bool hasMore;
+  final bool loadingMore;
+  final VoidCallback onLoadMore;
   final ValueChanged<String> onQueryChanged;
   final VoidCallback onClearQuery;
   final ValueChanged<_ReviewFilter> onFilterSelected;
@@ -491,46 +469,49 @@ class _ReviewContent extends StatelessWidget {
         })
         .toList(growable: false);
 
-    final needsReview = filteredDocuments
+    final reviewCount = filteredDocuments
         .where((item) => item.isUnderReview)
         .length;
-    final rejected = filteredDocuments
-        .where((item) => item.status == DocumentStatus.rejected)
-        .length;
-    final approved = filteredDocuments
-        .where((item) => item.status == DocumentStatus.approved)
-        .length;
-    final archived = filteredDocuments.where((item) => item.isArchived).length;
     final groups = _ServiceDocumentGroup.fromDocuments(filteredDocuments);
     final selectedGroup = _selectedGroup(groups, selectedServiceReference);
 
     return ListView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 132),
       children: [
         PremiumListHeader(
-          icon: Icons.folder_copy_outlined,
-          title: 'Document Review',
+          icon: Icons.fact_check_outlined,
+          title: 'Document review',
           subtitle:
-              'Review customer files by service request and keep every case moving.',
-          metaLabel: '${documents.length} docs',
-          accentColor: _documentIndigo,
+              'Review customer evidence by service request and keep decisions explicit.',
+          metaLabel: '$reviewCount awaiting review',
         ),
         const SizedBox(height: 16),
-        _CompactMetricsStrip(
-          needsReview: needsReview,
-          rejected: rejected,
-          approved: approved,
-          archived: archived,
+        _ReviewFilterBar(
+          selectedFilter: selectedFilter,
+          onSelected: onFilterSelected,
         ),
         const SizedBox(height: 12),
-        _InternalDocumentSearchField(
+        TextField(
           controller: searchController,
           onChanged: onQueryChanged,
-          onClear: onClearQuery,
+          textInputAction: TextInputAction.search,
+          style: const TextStyle(fontSize: 16),
+          decoration: InputDecoration(
+            hintText: 'Search customer, request, service or document',
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: searchController.text.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: 'Clear search',
+                    onPressed: onClearQuery,
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+          ),
         ),
-        const SizedBox(height: 10),
-        _CompactFilterPanel(
+        const SizedBox(height: 12),
+        _AdvancedFilterPanel(
           customerOptions: customerOptions,
           selectedCustomerProfile: selectedCustomerProfile,
           documentTypeOptions: documentTypeOptions,
@@ -538,12 +519,7 @@ class _ReviewContent extends StatelessWidget {
           onCustomerSelected: onCustomerSelected,
           onDocumentTypeSelected: onDocumentTypeSelected,
         ),
-        const SizedBox(height: 10),
-        _ReviewFilterBar(
-          selectedFilter: selectedFilter,
-          onSelected: onFilterSelected,
-        ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         if (groups.isEmpty)
           PremiumEmptyState(
             icon: query.isNotEmpty
@@ -557,12 +533,12 @@ class _ReviewContent extends StatelessWidget {
                 : 'Switch filters or refresh when new customer uploads arrive.',
           )
         else ...[
-          _ServiceWorkspaceHeader(
+          _ServiceContextCard(
             groups: groups,
             selectedGroup: selectedGroup,
             onSelected: onServiceSelected,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           for (final document in selectedGroup.documents) ...[
             _ReviewDocumentCard(
               document: document,
@@ -572,8 +548,23 @@ class _ReviewContent extends StatelessWidget {
               onApprove: () => onApprove(document),
               onReject: () => onReject(document),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
           ],
+        ],
+        if (hasMore) ...[
+          const SizedBox(height: 8),
+          FilledButton.tonalIcon(
+            onPressed: loadingMore ? null : onLoadMore,
+            icon: loadingMore
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.expand_more_rounded),
+            label: Text(
+              loadingMore ? 'Loading review queue' : 'Load more documents',
+            ),
+          ),
         ],
       ],
     );
@@ -639,65 +630,8 @@ class _CustomerFilterOption {
   final String? email;
 }
 
-class _InternalDocumentSearchField extends StatelessWidget {
-  const _InternalDocumentSearchField({
-    required this.controller,
-    required this.onChanged,
-    required this.onClear,
-  });
-
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 56,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: TextField(
-        controller: controller,
-        onChanged: onChanged,
-        textInputAction: TextInputAction.search,
-        style: const TextStyle(
-          color: AppTheme.textPrimary,
-          fontSize: 13.5,
-          fontWeight: FontWeight.w700,
-        ),
-        decoration: InputDecoration(
-          hintText: 'Search customer, request, service or document',
-          hintStyle: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-          ),
-          prefixIcon: const Icon(
-            Icons.search_rounded,
-            color: AppTheme.textSecondary,
-          ),
-          suffixIcon: controller.text.isEmpty
-              ? null
-              : IconButton(
-                  tooltip: 'Clear search',
-                  onPressed: onClear,
-                  icon: const Icon(Icons.close_rounded),
-                ),
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 18),
-        ),
-      ),
-    );
-  }
-}
-
-class _CompactFilterPanel extends StatelessWidget {
-  const _CompactFilterPanel({
+class _AdvancedFilterPanel extends StatelessWidget {
+  const _AdvancedFilterPanel({
     required this.customerOptions,
     required this.selectedCustomerProfile,
     required this.documentTypeOptions,
@@ -720,129 +654,74 @@ class _CompactFilterPanel extends StatelessWidget {
       selectedDocumentType,
     ].where((value) => value != null && value.trim().isNotEmpty).length;
 
-    return ExpansionTile(
-      initiallyExpanded: false,
-      tilePadding: const EdgeInsets.symmetric(horizontal: 14),
-      childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-      collapsedShape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppTheme.border),
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppTheme.border),
-      ),
-      backgroundColor: Colors.white,
-      collapsedBackgroundColor: Colors.white,
-      leading: const Icon(Icons.tune_rounded, color: _documentIndigo),
-      title: const Text(
-        'Filters',
-        style: TextStyle(
-          color: AppTheme.textPrimary,
-          fontSize: 13,
-          fontWeight: FontWeight.w900,
+    return PremiumCard(
+      padding: EdgeInsets.zero,
+      child: ExpansionTile(
+        initiallyExpanded: false,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        leading: const Icon(Icons.tune_rounded),
+        title: const Text(
+          'Advanced filters',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
-      ),
-      subtitle: Text(
-        activeCount == 0 ? 'Customer and document type' : '$activeCount active',
-        style: const TextStyle(
-          color: AppTheme.textSecondary,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
+        subtitle: Text(
+          activeCount == 0 ? 'Customer and document type' : '$activeCount active',
+          style: const TextStyle(fontSize: 14),
         ),
-      ),
-      children: [
-        _CustomerFilterField(
-          options: customerOptions,
-          selectedCustomerProfile: selectedCustomerProfile,
-          onSelected: onCustomerSelected,
-        ),
-        const SizedBox(height: 10),
-        _DocumentTypeFilterField(
-          options: documentTypeOptions,
-          selectedDocumentType: selectedDocumentType,
-          onSelected: onDocumentTypeSelected,
-        ),
-      ],
-    );
-  }
-}
-
-class _CustomerFilterField extends StatelessWidget {
-  const _CustomerFilterField({
-    required this.options,
-    required this.selectedCustomerProfile,
-    required this.onSelected,
-  });
-
-  final List<_CustomerFilterOption> options;
-  final String? selectedCustomerProfile;
-  final ValueChanged<String?> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      initialValue: selectedCustomerProfile ?? '',
-      isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Customer',
-        prefixIcon: Icon(Icons.person_search_rounded, color: _documentIndigo),
-      ),
-      items: [
-        const DropdownMenuItem<String>(value: '', child: Text('All customers')),
-        for (final option in options)
-          DropdownMenuItem<String>(
-            value: option.profile,
-            child: Text(
-              [
-                option.label,
-                if (option.email?.trim().isNotEmpty == true)
-                  option.email!.trim(),
-              ].join(' · '),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+        children: [
+          DropdownButtonFormField<String>(
+            initialValue: selectedCustomerProfile ?? '',
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Customer',
+              prefixIcon: Icon(Icons.person_search_rounded),
+            ),
+            items: [
+              const DropdownMenuItem<String>(
+                value: '',
+                child: Text('All customers'),
+              ),
+              for (final option in customerOptions)
+                DropdownMenuItem<String>(
+                  value: option.profile,
+                  child: Text(
+                    [
+                      option.label,
+                      if (option.email?.trim().isNotEmpty == true)
+                        option.email!.trim(),
+                    ].join(' · '),
+                  ),
+                ),
+            ],
+            onChanged: (value) => onCustomerSelected(
+              value == null || value.isEmpty ? null : value,
             ),
           ),
-      ],
-      onChanged: (value) =>
-          onSelected(value == null || value.isEmpty ? null : value),
-    );
-  }
-}
-
-class _DocumentTypeFilterField extends StatelessWidget {
-  const _DocumentTypeFilterField({
-    required this.options,
-    required this.selectedDocumentType,
-    required this.onSelected,
-  });
-
-  final List<String> options;
-  final String? selectedDocumentType;
-  final ValueChanged<String?> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      initialValue: selectedDocumentType ?? '',
-      isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Document type',
-        prefixIcon: Icon(Icons.category_outlined, color: _documentIndigo),
-      ),
-      items: [
-        const DropdownMenuItem<String>(
-          value: '',
-          child: Text('All document types'),
-        ),
-        for (final option in options)
-          DropdownMenuItem<String>(
-            value: option,
-            child: Text(option, maxLines: 1, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: selectedDocumentType ?? '',
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Document type',
+              prefixIcon: Icon(Icons.category_outlined),
+            ),
+            items: [
+              const DropdownMenuItem<String>(
+                value: '',
+                child: Text('All document types'),
+              ),
+              for (final option in documentTypeOptions)
+                DropdownMenuItem<String>(value: option, child: Text(option)),
+            ],
+            onChanged: (value) => onDocumentTypeSelected(
+              value == null || value.isEmpty ? null : value,
+            ),
           ),
-      ],
-      onChanged: (value) =>
-          onSelected(value == null || value.isEmpty ? null : value),
+        ],
+      ),
     );
   }
 }
@@ -933,8 +812,8 @@ class _ServiceDocumentGroup {
   }
 }
 
-class _ServiceWorkspaceHeader extends StatelessWidget {
-  const _ServiceWorkspaceHeader({
+class _ServiceContextCard extends StatelessWidget {
+  const _ServiceContextCard({
     required this.groups,
     required this.selectedGroup,
     required this.onSelected,
@@ -944,20 +823,23 @@ class _ServiceWorkspaceHeader extends StatelessWidget {
   final _ServiceDocumentGroup selectedGroup;
   final ValueChanged<String?> onSelected;
 
-  bool _hasCustomerMeta(_ServiceDocumentGroup group) {
-    return [
-      group.customerEmail,
-      group.customerPhone,
-      group.companyName,
-      group.customerNtn,
-      group.customerCnic,
-    ].any((value) => value != null && value.trim().isNotEmpty);
-  }
-
   @override
   Widget build(BuildContext context) {
+    final meta = <String>[
+      if (selectedGroup.customerEmail?.trim().isNotEmpty == true)
+        selectedGroup.customerEmail!.trim(),
+      if (selectedGroup.customerPhone?.trim().isNotEmpty == true)
+        selectedGroup.customerPhone!.trim(),
+      if (selectedGroup.companyName?.trim().isNotEmpty == true)
+        selectedGroup.companyName!.trim(),
+      if (selectedGroup.customerNtn?.trim().isNotEmpty == true)
+        'NTN ${selectedGroup.customerNtn!.trim()}',
+      if (selectedGroup.customerCnic?.trim().isNotEmpty == true)
+        'CNIC ${selectedGroup.customerCnic!.trim()}',
+    ];
+
     return PremiumCard(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -966,155 +848,88 @@ class _ServiceWorkspaceHeader extends StatelessWidget {
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Service request',
-              prefixIcon: Icon(
-                Icons.folder_open_rounded,
-                color: _documentIndigo,
-              ),
+              prefixIcon: Icon(Icons.folder_open_rounded),
             ),
             items: groups
                 .map(
                   (group) => DropdownMenuItem<String>(
                     value: group.reference,
-                    child: Text(
-                      '${group.customerName} · ${group.reference}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    child: Text('${group.customerName} · ${group.reference}'),
                   ),
                 )
                 .toList(),
             onChanged: onSelected,
           ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 16),
+          Text(
+            selectedGroup.customerName,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 17,
+              height: 1.25,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            selectedGroup.serviceTitle,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 15,
+              height: 1.4,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: _documentIndigo.withValues(alpha: 0.07),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: const Icon(
-                  Icons.assignment_ind_outlined,
-                  color: _documentIndigo,
-                  size: 20,
-                ),
+              if (selectedGroup.status?.trim().isNotEmpty == true)
+                OmcStatusBadge(label: selectedGroup.status!),
+              OmcStatusBadge(
+                label: '${selectedGroup.documents.length} documents',
+                color: AppTheme.textSecondary,
               ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      selectedGroup.customerName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      selectedGroup.serviceTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        if (selectedGroup.status != null)
-                          PremiumInfoChip(label: selectedGroup.status!),
-                        PremiumInfoChip(
-                          label: '${selectedGroup.documents.length} docs',
-                        ),
-                        if (selectedGroup.needsReview > 0)
-                          PremiumInfoChip(
-                            label: '${selectedGroup.needsReview} review',
-                            color: _reviewTeal,
-                          ),
-                        if (selectedGroup.rejected > 0)
-                          PremiumInfoChip(
-                            label: '${selectedGroup.rejected} rejected',
-                            color: _rejectedRed,
-                          ),
-                      ],
-                    ),
-                  ],
+              if (selectedGroup.needsReview > 0)
+                OmcStatusBadge(
+                  label: '${selectedGroup.needsReview} need review',
+                  color: AppTheme.warning,
                 ),
-              ),
+              if (selectedGroup.rejected > 0)
+                OmcStatusBadge(
+                  label: '${selectedGroup.rejected} rejected',
+                  color: AppTheme.danger,
+                ),
             ],
           ),
-          if (_hasCustomerMeta(selectedGroup)) ...[
-            const SizedBox(height: 6),
+          if (meta.isNotEmpty) ...[
+            const SizedBox(height: 8),
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
               childrenPadding: EdgeInsets.zero,
-              dense: true,
-              visualDensity: VisualDensity.compact,
+              shape: const Border(),
+              collapsedShape: const Border(),
               title: const Text(
                 'Customer details',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
               ),
               children: [
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: _CompactCustomerMeta(group: selectedGroup),
+                  child: Text(
+                    meta.join(' · '),
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 14,
+                      height: 1.45,
+                    ),
+                  ),
                 ),
               ],
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _CompactCustomerMeta extends StatelessWidget {
-  const _CompactCustomerMeta({required this.group});
-
-  final _ServiceDocumentGroup group;
-
-  @override
-  Widget build(BuildContext context) {
-    final values = <String>[
-      if (group.customerEmail?.trim().isNotEmpty == true)
-        group.customerEmail!.trim(),
-      if (group.customerPhone?.trim().isNotEmpty == true)
-        group.customerPhone!.trim(),
-      if (group.companyName?.trim().isNotEmpty == true)
-        group.companyName!.trim(),
-      if (group.customerNtn?.trim().isNotEmpty == true)
-        'NTN ${group.customerNtn!.trim()}',
-      if (group.customerCnic?.trim().isNotEmpty == true)
-        'CNIC ${group.customerCnic!.trim()}',
-    ];
-
-    if (values.isEmpty) return const SizedBox.shrink();
-
-    return Text(
-      values.join('  •  '),
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-      style: const TextStyle(
-        color: AppTheme.textSecondary,
-        fontSize: 10.5,
-        height: 1.35,
-        fontWeight: FontWeight.w600,
       ),
     );
   }
@@ -1131,50 +946,22 @@ class _ReviewFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        child: Row(
-          children: [
-            for (final filter in _ReviewFilter.values) ...[
-              Builder(
-                builder: (context) {
-                  final selected = selectedFilter == filter;
-                  final accent = Theme.of(context).colorScheme.primary;
-                  return ChoiceChip(
-                    avatar: Icon(
-                      _reviewFilterIcon(filter),
-                      size: 16,
-                      color: selected ? accent : AppTheme.textMuted,
-                    ),
-                    label: Text(filter.label),
-                    selected: selected,
-                    onSelected: (_) => onSelected(filter),
-                    selectedColor: accent.withValues(alpha: 0.08),
-                    backgroundColor: Colors.white,
-                    side: BorderSide(
-                      color: selected
-                          ? accent.withValues(alpha: 0.22)
-                          : AppTheme.border,
-                    ),
-                    labelStyle: TextStyle(
-                      color: selected ? accent : AppTheme.textSecondary,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(width: 8),
-            ],
-          ],
-        ),
-      ),
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final filter in _ReviewFilter.values)
+          ChoiceChip(
+            label: Text(filter.label),
+            selected: selectedFilter == filter,
+            onSelected: (_) => onSelected(filter),
+            showCheckmark: false,
+            labelStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+      ],
     );
   }
 }
@@ -1206,312 +993,198 @@ class _ReviewDocumentCard extends StatelessWidget {
     final serviceReference = document.serviceReference?.trim() ?? '';
     final canOpenCase = serviceReference.isNotEmpty;
     final statusColor = _statusColor(document);
+    final remarks = document.remarks?.trim();
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: document.hasFile ? onPreview : null,
-      child: PremiumCard(
-        padding: const EdgeInsets.all(13),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    document.isArchived
-                        ? Icons.archive_rounded
-                        : Icons.description_outlined,
-                    color: statusColor,
-                    size: 19,
-                  ),
-                ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        document.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        [
-                          if (document.documentType?.trim().isNotEmpty == true)
-                            document.documentType!.trim(),
-                          document.statusLabel,
-                          if (document.updatedAtLabel?.trim().isNotEmpty ==
-                              true)
-                            document.updatedAtLabel!.trim(),
-                        ].join('  •  '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: statusColor,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  document.hasFile
-                      ? Icons.visibility_outlined
-                      : Icons.insert_drive_file_outlined,
-                  color: document.hasFile
-                      ? _documentIndigo
-                      : AppTheme.textMuted,
-                  size: 20,
-                ),
-              ],
-            ),
-            if (document.remarks?.trim().isNotEmpty == true) ...[
-              const SizedBox(height: 9),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  document.remarks!.trim(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 10.5,
-                    height: 1.3,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: document.hasFile ? onPreview : null,
-                    icon: const Icon(Icons.visibility_outlined, size: 15),
-                    label: const Text('Preview'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 38),
-                      foregroundColor: _documentIndigo,
-                      side: BorderSide(
-                        color: _documentIndigo.withValues(alpha: 0.24),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.outlined(
-                  tooltip: 'Document details',
-                  onPressed: () => context.push(
-                    '/documents/${Uri.encodeComponent(document.id)}',
-                  ),
-                  icon: const Icon(Icons.info_outline_rounded, size: 18),
-                ),
-                const SizedBox(width: 8),
-                IconButton.outlined(
-                  tooltip: 'Open case',
-                  onPressed: canOpenCase
-                      ? () => context.push(
-                          '/internal-workspace/service-cases/'
-                          '${Uri.encodeComponent(serviceReference)}',
-                        )
-                      : null,
-                  icon: const Icon(Icons.folder_open_outlined, size: 18),
-                ),
-              ],
-            ),
-            if (canReviewDocuments && !document.isArchived) ...[
-              const SizedBox(height: 8),
-              Row(
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stack =
+                  constraints.maxWidth < 350 ||
+                  MediaQuery.textScalerOf(context).scale(1) >= 1.4;
+              final identity = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: canReview ? onApprove : null,
-                      icon: isBusy
-                          ? const SizedBox(
-                              width: 13,
-                              height: 13,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.check_rounded, size: 15),
-                      label: const Text('Approve'),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(0, 38),
-                        backgroundColor: _approvedGreen,
-                        foregroundColor: Colors.white,
-                      ),
+                  Text(
+                    document.title,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 17,
+                      height: 1.3,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: canReview ? onReject : null,
-                      icon: const Icon(Icons.close_rounded, size: 15),
-                      label: const Text('Reject'),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 38),
-                        foregroundColor: _rejectedRed,
-                        side: BorderSide(
-                          color: _rejectedRed.withValues(alpha: 0.34),
-                        ),
-                      ),
+                  const SizedBox(height: 5),
+                  Text(
+                    [
+                      if (document.documentType?.trim().isNotEmpty == true)
+                        document.documentType!.trim(),
+                      if (document.updatedAtLabel?.trim().isNotEmpty == true)
+                        document.updatedAtLabel!.trim(),
+                    ].join(' · '),
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 14,
+                      height: 1.4,
                     ),
                   ),
                 ],
+              );
+              final badge = OmcStatusBadge(
+                label: document.statusLabel,
+                color: statusColor,
+              );
+
+              if (stack) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [identity, const SizedBox(height: 10), badge],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: identity),
+                  const SizedBox(width: 12),
+                  badge,
+                ],
+              );
+            },
+          ),
+          if (remarks != null && remarks.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.07),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                remarks,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 14,
+                  height: 1.45,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          OutlinedButton.icon(
+            onPressed: document.hasFile ? onPreview : null,
+            icon: const Icon(Icons.visibility_outlined),
+            label: Text(
+              document.hasFile ? 'Preview document' : 'No file available',
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              TextButton.icon(
+                onPressed: () => context.push(
+                  '/documents/${Uri.encodeComponent(document.id)}',
+                ),
+                icon: const Icon(Icons.info_outline_rounded),
+                label: const Text('Document details'),
+              ),
+              TextButton.icon(
+                onPressed: canOpenCase
+                    ? () => context.push(
+                        '/internal-workspace/service-cases/'
+                        '${Uri.encodeComponent(serviceReference)}',
+                      )
+                    : null,
+                icon: const Icon(Icons.folder_open_outlined),
+                label: const Text('Open case'),
               ),
             ],
+          ),
+          if (canReviewDocuments && !document.isArchived) ...[
+            const Divider(height: 28),
+            const Text(
+              'Review decision',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final stack =
+                    constraints.maxWidth < 350 ||
+                    MediaQuery.textScalerOf(context).scale(1) >= 1.4;
+                final approve = FilledButton.icon(
+                  onPressed: canReview ? onApprove : null,
+                  icon: isBusy
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.check_rounded),
+                  label: Text(isBusy ? 'Reviewing' : 'Approve'),
+                );
+                final reject = OutlinedButton.icon(
+                  onPressed: canReview ? onReject : null,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                  icon: const Icon(Icons.close_rounded),
+                  label: const Text('Reject'),
+                );
+
+                if (stack) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [approve, const SizedBox(height: 8), reject],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(child: approve),
+                    const SizedBox(width: 10),
+                    Expanded(child: reject),
+                  ],
+                );
+              },
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
 
   Color _statusColor(DocumentItem document) {
-    if (document.isArchived) return _archivedSlate;
+    if (document.isArchived) return AppTheme.textSecondary;
 
     switch (document.status) {
       case DocumentStatus.approved:
-        return _approvedGreen;
+        return AppTheme.success;
       case DocumentStatus.rejected:
-        return _rejectedRed;
+        return AppTheme.danger;
       case DocumentStatus.missing:
-        return _actionAmber;
+        return AppTheme.warning;
       case DocumentStatus.pendingReview:
-        return _reviewTeal;
+        return AppTheme.warning;
       case DocumentStatus.uploaded:
-        return _documentIndigo;
+        return AppTheme.info;
     }
-  }
-}
-
-IconData _reviewFilterIcon(_ReviewFilter filter) {
-  switch (filter) {
-    case _ReviewFilter.all:
-      return Icons.folder_copy_outlined;
-    case _ReviewFilter.needsReview:
-      return Icons.fact_check_outlined;
-    case _ReviewFilter.rejected:
-      return Icons.cancel_outlined;
-    case _ReviewFilter.approved:
-      return Icons.check_circle_outline_rounded;
-    case _ReviewFilter.archived:
-      return Icons.archive_outlined;
-  }
-}
-
-class _CompactMetricsStrip extends StatelessWidget {
-  const _CompactMetricsStrip({
-    required this.needsReview,
-    required this.rejected,
-    required this.approved,
-    required this.archived,
-  });
-
-  final int needsReview;
-  final int rejected;
-  final int approved;
-  final int archived;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          _CompactMetric(
-            icon: Icons.hourglass_top_rounded,
-            label: 'Review',
-            value: needsReview,
-            color: _reviewTeal,
-          ),
-          _CompactMetric(
-            icon: Icons.error_outline_rounded,
-            label: 'Rejected',
-            value: rejected,
-            color: _rejectedRed,
-          ),
-          _CompactMetric(
-            icon: Icons.verified_rounded,
-            label: 'Approved',
-            value: approved,
-            color: _approvedGreen,
-          ),
-          _CompactMetric(
-            icon: Icons.archive_rounded,
-            label: 'Archive',
-            value: archived,
-            color: _archivedSlate,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CompactMetric extends StatelessWidget {
-  const _CompactMetric({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final int value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.065),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.10)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 15),
-          const SizedBox(width: 6),
-          Text(
-            '$value $label',
-            style: TextStyle(
-              color: color,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -1522,14 +1195,13 @@ class _ReviewLoadingView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 132),
       children: const [
         PremiumListHeader(
           icon: Icons.fact_check_outlined,
-          title: 'Document Review',
+          title: 'Document review',
           subtitle: 'Loading customer document queue from backend.',
           metaLabel: 'Loading',
-          accentColor: _documentIndigo,
         ),
         SizedBox(height: 16),
         PremiumCard(
