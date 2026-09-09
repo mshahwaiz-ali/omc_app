@@ -22,7 +22,10 @@ class OmcIdentityHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: Column(
@@ -30,33 +33,29 @@ class OmcIdentityHeader extends StatelessWidget {
             children: [
               Text(
                 _greeting(),
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textMuted,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppTheme.textCaption,
                 ),
               ),
-              const SizedBox(height: 3),
-              Text(
-                displayName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.textPrimary,
-                  letterSpacing: -0.45,
+              const SizedBox(height: AppSpacing.xxs),
+              Semantics(
+                header: true,
+                child: Text(
+                  displayName,
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: AppSpacing.xs),
         _NotificationButton(
           unreadNotifications: unreadNotifications,
           onTap: onNotifications,
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: AppSpacing.xs),
         _Avatar(avatarUrl: avatarUrl, name: displayName, onTap: onAvatar),
       ],
     );
@@ -84,6 +83,7 @@ class _NotificationButton extends StatelessWidget {
     final label = unreadNotifications > 0
         ? 'Notifications, $unreadNotifications unread'
         : 'Notifications';
+    final theme = Theme.of(context);
 
     return Tooltip(
       message: label,
@@ -92,7 +92,7 @@ class _NotificationButton extends StatelessWidget {
         label: label,
         excludeSemantics: true,
         child: Material(
-          color: Colors.white,
+          color: theme.colorScheme.surface,
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
@@ -103,26 +103,26 @@ class _NotificationButton extends StatelessWidget {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                const SizedBox(
+                SizedBox(
                   width: AppTouchTarget.minimum,
                   height: AppTouchTarget.minimum,
                   child: Icon(
                     Icons.notifications_none_rounded,
-                    size: 22,
-                    color: AppTheme.textPrimary,
+                    size: 24,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
                 if (unreadNotifications > 0)
                   Positioned(
-                    right: 3,
-                    top: 4,
+                    right: 2,
+                    top: 2,
                     child: Container(
                       constraints: const BoxConstraints(
                         minWidth: 18,
                         minHeight: 18,
                       ),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
+                        horizontal: AppSpacing.xxs,
                         vertical: 1,
                       ),
                       alignment: Alignment.center,
@@ -133,10 +133,10 @@ class _NotificationButton extends StatelessWidget {
                       ),
                       child: Text(
                         unreadNotifications > 9 ? '9+' : '$unreadNotifications',
-                        style: const TextStyle(
+                        style: theme.textTheme.labelSmall?.copyWith(
                           color: Colors.white,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w900,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -159,12 +159,15 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final fallback = Container(
-      color: _avatarColor.withValues(alpha: 0.12),
+      color: theme.colorScheme.primaryContainer,
       alignment: Alignment.center,
       child: Text(
         _initials,
-        style: TextStyle(fontWeight: FontWeight.w900, color: _avatarColor),
+        style: theme.textTheme.titleMedium?.copyWith(
+          color: theme.colorScheme.onPrimaryContainer,
+        ),
       ),
     );
     final avatar = Container(
@@ -172,14 +175,7 @@ class _Avatar extends StatelessWidget {
       height: AppTouchTarget.minimum,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 14,
-            offset: Offset(0, 6),
-          ),
-        ],
+        border: Border.all(color: AppTheme.border),
       ),
       child: ClipOval(
         child: avatarUrl == null || avatarUrl!.trim().isEmpty
@@ -224,19 +220,5 @@ class _Avatar extends StatelessWidget {
     return parts.length == 1
         ? parts.first.substring(0, 1).toUpperCase()
         : '${parts.first[0]}${parts.last[0]}'.toUpperCase();
-  }
-
-  Color get _avatarColor {
-    const colors = [
-      Color(0xFFE11D48),
-      Color(0xFF5B7CFA),
-      Color(0xFF17B890),
-      Color(0xFF14B8A6),
-      Color(0xFF8B5CF6),
-      Color(0xFFF59E0B),
-    ];
-    final source = name.trim().isEmpty ? 'OMC' : name.trim();
-    return colors[source.codeUnits.fold<int>(0, (sum, unit) => sum + unit) %
-        colors.length];
   }
 }

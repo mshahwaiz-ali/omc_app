@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../app/design_tokens.dart';
+
 class PremiumListCard extends StatelessWidget {
   const PremiumListCard({
     required this.icon,
@@ -21,63 +23,58 @@ class PremiumListCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final borderRadius = BorderRadius.circular(AppRadius.card);
 
     return DecoratedBox(
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: borderRadius,
         border: Border.all(color: theme.colorScheme.outlineVariant),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 16,
-            offset: Offset(0, 8),
-          ),
-        ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: borderRadius,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: borderRadius,
           child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final textScale = MediaQuery.textScalerOf(context).scale(1);
+                final stackTrailing =
+                    trailing != null &&
+                    (constraints.maxWidth < 360 || textScale >= 1.5);
+
+                final heading = Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.onSurface,
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Icon(
-                        icon,
-                        color: theme.colorScheme.surface,
-                        size: 21,
+                    ExcludeSemantics(
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(AppRadius.control),
+                        ),
+                        child: Icon(
+                          icon,
+                          color: theme.colorScheme.onSurfaceVariant,
+                          size: 24,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 14),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            title,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          if (subtitle != null && subtitle!.isNotEmpty) ...[
-                            const SizedBox(height: 4),
+                          Text(title, style: theme.textTheme.titleMedium),
+                          if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
+                            const SizedBox(height: AppSpacing.xxs),
                             Text(
                               subtitle!,
-                              style: theme.textTheme.bodySmall?.copyWith(
+                              style: theme.textTheme.bodyMedium?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
@@ -85,17 +82,32 @@ class PremiumListCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    if (trailing != null) ...[
-                      const SizedBox(width: 12),
+                    if (!stackTrailing && trailing != null) ...[
+                      const SizedBox(width: AppSpacing.sm),
                       trailing!,
                     ],
                   ],
-                ),
-                if (children.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  Wrap(spacing: 8, runSpacing: 8, children: children),
-                ],
-              ],
+                );
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    heading,
+                    if (stackTrailing) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Align(alignment: Alignment.centerLeft, child: trailing!),
+                    ],
+                    if (children.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      Wrap(
+                        spacing: AppSpacing.xs,
+                        runSpacing: AppSpacing.xs,
+                        children: children,
+                      ),
+                    ],
+                  ],
+                );
+              },
             ),
           ),
         ),

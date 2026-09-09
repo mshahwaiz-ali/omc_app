@@ -4,7 +4,9 @@ import 'package:omc_app/app/design_tokens.dart';
 import 'package:omc_app/app/navigation/omc_bottom_nav.dart';
 import 'package:omc_app/app/theme.dart';
 import 'package:omc_app/core/widgets/app_button.dart';
+import 'package:omc_app/core/widgets/omc_identity_header.dart';
 import 'package:omc_app/core/widgets/omc_premium.dart';
+import 'package:omc_app/core/widgets/premium_list_card.dart';
 import 'package:omc_app/core/widgets/premium_list_header.dart';
 import 'package:omc_app/features/app_config/presentation/app_brand_registry.dart';
 
@@ -190,6 +192,78 @@ void main() {
     expect(find.bySemanticsLabel('Customer support queue'), findsOneWidget);
   });
 
+  testWidgets('identity header reflows a long name at 320px and 2x text', (
+    tester,
+  ) async {
+    const longName =
+        'Muhammad Shahwaiz Ali International Business Services Account Owner';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.lightTheme,
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2.0)),
+          child: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 320,
+                child: OmcIdentityHeader(
+                  displayName: longName,
+                  avatarUrl: null,
+                  unreadNotifications: 12,
+                  onNotifications: _noop,
+                  onAvatar: _noop,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.text(longName), findsOneWidget);
+    expect(find.bySemanticsLabel('Notifications, 12 unread'), findsOneWidget);
+  });
+
+  testWidgets('shared list card stacks trailing actions for large text', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.lightTheme,
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2.0)),
+          child: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 320,
+                child: PremiumListCard(
+                  icon: Icons.description_outlined,
+                  title: 'A document with a long operational title',
+                  subtitle:
+                      'Supporting context must remain readable without squeezing the action.',
+                  trailing: TextButton(
+                    onPressed: _noop,
+                    child: const Text('Review document'),
+                  ),
+                  children: const [Text('Reference OMC-000001')],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Review document'), findsOneWidget);
+  });
+
   testWidgets('status badge keeps the complete state at large text', (
     tester,
   ) async {
@@ -230,10 +304,10 @@ void main() {
         theme: AppTheme.lightTheme,
         home: Scaffold(
           body: OmcSurface(
-            onTap: () {},
+            onTap: _noop,
             semanticLabel: 'Open account summary',
             child: TextButton(
-              onPressed: () {},
+              onPressed: _noop,
               child: const Text('View invoice'),
             ),
           ),
@@ -245,6 +319,8 @@ void main() {
     expect(find.bySemanticsLabel('View invoice'), findsOneWidget);
   });
 }
+
+void _noop() {}
 
 double _contrastRatio(Color first, Color second) {
   final firstLuminance = first.computeLuminance();
