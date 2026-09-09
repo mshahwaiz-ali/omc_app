@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/effective_capabilities_provider.dart';
 import 'customer_service_case_detail_screen.dart';
-import 'service_case_detail_legacy_screen.dart' as legacy;
+import 'operational_service_case_detail_screen.dart';
 
 class ServiceCaseDetailScreen extends ConsumerWidget {
   const ServiceCaseDetailScreen({
@@ -30,9 +30,12 @@ class ServiceCaseDetailScreen extends ConsumerWidget {
       return CustomerServiceCaseDetailScreen(caseId: caseId);
     }
 
-    // Internal operations, assisted-service workflows and non-customer states
-    // keep the established detail implementation and its administrative tools.
-    return legacy.ServiceCaseDetailScreen(
+    // Assisted, internal and other authorized non-canonical variants keep the
+    // established operational repository/mutation authority, but render it in
+    // a dedicated operations-first presentation instead of the legacy mixed
+    // customer/admin layout. The legacy screen remains in the repository as a
+    // historical safety reference and for its focused regression tests.
+    return OperationalServiceCaseDetailScreen(
       caseId: caseId,
       assisted: assisted,
       customerName: customerName,
