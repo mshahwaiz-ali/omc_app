@@ -720,107 +720,116 @@ class HomeScreen extends ConsumerWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
-        return Container(
-          margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x240F172A),
-                blurRadius: 32,
-                offset: Offset(0, 14),
-              ),
-            ],
+        final theme = Theme.of(sheetContext);
+        final bottomInset = MediaQuery.viewInsetsOf(sheetContext).bottom;
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.92,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 42,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDDE1E7),
-                  borderRadius: BorderRadius.circular(999),
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x240F172A),
+                  blurRadius: 32,
+                  offset: Offset(0, 14),
                 ),
-              ),
-              const SizedBox(height: 22),
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.09),
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: const Icon(
-                  Icons.lock_open_rounded,
-                  color: AppTheme.primary,
-                  size: 30,
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Unlock your OMC workspace',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.35,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Create an account to use $featureName, track services, '
-                'manage documents and access payments.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  height: 1.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 22),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: FilledButton(
-                  onPressed: () {
-                    Navigator.of(sheetContext).pop();
-                    context.push('/signup');
-                  },
-                  style: FilledButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(17),
+              ],
+            ),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottomInset),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(999),
                     ),
                   ),
-                  child: const Text(
-                    'Create free account',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                  const SizedBox(height: 22),
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.09),
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    child: const Icon(
+                      Icons.lock_open_rounded,
+                      color: AppTheme.primary,
+                      size: 30,
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(sheetContext).pop();
-                  context.push('/login');
-                },
-                child: const Text(
-                  'Already have an account? Sign in',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
+                  const SizedBox(height: 18),
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      'Unlock your OMC workspace',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Create an account to use $featureName, track services, manage documents and access payments.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        context.push('/signup');
+                      },
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(56),
+                        elevation: 0,
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(17),
+                        ),
+                      ),
+                      child: const Text('Create free account'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        context.push('/login');
+                      },
+                      child: const Text('Already have an account? Sign in'),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },
