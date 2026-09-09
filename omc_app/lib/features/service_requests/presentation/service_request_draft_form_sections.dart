@@ -26,15 +26,16 @@ class _DynamicFormCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _CardTitle(
             title: 'Service information',
-            subtitle: 'Add the information needed to prepare your case.',
+            subtitle: 'Add the information OMC needs to prepare this case.',
             icon: Icons.tune_rounded,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           for (final field in fields) ...[
             _DynamicField(
               field: field,
@@ -50,7 +51,7 @@ class _DynamicFormCard extends StatelessWidget {
           TextFormField(
             controller: remarksController,
             minLines: 3,
-            maxLines: 5,
+            maxLines: 6,
             textInputAction: TextInputAction.newline,
             decoration: const InputDecoration(
               labelText: 'Additional notes (optional)',
@@ -92,15 +93,40 @@ class _DynamicField extends StatelessWidget {
     final helperText = field.description.trim().isEmpty
         ? null
         : field.description.trim();
+    final theme = Theme.of(context);
 
     if (_isCheckField(field)) {
-      return CheckboxListTile(
-        contentPadding: EdgeInsets.zero,
-        value: checkedValue,
-        onChanged: onCheckChanged,
-        title: Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
-        subtitle: helperText == null ? null : Text(helperText),
-        controlAffinity: ListTileControlAffinity.leading,
+      return Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: CheckboxListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          value: checkedValue,
+          onChanged: onCheckChanged,
+          title: Text(
+            label,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          subtitle: helperText == null
+              ? null
+              : Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    helperText,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppTheme.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+          controlAffinity: ListTileControlAffinity.leading,
+        ),
       );
     }
 
@@ -108,6 +134,7 @@ class _DynamicField extends StatelessWidget {
       final selected = field.options.contains(selectValue) ? selectValue : null;
       return DropdownButtonFormField<String>(
         initialValue: selected,
+        isExpanded: true,
         items: field.options
             .map(
               (option) => DropdownMenuItem(value: option, child: Text(option)),
@@ -128,7 +155,7 @@ class _DynamicField extends StatelessWidget {
     return TextFormField(
       controller: controller,
       minLines: _isLongTextField(field) ? 3 : 1,
-      maxLines: _isLongTextField(field) ? 5 : 1,
+      maxLines: _isLongTextField(field) ? 6 : 1,
       keyboardType: _keyboardTypeFor(field),
       inputFormatters: _inputFormattersFor(field),
       textInputAction: _isLongTextField(field)
@@ -162,40 +189,43 @@ class _StagesCard extends StatelessWidget {
           ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     if (visibleStages.isEmpty) return const SizedBox.shrink();
 
+    final theme = Theme.of(context);
     return PremiumCard(
       padding: const EdgeInsets.all(16),
       child: ExpansionTile(
-        tilePadding: EdgeInsets.zero,
-        childrenPadding: const EdgeInsets.only(top: 4),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+        childrenPadding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
         shape: const Border(),
         collapsedShape: const Border(),
         leading: Container(
-          width: 38,
-          height: 38,
+          width: 42,
+          height: 42,
           decoration: BoxDecoration(
-            color: const Color(0xFF7C3AED).withValues(alpha: 0.09),
-            borderRadius: BorderRadius.circular(13),
+            color: AppTheme.primary.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(12),
           ),
+          alignment: Alignment.center,
           child: const Icon(
             Icons.route_outlined,
-            color: Color(0xFF7C3AED),
-            size: 19,
-          ),
-        ),
-        title: const Text(
-          'What happens next',
-          style: TextStyle(
             color: AppTheme.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.w900,
+            size: 20,
           ),
         ),
-        subtitle: Text(
-          '${visibleStages.length} service stage${visibleStages.length == 1 ? '' : 's'}',
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 11.5,
-            fontWeight: FontWeight.w600,
+        title: Text(
+          'What happens after submission',
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            '${visibleStages.length} customer-visible service stage${visibleStages.length == 1 ? '' : 's'}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppTheme.textSecondary,
+              height: 1.35,
+            ),
           ),
         ),
         children: [
@@ -224,28 +254,28 @@ class _CompactStageRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 34,
+            width: 36,
             child: Column(
               children: [
                 Container(
-                  width: 26,
-                  height: 26,
+                  width: 28,
+                  height: 28,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF0ECFF),
+                    color: AppTheme.primary.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(9),
                   ),
                   child: Text(
                     '$number',
-                    style: const TextStyle(
-                      color: Color(0xFF7C3AED),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -253,8 +283,8 @@ class _CompactStageRow extends StatelessWidget {
                   Expanded(
                     child: Container(
                       width: 1,
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      color: const Color(0xFFE2E6ED),
+                      margin: const EdgeInsets.symmetric(vertical: 5),
+                      color: AppTheme.border,
                     ),
                   ),
               ],
@@ -263,27 +293,24 @@ class _CompactStageRow extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 2 : 15),
+              padding: EdgeInsets.only(bottom: isLast ? 2 : 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     stage.title,
-                    style: const TextStyle(
+                    style: theme.textTheme.bodyLarge?.copyWith(
                       color: AppTheme.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   if (stage.description.trim().isNotEmpty) ...[
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 4),
                     Text(
                       stage.description.trim(),
-                      style: const TextStyle(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: AppTheme.textSecondary,
-                        fontSize: 11.5,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
+                        height: 1.4,
                       ),
                     ),
                   ],
@@ -306,69 +333,108 @@ class _RequiredDocumentsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (documents.isEmpty) return const SizedBox.shrink();
 
+    final theme = Theme.of(context);
     return PremiumCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _CardTitle(
-            title: 'Documents you may need',
+            title: 'Review before submit',
             subtitle:
-                'Submit the request now. OMC will ask for documents from the case screen when they are required.',
-            icon: Icons.folder_copy_outlined,
+                'This form creates the request only. Required documents are collected from the case screen after submission.',
+            icon: Icons.fact_check_outlined,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.all(12),
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFF7F8FB),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE7EAF0)),
+              color: theme.colorScheme.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.border),
             ),
-            child: Column(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (var index = 0; index < documents.length; index++) ...[
-                  Row(
-                    children: [
-                      Container(
-                        width: 25,
-                        height: 25,
-                        decoration: BoxDecoration(
-                          color: const Color(
-                            0xFF16A34A,
-                          ).withValues(alpha: 0.09),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.description_outlined,
-                          color: Color(0xFF16A34A),
-                          size: 14,
-                        ),
-                      ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: Text(
-                          documents[index],
-                          style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (index != documents.length - 1)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Divider(height: 1, color: Color(0xFFE5E9EF)),
+                const Icon(
+                  Icons.info_outline_rounded,
+                  color: AppTheme.textSecondary,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'No document upload happens on this form. Submit first, then follow the document requirements shown on the request.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textSecondary,
+                      height: 1.4,
                     ),
-                ],
+                  ),
+                ),
               ],
             ),
           ),
+          const SizedBox(height: 16),
+          Text(
+            'Documents OMC may request',
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          for (var index = 0; index < documents.length; index++) ...[
+            _DocumentGuidanceRow(label: documents[index]),
+            if (index != documents.length - 1)
+              const Divider(height: 20, color: AppTheme.border),
+          ],
         ],
       ),
+    );
+  }
+}
+
+class _DocumentGuidanceRow extends StatelessWidget {
+  const _DocumentGuidanceRow({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: AppTheme.primary.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          alignment: Alignment.center,
+          child: const Icon(
+            Icons.description_outlined,
+            color: AppTheme.textSecondary,
+            size: 17,
+          ),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 5),
+            child: Text(
+              label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: AppTheme.textPrimary,
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -399,53 +465,59 @@ class _SubmitRequestBar extends StatelessWidget {
               ? 'Ready to submit'
               : '$attachmentCount file${attachmentCount == 1 ? '' : 's'} attached'
         : '$remaining detail${remaining == 1 ? '' : 's'} remaining';
+    final theme = Theme.of(context);
 
     return Material(
       color: Colors.white,
-      elevation: 8,
-      shadowColor: Colors.black.withValues(alpha: 0.08),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final useStackedLayout =
-                  constraints.maxWidth < 390 ||
-                  MediaQuery.textScalerOf(context).scale(1) >= 1.4;
-              final status = Text(
-                statusText,
-                maxLines: useStackedLayout ? 2 : 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              );
-              final button = AppButton(
-                label: 'Submit',
-                icon: Icons.arrow_forward_rounded,
-                isLoading: isSubmitting,
-                onPressed: isSubmitting ? null : onSubmit,
-              );
-
-              if (useStackedLayout) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [status, const SizedBox(height: 8), button],
+      child: Container(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppTheme.border)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final useStackedLayout =
+                    constraints.maxWidth < 390 ||
+                    MediaQuery.textScalerOf(context).scale(1) >= 1.35;
+                final status = Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    statusText,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppTheme.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
                 );
-              }
+                final button = AppButton(
+                  label: 'Submit request',
+                  icon: Icons.arrow_forward_rounded,
+                  isLoading: isSubmitting,
+                  onPressed: isSubmitting ? null : onSubmit,
+                );
 
-              return Row(
-                children: [
-                  Expanded(child: status),
-                  const SizedBox(width: 12),
-                  SizedBox(width: 174, child: button),
-                ],
-              );
-            },
+                if (useStackedLayout) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [status, const SizedBox(height: 10), button],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(child: status),
+                    const SizedBox(width: 16),
+                    SizedBox(width: 190, child: button),
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -466,14 +538,21 @@ class _CardTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 1),
-          child: Icon(icon, color: AppTheme.textSecondary, size: 18),
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: AppTheme.primary.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.center,
+          child: Icon(icon, color: AppTheme.textSecondary, size: 20),
         ),
-        const SizedBox(width: 9),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -482,21 +561,18 @@ class _CardTitle extends StatelessWidget {
                 header: true,
                 child: Text(
                   title,
-                  style: const TextStyle(
+                  style: theme.textTheme.titleMedium?.copyWith(
                     color: AppTheme.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Text(
                 subtitle,
-                style: const TextStyle(
+                style: theme.textTheme.bodyMedium?.copyWith(
                   color: AppTheme.textSecondary,
-                  fontSize: 11.5,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
+                  height: 1.4,
                 ),
               ),
             ],

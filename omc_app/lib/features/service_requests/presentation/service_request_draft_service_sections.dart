@@ -29,6 +29,7 @@ class _InternalDiscountCard extends StatelessWidget {
         ? null
         : (originalPrice - discountAmount).clamp(0, double.infinity).toDouble();
     final currency = (service.currency ?? '').trim();
+    final theme = Theme.of(context);
 
     String money(double amount) {
       final formatted = amount % 1 == 0
@@ -38,21 +39,20 @@ class _InternalDiscountCard extends StatelessWidget {
     }
 
     return PremiumCard(
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Customer discount',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          const _CardTitle(
+            title: 'Customer discount',
+            subtitle:
+                'Optional. Available only for internal assisted requests.',
+            icon: Icons.sell_outlined,
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Optional. Available only for internal assisted requests.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           DropdownButtonFormField<String>(
             initialValue: discountType,
+            isExpanded: true,
             decoration: const InputDecoration(labelText: 'Discount type'),
             items: const [
               DropdownMenuItem(value: 'Percentage', child: Text('Percentage')),
@@ -63,7 +63,7 @@ class _InternalDiscountCard extends StatelessWidget {
             ],
             onChanged: onDiscountTypeChanged,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           TextFormField(
             controller: discountValueController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -86,30 +86,31 @@ class _InternalDiscountCard extends StatelessWidget {
               return null;
             },
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           TextFormField(
             controller: discountReasonController,
             minLines: 2,
-            maxLines: 3,
+            maxLines: 4,
             decoration: const InputDecoration(
               labelText: 'Discount reason',
               hintText: 'Required when a discount is applied',
+              alignLabelWithHint: true,
             ),
           ),
           if (originalPrice != null) ...[
+            const SizedBox(height: 18),
+            Divider(height: 1, color: theme.colorScheme.outlineVariant),
             const SizedBox(height: 14),
-            const Divider(height: 1),
-            const SizedBox(height: 12),
             _DiscountSummaryRow(
               label: 'Original price',
               value: money(originalPrice),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             _DiscountSummaryRow(
               label: 'Discount',
               value: '- ${money(discountAmount)}',
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             _DiscountSummaryRow(
               label: 'Final price',
               value: money(finalPrice ?? originalPrice),
@@ -135,13 +136,39 @@ class _DiscountSummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = emphasized
-        ? const TextStyle(fontWeight: FontWeight.w700)
-        : Theme.of(context).textTheme.bodyMedium;
+    final theme = Theme.of(context);
+    final labelStyle = theme.textTheme.bodyMedium?.copyWith(
+      color: AppTheme.textSecondary,
+      fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
+    );
+    final valueStyle = (emphasized
+            ? theme.textTheme.titleMedium
+            : theme.textTheme.bodyLarge)
+        ?.copyWith(
+          color: AppTheme.textPrimary,
+          fontWeight: emphasized ? FontWeight.w700 : FontWeight.w600,
+        );
+    final stack = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+
+    if (stack) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: labelStyle),
+          const SizedBox(height: 3),
+          Text(value, style: valueStyle),
+        ],
+      );
+    }
+
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: Text(label, style: style)),
-        Text(value, style: style),
+        Expanded(child: Text(label, style: labelStyle)),
+        const SizedBox(width: 16),
+        Flexible(
+          child: Text(value, textAlign: TextAlign.end, style: valueStyle),
+        ),
       ],
     );
   }
@@ -161,69 +188,132 @@ class _SelectedServiceCard extends StatelessWidget {
     final price = service.priceLabel.trim().isEmpty
         ? 'Fee to be confirmed'
         : service.priceLabel.trim();
+    final theme = Theme.of(context);
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(15, 14, 12, 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF3F4F6),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(
-              _serviceIcon(service.iconKey),
-              color: AppTheme.textPrimary,
-              size: 21,
-            ),
+    Widget serviceInfo() => Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: AppTheme.primary.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(14),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  service.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 16,
-                    height: 1.15,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.2,
-                  ),
+          alignment: Alignment.center,
+          child: Icon(
+            _serviceIcon(service.iconKey),
+            color: AppTheme.textPrimary,
+            size: 23,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Selected service',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppTheme.textSecondary,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  '$price  •  $timeline',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                service.title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  height: 1.25,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  _RequestMetaChip(
+                    icon: Icons.payments_outlined,
+                    label: price,
                   ),
+                  _RequestMetaChip(
+                    icon: Icons.schedule_outlined,
+                    label: timeline,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(20),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stacked = constraints.maxWidth < 350 ||
+              MediaQuery.textScalerOf(context).scale(1) >= 1.4;
+
+          if (stacked) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                serviceInfo(),
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  onPressed: onChange,
+                  icon: const Icon(Icons.swap_horiz_rounded),
+                  label: const Text('Change service'),
                 ),
               ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: serviceInfo()),
+              const SizedBox(width: 12),
+              TextButton(onPressed: onChange, child: const Text('Change')),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _RequestMetaChip extends StatelessWidget {
+  const _RequestMetaChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: AppTheme.textSecondary),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          TextButton(
-            onPressed: onChange,
-            style: TextButton.styleFrom(
-              minimumSize: const Size(48, 48),
-              padding: const EdgeInsets.symmetric(horizontal: 9),
-            ),
-            child: const Text('Change'),
           ),
         ],
       ),
@@ -253,17 +343,17 @@ class _ContactDetailsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _CardTitle(
-            title: 'Client details',
+            title: 'Contact details',
             subtitle:
-                'Enter the details of the person or business receiving this service.',
+                'Confirm the person or business contact OMC should use for this request.',
             icon: Icons.person_outline_rounded,
           ),
-          const SizedBox(height: 13),
+          const SizedBox(height: 18),
           TextFormField(
             controller: nameController,
             textInputAction: TextInputAction.next,
@@ -274,7 +364,7 @@ class _ContactDetailsCard extends StatelessWidget {
             ),
             validator: (value) => requiredValidator(value, 'Full name'),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           TextFormField(
             controller: phoneController,
             keyboardType: TextInputType.phone,
@@ -286,7 +376,7 @@ class _ContactDetailsCard extends StatelessWidget {
             ),
             validator: (value) => requiredValidator(value, 'Phone number'),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           TextFormField(
             controller: emailController,
             keyboardType: TextInputType.emailAddress,
@@ -298,7 +388,7 @@ class _ContactDetailsCard extends StatelessWidget {
             ),
             validator: emailValidator,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           TextFormField(
             controller: taxIdController,
             keyboardType: TextInputType.text,
@@ -306,7 +396,7 @@ class _ContactDetailsCard extends StatelessWidget {
             decoration: const InputDecoration(
               labelText: 'CNIC / NTN (optional)',
               helperText:
-                  'CNIC must be 13 digits. NTN should be 7-9 digits if provided.',
+                  'CNIC must be 13 digits. NTN should be 7–9 digits if provided.',
               prefixIcon: Icon(Icons.badge_outlined),
             ),
             validator: taxIdValidator,
