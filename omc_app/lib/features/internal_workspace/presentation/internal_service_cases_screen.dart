@@ -4,12 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_state.dart';
-import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
-import '../../../core/widgets/premium_list_header.dart';
 import '../data/internal_service_case_page_repository.dart';
 import '../domain/internal_service_case.dart';
 
@@ -169,6 +168,7 @@ class _InternalServiceCasesScreenState
     final result = await showModalBottomSheet<_CaseFilterSelection>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       showDragHandle: true,
       builder: (context) => _CaseFilterSheet(
         status: _statusFilter,
@@ -196,6 +196,12 @@ class _InternalServiceCasesScreenState
     _reload();
   }
 
+  void _clearBackendFilters() {
+    _statusFilter = null;
+    _documentFilter = null;
+    _reload();
+  }
+
   @override
   Widget build(BuildContext context) {
     final activeFilterCount = [
@@ -204,8 +210,10 @@ class _InternalServiceCasesScreenState
     ].where((value) => value?.trim().isNotEmpty == true).length;
 
     return Scaffold(
-      backgroundColor: OmcPremium.canvas,
+      backgroundColor: AppTheme.background,
       body: SafeArea(
+        top: true,
+        bottom: false,
         child: RefreshIndicator.adaptive(
           onRefresh: _reload,
           child: FutureBuilder<InternalServiceCasePage>(
@@ -238,25 +246,13 @@ class _InternalServiceCasesScreenState
               final loadedCases = _mergeCases(page.queue.cases);
               final visibleCases = _applyPrimaryFilter(loadedCases);
 
-              return ListView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 140),
+              return _QueueListView(
                 children: [
-                  PremiumListHeader(
-                    icon: Icons.work_outline_rounded,
-                    title: 'Service Cases',
-                    subtitle:
-                        'Review customer work within your assigned OMC access scope.',
-                    metaLabel: _totalCount == 0
-                        ? '${loadedCases.length} loaded'
-                        : '${loadedCases.length} / $_totalCount',
-                    accentColor: OmcPremium.track,
+                  _QueueHeader(
+                    countLabel:
+                        '${loadedCases.length} loaded · $_totalCount scoped backend matches',
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.xl),
                   _CaseSearchBar(
                     controller: _searchController,
                     onChanged: _onSearchChanged,
@@ -264,26 +260,29 @@ class _InternalServiceCasesScreenState
                     activeFilterCount: activeFilterCount,
                     onFilterTap: _openFilters,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.sm),
+                  _FilterSummary(
+                    search: _search,
+                    status: _statusFilter,
+                    documentStatus: _documentFilter,
+                    primaryFilter: _primaryFilter,
+                    hasBackendFilters: activeFilterCount > 0,
+                    onClearBackendFilters: _clearBackendFilters,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
                   _PrimaryFilters(
                     selected: _primaryFilter,
                     cases: loadedCases,
                     onSelected: (value) =>
                         setState(() => _primaryFilter = value),
                   ),
-                  if (_statusFilter != null || _documentFilter != null) ...[
-                    const SizedBox(height: 10),
-                    _ActiveFilters(
-                      status: _statusFilter,
-                      documentStatus: _documentFilter,
-                      onClear: () {
-                        _statusFilter = null;
-                        _documentFilter = null;
-                        _reload();
-                      },
-                    ),
-                  ],
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.xl),
+                  _ResultsHeader(
+                    visibleCount: visibleCases.length,
+                    loadedCount: loadedCases.length,
+                    primaryFilter: _primaryFilter,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
                   if (visibleCases.isEmpty)
                     _CasesEmptyState(
                       hasBackendQuery:
@@ -300,13 +299,15 @@ class _InternalServiceCasesScreenState
                     ) ...[
                       _ServiceCaseCard(serviceCase: visibleCases[index]),
                       if (index != visibleCases.length - 1)
-                        const SizedBox(height: 10),
+                        const SizedBox(height: AppSpacing.sm),
                     ],
                   ],
                   if (_hasMore) ...[
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
+                    const SizedBox(height: AppSpacing.md),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        minHeight: AppTouchTarget.secondaryButtonHeight,
+                      ),
                       child: OutlinedButton.icon(
                         onPressed: _loadingMore ? null : _loadMore,
                         icon: _loadingMore
@@ -335,6 +336,81 @@ class _InternalServiceCasesScreenState
   }
 }
 
+class _QueueListView extends StatelessWidget {
+  const _QueueListView({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final pageInset = AppLayout.pageInsetFor(constraints.maxWidth);
+        final horizontal = constraints.maxWidth >
+                AppLayout.generalMaxWidth + pageInset * 2
+            ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
+            : pageInset;
+
+        return ListView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          padding: EdgeInsets.fromLTRB(horizontal, 18, horizontal, 164),
+          children: children,
+        );
+      },
+    );
+  }
+}
+
+class _QueueHeader extends StatelessWidget {
+  const _QueueHeader({required this.countLabel});
+
+  final String countLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Service cases',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Review customer work within your assigned OMC access scope.',
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 1),
+              child: Icon(
+                Icons.dataset_outlined,
+                size: 20,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                countLabel,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 class _CaseSearchBar extends StatelessWidget {
   const _CaseSearchBar({
     required this.controller,
@@ -352,48 +428,172 @@ class _CaseSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 54,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(17),
-              border: Border.all(color: OmcPremium.border),
-            ),
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                hintText: 'Search case, customer or service',
-                prefixIcon: const Icon(Icons.search_rounded),
-                suffixIcon: controller.text.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'Clear search',
-                        onPressed: onClear,
-                        icon: const Icon(Icons.close_rounded),
-                      ),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-              ),
-            ),
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stack = constraints.maxWidth < 360 || textScale >= 1.5;
+        final searchField = TextField(
+          controller: controller,
+          onChanged: onChanged,
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            labelText: 'Search service cases',
+            hintText: 'Case, customer or service',
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: controller.text.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: 'Clear search',
+                    onPressed: onClear,
+                    icon: const Icon(Icons.close_rounded),
+                  ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Badge(
-          isLabelVisible: activeFilterCount > 0,
-          label: Text('$activeFilterCount'),
-          child: IconButton.filledTonal(
-            tooltip: 'Case filters',
+        );
+        final filterButton = ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: AppTouchTarget.secondaryButtonHeight,
+          ),
+          child: OutlinedButton.icon(
             onPressed: onFilterTap,
             icon: const Icon(Icons.tune_rounded),
+            label: Text(
+              activeFilterCount == 0
+                  ? 'Filters'
+                  : 'Filters ($activeFilterCount)',
+            ),
           ),
-        ),
-      ],
+        );
+
+        if (stack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              searchField,
+              const SizedBox(height: AppSpacing.xs),
+              filterButton,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: searchField),
+            const SizedBox(width: AppSpacing.xs),
+            filterButton,
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _FilterSummary extends StatelessWidget {
+  const _FilterSummary({
+    required this.search,
+    required this.status,
+    required this.documentStatus,
+    required this.primaryFilter,
+    required this.hasBackendFilters,
+    required this.onClearBackendFilters,
+  });
+
+  final String search;
+  final String? status;
+  final String? documentStatus;
+  final _CasePrimaryFilter primaryFilter;
+  final bool hasBackendFilters;
+  final VoidCallback onClearBackendFilters;
+
+  @override
+  Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final searchLabel = search.trim().isEmpty
+        ? 'No search term'
+        : 'Search “${search.trim()}”';
+    final statusLabel = status?.trim().isNotEmpty == true
+        ? status!.trim()
+        : 'Any operational status';
+    final documentLabel = _documentFilterDisplay(documentStatus);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stackAction = constraints.maxWidth < 360 || textScale >= 1.5;
+        final summary = Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: Icon(
+                Icons.filter_alt_outlined,
+                size: 20,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Backend query',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    '$searchLabel · $statusLabel · Documents: $documentLabel',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    'Loaded view: ${primaryFilter.label}. Chip counts describe loaded cases only.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+
+        final clear = TextButton(
+          onPressed: hasBackendFilters ? onClearBackendFilters : null,
+          child: const Text('Clear backend filters'),
+        );
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: AppTheme.cardSoft,
+            borderRadius: BorderRadius.circular(AppRadius.control),
+            border: Border.all(color: AppTheme.border),
+          ),
+          child: stackAction
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    summary,
+                    if (hasBackendFilters) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      clear,
+                    ],
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: summary),
+                    if (hasBackendFilters) ...[
+                      const SizedBox(width: AppSpacing.xs),
+                      clear,
+                    ],
+                  ],
+                ),
+        );
+      },
     );
   }
 }
@@ -433,28 +633,17 @@ class _PrimaryFilters extends StatelessWidget {
       child: Row(
         children: [
           for (final filter in _CasePrimaryFilter.values) ...[
-            ChoiceChip(
+            Semantics(
               selected: selected == filter,
-              showCheckmark: false,
-              onSelected: (_) => onSelected(filter),
-              label: Text('${filter.label}  ${_count(filter)}'),
-              selectedColor: OmcPremium.track.withValues(alpha: 0.10),
-              backgroundColor: Colors.white,
-              side: BorderSide(
-                color: selected == filter
-                    ? OmcPremium.track.withValues(alpha: 0.25)
-                    : OmcPremium.border,
-              ),
-              labelStyle: TextStyle(
-                color: selected == filter
-                    ? OmcPremium.track
-                    : AppTheme.textSecondary,
-                fontSize: 11.5,
-                fontWeight: FontWeight.w800,
+              label: '${filter.label}, ${_count(filter)} loaded cases',
+              child: ChoiceChip(
+                selected: selected == filter,
+                onSelected: (_) => onSelected(filter),
+                label: Text('${filter.label} · ${_count(filter)}'),
               ),
             ),
             if (filter != _CasePrimaryFilter.values.last)
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.xs),
           ],
         ],
       ),
@@ -462,41 +651,53 @@ class _PrimaryFilters extends StatelessWidget {
   }
 }
 
-class _ActiveFilters extends StatelessWidget {
-  const _ActiveFilters({
-    required this.status,
-    required this.documentStatus,
-    required this.onClear,
+class _ResultsHeader extends StatelessWidget {
+  const _ResultsHeader({
+    required this.visibleCount,
+    required this.loadedCount,
+    required this.primaryFilter,
   });
 
-  final String? status;
-  final String? documentStatus;
-  final VoidCallback onClear;
+  final int visibleCount;
+  final int loadedCount;
+  final _CasePrimaryFilter primaryFilter;
 
   @override
   Widget build(BuildContext context) {
-    final labels = <String>[
-      if (status != null) 'Status: $status',
-      if (documentStatus != null) 'Documents: $documentStatus',
-    ];
-    return Row(
-      children: [
-        Expanded(
-          child: Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: labels
-                .map(
-                  (label) => Chip(
-                    visualDensity: VisualDensity.compact,
-                    label: Text(label),
-                  ),
-                )
-                .toList(growable: false),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final stack = constraints.maxWidth < 320 || textScale >= 1.5;
+        final title = Text(
+          primaryFilter == _CasePrimaryFilter.all
+              ? 'Cases'
+              : '${primaryFilter.label} cases',
+          style: Theme.of(context).textTheme.titleLarge,
+        );
+        final count = Text(
+          '$visibleCount shown from $loadedCount loaded',
+          textAlign: stack ? TextAlign.start : TextAlign.end,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
           ),
-        ),
-        TextButton(onPressed: onClear, child: const Text('Clear')),
-      ],
+        );
+
+        if (stack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [title, const SizedBox(height: AppSpacing.xxs), count],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: title),
+            const SizedBox(width: AppSpacing.sm),
+            Flexible(child: count),
+          ],
+        );
+      },
     );
   }
 }
@@ -509,192 +710,167 @@ class _ServiceCaseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = _caseStatusColor(serviceCase);
+    final statusBackground = _caseStatusBackground(serviceCase);
     final progress =
         (serviceCase.progressPercent ?? _derivedProgress(serviceCase))
             .clamp(0, 100)
             .toDouble() /
         100;
+    final nextStep = serviceCase.nextStep?.trim();
+    final priority = serviceCase.priority.trim();
+    final metaItems = <_CaseMetaItem>[
+      _CaseMetaItem(
+        icon: Icons.tag_rounded,
+        label: 'Case',
+        value: serviceCase.id,
+      ),
+      if (priority.isNotEmpty && priority != '-')
+        _CaseMetaItem(
+          icon: Icons.flag_outlined,
+          label: 'Priority',
+          value: priority,
+        ),
+      if (serviceCase.pendingDocuments > 0)
+        _CaseMetaItem(
+          icon: Icons.upload_file_rounded,
+          label: 'Pending documents',
+          value: '${serviceCase.pendingDocuments}',
+        ),
+      if (serviceCase.uploadedDocuments > 0)
+        _CaseMetaItem(
+          icon: Icons.fact_check_outlined,
+          label: 'Documents to review',
+          value: '${serviceCase.uploadedDocuments}',
+        ),
+      if (serviceCase.rejectedDocuments > 0)
+        _CaseMetaItem(
+          icon: Icons.error_outline_rounded,
+          label: 'Rejected documents',
+          value: '${serviceCase.rejectedDocuments}',
+          color: AppTheme.danger,
+        ),
+    ];
+    final semanticNextStep = nextStep?.isNotEmpty == true
+        ? nextStep!
+        : 'No next step supplied';
 
     return PremiumCard(
-      padding: const EdgeInsets.all(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => context.push(
-          '/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}',
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    _caseStatusIcon(serviceCase),
-                    color: statusColor,
-                    size: 21,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        serviceCase.displayService,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 15,
-                          height: 1.2,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        serviceCase.displayCustomer,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _StatusPill(label: serviceCase.statusLabel, color: statusColor),
-              ],
-            ),
-            const SizedBox(height: 13),
-            Row(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 7,
-                      backgroundColor: const Color(0xFFE8EDF0),
-                      valueColor: AlwaysStoppedAnimation(statusColor),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  '${(progress * 100).round()}%',
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 7,
-              runSpacing: 7,
-              children: [
-                _InfoChip(icon: Icons.tag_rounded, label: serviceCase.id),
-                if (serviceCase.priority.trim().isNotEmpty &&
-                    serviceCase.priority != '-')
-                  _InfoChip(
-                    icon: Icons.flag_outlined,
-                    label: serviceCase.priority,
-                  ),
-                if (serviceCase.pendingDocuments > 0)
-                  _InfoChip(
-                    icon: Icons.upload_file_rounded,
-                    label: '${serviceCase.pendingDocuments} docs pending',
-                    color: OmcPremium.action,
-                  ),
-                if (serviceCase.uploadedDocuments > 0)
-                  _InfoChip(
-                    icon: Icons.fact_check_outlined,
-                    label: '${serviceCase.uploadedDocuments} docs to review',
-                    color: OmcPremium.review,
-                  ),
-                if (serviceCase.rejectedDocuments > 0)
-                  _InfoChip(
-                    icon: Icons.error_outline_rounded,
-                    label: '${serviceCase.rejectedDocuments} rejected',
-                    color: OmcPremium.danger,
-                  ),
-              ],
-            ),
-            if (serviceCase.nextStep?.trim().isNotEmpty == true) ...[
-              const SizedBox(height: 12),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      onTap: () => context.push(
+        '/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}',
+      ),
+      semanticLabel:
+          '${serviceCase.displayCustomer}. ${serviceCase.displayService}. ${serviceCase.statusLabel}. Next required action: $semanticNextStep. Open service case.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.045),
-                  borderRadius: BorderRadius.circular(13),
+                  color: statusBackground,
+                  borderRadius: BorderRadius.circular(AppRadius.control),
                 ),
-                child: Text(
-                  serviceCase.nextStep!.trim(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 11.5,
-                    height: 1.35,
-                    fontWeight: FontWeight.w700,
-                  ),
+                child: Icon(
+                  _caseStatusIcon(serviceCase),
+                  color: statusColor,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      serviceCase.displayCustomer,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      serviceCase.displayService,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                  ],
                 ),
               ),
             ],
-          ],
-        ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Current operational state',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          _StatusBanner(
+            label: serviceCase.statusLabel,
+            color: statusColor,
+            background: statusBackground,
+            icon: _caseStatusIcon(serviceCase),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _ProgressRow(progress: progress, color: statusColor),
+          const SizedBox(height: AppSpacing.md),
+          _NextActionBlock(nextStep: nextStep),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Divider(height: 1),
+          ),
+          Text(
+            'Case details',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _CaseMetaGrid(items: metaItems),
+        ],
       ),
     );
   }
 }
 
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({
-    required this.icon,
+class _StatusBanner extends StatelessWidget {
+  const _StatusBanner({
     required this.label,
-    this.color = AppTheme.textSecondary,
+    required this.color,
+    required this.background,
+    required this.icon,
   });
 
-  final IconData icon;
   final String label;
   final Color color;
+  final Color background;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.055),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.10)),
+        color: background,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -703,32 +879,177 @@ class _InfoChip extends StatelessWidget {
   }
 }
 
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, required this.color});
+class _ProgressRow extends StatelessWidget {
+  const _ProgressRow({required this.progress, required this.color});
 
-  final String label;
+  final double progress;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 124),
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.13)),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: color,
-          fontSize: 9.5,
-          fontWeight: FontWeight.w900,
+    final percent = (progress * 100).round();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Progress $percent%',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
+          ),
         ),
+        const SizedBox(height: AppSpacing.xxs),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 7,
+            backgroundColor: AppTheme.border,
+            valueColor: AlwaysStoppedAnimation(color),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NextActionBlock extends StatelessWidget {
+  const _NextActionBlock({required this.nextStep});
+
+  final String? nextStep;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasNextStep = nextStep?.trim().isNotEmpty == true;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppTheme.cardSoft,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: AppTheme.border),
       ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.arrow_forward_rounded,
+            size: 20,
+            color: AppTheme.textSecondary,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Next required action',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  hasNextStep
+                      ? nextStep!.trim()
+                      : 'No next step was supplied for this case.',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: hasNextStep
+                        ? AppTheme.textPrimary
+                        : AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CaseMetaItem {
+  const _CaseMetaItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.color = AppTheme.textSecondary,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+}
+
+class _CaseMetaGrid extends StatelessWidget {
+  const _CaseMetaGrid({required this.items});
+
+  final List<_CaseMetaItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final singleColumn = constraints.maxWidth < 520 || textScale >= 1.5;
+        final itemWidth = singleColumn
+            ? constraints.maxWidth
+            : (constraints.maxWidth - AppSpacing.md) / 2;
+
+        return Wrap(
+          spacing: AppSpacing.md,
+          runSpacing: AppSpacing.sm,
+          children: items
+              .map(
+                (item) => SizedBox(
+                  width: itemWidth,
+                  child: _CaseMetaRow(item: item),
+                ),
+              )
+              .toList(growable: false),
+        );
+      },
+    );
+  }
+}
+
+class _CaseMetaRow extends StatelessWidget {
+  const _CaseMetaRow({required this.item});
+
+  final _CaseMetaItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(item.icon, size: 20, color: item.color),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                item.value,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: item.color == AppTheme.textSecondary
+                      ? AppTheme.textPrimary
+                      : item.color,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -762,108 +1083,156 @@ class _CaseFilterSheetState extends State<_CaseFilterSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          0,
-          20,
-          20 + MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Case filters',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
+    final viewInsets = MediaQuery.viewInsetsOf(context);
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final availableHeight = (screenHeight - viewInsets.bottom)
+        .clamp(240.0, screenHeight)
+        .toDouble();
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: viewInsets.bottom),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: availableHeight * 0.9),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.lg,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Case filters',
+                style: Theme.of(context).textTheme.titleLarge,
               ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'These filters run on the backend before pagination.',
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 18),
-            DropdownButtonFormField<String>(
-              initialValue: _status ?? '',
-              decoration: const InputDecoration(
-                labelText: 'Operational status',
-                prefixIcon: Icon(Icons.timeline_rounded),
-              ),
-              items: const [
-                DropdownMenuItem(value: '', child: Text('Any status')),
-                DropdownMenuItem(value: 'Open', child: Text('Open')),
-                DropdownMenuItem(
-                  value: 'In Progress',
-                  child: Text('In Progress'),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Operational and document filters run on the backend before pagination.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppTheme.textSecondary,
                 ),
-                DropdownMenuItem(
-                  value: 'Waiting for Customer',
-                  child: Text('Waiting for Customer'),
-                ),
-                DropdownMenuItem(value: 'Completed', child: Text('Completed')),
-                DropdownMenuItem(value: 'Cancelled', child: Text('Cancelled')),
-              ],
-              onChanged: (value) => setState(
-                () => _status = value == null || value.isEmpty ? null : value,
               ),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _documentStatus ?? '',
-              decoration: const InputDecoration(
-                labelText: 'Document state',
-                prefixIcon: Icon(Icons.description_outlined),
+              const SizedBox(height: AppSpacing.xl),
+              Text(
+                'Operational status',
+                style: Theme.of(context).textTheme.labelLarge,
               ),
-              items: const [
-                DropdownMenuItem(value: '', child: Text('Any documents')),
-                DropdownMenuItem(
-                  value: 'uploaded',
-                  child: Text('Needs review'),
+              const SizedBox(height: AppSpacing.xs),
+              DropdownButtonFormField<String>(
+                initialValue: _status ?? '',
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  hintText: 'Choose an operational status',
+                  prefixIcon: Icon(Icons.timeline_rounded),
                 ),
-                DropdownMenuItem(value: 'pending', child: Text('Pending')),
-                DropdownMenuItem(value: 'approved', child: Text('Approved')),
-                DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
-              ],
-              onChanged: (value) => setState(
-                () => _documentStatus = value == null || value.isEmpty
-                    ? null
-                    : value,
-              ),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _status = null;
-                      _documentStatus = null;
-                    });
-                  },
-                  child: const Text('Reset'),
-                ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: () => Navigator.of(context).pop(
-                    _CaseFilterSelection(
-                      status: _status,
-                      documentStatus: _documentStatus,
-                    ),
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('Any status')),
+                  DropdownMenuItem(value: 'Open', child: Text('Open')),
+                  DropdownMenuItem(
+                    value: 'In Progress',
+                    child: Text('In Progress'),
                   ),
-                  child: const Text('Apply filters'),
+                  DropdownMenuItem(
+                    value: 'Waiting for Customer',
+                    child: Text('Waiting for Customer'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Completed',
+                    child: Text('Completed'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Cancelled',
+                    child: Text('Cancelled'),
+                  ),
+                ],
+                onChanged: (value) => setState(
+                  () => _status = value == null || value.isEmpty ? null : value,
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                'Document state',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              DropdownButtonFormField<String>(
+                initialValue: _documentStatus ?? '',
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  hintText: 'Choose a document state',
+                  prefixIcon: Icon(Icons.description_outlined),
+                ),
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('Any documents')),
+                  DropdownMenuItem(
+                    value: 'uploaded',
+                    child: Text('Needs review'),
+                  ),
+                  DropdownMenuItem(value: 'pending', child: Text('Pending')),
+                  DropdownMenuItem(
+                    value: 'approved',
+                    child: Text('Approved'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'rejected',
+                    child: Text('Rejected'),
+                  ),
+                ],
+                onChanged: (value) => setState(
+                  () => _documentStatus = value == null || value.isEmpty
+                      ? null
+                      : value,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stack =
+                      constraints.maxWidth < 300 || textScale >= 1.5;
+                  final reset = TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _status = null;
+                        _documentStatus = null;
+                      });
+                    },
+                    child: const Text('Reset'),
+                  );
+                  final apply = FilledButton(
+                    onPressed: () => Navigator.of(context).pop(
+                      _CaseFilterSelection(
+                        status: _status,
+                        documentStatus: _documentStatus,
+                      ),
+                    ),
+                    child: const Text('Apply filters'),
+                  );
+
+                  if (stack) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        apply,
+                        const SizedBox(height: AppSpacing.xs),
+                        reset,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      reset,
+                      const Spacer(),
+                      apply,
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -881,50 +1250,49 @@ class _CasesEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasLoadedViewFilter = primaryFilter != _CasePrimaryFilter.all;
+    final title = hasBackendQuery
+        ? 'No matching service cases'
+        : hasLoadedViewFilter
+        ? 'No ${primaryFilter.label.toLowerCase()} cases loaded'
+        : 'No service cases in your scope';
+    final message = hasBackendQuery
+        ? 'Try another search term or backend filter.'
+        : hasLoadedViewFilter
+        ? 'This view filters only cases already loaded from the backend.'
+        : 'Cases assigned or relevant to your OMC access will appear here.';
+
     return PremiumCard(
-      padding: const EdgeInsets.all(26),
+      padding: const EdgeInsets.all(AppSpacing.xl),
       child: Column(
         children: [
           Container(
-            width: 60,
-            height: 60,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-              color: OmcPremium.track.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(20),
+              color: AppTheme.processingSoft,
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
             child: Icon(
               hasBackendQuery
                   ? Icons.search_off_rounded
                   : Icons.work_outline_rounded,
-              color: OmcPremium.track,
-              size: 29,
+              color: AppTheme.processing,
+              size: 28,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: AppSpacing.sm),
           Text(
-            hasBackendQuery
-                ? 'No matching service cases'
-                : primaryFilter == _CasePrimaryFilter.all
-                ? 'No service cases in your scope'
-                : 'No ${primaryFilter.label.toLowerCase()} cases loaded',
+            title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xs),
           Text(
-            hasBackendQuery
-                ? 'Try another search or filter.'
-                : 'Cases assigned or relevant to your OMC access will appear here.',
+            message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: AppTheme.textSecondary,
-              fontSize: 12.5,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -938,20 +1306,12 @@ class _CasesLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 140),
-      children: const [
-        PremiumListHeader(
-          icon: Icons.work_outline_rounded,
-          title: 'Service Cases',
-          subtitle: 'Loading your scoped service-case queue.',
-          metaLabel: 'Loading',
-          accentColor: OmcPremium.track,
-        ),
-        SizedBox(height: 18),
+    return const _QueueListView(
+      children: [
+        _QueueHeader(countLabel: 'Loading scoped results'),
+        SizedBox(height: AppSpacing.xl),
         PremiumCard(
-          padding: EdgeInsets.all(24),
+          padding: EdgeInsets.all(AppSpacing.xl),
           child: Center(child: CircularProgressIndicator()),
         ),
       ],
@@ -967,18 +1327,10 @@ class _CasesErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 140),
+    return _QueueListView(
       children: [
-        const PremiumListHeader(
-          icon: Icons.work_outline_rounded,
-          title: 'Service Cases',
-          subtitle: 'Your scoped service-case workspace.',
-          metaLabel: 'Unavailable',
-          accentColor: OmcPremium.track,
-        ),
-        const SizedBox(height: 18),
+        const _QueueHeader(countLabel: 'Scoped results unavailable'),
+        const SizedBox(height: AppSpacing.xl),
         AppErrorState.fromError(
           error: error,
           onRetry: onRetry,
@@ -991,18 +1343,44 @@ class _CasesErrorView extends StatelessWidget {
   }
 }
 
+String _documentFilterDisplay(String? value) {
+  return switch (value?.trim().toLowerCase()) {
+    'uploaded' => 'Needs review',
+    'pending' => 'Pending',
+    'approved' => 'Approved',
+    'rejected' => 'Rejected',
+    _ => 'Any document state',
+  };
+}
+
 Color _caseStatusColor(InternalServiceCase item) {
-  if (item.isCompleted) return OmcPremium.success;
-  if (item.isCancelled || item.isExpired) return OmcPremium.system;
+  if (item.isCompleted) return AppTheme.success;
+  if (item.isCancelled || item.isExpired) return AppTheme.processing;
   if (item.isFinancialHold || item.rejectedDocuments > 0) {
-    return OmcPremium.danger;
+    return AppTheme.danger;
   }
   if (item.isWaitingCustomer || item.isWaitingPayment) {
-    return OmcPremium.action;
+    return AppTheme.warning;
   }
-  if (item.isInReview || item.uploadedDocuments > 0) return OmcPremium.review;
-  if (item.isInProgress) return OmcPremium.track;
-  return OmcPremium.services;
+  if (item.isInReview || item.uploadedDocuments > 0) return AppTheme.info;
+  if (item.isInProgress) return AppTheme.info;
+  return AppTheme.processing;
+}
+
+Color _caseStatusBackground(InternalServiceCase item) {
+  if (item.isCompleted) return AppTheme.successSoft;
+  if (item.isCancelled || item.isExpired) return AppTheme.processingSoft;
+  if (item.isFinancialHold || item.rejectedDocuments > 0) {
+    return AppTheme.dangerSoft;
+  }
+  if (item.isWaitingCustomer || item.isWaitingPayment) {
+    return AppTheme.warningSoft;
+  }
+  if (item.isInReview || item.uploadedDocuments > 0) {
+    return AppTheme.infoSoft;
+  }
+  if (item.isInProgress) return AppTheme.infoSoft;
+  return AppTheme.processingSoft;
 }
 
 IconData _caseStatusIcon(InternalServiceCase item) {
