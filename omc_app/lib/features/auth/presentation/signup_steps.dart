@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -20,40 +21,47 @@ class SignupProgress extends StatelessWidget {
       'Preferences',
       'Verification',
     ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    final active = labels[step];
+
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label: 'Step ${step + 1} of ${labels.length}: $active',
+      child: ExcludeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Step ${step + 1} of ${labels.length}',
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  'Step ${step + 1} of ${labels.length}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                Text(
+                  active,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
-            const Spacer(),
-            Text(
-              labels[step],
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: (step + 1) / labels.length,
+                minHeight: 7,
+                backgroundColor: AppTheme.processingSoft,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 10),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: LinearProgressIndicator(
-            value: (step + 1) / labels.length,
-            minHeight: 6,
-            backgroundColor: const Color(0xFFE9EEF5),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -84,11 +92,11 @@ class SignupRoleStep extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SignupStepTitle(
-            title: 'Create your OMC account',
+            title: 'Choose account access',
             subtitle:
-                'Create a customer account to request and track OMC services.',
+                'Select the account type that matches how you will use OMC.',
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           for (final role in roles) ...[
             SignupRoleCard(
               role: role,
@@ -96,44 +104,30 @@ class SignupRoleStep extends StatelessWidget {
               onTap: () => onRoleChanged(role),
             ),
             if (role == 'Customer' && selectedRole == 'Customer') ...[
-              const SizedBox(height: 10),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Are you already an OMC customer?',
-                      style: TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        ChoiceChip(
-                          label: const Text('New to OMC'),
-                          selected: selectedOnboardingMode == 'New Customer',
-                          onSelected: (_) =>
-                              onOnboardingModeChanged('New Customer'),
-                        ),
-                        ChoiceChip(
-                          label: const Text('Already an OMC customer'),
-                          selected:
-                              selectedOnboardingMode ==
-                              'Existing Customer Claim',
-                          onSelected: (_) => onOnboardingModeChanged(
-                            'Existing Customer Claim',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 12),
+              Text(
+                'Customer relationship',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<String>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                    value: 'New Customer',
+                    label: Text('New to OMC'),
+                  ),
+                  ButtonSegment(
+                    value: 'Existing Customer Claim',
+                    label: Text('Existing customer'),
+                  ),
+                ],
+                selected: {selectedOnboardingMode},
+                onSelectionChanged: (selection) {
+                  if (selection.isNotEmpty) {
+                    onOnboardingModeChanged(selection.first);
+                  }
+                },
               ),
             ],
             if (role != roles.last) const SizedBox(height: 10),
@@ -213,6 +207,7 @@ class SignupDetailsStep extends StatelessWidget {
     final isTaxAssociate = selectedRole == 'Tax Associate';
     final isExistingCustomerClaim =
         selectedOnboardingMode == 'Existing Customer Claim';
+
     return Form(
       key: formKey,
       child: Column(
@@ -222,7 +217,7 @@ class SignupDetailsStep extends StatelessWidget {
             title: 'Basic information',
             subtitle: 'Enter the details OMC needs to identify your account.',
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           TextFormField(
             controller: fullNameController,
             textInputAction: TextInputAction.next,
@@ -282,18 +277,11 @@ class SignupDetailsStep extends StatelessWidget {
             validator: usernameValidator,
           ),
           if (usernameMessage != null) ...[
-            const SizedBox(height: 7),
-            Text(
-              usernameMessage!,
-              style: TextStyle(
-                color: usernameAvailable == true
-                    ? const Color(0xFF067647)
-                    : usernameAvailable == false
-                    ? const Color(0xFFB42318)
-                    : AppTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
+            const SizedBox(height: 8),
+            _InlineValidationMessage(
+              message: usernameMessage!,
+              success: usernameAvailable == true,
+              error: usernameAvailable == false,
             ),
           ],
           const SizedBox(height: 14),
@@ -314,17 +302,13 @@ class SignupDetailsStep extends StatelessWidget {
             ),
             validator: (value) => phoneValidator(value, 'Mobile number'),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           CheckboxListTile(
             value: whatsappSameAsMobile,
             onChanged: (value) => onWhatsappSameAsMobileChanged(value ?? false),
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
-            dense: true,
-            title: const Text(
-              'Use this number for WhatsApp',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
-            ),
+            title: const Text('Use this number for WhatsApp'),
           ),
           if (!whatsappSameAsMobile) ...[
             const SizedBox(height: 8),
@@ -395,7 +379,7 @@ class SignupDetailsStep extends StatelessWidget {
             validator: (value) => requiredValidator(value, 'Address'),
           ),
           if (isTaxAssociate) ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             const SignupStepTitle(
               title: 'Professional details',
               subtitle: 'These details support OMC’s access review.',
@@ -491,116 +475,13 @@ class SignupPreferencesStep extends StatelessWidget {
                 ? 'Referral information is optional unless you choose Referral as your source.'
                 : 'This is an application. Email verification does not approve or grant staff access.',
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           if (!isCustomer)
             const SignupReviewNotice()
           else ...[
-            ExpansionTile(
-              initiallyExpanded: referralExpanded,
-              onExpansionChanged: onReferralExpandedChanged,
-              tilePadding: const EdgeInsets.symmetric(horizontal: 14),
-              childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-              collapsedShape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: Color(0xFFE5EAF2)),
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: Color(0xFFE5EAF2)),
-              ),
-              title: const Text(
-                'Have a referral code?',
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-              subtitle: const Text('Add and verify it here.'),
-              children: [
-                TextFormField(
-                  controller: referralCodeController,
-                  textCapitalization: TextCapitalization.characters,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 -]')),
-                    LengthLimitingTextInputFormatter(12),
-                  ],
-                  onChanged: (value) {
-                    final compact = value.toUpperCase().replaceAll(
-                      RegExp(r'[^A-Z0-9]'),
-                      '',
-                    );
-
-                    final normalized = compact.length <= 3
-                        ? compact
-                        : '${compact.substring(0, 3)}-${compact.substring(3)}';
-
-                    if (normalized != value) {
-                      referralCodeController.value = TextEditingValue(
-                        text: normalized,
-                        selection: TextSelection.collapsed(
-                          offset: normalized.length,
-                        ),
-                      );
-                    }
-                  },
-                  decoration: InputDecoration(
-                    labelText: 'Referral code',
-                    hintText: 'OMC-XXXXXX',
-                    prefixIcon: const Icon(Icons.confirmation_number_outlined),
-                    suffixIcon: isValidatingReferral
-                        ? const Padding(
-                            padding: EdgeInsets.all(14),
-                            child: SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                        : IconButton(
-                            tooltip: 'Verify referral code',
-                            onPressed: () => onValidateReferral(),
-                            icon: const Icon(Icons.verified_outlined),
-                          ),
-                  ),
-                  validator: referralExpanded
-                      ? (value) => requiredValidator(value, 'Referral code')
-                      : null,
-                ),
-                if (referralValidationMessage != null) ...[
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      referralValidationMessage!,
-                      style: TextStyle(
-                        color: referralCodeValid == true
-                            ? const Color(0xFF067647)
-                            : const Color(0xFFB42318),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 8),
-                CheckboxListTile(
-                  value: referralAssistanceConsent,
-                  onChanged: (value) =>
-                      onReferralConsentChanged(value ?? false),
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  title: const Text(
-                    'Allow the referring OMC staff member to assist with my service requests.',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12.5,
-                      height: 1.35,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               initialValue: selectedAcquisitionSource,
+              isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'How did you hear about OMC?',
                 prefixIcon: Icon(Icons.campaign_outlined),
@@ -630,6 +511,101 @@ class SignupPreferencesStep extends StatelessWidget {
                     requiredValidator(value, 'Source details'),
               ),
             ],
+            const SizedBox(height: 16),
+            Theme(
+              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                initiallyExpanded: referralExpanded,
+                onExpansionChanged: onReferralExpandedChanged,
+                tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+                childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                collapsedShape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.card),
+                  side: const BorderSide(color: AppTheme.border),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.card),
+                  side: const BorderSide(color: AppTheme.border),
+                ),
+                title: Text(
+                  'Have a referral code?',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                subtitle: const Text('Add and verify it here.'),
+                children: [
+                  TextFormField(
+                    controller: referralCodeController,
+                    textCapitalization: TextCapitalization.characters,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'[A-Za-z0-9 -]'),
+                      ),
+                      LengthLimitingTextInputFormatter(12),
+                    ],
+                    onChanged: (value) {
+                      final compact = value.toUpperCase().replaceAll(
+                        RegExp(r'[^A-Z0-9]'),
+                        '',
+                      );
+                      final normalized = compact.length <= 3
+                          ? compact
+                          : '${compact.substring(0, 3)}-${compact.substring(3)}';
+                      if (normalized != value) {
+                        referralCodeController.value = TextEditingValue(
+                          text: normalized,
+                          selection: TextSelection.collapsed(
+                            offset: normalized.length,
+                          ),
+                        );
+                      }
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Referral code',
+                      hintText: 'OMC-XXXXXX',
+                      prefixIcon: const Icon(
+                        Icons.confirmation_number_outlined,
+                      ),
+                      suffixIcon: isValidatingReferral
+                          ? const Padding(
+                              padding: EdgeInsets.all(14),
+                              child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            )
+                          : IconButton(
+                              tooltip: 'Verify referral code',
+                              onPressed: () => onValidateReferral(),
+                              icon: const Icon(Icons.verified_outlined),
+                            ),
+                    ),
+                    validator: referralExpanded
+                        ? (value) => requiredValidator(value, 'Referral code')
+                        : null,
+                  ),
+                  if (referralValidationMessage != null) ...[
+                    const SizedBox(height: 8),
+                    _InlineValidationMessage(
+                      message: referralValidationMessage!,
+                      success: referralCodeValid == true,
+                      error: referralCodeValid != true,
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  CheckboxListTile(
+                    value: referralAssistanceConsent,
+                    onChanged: (value) =>
+                        onReferralConsentChanged(value ?? false),
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    title: const Text(
+                      'Allow the referring OMC staff member to assist with my service requests.',
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ],
       ),
@@ -666,56 +642,29 @@ class SignupSecurityStep extends StatelessWidget {
                 ? 'OMC will email a single-use verification link. You will create your password only after opening that verified link.'
                 : 'OMC will email a single-use verification link. After verification, your staff access application is submitted for separate OMC review.',
           ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0FDF4),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFBBF7D0)),
-            ),
-            child: const Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.verified_user_outlined, color: Color(0xFF15803D)),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'No password is collected or stored before email verification. After verification, the secure link asks you to set and confirm a new password.',
-                    style: TextStyle(
-                      color: Color(0xFF166534),
-                      fontSize: 12.5,
-                      height: 1.4,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
+          const _SecurityNotice(),
+          const SizedBox(height: 14),
           Material(
-            color: const Color(0xFFF8FAFC),
+            color: AppTheme.cardSoft,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: const BorderSide(color: Color(0xFFE5EAF2)),
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              side: const BorderSide(color: AppTheme.border),
             ),
             clipBehavior: Clip.antiAlias,
             child: CheckboxListTile(
               value: acceptedTerms,
               onChanged: onTermsChanged,
-              contentPadding: const EdgeInsets.only(left: 4, right: 10),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 4,
+              ),
               controlAffinity: ListTileControlAffinity.leading,
               title: Text(
                 isCustomer
                     ? 'I confirm my details are correct and agree to verify my email before my OMC customer account is created.'
                     : 'I confirm my details are correct and understand that email verification submits my staff access application for OMC review; it does not grant staff permissions.',
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12.5,
-                  height: 1.35,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
           ),
@@ -746,35 +695,52 @@ class SignupBottomActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLast = step == 3;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFE9EEF5))),
-      ),
-      child: Row(
-        children: [
-          if (step > 0) ...[
-            Expanded(
-              child: OutlinedButton(
-                onPressed: isSubmitting ? null : onBack,
-                child: const Text('Back'),
+    final stack =
+        MediaQuery.sizeOf(context).width < 360 ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.3;
+    final primary = AppButton(
+      label: isLast ? 'Send verification email' : 'Continue',
+      icon: isLast
+          ? Icons.mark_email_unread_outlined
+          : Icons.arrow_forward_rounded,
+      isLoading: isSubmitting,
+      onPressed: isSubmitting ? null : onContinue,
+    );
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: AppTheme.border)),
+        ),
+        child: step == 0
+            ? primary
+            : stack
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  primary,
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: isSubmitting ? null : onBack,
+                    child: const Text('Back'),
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: isSubmitting ? null : onBack,
+                      child: const Text('Back'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(flex: 2, child: primary),
+                ],
               ),
-            ),
-            const SizedBox(width: 12),
-          ],
-          Expanded(
-            flex: 2,
-            child: AppButton(
-              label: isLast ? 'Send verification email' : 'Continue',
-              icon: isLast
-                  ? Icons.mark_email_unread_outlined
-                  : Icons.arrow_forward_rounded,
-              isLoading: isSubmitting,
-              onPressed: isSubmitting ? null : onContinue,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -795,24 +761,9 @@ class SignupStepTitle extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 13.5,
-            height: 1.35,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        Text(title, style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 5),
+        Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
       ],
     );
   }
@@ -851,58 +802,55 @@ class SignupRoleCard extends StatelessWidget {
       ),
     };
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppTheme.primary.withValues(alpha: 0.07)
-              : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? AppTheme.primary : const Color(0xFFE5EAF2),
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$role. ${data.$2}',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: AnimatedContainer(
+          duration: AppMotion.reducedMotion(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 160),
+          constraints: const BoxConstraints(minHeight: 64),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: selected ? AppTheme.infoSoft : AppTheme.cardSoft,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(
+              color: selected ? AppTheme.info : AppTheme.border,
+              width: selected ? 2 : 1,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              data.$1,
-              color: selected ? AppTheme.primary : AppTheme.textSecondary,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    role,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    data.$2,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                data.$1,
+                color: selected ? AppTheme.info : AppTheme.textSecondary,
+                size: 22,
               ),
-            ),
-            Icon(
-              selected
-                  ? Icons.radio_button_checked_rounded
-                  : Icons.radio_button_unchecked_rounded,
-              color: selected ? AppTheme.primary : const Color(0xFF94A3B8),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(role, style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 3),
+                    Text(data.$2, style: Theme.of(context).textTheme.bodyMedium),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                selected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                color: selected ? AppTheme.info : AppTheme.textSecondary,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -917,23 +865,24 @@ class SignupReviewNotice extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7ED),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFED7AA)),
+        color: AppTheme.warningSoft,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppTheme.warning.withValues(alpha: 0.2)),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.schedule_rounded, color: Color(0xFFEA580C), size: 20),
-          SizedBox(width: 10),
+          const Icon(
+            Icons.schedule_rounded,
+            color: AppTheme.warning,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               'This is a staff access application. OMC reviews it separately after email verification, and protected staff permissions are never enabled automatically.',
-              style: TextStyle(
-                color: Color(0xFF9A3412),
-                fontSize: 13,
-                height: 1.35,
-                fontWeight: FontWeight.w800,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppTheme.warning,
               ),
             ),
           ),
@@ -954,13 +903,7 @@ class SignupLoginFooter extends StatelessWidget {
       alignment: WrapAlignment.center,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        const Text(
-          'Already registered?',
-          style: TextStyle(
-            color: AppTheme.textSecondary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        Text('Already registered?', style: Theme.of(context).textTheme.bodyMedium),
         TextButton(
           onPressed: isSubmitting ? null : () => context.go('/login'),
           child: const Text('Sign in'),
@@ -985,49 +928,119 @@ class SignupSuccessScreen extends StatelessWidget {
           ? 'Your customer account is active. You can sign in now.'
           : 'OMC will review your application before protected staff access is enabled.',
       child: PremiumCard(
-        padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
+        padding: const EdgeInsets.all(22),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Icon(
-                Icons.check_circle_outline_rounded,
-                color: Color(0xFF16A34A),
-                size: 42,
-              ),
+            const Icon(
+              Icons.check_circle_outline_rounded,
+              color: AppTheme.success,
+              size: 42,
             ),
             const SizedBox(height: 18),
             Text(
               isCustomer
                   ? 'Your account is ready.'
                   : 'We received your application.',
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 21,
-                fontWeight: FontWeight.w900,
-              ),
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
             Text(
               isCustomer
                   ? 'Sign in to request services, upload documents and track your cases.'
                   : 'Staff permissions remain disabled until OMC completes its access review.',
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 14,
-                height: 1.4,
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 20),
             AppButton(
-              label: 'Go to sign in',
+              label: 'Go to login',
               icon: Icons.login_rounded,
               onPressed: () => context.go('/login'),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _InlineValidationMessage extends StatelessWidget {
+  const _InlineValidationMessage({
+    required this.message,
+    required this.success,
+    required this.error,
+  });
+
+  final String message;
+  final bool success;
+  final bool error;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = success
+        ? AppTheme.success
+        : error
+        ? AppTheme.danger
+        : AppTheme.textSecondary;
+    final icon = success
+        ? Icons.check_circle_outline_rounded
+        : error
+        ? Icons.error_outline_rounded
+        : Icons.info_outline_rounded;
+    return Semantics(
+      liveRegion: true,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: color,
+                fontSize: 14,
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SecurityNotice extends StatelessWidget {
+  const _SecurityNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.successSoft,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppTheme.success.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.verified_user_outlined,
+            color: AppTheme.success,
+            size: 21,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'No password is collected or stored before email verification. After verification, the secure link asks you to set and confirm a new password.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppTheme.success,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
