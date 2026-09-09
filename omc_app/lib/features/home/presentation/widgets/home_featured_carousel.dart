@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/design_tokens.dart';
 import '../../data/home_content.dart';
 
 class HomeFeaturedCarousel extends StatefulWidget {
@@ -36,20 +37,29 @@ class _HomeFeaturedCarouselState extends State<HomeFeaturedCarousel> {
   Widget build(BuildContext context) {
     if (widget.banners.isEmpty) return const SizedBox.shrink();
 
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final height = textScale >= 1.8
+        ? 408.0
+        : textScale >= 1.4
+        ? 338.0
+        : 254.0;
+    final indicatorDuration = AppMotion.durationFor(context, AppMotion.quick);
+
     return Column(
       children: [
         SizedBox(
-          height: 224,
+          height: height,
           child: PageView.builder(
             controller: _controller,
             itemCount: widget.banners.length,
             onPageChanged: (value) => setState(() => _page = value),
             itemBuilder: (context, index) {
               final banner = widget.banners[index];
-
               return Padding(
                 padding: EdgeInsets.only(
-                  right: index == widget.banners.length - 1 ? 0 : 10,
+                  right: index == widget.banners.length - 1
+                      ? 0
+                      : AppSpacing.xs,
                 ),
                 child: _FeaturedBannerCard(
                   banner: banner,
@@ -60,21 +70,30 @@ class _HomeFeaturedCarouselState extends State<HomeFeaturedCarousel> {
           ),
         ),
         if (widget.banners.length > 1) ...[
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              widget.banners.length,
-              (index) => AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                width: index == _page ? 22 : 7,
-                height: 7,
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                decoration: BoxDecoration(
-                  color: index == _page
-                      ? const Color(0xFFDA1735)
-                      : const Color(0xFFD7DAE0),
-                  borderRadius: BorderRadius.circular(999),
+          const SizedBox(height: AppSpacing.sm),
+          Semantics(
+            label: 'Featured item ${_page + 1} of ${widget.banners.length}',
+            child: ExcludeSemantics(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  widget.banners.length,
+                  (index) => AnimatedContainer(
+                    duration: indicatorDuration,
+                    width: index == _page ? 24 : 8,
+                    height: 8,
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xxs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: index == _page
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -93,28 +112,26 @@ class _FeaturedBannerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final hasAction =
         banner.action.type != HomeBannerActionType.none &&
         banner.action.target.trim().isNotEmpty;
+    final actionLabel = banner.action.label.trim().isEmpty
+        ? 'Learn more'
+        : banner.action.label.trim();
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
 
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(28),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: hasAction ? onTap : null,
-        child: Ink(
-          decoration: BoxDecoration(
-            color: const Color(0xFF111827),
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x1A111827),
-                blurRadius: 28,
-                offset: Offset(0, 12),
-              ),
-            ],
-          ),
+    return Semantics(
+      button: hasAction,
+      label: banner.title,
+      hint: hasAction ? actionLabel : null,
+      child: Material(
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: hasAction ? onTap : null,
+          borderRadius: BorderRadius.circular(AppRadius.card),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -123,114 +140,144 @@ class _FeaturedBannerCard extends StatelessWidget {
                   banner.imageUrl!,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) =>
-                      const SizedBox.shrink(),
-                ),
+                      const _BannerImageFallback(),
+                )
+              else
+                const _BannerImageFallback(),
               DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                     colors: [
-                      const Color(0xFF111827).withValues(alpha: 0.97),
-                      const Color(0xFF111827).withValues(alpha: 0.78),
-                      const Color(0xFF111827).withValues(alpha: 0.28),
+                      const Color(0xFF111827).withValues(alpha: 0.98),
+                      const Color(0xFF111827).withValues(alpha: 0.84),
+                      const Color(0xFF111827).withValues(alpha: 0.48),
                     ],
                   ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(22, 20, 20, 20),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 7,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (banner.badge.trim().isNotEmpty)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.14),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.16),
-                                ),
-                              ),
-                              child: Text(
-                                banner.badge,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.25,
-                                ),
-                              ),
-                            ),
-                          const Spacer(),
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: textScale >= 1.5 ? double.infinity : 520,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (banner.badge.trim().isNotEmpty) ...[
+                          _BannerBadge(label: banner.badge.trim()),
+                          const SizedBox(height: AppSpacing.sm),
+                        ],
+                        Text(
+                          banner.title,
+                          maxLines: textScale >= 1.6 ? 5 : 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            color: Colors.white,
+                            height: 1.15,
+                          ),
+                        ),
+                        if (banner.subtitle.trim().isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.xs),
                           Text(
-                            banner.title,
-                            maxLines: 2,
+                            banner.subtitle.trim(),
+                            maxLines: textScale >= 1.6 ? 6 : 3,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              height: 1.08,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.45,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.88),
                             ),
                           ),
-                          if (banner.subtitle.trim().isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              banner.subtitle,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.78),
-                                fontSize: 12.5,
-                                height: 1.35,
-                                fontWeight: FontWeight.w500,
-                              ),
+                        ],
+                        if (hasAction) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          Container(
+                            constraints: const BoxConstraints(
+                              minHeight: AppTouchTarget.minimum,
                             ),
-                          ],
-                          if (hasAction) ...[
-                            const SizedBox(height: 16),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
+                            alignment: Alignment.centerLeft,
+                            child: Wrap(
+                              spacing: AppSpacing.xs,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
                                 Text(
-                                  banner.action.label.trim().isEmpty
-                                      ? 'Learn more'
-                                      : banner.action.label,
-                                  style: const TextStyle(
+                                  actionLabel,
+                                  style: theme.textTheme.labelLarge?.copyWith(
                                     color: Colors.white,
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w800,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                const SizedBox(width: 5),
                                 const Icon(
                                   Icons.arrow_forward_rounded,
                                   color: Colors.white,
-                                  size: 17,
+                                  size: 20,
                                 ),
                               ],
                             ),
-                          ],
+                          ),
                         ],
-                      ),
+                      ],
                     ),
-                    const Expanded(flex: 3, child: SizedBox()),
-                  ],
+                  ),
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BannerBadge extends StatelessWidget {
+  const _BannerBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: AppSpacing.xxs,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _BannerImageFallback extends StatelessWidget {
+  const _BannerImageFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      ),
+      child: const Align(
+        alignment: Alignment.centerRight,
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.xl),
+          child: Icon(
+            Icons.campaign_outlined,
+            color: Colors.white54,
+            size: 64,
           ),
         ),
       ),
