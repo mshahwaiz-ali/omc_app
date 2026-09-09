@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
+import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/finance_reconciliation_repository.dart';
@@ -17,7 +19,6 @@ class SettlementExceptionsScreen extends ConsumerStatefulWidget {
 class _SettlementExceptionsScreenState
     extends ConsumerState<SettlementExceptionsScreen> {
   static const _pageLength = 20;
-
   final _searchController = TextEditingController();
   String _search = '';
   String _status = 'Open';
@@ -31,11 +32,11 @@ class _SettlementExceptionsScreenState
   }
 
   FinanceReconciliationQuery get _query => FinanceReconciliationQuery(
-    start: _start,
-    pageLength: _pageLength,
-    search: _search,
-    status: _status,
-  );
+        start: _start,
+        pageLength: _pageLength,
+        search: _search,
+        status: _status,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -43,8 +44,9 @@ class _SettlementExceptionsScreenState
     final pageAsync = ref.watch(financeReconciliationPageProvider(query));
 
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Settlement Exceptions'),
+        title: const Text('Settlement exceptions'),
         actions: [
           IconButton(
             tooltip: 'Refresh exceptions',
@@ -54,16 +56,14 @@ class _SettlementExceptionsScreenState
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: RefreshIndicator.adaptive(
         onRefresh: () async {
           ref.invalidate(financeReconciliationPageProvider(query));
           await ref.read(financeReconciliationPageProvider(query).future);
         },
         child: pageAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
+          error: (error, _) => _ResponsiveList(
             children: [
               _InfoBanner(
                 icon: Icons.cloud_off_rounded,
@@ -75,7 +75,7 @@ class _SettlementExceptionsScreenState
                       'The finance reconciliation queue could not be loaded.',
                 ).message,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.sm),
               FilledButton.icon(
                 onPressed: () =>
                     ref.invalidate(financeReconciliationPageProvider(query)),
@@ -84,17 +84,15 @@ class _SettlementExceptionsScreenState
               ),
             ],
           ),
-          data: (page) => ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
+          data: (page) => _ResponsiveList(
             children: [
               const _InfoBanner(
                 icon: Icons.fact_check_outlined,
                 title: 'Human finance review only',
                 message:
-                    'Resolve or Ignore records the review disposition only. It does not create Journal Entries, post ERP accounting, or retry technical quarantine. Make accounting corrections in the authoritative ERP workflow first.',
+                    'Resolve or Ignore records only the review disposition. It does not create Journal Entries, post ERP accounting, repair a payment, execute settlement, or retry technical quarantine.',
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               _Filters(
                 searchController: _searchController,
                 status: _status,
@@ -112,50 +110,47 @@ class _SettlementExceptionsScreenState
                   _start = 0;
                 }),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.xl),
+              Text(
+                'Review queue',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: AppSpacing.sm),
               if (page.items.isEmpty)
                 const PremiumCard(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 14),
-                    child: Column(
-                      children: [
-                        Icon(Icons.check_circle_outline_rounded, size: 34),
-                        SizedBox(height: 10),
-                        Text(
-                          'No settlement exceptions in this view.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                      ],
-                    ),
+                  padding: EdgeInsets.all(AppSpacing.lg),
+                  child: Text(
+                    'No settlement exceptions in this view.',
+                    textAlign: TextAlign.center,
                   ),
                 )
               else
-                for (final item in page.items) ...[
+                for (var index = 0; index < page.items.length; index++) ...[
                   _ReviewCard(
-                    item: item,
-                    busy: _mutatingReview == item.id,
-                    onOpenCase: item.hasServiceRequest
+                    item: page.items[index],
+                    busy: _mutatingReview == page.items[index].id,
+                    onOpenCase: page.items[index].hasServiceRequest
                         ? () => context.push(
-                            '/internal-workspace/service-cases/${Uri.encodeComponent(item.serviceRequest)}',
-                          )
+                              '/internal-workspace/service-cases/${Uri.encodeComponent(page.items[index].serviceRequest)}',
+                            )
                         : null,
-                    onResolve: item.canResolve
+                    onResolve: page.items[index].canResolve
                         ? () => _decide(
-                            item,
-                            FinanceReconciliationDecision.resolve,
-                          )
+                              page.items[index],
+                              FinanceReconciliationDecision.resolve,
+                            )
                         : null,
-                    onIgnore: item.canIgnore
+                    onIgnore: page.items[index].canIgnore
                         ? () => _decide(
-                            item,
-                            FinanceReconciliationDecision.ignore,
-                          )
+                              page.items[index],
+                              FinanceReconciliationDecision.ignore,
+                            )
                         : null,
                   ),
-                  const SizedBox(height: 12),
+                  if (index != page.items.length - 1)
+                    const SizedBox(height: AppSpacing.sm),
                 ],
-              const SizedBox(height: 6),
+              const SizedBox(height: AppSpacing.md),
               _Pager(
                 start: page.start,
                 shown: page.items.length,
@@ -163,14 +158,14 @@ class _SettlementExceptionsScreenState
                 onPrevious: page.start == 0
                     ? null
                     : () => setState(() {
-                        _start = (_start - _pageLength)
-                            .clamp(0, 1 << 30)
-                            .toInt();
-                      }),
+                          _start = (_start - _pageLength)
+                              .clamp(0, 1 << 30)
+                              .toInt();
+                        }),
                 onNext: page.hasMore
                     ? () => setState(() {
-                        _start = page.nextStart ?? _start + _pageLength;
-                      })
+                          _start = page.nextStart ?? _start + _pageLength;
+                        })
                     : null,
               ),
             ],
@@ -192,27 +187,29 @@ class _SettlementExceptionsScreenState
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(decisionLabel),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              decision == FinanceReconciliationDecision.resolve
-                  ? 'Confirm the accounting evidence was corrected or independently verified before resolving this review.'
-                  : 'Use Ignore only for an intentional exception that should remain documented without mobile accounting changes.',
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: noteController,
-              autofocus: true,
-              minLines: 3,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                labelText: 'Finance review note',
-                hintText: 'Required: what was verified and where',
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                decision == FinanceReconciliationDecision.resolve
+                    ? 'Confirm the accounting evidence was corrected or independently verified before recording this review as resolved. This does not repair or settle the payment.'
+                    : 'Use Ignore only for an intentional exception that should remain documented. This does not make accounting changes.',
               ),
-            ),
-          ],
+              const SizedBox(height: AppSpacing.sm),
+              TextField(
+                controller: noteController,
+                autofocus: true,
+                minLines: 3,
+                maxLines: 6,
+                decoration: const InputDecoration(
+                  labelText: 'Finance review note',
+                  hintText: 'Required: what was verified and where',
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -226,8 +223,8 @@ class _SettlementExceptionsScreenState
             },
             child: Text(
               decision == FinanceReconciliationDecision.resolve
-                  ? 'Resolve'
-                  : 'Ignore',
+                  ? 'Resolve review'
+                  : 'Ignore exception',
             ),
           ),
         ],
@@ -260,12 +257,36 @@ class _SettlementExceptionsScreenState
         fallbackTitle: 'Review not updated',
         fallbackMessage: 'The settlement review could not be updated.',
       );
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(failure.message)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(failure.message)),
+      );
     } finally {
       if (mounted) setState(() => _mutatingReview = null);
     }
+  }
+}
+
+class _ResponsiveList extends StatelessWidget {
+  const _ResponsiveList({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inset = AppLayout.pageInsetFor(constraints.maxWidth);
+        final horizontal = constraints.maxWidth >
+                AppLayout.generalMaxWidth + inset * 2
+            ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
+            : inset;
+        return ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(horizontal, 18, horizontal, 100),
+          children: children,
+        );
+      },
+    );
   }
 }
 
@@ -287,6 +308,7 @@ class _Filters extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -310,9 +332,10 @@ class _Filters extends StatelessWidget {
                     ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.sm),
           DropdownButtonFormField<String>(
             initialValue: status,
+            isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Review status',
               prefixIcon: Icon(Icons.filter_alt_outlined),
@@ -357,14 +380,16 @@ class _ReviewCard extends StatelessWidget {
         : item.serviceRequest.isNotEmpty
         ? item.serviceRequest
         : item.sourceName;
-    final subtitle = [
+    final reason = item.reasonLabel.isEmpty ? item.reasonCode : item.reasonLabel;
+    final contextLine = [
       item.customerName,
       item.serviceRequest,
     ].where((value) => value.trim().isNotEmpty).join(' • ');
 
     return PremiumCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -373,107 +398,139 @@ class _ReviewCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
+                    Text(title, style: Theme.of(context).textTheme.titleMedium),
+                    if (contextLine.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        contextLine,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
                       ),
-                    ),
-                    if (subtitle.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text(subtitle),
                     ],
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
-              _StatusChip(status: item.status),
+              const SizedBox(width: AppSpacing.sm),
+              _StatusBadge(status: item.status),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: AppSpacing.md),
           Text(
-            item.reasonLabel.isEmpty ? item.reasonCode : item.reasonLabel,
-            style: const TextStyle(fontWeight: FontWeight.w800),
+            'Exception reason',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
           ),
-          if (item.requestState.isNotEmpty ||
-              item.serviceStatus.isNotEmpty) ...[
-            const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(reason, style: Theme.of(context).textTheme.bodyLarge),
+          if (item.requestState.isNotEmpty || item.serviceStatus.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xs),
             Text(
-              [
-                item.requestState,
-                item.serviceStatus,
-              ].where((value) => value.isNotEmpty).join(' • '),
-              style: Theme.of(context).textTheme.bodySmall,
+              [item.requestState, item.serviceStatus]
+                  .where((value) => value.isNotEmpty)
+                  .join(' • '),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ],
+          if (onResolve != null || onIgnore != null || onOpenCase != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'Review decision',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: [
+                if (onOpenCase != null)
+                  OutlinedButton.icon(
+                    onPressed: busy ? null : onOpenCase,
+                    icon: const Icon(Icons.open_in_new_rounded),
+                    label: const Text('Open case'),
+                  ),
+                if (onIgnore != null)
+                  OutlinedButton.icon(
+                    onPressed: busy ? null : onIgnore,
+                    icon: const Icon(Icons.visibility_off_outlined),
+                    label: const Text('Ignore review'),
+                  ),
+                if (onResolve != null)
+                  FilledButton.icon(
+                    onPressed: busy ? null : onResolve,
+                    icon: busy
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.check_rounded),
+                    label: const Text('Resolve review'),
+                  ),
+              ],
             ),
           ],
           if (item.evidence.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            const Text(
-              'Redacted evidence',
-              style: TextStyle(fontWeight: FontWeight.w800),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+              child: Divider(height: 1),
             ),
-            const SizedBox(height: 6),
+            Text(
+              'Redacted evidence metadata',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: AppSpacing.xs),
             for (final entry in item.evidence.entries)
               Padding(
-                padding: const EdgeInsets.only(bottom: 3),
-                child: Text('${_humanize(entry.key)}: ${entry.value}'),
+                padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+                child: Text(
+                  '${_humanize(entry.key)}: ${entry.value}',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
               ),
           ],
           if (item.resolutionNote.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
             Text(
-              'Resolution: ${item.resolutionNote}',
-              style: Theme.of(context).textTheme.bodySmall,
+              'Resolution note: ${item.resolutionNote}',
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (onOpenCase != null)
-                OutlinedButton.icon(
-                  onPressed: busy ? null : onOpenCase,
-                  icon: const Icon(Icons.open_in_new_rounded),
-                  label: const Text('Open case'),
-                ),
-              if (onIgnore != null)
-                OutlinedButton.icon(
-                  onPressed: busy ? null : onIgnore,
-                  icon: const Icon(Icons.visibility_off_outlined),
-                  label: const Text('Ignore'),
-                ),
-              if (onResolve != null)
-                FilledButton.icon(
-                  onPressed: busy ? null : onResolve,
-                  icon: busy
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.check_rounded),
-                  label: const Text('Resolve'),
-                ),
-            ],
-          ),
         ],
       ),
     );
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status});
 
   final String status;
 
   @override
   Widget build(BuildContext context) {
-    return Chip(
-      visualDensity: VisualDensity.compact,
-      label: Text(status.isEmpty ? 'Unknown' : status),
+    final normalized = status.trim().toLowerCase();
+    final (color, background) = switch (normalized) {
+      'resolved' => (AppTheme.success, AppTheme.successSoft),
+      'ignored' => (AppTheme.processing, AppTheme.processingSoft),
+      _ => (AppTheme.warning, AppTheme.warningSoft),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
+      ),
+      child: Text(
+        status.isEmpty ? 'Unknown' : status,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(color: color),
+      ),
     );
   }
 }
@@ -502,7 +559,9 @@ class _Pager extends StatelessWidget {
         Expanded(
           child: Text(
             shown == 0 ? 'No records' : 'Showing $first-$last',
-            style: Theme.of(context).textTheme.bodySmall,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
           ),
         ),
         IconButton(
@@ -534,21 +593,24 @@ class _InfoBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon),
-          const SizedBox(width: 12),
+          Icon(icon, size: 22, color: AppTheme.textSecondary),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w900),
+                  message,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
                 ),
-                const SizedBox(height: 4),
-                Text(message),
               ],
             ),
           ),
