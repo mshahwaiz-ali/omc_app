@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/design_tokens.dart';
+import '../../../../app/theme.dart';
 import '../../data/home_content.dart';
 
 class HomeContentRail extends StatelessWidget {
@@ -18,18 +20,30 @@ class HomeContentRail extends StatelessWidget {
   Widget build(BuildContext context) {
     if (items.isEmpty) return const SizedBox.shrink();
 
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final railHeight = textScale >= 1.8
+        ? 348.0
+        : textScale >= 1.4
+        ? 292.0
+        : 226.0;
+    final cardWidth = textScale >= 1.5 ? 330.0 : 304.0;
+
     return SizedBox(
-      height: 190,
+      height: railHeight,
       child: ListView.separated(
         padding: padding,
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: items.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 12),
+        separatorBuilder: (context, index) =>
+            const SizedBox(width: AppSpacing.sm),
         itemBuilder: (context, index) {
-          return _HomeContentCardView(
-            item: items[index],
-            onTap: () => onTap(items[index]),
+          return SizedBox(
+            width: cardWidth,
+            child: _HomeContentCardView(
+              item: items[index],
+              onTap: () => onTap(items[index]),
+            ),
           );
         },
       ),
@@ -45,145 +59,155 @@ class _HomeContentCardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 280,
+    final theme = Theme.of(context);
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final stackImage = textScale >= 1.45;
+    final secondary = _secondaryLabel(item);
+
+    final image = ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      child: item.imageUrl == null
+          ? const _ImageFallback()
+          : Image.network(
+              item.imageUrl!,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) =>
+                  const _ImageFallback(),
+            ),
+    );
+
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xxs,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            if (item.category.trim().isNotEmpty)
+              Text(
+                item.category.trim(),
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: AppTheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            if (item.urgency?.trim().isNotEmpty == true)
+              _MetadataBadge(label: item.urgency!.trim()),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          item.title,
+          maxLines: textScale >= 1.6 ? 4 : 3,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        if (item.summary.trim().isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              item.summary.trim(),
+              maxLines: textScale >= 1.6 ? 5 : 3,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ),
+        ] else
+          const Spacer(),
+        const SizedBox(height: AppSpacing.xs),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (secondary.isNotEmpty)
+              Expanded(
+                child: Text(
+                  secondary,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              )
+            else
+              const Spacer(),
+            const SizedBox(width: AppSpacing.xs),
+            const Icon(
+              Icons.arrow_forward_rounded,
+              size: 20,
+              color: AppTheme.textSecondary,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    return Semantics(
+      button: true,
+      label: item.title,
       child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          child: Ink(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFFE8EAF0)),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x0A111827),
-                  blurRadius: 18,
-                  offset: Offset(0, 8),
-                ),
-              ],
+              border: Border.all(color: AppTheme.border),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (item.imageUrl != null)
-                  SizedBox(
-                    width: 92,
-                    child: Image.network(
-                      item.imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const _ImageFallback(),
-                    ),
+            child: stackImage
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(height: 96, child: image),
+                      const SizedBox(height: AppSpacing.sm),
+                      Expanded(child: content),
+                    ],
                   )
-                else
-                  const SizedBox(width: 92, child: _ImageFallback()),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 15, 14, 14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            if (item.category.trim().isNotEmpty)
-                              Expanded(
-                                child: Text(
-                                  item.category.toUpperCase(),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Color(0xFFDA1735),
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.55,
-                                  ),
-                                ),
-                              ),
-                            if (item.urgency?.trim().isNotEmpty == true)
-                              Container(
-                                margin: const EdgeInsets.only(left: 6),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 7,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFFF2F4),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: Text(
-                                  item.urgency!,
-                                  style: const TextStyle(
-                                    color: Color(0xFFDA1735),
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          item.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF111827),
-                            fontSize: 15.5,
-                            height: 1.18,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.15,
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                        Expanded(
-                          child: Text(
-                            item.summary,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF6B7280),
-                              fontSize: 11.5,
-                              height: 1.4,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            if (item.readTimeMinutes > 0) ...[
-                              const Icon(
-                                Icons.schedule_rounded,
-                                size: 14,
-                                color: Color(0xFF9CA3AF),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${item.readTimeMinutes} min',
-                                style: const TextStyle(
-                                  color: Color(0xFF9CA3AF),
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                            const Spacer(),
-                            const Icon(
-                              Icons.arrow_forward_rounded,
-                              size: 17,
-                              color: Color(0xFF111827),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(width: 86, child: image),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(child: content),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MetadataBadge extends StatelessWidget {
+  const _MetadataBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: AppSpacing.xxs,
+      ),
+      decoration: BoxDecoration(
+        color: AppTheme.dangerSoft,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: AppTheme.danger,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -196,16 +220,28 @@ class _ImageFallback extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFF3F4F6), Color(0xFFE5E7EB)],
-        ),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
       ),
       child: const Center(
-        child: Icon(Icons.article_outlined, color: Color(0xFF9CA3AF), size: 28),
+        child: Icon(
+          Icons.article_outlined,
+          color: AppTheme.textSecondary,
+          size: 28,
+        ),
       ),
     );
   }
+}
+
+String _secondaryLabel(HomeContentCard item) {
+  final values = <String>[
+    if (item.contentType.trim().isNotEmpty) item.contentType.trim(),
+    if (item.publishedOn?.trim().isNotEmpty == true) item.publishedOn!.trim(),
+    if (item.effectiveDate?.trim().isNotEmpty == true &&
+        item.effectiveDate!.trim() != item.publishedOn?.trim())
+      item.effectiveDate!.trim(),
+    if (item.readTimeMinutes > 0) '${item.readTimeMinutes} min read',
+  ];
+  return values.join(' · ');
 }
