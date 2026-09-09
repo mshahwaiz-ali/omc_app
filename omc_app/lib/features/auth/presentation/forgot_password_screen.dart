@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -80,7 +81,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     return AuthEntryScaffold(
       title: _submitted ? 'Check your email' : 'Forgot password',
       subtitle: _submitted
-          ? 'Use the secure reset link sent to your registered email.'
+          ? 'If the account is eligible, follow the secure instructions sent to its registered email.'
           : 'Enter your email, username, mobile number or CNIC.',
       leading: IconButton(
         tooltip: 'Back to login',
@@ -88,30 +89,54 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         icon: const Icon(Icons.arrow_back_rounded),
       ),
       child: PremiumCard(
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.all(20),
         child: _submitted
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Icon(Icons.mark_email_unread_outlined, size: 44),
-                  const SizedBox(height: 18),
-                  Text(
-                    _message ??
-                        'If the account is eligible, password reset instructions will be sent shortly.',
-                  ),
-                  const SizedBox(height: 22),
-                  AppButton(
-                    label: 'Back to Login',
-                    icon: Icons.login_rounded,
-                    onPressed: () => context.go('/login'),
-                  ),
-                ],
+            ? Semantics(
+                container: true,
+                liveRegion: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Icon(
+                      Icons.mark_email_unread_outlined,
+                      color: AppTheme.info,
+                      size: 40,
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Reset request received',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _message ??
+                          'If the account is eligible, password reset instructions will be sent shortly.',
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: 24),
+                    AppButton(
+                      label: 'Back to login',
+                      icon: Icons.login_rounded,
+                      onPressed: () => context.go('/login'),
+                    ),
+                  ],
+                ),
               )
             : Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    Text(
+                      'Account identifier',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Use the identifier you normally use to sign in.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 16),
                     TextFormField(
                       controller: _identifierController,
                       textInputAction: TextInputAction.done,
@@ -132,9 +157,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       const SizedBox(height: 14),
                       AuthErrorBanner(message: _message!),
                     ],
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 22),
                     AppButton(
-                      label: 'Send Reset Link',
+                      label: 'Send reset link',
                       icon: Icons.outgoing_mail,
                       isLoading: _submitting,
                       onPressed: _submitting ? null : _submit,
