@@ -472,46 +472,13 @@ class SignupPreferencesStep extends StatelessWidget {
                 ? 'Referral and preferences'
                 : 'Staff access review',
             subtitle: isCustomer
-                ? 'Referral information is optional unless you choose Referral as your source.'
+                ? 'Add a referral if you have one, then tell us how you heard about OMC.'
                 : 'This is an application. Email verification does not approve or grant staff access.',
           ),
           const SizedBox(height: 18),
           if (!isCustomer)
             const SignupReviewNotice()
           else ...[
-            DropdownButtonFormField<String>(
-              initialValue: selectedAcquisitionSource,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'How did you hear about OMC?',
-                prefixIcon: Icon(Icons.campaign_outlined),
-              ),
-              items: acquisitionSources
-                  .map(
-                    (source) => DropdownMenuItem<String>(
-                      value: source,
-                      child: Text(source),
-                    ),
-                  )
-                  .toList(growable: false),
-              onChanged: onAcquisitionSourceChanged,
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Please select a source.'
-                  : null,
-            ),
-            if (selectedAcquisitionSource == 'Other') ...[
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: acquisitionSourceDetailController,
-                decoration: const InputDecoration(
-                  labelText: 'Please specify',
-                  prefixIcon: Icon(Icons.edit_note_outlined),
-                ),
-                validator: (value) =>
-                    requiredValidator(value, 'Source details'),
-              ),
-            ],
-            const SizedBox(height: 16),
             Theme(
               data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
               child: ExpansionTile(
@@ -606,6 +573,39 @@ class SignupPreferencesStep extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              initialValue: selectedAcquisitionSource,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'How did you hear about OMC?',
+                prefixIcon: Icon(Icons.campaign_outlined),
+              ),
+              items: acquisitionSources
+                  .map(
+                    (source) => DropdownMenuItem<String>(
+                      value: source,
+                      child: Text(source),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: onAcquisitionSourceChanged,
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Please select a source.'
+                  : null,
+            ),
+            if (selectedAcquisitionSource == 'Other') ...[
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: acquisitionSourceDetailController,
+                decoration: const InputDecoration(
+                  labelText: 'Please specify',
+                  prefixIcon: Icon(Icons.edit_note_outlined),
+                ),
+                validator: (value) =>
+                    requiredValidator(value, 'Source details'),
+              ),
+            ],
           ],
         ],
       ),
