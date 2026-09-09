@@ -188,11 +188,9 @@ class _InternalOperationsCenterScreenState
                   final filtered = _filteredPayments(payments);
                   final counts = _internalPaymentCounts(payments);
 
-                  return ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: _kOpsPadding,
+                  return _PaymentReviewListView(
                     children: [
-                      _InternalPaymentFilters(
+                      _InternalPaymentFiltersV2(
                         controller: _searchController,
                         selectedFilter: _selectedFilter,
                         counts: counts,
@@ -203,12 +201,18 @@ class _InternalOperationsCenterScreenState
                           _paymentStart = 0;
                         }),
                       ),
-                      const SizedBox(height: 14),
-                      _InternalPaymentSummary(
+                      const SizedBox(height: 16),
+                      _InternalPaymentSummaryV2(
                         payments: filtered,
                         allPayments: payments,
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 24),
+                      _PaymentResultsHeader(
+                        shown: filtered.length,
+                        loaded: payments.length,
+                        filter: _selectedFilter,
+                      ),
+                      const SizedBox(height: 12),
                       if (filtered.isEmpty)
                         const _OperationsEmpty(
                           title: 'No payments in this view',
@@ -218,11 +222,11 @@ class _InternalOperationsCenterScreenState
                       else
                         for (final payment in filtered)
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _InternalPaymentCard(payment: payment),
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _InternalPaymentCardV2(payment: payment),
                           ),
-                      const SizedBox(height: 6),
-                      _PaymentPager(
+                      const SizedBox(height: 8),
+                      _PaymentPagerV2(
                         start: page.start,
                         shown: page.items.length,
                         total: page.total,
@@ -3571,6 +3575,693 @@ class _OperationsEmpty extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PaymentReviewListView extends StatelessWidget {
+  const _PaymentReviewListView({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final pageInset = constraints.maxWidth < 360
+            ? 16.0
+            : constraints.maxWidth >= 600
+            ? 24.0
+            : 20.0;
+        final horizontal = constraints.maxWidth > 888
+            ? (constraints.maxWidth - 840) / 2
+            : pageInset;
+        return ListView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(horizontal, 12, horizontal, 164),
+          children: children,
+        );
+      },
+    );
+  }
+}
+
+class _InternalPaymentFiltersV2 extends StatelessWidget {
+  const _InternalPaymentFiltersV2({
+    required this.controller,
+    required this.selectedFilter,
+    required this.counts,
+    required this.onSearchChanged,
+    required this.onFilterChanged,
+  });
+
+  static const filters = [
+    'Needs Review',
+    'Action Required',
+    'Paid',
+    'Rejected',
+    'Own',
+    'Referrals',
+    'All',
+  ];
+
+  final TextEditingController controller;
+  final String selectedFilter;
+  final Map<String, int> counts;
+  final ValueChanged<String> onSearchChanged;
+  final ValueChanged<String> onFilterChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: controller,
+          onChanged: onSearchChanged,
+          textInputAction: TextInputAction.search,
+          decoration: const InputDecoration(
+            labelText: 'Search payments',
+            hintText: 'Customer, payment or service reference',
+            prefixIcon: Icon(Icons.search_rounded),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text('Filter', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: [
+              for (final filter in filters) ...[
+                Semantics(
+                  selected: selectedFilter == filter,
+                  label: '$filter, ${counts[filter] ?? 0} payments on this loaded page',
+                  child: ChoiceChip(
+                    selected: selectedFilter == filter,
+                    label: Text('$filter · ${counts[filter] ?? 0}'),
+                    onSelected: (_) => onFilterChanged(filter),
+                  ),
+                ),
+                if (filter != filters.last) const SizedBox(width: 8),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Filter counts describe the currently loaded server page only, not the full payment queue.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InternalPaymentSummaryV2 extends StatelessWidget {
+  const _InternalPaymentSummaryV2({
+    required this.payments,
+    required this.allPayments,
+  });
+
+  final List<PaymentItem> payments;
+  final List<PaymentItem> allPayments;
+
+  @override
+  Widget build(BuildContext context) {
+    final reviewCount = allPayments
+        .where(
+          (payment) =>
+              payment.status == PaymentStatus.receiptSubmitted ||
+              payment.status == PaymentStatus.underReview,
+        )
+        .length;
+    final referralCount = allPayments
+        .where((payment) => payment.isReferralPayment)
+        .length;
+    final metrics = [
+      _PaymentPageMetric(
+        label: 'Shown',
+        value: payments.length,
+        icon: Icons.list_alt_rounded,
+      ),
+      _PaymentPageMetric(
+        label: 'Needs review',
+        value: reviewCount,
+        icon: Icons.fact_check_outlined,
+      ),
+      _PaymentPageMetric(
+        label: 'Referrals',
+        value: referralCount,
+        icon: Icons.group_outlined,
+      ),
+    ];
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Current server page',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'These counts describe only the payment records loaded on this page.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final textScale = MediaQuery.textScalerOf(context).scale(1);
+              final single = constraints.maxWidth < 300 || textScale >= 1.5;
+              final width = single
+                  ? constraints.maxWidth
+                  : (constraints.maxWidth - 20) / 3;
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: metrics
+                    .map(
+                      (metric) => SizedBox(
+                        width: width,
+                        child: _PaymentPageMetricView(metric: metric),
+                      ),
+                    )
+                    .toList(growable: false),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentPageMetric {
+  const _PaymentPageMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final int value;
+  final IconData icon;
+}
+
+class _PaymentPageMetricView extends StatelessWidget {
+  const _PaymentPageMetricView({required this.metric});
+
+  final _PaymentPageMetric metric;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 76),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.cardSoft,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(metric.icon, size: 20, color: AppTheme.textSecondary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${metric.value}',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  metric.label,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentResultsHeader extends StatelessWidget {
+  const _PaymentResultsHeader({
+    required this.shown,
+    required this.loaded,
+    required this.filter,
+  });
+
+  final int shown;
+  final int loaded;
+  final String filter;
+
+  @override
+  Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stack = constraints.maxWidth < 320 || textScale >= 1.5;
+        final title = Text(
+          filter == 'All' ? 'Payments' : '$filter payments',
+          style: Theme.of(context).textTheme.titleLarge,
+        );
+        final count = Text(
+          '$shown shown from $loaded loaded',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
+          ),
+        );
+        if (stack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [title, const SizedBox(height: 4), count],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: title),
+            const SizedBox(width: 12),
+            Flexible(child: count),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _InternalPaymentCardV2 extends StatelessWidget {
+  const _InternalPaymentCardV2({required this.payment});
+
+  final PaymentItem payment;
+
+  @override
+  Widget build(BuildContext context) {
+    final visual = _paymentReviewVisual(payment.status);
+    final isReviewState =
+        payment.status == PaymentStatus.receiptSubmitted ||
+        payment.status == PaymentStatus.underReview;
+    final canOpenReview = isReviewState && payment.canReviewPayments;
+    final route = '/payments/${Uri.encodeComponent(payment.id)}';
+    final hasProof = payment.paymentProofUrl?.trim().isNotEmpty == true;
+    final invoice = payment.invoiceNumber?.trim();
+    final serviceReference = payment.serviceReference?.trim();
+    final reference = payment.reference?.trim();
+    final scopeLabel = payment.isReferralPayment
+        ? 'Referral customer'
+        : payment.isOwnPayment
+        ? 'Own payment'
+        : 'Scoped payment';
+    final evidenceLabel = hasProof
+        ? 'Payment proof attached'
+        : 'No payment proof attached';
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      onTap: () => context.push(route),
+      semanticLabel:
+          '${payment.amountLabel}. ${payment.customerLabel}. ${payment.title}. ${payment.status.label}. $evidenceLabel. $scopeLabel. Open payment details.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final textScale = MediaQuery.textScalerOf(context).scale(1);
+              final stack = constraints.maxWidth < 360 || textScale >= 1.4;
+              final amount = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    payment.amountLabel,
+                    style: Theme.of(context).textTheme.amount.copyWith(
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    payment.customerLabel,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    payment.title,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              );
+              final scope = Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.cardSoft,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: AppTheme.border),
+                ),
+                child: Text(
+                  scopeLabel,
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+              );
+
+              if (stack) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [amount, const SizedBox(height: 10), scope],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: amount),
+                  const SizedBox(width: 12),
+                  scope,
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          _PaymentVerificationBanner(visual: visual),
+          const SizedBox(height: 18),
+          Text(
+            'Evidence & context',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 10),
+          _PaymentEvidenceRow(
+            icon: hasProof
+                ? Icons.attach_file_rounded
+                : Icons.attachment_outlined,
+            label: 'Receipt / proof',
+            value: evidenceLabel,
+            supporting: hasProof
+                ? 'Evidence is attached; verification still follows the payment status above.'
+                : 'No proof attachment is present on this payment record.',
+          ),
+          if (invoice?.isNotEmpty == true) ...[
+            const SizedBox(height: 10),
+            _PaymentEvidenceRow(
+              icon: Icons.receipt_long_outlined,
+              label: 'Invoice',
+              value: invoice!,
+            ),
+          ],
+          if (reference?.isNotEmpty == true) ...[
+            const SizedBox(height: 10),
+            _PaymentEvidenceRow(
+              icon: Icons.numbers_rounded,
+              label: 'Payment reference',
+              value: reference!,
+            ),
+          ],
+          if (serviceReference?.isNotEmpty == true) ...[
+            const SizedBox(height: 10),
+            _PaymentEvidenceRow(
+              icon: Icons.work_outline_rounded,
+              label: 'Service reference',
+              value: serviceReference!,
+            ),
+          ],
+          const SizedBox(height: 10),
+          _PaymentEvidenceRow(
+            icon: Icons.tag_rounded,
+            label: 'Payment ID',
+            value: payment.id,
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: canOpenReview
+                ? FilledButton.icon(
+                    onPressed: () => context.push(route),
+                    icon: const Icon(Icons.rate_review_outlined),
+                    label: const Text('Open review'),
+                  )
+                : OutlinedButton.icon(
+                    onPressed: () => context.push(route),
+                    icon: const Icon(Icons.visibility_outlined),
+                    label: const Text('Open payment'),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentReviewVisual {
+  const _PaymentReviewVisual({
+    required this.color,
+    required this.background,
+    required this.icon,
+    required this.message,
+  });
+
+  final Color color;
+  final Color background;
+  final IconData icon;
+  final String message;
+}
+
+_PaymentReviewVisual _paymentReviewVisual(PaymentStatus status) {
+  switch (status) {
+    case PaymentStatus.receiptSubmitted:
+      return const _PaymentReviewVisual(
+        color: AppTheme.info,
+        background: AppTheme.infoSoft,
+        icon: Icons.upload_file_outlined,
+        message: 'Receipt submitted; verification is still pending.',
+      );
+    case PaymentStatus.underReview:
+      return const _PaymentReviewVisual(
+        color: AppTheme.info,
+        background: AppTheme.infoSoft,
+        icon: Icons.fact_check_outlined,
+        message: 'Receipt is currently under review.',
+      );
+    case PaymentStatus.paid:
+      return const _PaymentReviewVisual(
+        color: AppTheme.success,
+        background: AppTheme.successSoft,
+        icon: Icons.check_circle_outline_rounded,
+        message: 'Payment is recorded as paid.',
+      );
+    case PaymentStatus.rejected:
+      return const _PaymentReviewVisual(
+        color: AppTheme.danger,
+        background: AppTheme.dangerSoft,
+        icon: Icons.error_outline_rounded,
+        message: 'Payment evidence was rejected.',
+      );
+    case PaymentStatus.overdue:
+      return const _PaymentReviewVisual(
+        color: AppTheme.warning,
+        background: AppTheme.warningSoft,
+        icon: Icons.schedule_rounded,
+        message: 'Payment is overdue.',
+      );
+    case PaymentStatus.cancelled:
+      return const _PaymentReviewVisual(
+        color: AppTheme.processing,
+        background: AppTheme.processingSoft,
+        icon: Icons.block_rounded,
+        message: 'Payment is cancelled.',
+      );
+    case PaymentStatus.pending:
+      return const _PaymentReviewVisual(
+        color: AppTheme.warning,
+        background: AppTheme.warningSoft,
+        icon: Icons.hourglass_empty_rounded,
+        message: 'Payment is pending.',
+      );
+  }
+}
+
+class _PaymentVerificationBanner extends StatelessWidget {
+  const _PaymentVerificationBanner({required this.visual});
+
+  final _PaymentReviewVisual visual;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: visual.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: visual.color.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(visual.icon, size: 20, color: visual.color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Verification state',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: visual.color,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  visual.message,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: visual.color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentEvidenceRow extends StatelessWidget {
+  const _PaymentEvidenceRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.supporting,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final String? supporting;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: AppTheme.textSecondary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              SelectableText(
+                value,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (supporting?.trim().isNotEmpty == true) ...[
+                const SizedBox(height: 3),
+                Text(
+                  supporting!.trim(),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PaymentPagerV2 extends StatelessWidget {
+  const _PaymentPagerV2({
+    required this.start,
+    required this.shown,
+    required this.total,
+    required this.hasMore,
+    required this.onPrevious,
+    required this.onNext,
+  });
+
+  final int start;
+  final int shown;
+  final int total;
+  final bool hasMore;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    final first = shown == 0 ? 0 : start + 1;
+    final last = start + shown;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stack = constraints.maxWidth < 360 || textScale >= 1.5;
+        final description = Text(
+          'Server page $first-$last of $total backend query matches. Local filters can show fewer records from this page.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
+          ),
+        );
+        final controls = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton.outlined(
+              tooltip: 'Previous page',
+              onPressed: onPrevious,
+              icon: const Icon(Icons.chevron_left_rounded),
+            ),
+            const SizedBox(width: 8),
+            IconButton.outlined(
+              tooltip: hasMore ? 'Next page' : 'No more payments',
+              onPressed: onNext,
+              icon: const Icon(Icons.chevron_right_rounded),
+            ),
+          ],
+        );
+        if (stack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              description,
+              const SizedBox(height: 10),
+              Align(alignment: Alignment.centerLeft, child: controls),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(child: description),
+            const SizedBox(width: 12),
+            controls,
+          ],
+        );
+      },
     );
   }
 }
