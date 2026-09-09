@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_state.dart';
@@ -101,9 +102,9 @@ class _MyReferralsScreenState extends ConsumerState<MyReferralsScreen> {
     if (code.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: code));
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Referral code copied.')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Referral code copied.')),
+    );
   }
 
   Future<void> _shareCode() async {
@@ -125,125 +126,128 @@ class _MyReferralsScreenState extends ConsumerState<MyReferralsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: const AppBackHeader(title: 'My Referrals'),
-      body: RefreshIndicator(
+      backgroundColor: AppTheme.background,
+      appBar: const AppBackHeader(title: 'My referrals'),
+      body: RefreshIndicator.adaptive(
         onRefresh: () => _load(refresh: true),
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 140),
-          children: [
-            if (_loading)
-              const SizedBox(
-                height: 360,
-                child: LoadingView(message: 'Loading referral dashboard...'),
-              )
-            else if (_error != null && _items.isEmpty)
-              AppErrorState.fromError(
-                error: _error!,
-                fallbackTitle: 'Referrals unavailable',
-                fallbackMessage:
-                    'Your referral dashboard could not be loaded right now.',
-                onRetry: () => _load(refresh: true),
-              )
-            else ...[
-              if (_summary != null)
-                _ReferralHero(
-                  summary: _summary!,
-                  onCopy: _copyCode,
-                  onShare: _shareCode,
-                ),
-              const SizedBox(height: 14),
-              if (_summary != null) _PrimaryMetrics(summary: _summary!),
-              if (_summary != null &&
-                  (_summary!.selfCreatedServices > 0 ||
-                      _summary!.referrerCreatedServices > 0 ||
-                      _summary!.consentedReferrals > 0)) ...[
-                const SizedBox(height: 10),
-                _SecondaryMetrics(summary: _summary!),
-              ],
-              const SizedBox(height: 18),
-              _SearchCard(
-                controller: _searchController,
-                onSearch: () => _load(refresh: true),
-                onClear: _clearSearch,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _searchController.text.trim().isEmpty
-                          ? '${_summary?.totalReferrals ?? _items.length} referrals'
-                          : '${_items.length} matching result${_items.length == 1 ? '' : 's'}',
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final inset = AppLayout.pageInsetFor(constraints.maxWidth);
+            final horizontal = constraints.maxWidth >
+                    AppLayout.generalMaxWidth + inset * 2
+                ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
+                : inset;
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(horizontal, 16, horizontal, 140),
+              children: [
+                if (_loading)
+                  const SizedBox(
+                    height: 360,
+                    child: LoadingView(message: 'Loading referrals...'),
+                  )
+                else if (_error != null && _items.isEmpty)
+                  AppErrorState.fromError(
+                    error: _error!,
+                    fallbackTitle: 'Referrals unavailable',
+                    fallbackMessage:
+                        'Your referrals could not be loaded right now.',
+                    onRetry: () => _load(refresh: true),
+                  )
+                else ...[
+                  if (_summary != null)
+                    _ReferralCodeCard(
+                      summary: _summary!,
+                      onCopy: _copyCode,
+                      onShare: _shareCode,
+                    ),
+                  const SizedBox(height: AppSpacing.xl),
+                  Text(
+                    'Referral customers',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Search customers who joined through your referral access.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _SearchField(
+                    controller: _searchController,
+                    onSearch: () => _load(refresh: true),
+                    onClear: _clearSearch,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _ResultSummary(
+                    summary: _summary,
+                    loadedCount: _items.length,
+                    hasSearch: _searchController.text.trim().isNotEmpty,
+                    hasMore: _hasMore,
+                    onClear: _clearSearch,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  if (_items.isEmpty)
+                    EmptyState(
+                      title: _searchController.text.trim().isEmpty
+                          ? 'No referrals yet'
+                          : 'No matching referrals',
+                      message: _searchController.text.trim().isEmpty
+                          ? 'Customers who join through your referral code will appear here.'
+                          : 'Try a different name, phone number or email.',
+                      icon: Icons.people_outline_rounded,
+                    )
+                  else
+                    for (var index = 0; index < _items.length; index++) ...[
+                      _ReferralCustomerCard(
+                        customer: _items[index],
+                        onTap: () => _openDetail(_items[index]),
+                      ),
+                      if (index != _items.length - 1)
+                        const SizedBox(height: AppSpacing.sm),
+                    ],
+                  if (_error != null && _items.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'More referrals could not be loaded. Pull to refresh or try again.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.danger,
                       ),
                     ),
-                  ),
-                  if (_searchController.text.trim().isNotEmpty)
-                    TextButton(
-                      onPressed: _clearSearch,
-                      child: const Text('Clear'),
+                  ],
+                  if (_loadingMore)
+                    const Padding(
+                      padding: EdgeInsets.all(AppSpacing.lg),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (_hasMore) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _load,
+                        icon: const Icon(Icons.expand_more_rounded),
+                        label: const Text('Load more referrals'),
+                      ),
                     ),
+                  ],
+                  if (_summary != null) ...[
+                    const SizedBox(height: AppSpacing.xl),
+                    _ReferralSummaryCard(summary: _summary!),
+                  ],
                 ],
-              ),
-              const SizedBox(height: 4),
-              if (_items.isEmpty)
-                EmptyState(
-                  title: _searchController.text.trim().isEmpty
-                      ? 'No referrals yet'
-                      : 'No matching referrals',
-                  message: _searchController.text.trim().isEmpty
-                      ? 'Customers who join through your referral code will appear here.'
-                      : 'Try a different name, phone number or email.',
-                  icon: Icons.people_outline_rounded,
-                )
-              else
-                for (final item in _items) ...[
-                  _ReferralCustomerCard(
-                    customer: item,
-                    onTap: () => _openDetail(item),
-                  ),
-                  const SizedBox(height: 10),
-                ],
-              if (_error != null && _items.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    'More referrals could not be loaded. Pull to refresh or try again.',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              if (_loadingMore)
-                const Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (_hasMore)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: OutlinedButton.icon(
-                    onPressed: _load,
-                    icon: const Icon(Icons.expand_more_rounded),
-                    label: const Text('Load more referrals'),
-                  ),
-                ),
-            ],
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
   }
 }
 
-class _ReferralHero extends StatelessWidget {
-  const _ReferralHero({
+class _ReferralCodeCard extends StatelessWidget {
+  const _ReferralCodeCard({
     required this.summary,
     required this.onCopy,
     required this.onShare,
@@ -256,88 +260,78 @@ class _ReferralHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = summary.isActive;
+    final color = active ? AppTheme.success : AppTheme.danger;
+    final background = active ? AppTheme.successSoft : AppTheme.dangerSoft;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+
     return PremiumCard(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Referral code',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: active
-                      ? const Color(0xFFEAF8F0)
-                      : const Color(0xFFFFF1F0),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  active ? 'Active' : 'Inactive',
-                  style: TextStyle(
-                    color: active
-                        ? const Color(0xFF067647)
-                        : const Color(0xFFB42318),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+              const SizedBox(width: AppSpacing.sm),
+              _StateBadge(
+                label: active ? 'Active' : 'Inactive',
+                color: color,
+                background: background,
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           SelectableText(
             summary.code.isEmpty ? 'Not available' : summary.code,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.2,
-            ),
+            style: Theme.of(context).textTheme.headlineMedium,
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: summary.code.isEmpty ? null : onCopy,
-                  icon: const Icon(Icons.copy_rounded, size: 18),
-                  label: const Text('Copy'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: active && summary.code.isNotEmpty ? onShare : null,
-                  icon: const Icon(Icons.share_outlined, size: 18),
-                  label: const Text('Share'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             active
                 ? 'Customers can use this code when joining OMC.'
                 : 'This code is inactive and cannot be used for new referrals.',
-            style: const TextStyle(
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: AppTheme.textSecondary,
-              fontSize: 12,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
             ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stack = constraints.maxWidth < 320 || textScale >= 1.5;
+              final copy = OutlinedButton.icon(
+                onPressed: summary.code.isEmpty ? null : onCopy,
+                icon: const Icon(Icons.copy_rounded),
+                label: const Text('Copy code'),
+              );
+              final share = FilledButton.icon(
+                onPressed: active && summary.code.isNotEmpty ? onShare : null,
+                icon: const Icon(Icons.share_outlined),
+                label: const Text('Share code'),
+              );
+              if (stack) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    share,
+                    const SizedBox(height: AppSpacing.xs),
+                    copy,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: copy),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(child: share),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -345,103 +339,8 @@ class _ReferralHero extends StatelessWidget {
   }
 }
 
-class _PrimaryMetrics extends StatelessWidget {
-  const _PrimaryMetrics({required this.summary});
-  final ReferralSummary summary;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(
-        child: _Metric(label: 'Total', value: summary.totalReferrals),
-      ),
-      const SizedBox(width: 10),
-      Expanded(
-        child: _Metric(label: 'Active', value: summary.activeReferrals),
-      ),
-      const SizedBox(width: 10),
-      Expanded(
-        child: _Metric(label: 'Services', value: summary.totalServices),
-      ),
-    ],
-  );
-}
-
-class _SecondaryMetrics extends StatelessWidget {
-  const _SecondaryMetrics({required this.summary});
-  final ReferralSummary summary;
-
-  @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 8,
-    runSpacing: 8,
-    children: [
-      _CompactMetric('Consented', summary.consentedReferrals),
-      _CompactMetric('Customer-created', summary.selfCreatedServices),
-      _CompactMetric('Started by you', summary.referrerCreatedServices),
-    ],
-  );
-}
-
-class _Metric extends StatelessWidget {
-  const _Metric({required this.label, required this.value});
-  final String label;
-  final int value;
-
-  @override
-  Widget build(BuildContext context) => PremiumCard(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-    child: Column(
-      children: [
-        Text(
-          '$value',
-          style: const TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 10.5,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _CompactMetric extends StatelessWidget {
-  const _CompactMetric(this.label, this.value);
-  final String label;
-  final int value;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(999),
-      border: Border.all(color: AppTheme.border),
-    ),
-    child: Text(
-      '$label $value',
-      style: const TextStyle(
-        color: AppTheme.textSecondary,
-        fontSize: 11,
-        fontWeight: FontWeight.w800,
-      ),
-    ),
-  );
-}
-
-class _SearchCard extends StatelessWidget {
-  const _SearchCard({
+class _SearchField extends StatelessWidget {
+  const _SearchField({
     required this.controller,
     required this.onSearch,
     required this.onClear,
@@ -452,14 +351,14 @@ class _SearchCard extends StatelessWidget {
   final VoidCallback onClear;
 
   @override
-  Widget build(BuildContext context) => PremiumCard(
-    padding: const EdgeInsets.all(14),
-    child: TextField(
+  Widget build(BuildContext context) {
+    return TextField(
       controller: controller,
       textInputAction: TextInputAction.search,
       onSubmitted: (_) => onSearch(),
       decoration: InputDecoration(
-        hintText: 'Search referrals',
+        labelText: 'Search referrals',
+        hintText: 'Name, phone or email',
         prefixIcon: const Icon(Icons.search_rounded),
         suffixIcon: controller.text.trim().isEmpty
             ? null
@@ -469,8 +368,49 @@ class _SearchCard extends StatelessWidget {
                 icon: const Icon(Icons.close_rounded),
               ),
       ),
-    ),
-  );
+    );
+  }
+}
+
+class _ResultSummary extends StatelessWidget {
+  const _ResultSummary({
+    required this.summary,
+    required this.loadedCount,
+    required this.hasSearch,
+    required this.hasMore,
+    required this.onClear,
+  });
+
+  final ReferralSummary? summary;
+  final int loadedCount;
+  final bool hasSearch;
+  final bool hasMore;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            hasSearch
+                ? '$loadedCount matching referral${loadedCount == 1 ? '' : 's'} loaded'
+                : hasMore
+                ? '$loadedCount referrals loaded · more available'
+                : '${summary?.totalReferrals ?? loadedCount} referrals',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        ),
+        if (hasSearch) ...[
+          const SizedBox(width: AppSpacing.xs),
+          TextButton(onPressed: onClear, child: const Text('Clear')),
+        ],
+      ],
+    );
+  }
 }
 
 class _ReferralCustomerCard extends StatelessWidget {
@@ -480,114 +420,173 @@ class _ReferralCustomerCard extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => PremiumCard(
-    padding: EdgeInsets.zero,
-    child: InkWell(
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Text(
-                _initials(customer.displayName),
-                style: const TextStyle(
-                  color: AppTheme.primary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
+      semanticLabel:
+          '${customer.displayName}. ${customer.customerStatus.isEmpty ? 'Status unavailable' : customer.customerStatus}. ${customer.consentGranted ? 'Assistance consent granted' : 'No assistance consent'}. Open referral details.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppTheme.processingSoft,
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                ),
+                child: Text(
+                  _initials(customer.displayName),
+                  style: Theme.of(context).textTheme.labelLarge,
                 ),
               ),
-            ),
-            const SizedBox(width: 13),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    customer.displayName,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      customer.displayName,
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    customer.contactLine,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      customer.contactLine,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 9),
-                  Wrap(
-                    spacing: 7,
-                    runSpacing: 7,
-                    children: [
-                      _StatusChip(
-                        customer.customerStatus.isEmpty
-                            ? 'Status unavailable'
-                            : customer.customerStatus,
-                      ),
-                      _StatusChip(
-                        customer.consentGranted
-                            ? 'Assistance consented'
-                            : 'No assistance consent',
-                      ),
-                      _StatusChip('${customer.totalServices} services'),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppTheme.textSecondary,
-            ),
-          ],
-        ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              _StateBadge(
+                label: customer.customerStatus.isEmpty
+                    ? 'Status unavailable'
+                    : customer.customerStatus,
+                color: AppTheme.processing,
+                background: AppTheme.processingSoft,
+              ),
+              _StateBadge(
+                label: customer.consentGranted
+                    ? 'Assistance consented'
+                    : 'No assistance consent',
+                color: customer.consentGranted
+                    ? AppTheme.success
+                    : AppTheme.processing,
+                background: customer.consentGranted
+                    ? AppTheme.successSoft
+                    : AppTheme.processingSoft,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '${customer.totalServices} service${customer.totalServices == 1 ? '' : 's'}',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
       ),
-    ),
-  );
+    );
+  }
 }
 
-class _StatusChip extends StatelessWidget {
-  const _StatusChip(this.label);
-  final String label;
+class _ReferralSummaryCard extends StatelessWidget {
+  const _ReferralSummaryCard({required this.summary});
+
+  final ReferralSummary summary;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-    decoration: BoxDecoration(
-      color: const Color(0xFFF2F4F7),
-      borderRadius: BorderRadius.circular(999),
-      border: Border.all(color: const Color(0xFFD0D5DD)),
-    ),
-    child: Text(
-      label,
-      style: const TextStyle(
-        color: Color(0xFF475467),
-        fontSize: 10.5,
-        fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) {
+    final items = <(String, int)>[
+      ('Total referrals', summary.totalReferrals),
+      ('Active referrals', summary.activeReferrals),
+      ('Total services', summary.totalServices),
+      ('Consented referrals', summary.consentedReferrals),
+      ('Customer-created services', summary.selfCreatedServices),
+      ('Started by you', summary.referrerCreatedServices),
+    ];
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Summary', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.lg,
+            runSpacing: AppSpacing.sm,
+            children: items
+                .map(
+                  (item) => ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 120),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${item.$2}',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          item.$1,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+                .toList(growable: false),
+          ),
+        ],
       ),
-    ),
-  );
+    );
+  }
+}
+
+class _StateBadge extends StatelessWidget {
+  const _StateBadge({
+    required this.label,
+    required this.color,
+    required this.background,
+  });
+
+  final String label;
+  final Color color;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(color: color),
+      ),
+    );
+  }
 }
 
 String _initials(String value) {
