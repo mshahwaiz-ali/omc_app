@@ -18,7 +18,7 @@ No E001–E146 surface is removed by this consolidation.
 
 - Baseline main SHA: `bd2c0d2c704b5ceb9ec7fae00cbf2e3746c94f9b`
 - Latest Phase 4 implementation code head: `19aa7be3ddd04c52d130ade98d540f755f17e1b9`
-- Latest Phase 5 implementation code head: `f9d822b0e6267f23073044e4b2b4da162d1203d5`
+- Latest Phase 5 implementation code head: `7f51ec59e077ad9b01be5ed852be0995eb0c7a21`
 - Blueprint source-audit parent: `b42ed754fdb58dcd672497ba2e2e612658e1b882`
 - Backend: out of scope unless a genuine blocking defect is proven.
 - Functional/navigation/provider/payload authority: frozen per `ui-ux.md` J1/J2 and lifecycle clarification.
@@ -31,7 +31,7 @@ No E001–E146 surface is removed by this consolidation.
 | 2 — Shell/navigation/global UI | **SOURCE COMPLETE** — runtime validation pending | E042, E043, E062–E067, E090 plus shared shell/header work |
 | 3 — Customer journey + operations | **SOURCE COMPLETE** — runtime validation pending | **E001–E025** plus their routed customer/document/payment/support presentation owners |
 | 4 — Customer tools + account/auth | **SOURCE COMPLETE** — runtime validation pending | **E026–E041** plus applicable nested/modal/native tickets audited below |
-| 5 — Internal/staff + final QA closure | **IN PROGRESS** — runtime validation pending | **E044–E049 source-complete**; next E050. Final analyze/test/device/accessibility closure remains pending |
+| 5 — Internal/staff + final QA closure | **IN PROGRESS** — runtime validation pending | **E044–E050 source-complete**; next E051. Final analyze/test/device/accessibility closure remains pending |
 
 ## Phase 1 source batches
 
@@ -166,6 +166,7 @@ No E001–E146 surface is removed by this consolidation.
 - **E047 Service case queue** — `d67633724f952b787d13bf220f7cc25761e990e8`. P0 source audit and post-commit parity re-check completed. Exact `internalServiceCasePageRepositoryProvider.fetchPage(...)` query, page size 50, 350ms trimmed search debounce, server `status`/`document_status`, load-more paging/dedupe, local primary filters/counts and encoded case-detail route retained. UI now follows Title/count → search + filter summary → customer/service → current operational state → next required action → secondary case/document counts. Loaded primary-filter counts are explicitly identified as loaded-page counts, never global totals. Advanced filter choices/values and apply/reset semantics remain unchanged; sheet now scrolls/stacks safely for narrow/large-text layouts.
 - **E048 Internal payment operations** — `d7f5861d4aade5ebc5465a612c43d3e8c24427e9`. P0 source audit and post-commit parity re-check completed. Exact `PaymentPageQuery(start, pageLength: 20, search, status)`, `paymentPageProvider(query)`, server status mapping, current-page local filters/sort/counts, previous/next paging arithmetic and encoded `/payments/:paymentId` route remain unchanged. The queue now leads with payment amount/customer, then backend verification state, real receipt/proof/invoice/reference context and the guarded payment-detail/review action. Proof presence is explicitly evidence rather than verification; review wording is shown only when the payment record exposes review authority. Own/referral scope remains payment-record-derived, and current-page filter counts are explicitly not global totals. No service-case proxy data replaced actual payment records.
 - **E049 Internal case workspace** — `f9d822b0e6267f23073044e4b2b4da162d1203d5`. P0 source audit and post-commit parity re-check completed. `InternalServiceCaseWorkspaceScreen` still watches `internalServiceCasesProvider`, refreshes the same provider, resolves the record only by exact `item.id == caseId`, and introduces no new detail endpoint. Queue absence now explicitly means “not present in the currently loaded internal queue,” not “backend record does not exist,” with recovery to the same scoped queue. Successful presentation now follows customer/service identity → existing next-step authority → document evidence → overview/progress → activity → existing payment-operations destination. Existing document-count/progress formulas, `_progressState`, `_progressHeading`, `_caseNextAction`, and all case-specific encoded-ID links remain authoritative; generic queue/payment destinations remain generic rather than inventing unsupported case query parameters. The E048 payment branch in the shared owner was re-read unchanged.
+- **E050 Leads pipeline** — `7f51ec59e077ad9b01be5ed852be0995eb0c7a21`. Source audit and post-diff parity check completed. Exact `leadsResultPageProvider((start, search))`, backend `start`/`limit: 50`/trimmed search, 300ms search debounce, `nextStart` paging, current-page local stage filtering/counts, encoded `/leads/:leadId` route, `canManageLeads` gate and one-time `?action=create` sheet behavior remain unchanged. Create still uses the same `DirtyFormController`, exact `createLead(...)` fields, repository idempotency authority and provider invalidations. The five-card metric grid was removed; hierarchy is Leads + create → search/stage → lead/contact + stage → service interest → follow-up context → pager, with loaded-page stage counts explicitly not presented as global totals.
 
 ## Source-level parity checks performed
 
@@ -181,6 +182,7 @@ No E001–E146 surface is removed by this consolidation.
 - E047 was re-read after commit against `internal_service_case_page_repository.dart`, `internal_service_case.dart`, route access, and backend `internal_workspace_read_guard.get_service_cases`; scope authority, query parameters, paging metadata, document filter mapping and route encoding remain authoritative.
 - E048 was re-read after commit against `payments_repository.dart`, `payment_item.dart`, payment route construction and backend payment read/review guards. The commit changed one presentation file only; payment scope, `PaymentPageQuery`, backend filtering/paging, detail assisted flag behavior and receipt-review mutation authority were not modified.
 - E049 was re-read after commit against `internal_workspace_providers.dart`, `internal_workspace_repository.dart`, the router’s decoded `:caseId` binding and the adjacent E048 payment branch. Queue lookup/refetch behavior and routes were unchanged; the commit modified one presentation file only and added no API/provider/repository/domain authority.
+- E050 was re-read after commit against `leads_repository.dart`, `LeadItem`, router `?action=create` binding and the create form. Server search/paging, local stage filtering/counts, one-time create-on-load, capability checks, exact create mutation fields, dirty-form blocking and encoded detail routing remain authoritative.
 - No backend, API schema, provider authority, payment-first lifecycle, ERP authority or ERPNext core file was intentionally changed by Phases 4–5 source modernization to this checkpoint.
 
 ## Validation not yet available in this environment
@@ -195,7 +197,7 @@ No E001–E146 surface is removed by this consolidation.
 
 ## Exact next batch
 
-1. Continue **Phase 5** with **E050 — Leads pipeline** only, in exact `ui-ux.md` order.
-2. Re-check current GitHub `main`, read the exact E050 blueprint row, then read its complete current presentation owner and all provider/repository/query/create-on-load/mutation contracts before editing.
-3. Do not begin E051 until E050 is source-audited, source-complete, post-diff parity-checked and safely checkpointed in this ledger.
+1. Continue **Phase 5** with **E051 — Lead detail** only, in exact `ui-ux.md` order.
+2. Re-check current GitHub `main`, read the exact E051 blueprint row, then read its complete current presentation owner and provider/repository/detail contracts before editing.
+3. Do not begin E052 until E051 is source-audited, source-complete and post-diff parity-checked.
 4. Keep runtime/analyze/test/device/accessibility claims pending until they actually run.
