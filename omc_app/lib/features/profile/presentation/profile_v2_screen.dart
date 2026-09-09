@@ -905,18 +905,12 @@ Future<void> _showProfileSupportSheet(
     useSafeArea: true,
     builder: (sheetContext) => _ProfileSupportSheet(controller: controller),
   );
-  final currentDraft = controller.text.trim();
   controller.dispose();
-
-  if (currentDraft.isEmpty) {
-    _profileV2SupportDraftsByOwner.remove(ownerKey);
-  } else {
-    _profileV2SupportDraftsByOwner[ownerKey] = currentDraft;
-  }
 
   final cleanMessage = message?.trim();
   if (cleanMessage == null || cleanMessage.isEmpty || !context.mounted) return;
 
+  _profileV2SupportDraftsByOwner[ownerKey] = cleanMessage;
   if (_profileV2SupportSubmissionInFlight) {
     _showPendingSnack(
       context,
@@ -945,8 +939,7 @@ Future<void> _showProfileSupportSheet(
     final failure = AppFailureClassifier.classify(
       error,
       fallbackTitle: 'Request not submitted',
-      fallbackMessage:
-          'Could not submit request right now. Your message is retained so you can retry.',
+      fallbackMessage: 'Could not submit request right now. Please try again.',
     );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('${failure.message} Your message is retained.')),
