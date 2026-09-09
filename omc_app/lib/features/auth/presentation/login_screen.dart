@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/config/support_config.dart';
@@ -106,44 +107,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         showDragHandle: true,
         backgroundColor: Colors.white,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppRadius.sheet),
+          ),
         ),
         builder: (sheetContext) {
-          return Padding(
+          return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                Text(
                   'Choose an account',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 21,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Select which OMC account you want to sign in to, then verify your fingerprint or face.',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontWeight: FontWeight.w600,
-                    height: 1.4,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 14),
                 for (final account in accounts)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
+                    minVerticalPadding: 10,
                     leading: const CircleAvatar(
                       child: Icon(Icons.person_outline_rounded),
                     ),
                     title: Text(
                       account.identifier,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      softWrap: true,
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () {
@@ -242,55 +237,47 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       showDragHandle: true,
       backgroundColor: Colors.white,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.sheet),
+        ),
       ),
       builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(22, 8, 22, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Need help signing in?',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Use any of the support details below if the app or your account is not working.',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 14,
-                    height: 1.45,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                _SupportContactRow(
-                  icon: Icons.email_outlined,
-                  label: 'Email',
-                  value: SupportConfig.email,
-                ),
-                const SizedBox(height: 10),
-                _SupportContactRow(
-                  icon: Icons.phone_outlined,
-                  label: 'Phone / WhatsApp',
-                  value: SupportConfig.phoneNumber,
-                ),
-                const SizedBox(height: 10),
-                _SupportContactRow(
-                  icon: Icons.schedule_rounded,
-                  label: 'Business hours',
-                  value: SupportConfig.businessHours,
-                ),
-              ],
-            ),
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Need help signing in?',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Use any of the support details below if the app or your account is not working.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 18),
+              _SupportContactRow(
+                icon: Icons.email_outlined,
+                label: 'Email',
+                value: SupportConfig.email,
+              ),
+              const SizedBox(height: 10),
+              _SupportContactRow(
+                icon: Icons.phone_outlined,
+                label: 'Phone / WhatsApp',
+                value: SupportConfig.phoneNumber,
+              ),
+              const SizedBox(height: 10),
+              _SupportContactRow(
+                icon: Icons.schedule_rounded,
+                label: 'Business hours',
+                value: SupportConfig.businessHours,
+              ),
+            ],
           ),
         );
       },
@@ -310,169 +297,188 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       key: OmcWidgetKeys.loginScreen,
       title: 'Welcome back',
       subtitle: 'Sign in to continue to your OMC workspace.',
-      footer: _AuthFooter(
-        text: 'New to OMC?',
-        action: 'Create account',
-        onTap: isLoading ? null : () => context.go('/signup'),
+      footer: _LoginFooter(
+        isLoading: isLoading,
+        guestLoading: _guestSubmissionInFlight,
+        onCreateAccount: () => context.go('/signup'),
+        onActivateAccount: () => context.go('/activate-existing-account'),
+        onGuest: _continueAsGuest,
+        onHelp: _openSupport,
       ),
       child: Form(
         key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextFormField(
-              key: OmcWidgetKeys.loginIdentifier,
-              controller: _emailController,
-              keyboardType: TextInputType.text,
-              textInputAction: TextInputAction.next,
-              autofillHints: const [
-                AutofillHints.username,
-                AutofillHints.email,
-              ],
-              decoration: const InputDecoration(
-                labelText: 'Email, username, mobile or CNIC',
-                prefixIcon: Icon(Icons.person_outline_rounded),
+        child: AutofillGroup(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextFormField(
+                key: OmcWidgetKeys.loginIdentifier,
+                controller: _emailController,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [
+                  AutofillHints.username,
+                  AutofillHints.email,
+                ],
+                decoration: const InputDecoration(
+                  labelText: 'Email, username, mobile or CNIC',
+                  prefixIcon: Icon(Icons.person_outline_rounded),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Email, username, mobile or CNIC is required.';
+                  }
+                  return null;
+                },
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Email, username, mobile or CNIC is required.';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 14),
-            TextFormField(
-              key: OmcWidgetKeys.loginPassword,
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              textInputAction: TextInputAction.done,
-              autofillHints: const [AutofillHints.password],
-              onFieldSubmitted: (_) => _submit(),
-              decoration: InputDecoration(
-                labelText: 'Password',
-                prefixIcon: const Icon(Icons.lock_outline_rounded),
-                suffixIcon: IconButton(
-                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
-                  onPressed: () {
-                    setState(() => _obscurePassword = !_obscurePassword);
-                  },
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
+              const SizedBox(height: 14),
+              TextFormField(
+                key: OmcWidgetKeys.loginPassword,
+                controller: _passwordController,
+                obscureText: _obscurePassword,
+                textInputAction: TextInputAction.done,
+                autofillHints: const [AutofillHints.password],
+                onFieldSubmitted: (_) => _submit(),
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                  suffixIcon: IconButton(
+                    tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                    onPressed: isLoading
+                        ? null
+                        : () {
+                            setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            );
+                          },
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
                   ),
                 ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Password is required.';
+                  }
+                  return null;
+                },
               ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Password is required.';
-                }
-                return null;
-              },
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: isLoading
-                      ? null
-                      : () => context.go('/activate-existing-account'),
-                  child: const Text('Activate existing account'),
-                ),
-                TextButton(
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
                   onPressed: isLoading
                       ? null
                       : () => context.go('/forgot-password'),
                   child: const Text('Forgot password?'),
                 ),
+              ),
+              if (loginErrorMessage != null &&
+                  loginErrorMessage.trim().isNotEmpty) ...[
+                AuthErrorBanner(message: _normalizeLoginError(loginErrorMessage)),
+                const SizedBox(height: 16),
               ],
-            ),
-            if (loginErrorMessage != null &&
-                loginErrorMessage.trim().isNotEmpty) ...[
-              const SizedBox(height: 2),
-              AuthErrorBanner(message: _normalizeLoginError(loginErrorMessage)),
-              const SizedBox(height: 16),
-            ],
-            AppButton(
-              key: OmcWidgetKeys.loginSubmit,
-              label: 'Sign in',
-              isLoading: isLoading && !_biometricSubmissionInFlight,
-              onPressed: isLoading ? null : _submit,
-            ),
-            if (biometricAvailable) ...[
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  const Expanded(child: Divider()),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      'or',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textSecondary,
-                        fontWeight: FontWeight.w700,
+              AppButton(
+                key: OmcWidgetKeys.loginSubmit,
+                label: 'Sign in',
+                isLoading: isLoading && !_biometricSubmissionInFlight,
+                onPressed: isLoading ? null : _submit,
+              ),
+              if (biometricAvailable) ...[
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        'or',
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ),
-                  ),
-                  const Expanded(child: Divider()),
-                ],
-              ),
-              const SizedBox(height: 14),
-              OutlinedButton.icon(
-                onPressed: isLoading ? null : _signInWithBiometrics,
-                icon: _biometricSubmissionInFlight
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.fingerprint_rounded),
-                label: const Text('Sign in with biometrics'),
-              ),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  onPressed: isLoading ? null : _signInWithBiometrics,
+                  icon: _biometricSubmissionInFlight
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.fingerprint_rounded),
+                  label: const Text('Sign in with biometrics'),
+                ),
+              ],
             ],
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: isLoading ? null : _continueAsGuest,
-              child: const Text('Continue as guest'),
-            ),
-            const SizedBox(height: 10),
-            TextButton.icon(
-              onPressed: isLoading ? null : _openSupport,
-              icon: const Icon(Icons.support_agent_rounded, size: 19),
-              label: const Text('Having trouble? Get help'),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _AuthFooter extends StatelessWidget {
-  const _AuthFooter({
-    required this.text,
-    required this.action,
-    required this.onTap,
+class _LoginFooter extends StatelessWidget {
+  const _LoginFooter({
+    required this.isLoading,
+    required this.guestLoading,
+    required this.onCreateAccount,
+    required this.onActivateAccount,
+    required this.onGuest,
+    required this.onHelp,
   });
 
-  final String text;
-  final String action;
-  final VoidCallback? onTap;
+  final bool isLoading;
+  final bool guestLoading;
+  final VoidCallback onCreateAccount;
+  final VoidCallback onActivateAccount;
+  final VoidCallback onGuest;
+  final VoidCallback onHelp;
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      alignment: WrapAlignment.center,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          text,
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontWeight: FontWeight.w600,
-          ),
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              'New to OMC?',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            TextButton(
+              onPressed: isLoading ? null : onCreateAccount,
+              child: const Text('Create account'),
+            ),
+          ],
         ),
-        TextButton(onPressed: onTap, child: Text(action)),
+        TextButton(
+          onPressed: isLoading ? null : onActivateAccount,
+          child: const Text('Activate existing account'),
+        ),
+        const SizedBox(height: 4),
+        OutlinedButton.icon(
+          onPressed: isLoading ? null : onGuest,
+          icon: guestLoading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.explore_outlined),
+          label: const Text('Continue as guest'),
+        ),
+        const SizedBox(height: 6),
+        TextButton.icon(
+          onPressed: isLoading ? null : onHelp,
+          icon: const Icon(Icons.support_agent_rounded, size: 19),
+          label: const Text('Having trouble? Get help'),
+        ),
       ],
     );
   }
@@ -495,42 +501,36 @@ class _SupportContactRow extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5EAF2)),
+        color: AppTheme.cardSoft,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppTheme.border),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.09),
-              borderRadius: BorderRadius.circular(12),
+              color: AppTheme.infoSoft,
+              borderRadius: BorderRadius.circular(AppRadius.control),
             ),
-            child: Icon(icon, size: 20, color: AppTheme.primary),
+            child: const Icon(
+              Icons.info_outline_rounded,
+              size: 20,
+              color: AppTheme.info,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
+                Text(label, style: Theme.of(context).textTheme.bodySmall),
+                const SizedBox(height: 3),
                 SelectableText(
                   value,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
               ],
             ),
