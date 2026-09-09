@@ -257,8 +257,13 @@ class _CustomerHomeContent extends StatelessWidget {
             completedCases: summary.completedCases,
             onStartService: canStartService ? onOpenServices : null,
           ),
-        const SizedBox(height: 16),
-        _AtAGlance(summary: summary),
+        const SizedBox(height: 14),
+        _AtAGlance(
+          summary: summary,
+          onTrackServices: onTrackServices,
+          onOpenDocuments: onOpenDocuments,
+          onOpenPayments: onOpenPayments,
+        ),
         if (otherServices.isNotEmpty) ...[
           const SizedBox(height: 24),
           OmcSectionHeader(

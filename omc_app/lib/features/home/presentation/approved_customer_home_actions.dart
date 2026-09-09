@@ -1,112 +1,132 @@
 part of 'approved_customer_home_view.dart';
 
 class _AtAGlance extends StatelessWidget {
-  const _AtAGlance({required this.summary});
+  const _AtAGlance({
+    required this.summary,
+    required this.onTrackServices,
+    required this.onOpenDocuments,
+    required this.onOpenPayments,
+  });
 
   final HomeDashboardSummary summary;
+  final VoidCallback? onTrackServices;
+  final VoidCallback? onOpenDocuments;
+  final VoidCallback? onOpenPayments;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _MiniMetric(
+    return PremiumCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Column(
+        children: [
+          _SummaryLink(
             value: summary.activeCases,
-            label: 'Active',
+            label: 'Active requests',
             icon: Icons.assignment_outlined,
             accent: OmcPremium.services,
+            onTap: onTrackServices,
           ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _MiniMetric(
+          const Divider(height: 1),
+          _SummaryLink(
             value: summary.pendingDocuments,
-            label: 'Docs needed',
+            label: 'Documents needed',
             icon: Icons.folder_copy_outlined,
-            accent: OmcPremium.documents,
-            attention: summary.pendingDocuments > 0,
+            accent: summary.pendingDocuments > 0
+                ? AppTheme.warning
+                : OmcPremium.documents,
+            onTap: onOpenDocuments,
           ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _MiniMetric(
+          const Divider(height: 1),
+          _SummaryLink(
             value: summary.paymentsDue,
-            label: 'Payments',
+            label: 'Payments due',
             icon: Icons.credit_card_rounded,
-            accent: OmcPremium.payments,
-            attention: summary.paymentsDue > 0,
+            accent: summary.paymentsDue > 0
+                ? AppTheme.warning
+                : OmcPremium.payments,
+            onTap: onOpenPayments,
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-class _MiniMetric extends StatelessWidget {
-  const _MiniMetric({
+class _SummaryLink extends StatelessWidget {
+  const _SummaryLink({
     required this.value,
     required this.label,
     required this.icon,
     required this.accent,
-    this.attention = false,
+    required this.onTap,
   });
 
   final int value;
   final String label;
   final IconData icon;
   final Color accent;
-  final bool attention;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final tone = attention ? AppTheme.warning : accent;
-    return Semantics(
-      label: '$label: $value',
-      excludeSemantics: true,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(11, 11, 11, 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: attention
-                ? AppTheme.warning.withValues(alpha: 0.30)
-                : AppTheme.border,
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          OmcIconBadge(
+            icon: icon,
+            color: accent,
+            size: 40,
+            iconSize: 20,
+            radius: 12,
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            OmcIconBadge(
-              icon: icon,
-              color: tone,
-              size: 36,
-              iconSize: 19,
-              radius: 11,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              '$value',
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
               style: const TextStyle(
                 color: AppTheme.textPrimary,
-                fontSize: 20,
-                height: 1,
-                fontWeight: FontWeight.w900,
+                fontSize: 15,
+                height: 1.3,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 10.8,
-                fontWeight: FontWeight.w700,
-              ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            '$value',
+            style: TextStyle(
+              color: value > 0 ? accent : AppTheme.textSecondary,
+              fontSize: 20,
+              height: 1,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (onTap != null) ...[
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.textSecondary,
+              size: 22,
             ),
           ],
-        ),
+        ],
+      ),
+    );
+
+    if (onTap == null) {
+      return Semantics(label: '$label: $value', child: content);
+    }
+
+    return Semantics(
+      button: true,
+      label: '$label: $value',
+      hint: 'Open $label',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: content,
       ),
     );
   }
@@ -172,9 +192,8 @@ class _QuickActions extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(1);
-        final columns = constraints.maxWidth < 340 || textScale >= 1.5 ? 2 : 3;
-        final mainAxisExtent = (106 + ((textScale - 1).clamp(0, 1) * 28))
-            .toDouble();
+        final columns = constraints.maxWidth < 330 || textScale >= 1.6 ? 1 : 2;
+        final mainAxisExtent = textScale >= 1.4 ? 92.0 : 82.0;
 
         return GridView.builder(
           shrinkWrap: true,
@@ -182,8 +201,8 @@ class _QuickActions extends StatelessWidget {
           itemCount: actions.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
-            crossAxisSpacing: 9,
-            mainAxisSpacing: 9,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
             mainAxisExtent: mainAxisExtent,
           ),
           itemBuilder: (context, index) {
@@ -194,37 +213,42 @@ class _QuickActions extends StatelessWidget {
               excludeSemantics: true,
               child: Material(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(16),
                 child: InkWell(
                   onTap: action.onTap,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(16),
                   child: Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: AppTheme.border),
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    child: Row(
                       children: [
                         OmcIconBadge(
                           icon: action.icon,
                           color: action.accent,
                           size: 42,
                           iconSize: 21,
-                          radius: 13,
+                          radius: 12,
                         ),
-                        const SizedBox(height: 9),
-                        Text(
-                          action.label,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w800,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            action.label,
+                            maxLines: 2,
+                            style: const TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 15,
+                              height: 1.25,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: AppTheme.textSecondary,
+                          size: 20,
                         ),
                       ],
                     ),
@@ -251,7 +275,7 @@ class _ExploreCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(16),
       child: Column(
         children: [
           _ExploreRow(
@@ -261,7 +285,7 @@ class _ExploreCard extends StatelessWidget {
             subtitle: 'Start a new service from the full catalogue.',
             onTap: onOpenServices,
           ),
-          const Divider(height: 22),
+          const Divider(height: 24),
           _ExploreRow(
             icon: Icons.calculate_outlined,
             accent: OmcPremium.tax,
@@ -303,6 +327,7 @@ class _ExploreRow extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 5),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               OmcIconBadge(
                 icon: icon,
@@ -320,26 +345,30 @@ class _ExploreRow extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         color: AppTheme.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        height: 1.3,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
                       subtitle,
                       style: const TextStyle(
                         color: AppTheme.textSecondary,
-                        fontSize: 11,
-                        height: 1.3,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        height: 1.4,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppTheme.textSecondary,
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppTheme.textSecondary,
+                ),
               ),
             ],
           ),

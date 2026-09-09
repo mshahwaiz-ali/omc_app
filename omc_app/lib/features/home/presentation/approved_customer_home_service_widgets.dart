@@ -16,64 +16,88 @@ class _HomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final displayName = name.trim().isEmpty ? 'Your OMC' : name.trim();
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stack =
+            constraints.maxWidth < 360 ||
+            MediaQuery.textScalerOf(context).scale(1) >= 1.4;
+        final identity = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'My OMC',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Semantics(
+              header: true,
+              child: Text(
+                displayName,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 26,
+                  height: 1.12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(height: 5),
+            const Text(
+              'Your services, actions and next steps',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 15,
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        );
+        final actions = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (onNotifications != null) ...[
+              _HeaderButton(
+                tooltip: 'Notifications',
+                icon: Icons.notifications_none_rounded,
+                badge: unreadNotifications,
+                onTap: onNotifications!,
+              ),
+              const SizedBox(width: 8),
+            ],
+            _HeaderButton(
+              tooltip: 'Profile',
+              icon: Icons.person_outline_rounded,
+              onTap: onProfile,
+            ),
+          ],
+        );
+
+        if (stack) {
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'My OMC',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.4,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Semantics(
-                header: true,
-                child: Text(
-                  displayName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 26,
-                    height: 1.05,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 5),
-              const Text(
-                'Your services, actions and next steps',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              identity,
+              const SizedBox(height: 12),
+              actions,
             ],
-          ),
-        ),
-        if (onNotifications != null) ...[
-          _HeaderButton(
-            tooltip: 'Notifications',
-            icon: Icons.notifications_none_rounded,
-            badge: unreadNotifications,
-            onTap: onNotifications!,
-          ),
-          const SizedBox(width: 9),
-        ],
-        _HeaderButton(
-          tooltip: 'Profile',
-          icon: Icons.person_outline_rounded,
-          onTap: onProfile,
-        ),
-      ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: identity),
+            const SizedBox(width: 12),
+            actions,
+          ],
+        );
+      },
     );
   }
 }
@@ -102,15 +126,15 @@ class _HeaderButton extends StatelessWidget {
         message: tooltip,
         child: Material(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(12),
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(12),
             child: Container(
               width: AppTouchTarget.minimum,
               height: AppTouchTarget.minimum,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppTheme.border),
               ),
               child: Stack(
@@ -119,12 +143,12 @@ class _HeaderButton extends StatelessWidget {
                   Center(child: Icon(icon, color: AppTheme.textPrimary)),
                   if (badge > 0)
                     Positioned(
-                      right: 5,
-                      top: 5,
+                      right: 4,
+                      top: 4,
                       child: Container(
-                        constraints: const BoxConstraints(minWidth: 16),
+                        constraints: const BoxConstraints(minWidth: 18),
                         padding: const EdgeInsets.symmetric(horizontal: 4),
-                        height: 16,
+                        height: 18,
                         decoration: BoxDecoration(
                           color: AppTheme.danger,
                           borderRadius: BorderRadius.circular(999),
@@ -134,8 +158,8 @@ class _HeaderButton extends StatelessWidget {
                           badge > 99 ? '99+' : '$badge',
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w900,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
@@ -158,70 +182,81 @@ class _CurrentServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final action = service.nextAction;
-    final progressPercent = (service.progress * 100)
-        .round()
-        .clamp(0, 100)
-        .toInt();
+    final progressPercent =
+        (service.progress * 100).round().clamp(0, 100).toInt();
 
     return PremiumCard(
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stack =
+                  constraints.maxWidth < 350 ||
+                  MediaQuery.textScalerOf(context).scale(1) >= 1.4;
+              final identity = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    service.actionRequired
+                        ? 'Needs your attention'
+                        : 'Current service',
+                    style: TextStyle(
+                      color: service.actionRequired
+                          ? AppTheme.danger
+                          : AppTheme.textSecondary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    service.title.isEmpty ? 'OMC service request' : service.title,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 21,
+                      height: 1.2,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${service.stageLabel} · ${service.statusLabel}',
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 15,
+                      height: 1.4,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              );
+              final badge = OmcStatusBadge(
+                label: service.isTerminal ? 'Closed' : '$progressPercent%',
+                color: service.actionRequired
+                    ? AppTheme.warning
+                    : AppTheme.info,
+              );
+
+              if (stack) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      service.actionRequired
-                          ? 'Needs your attention'
-                          : 'Current service',
-                      style: TextStyle(
-                        color: service.actionRequired
-                            ? AppTheme.danger
-                            : AppTheme.textSecondary,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-                    Text(
-                      service.title.isEmpty
-                          ? 'OMC service request'
-                          : service.title,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 21,
-                        height: 1.15,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${service.stageLabel} · ${service.statusLabel}',
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              _ProgressBadge(
-                percent: progressPercent,
-                attention: service.actionRequired,
-                terminal: service.isTerminal,
-              ),
-            ],
+                  children: [identity, const SizedBox(height: 10), badge],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: identity),
+                  const SizedBox(width: 12),
+                  badge,
+                ],
+              );
+            },
           ),
-          const SizedBox(height: 17),
+          const SizedBox(height: 16),
           Semantics(
             label: service.isTerminal
                 ? 'Service closed'
@@ -239,26 +274,6 @@ class _CurrentServiceCard extends StatelessWidget {
               ),
             ),
           ),
-          if (service.milestones.isNotEmpty) ...[
-            const SizedBox(height: 18),
-            Semantics(
-              header: true,
-              child: Text(
-                'Service journey',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            for (var index = 0; index < service.milestones.length; index++)
-              _MilestoneRow(
-                milestone: service.milestones[index],
-                isLast: index == service.milestones.length - 1,
-              ),
-          ],
           if (action != null) ...[
             const SizedBox(height: 16),
             _NextStepPanel(action: action),
@@ -284,39 +299,60 @@ class _CurrentServiceCard extends StatelessWidget {
               label: const Text('View service'),
             ),
           ],
+          if (service.milestones.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _ServiceJourneyExpansion(milestones: service.milestones),
+          ],
         ],
       ),
     );
   }
 }
 
-class _ProgressBadge extends StatelessWidget {
-  const _ProgressBadge({
-    required this.percent,
-    required this.attention,
-    required this.terminal,
-  });
+class _ServiceJourneyExpansion extends StatelessWidget {
+  const _ServiceJourneyExpansion({required this.milestones});
 
-  final int percent;
-  final bool attention;
-  final bool terminal;
+  final List<HomeDashboardLifecycleMilestone> milestones;
 
   @override
   Widget build(BuildContext context) {
-    final label = terminal ? 'Closed' : '$percent%';
+    final completed = milestones.where((item) => item.isComplete).length;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: attention ? AppTheme.dangerSoft : AppTheme.primarySoft,
-        borderRadius: BorderRadius.circular(13),
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.border),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: AppTheme.textPrimary,
-          fontSize: 12,
-          fontWeight: FontWeight.w900,
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        leading: const Icon(Icons.route_outlined, color: AppTheme.textSecondary),
+        title: const Text(
+          'Service journey',
+          style: TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
         ),
+        subtitle: Text(
+          '$completed of ${milestones.length} stages complete',
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 14,
+            height: 1.35,
+          ),
+        ),
+        children: [
+          for (var index = 0; index < milestones.length; index++)
+            _MilestoneRow(
+              milestone: milestones[index],
+              isLast: index == milestones.length - 1,
+            ),
+        ],
       ),
     );
   }
@@ -335,22 +371,22 @@ class _MilestoneRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 26,
+          width: 28,
           child: Column(
             children: [
               Container(
-                width: 20,
-                height: 20,
+                width: 22,
+                height: 22,
                 decoration: BoxDecoration(
                   color: visual.background,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(visual.icon, size: 13, color: visual.foreground),
+                child: Icon(visual.icon, size: 14, color: visual.foreground),
               ),
               if (!isLast)
                 Container(
                   width: 2,
-                  height: milestone.detail.isEmpty ? 22 : 36,
+                  height: milestone.detail.isEmpty ? 28 : 46,
                   color: AppTheme.border,
                 ),
             ],
@@ -359,7 +395,7 @@ class _MilestoneRow extends StatelessWidget {
         const SizedBox(width: 9),
         Expanded(
           child: Padding(
-            padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
+            padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -367,19 +403,20 @@ class _MilestoneRow extends StatelessWidget {
                   milestone.label,
                   style: const TextStyle(
                     color: AppTheme.textPrimary,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 if (milestone.detail.isNotEmpty) ...[
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 3),
                   Text(
                     milestone.detail,
                     style: const TextStyle(
                       color: AppTheme.textSecondary,
-                      fontSize: 11.5,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      height: 1.4,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -399,56 +436,66 @@ class _NextStepPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: action.required ? AppTheme.dangerSoft : AppTheme.cardSoft,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: action.required
-              ? AppTheme.danger.withValues(alpha: 0.22)
-              : AppTheme.border,
+    final tone = action.required ? AppTheme.danger : AppTheme.info;
+    return Semantics(
+      label: action.required ? 'Required next action' : 'Current update',
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: tone.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: tone.withValues(alpha: 0.18)),
         ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            action.required
-                ? Icons.priority_high_rounded
-                : Icons.info_outline_rounded,
-            size: 20,
-            color: action.required ? AppTheme.danger : AppTheme.info,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  action.title,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                if (action.subtitle.trim().isNotEmpty) ...[
-                  const SizedBox(height: 3),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              action.required
+                  ? Icons.priority_high_rounded
+                  : Icons.info_outline_rounded,
+              size: 22,
+              color: tone,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    action.subtitle,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 11.5,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
+                    action.required ? 'Next action' : 'Current update',
+                    style: TextStyle(
+                      color: tone,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    action.title,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 17,
+                      height: 1.3,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (action.subtitle.trim().isNotEmpty) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      action.subtitle,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 15,
+                        height: 1.45,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -468,6 +515,7 @@ class _CompactServiceCard extends StatelessWidget {
       semanticLabel: '$label, ${service.stageLabel}',
       semanticHint: 'Open service request',
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 42,
@@ -476,15 +524,13 @@ class _CompactServiceCard extends StatelessWidget {
               color: service.actionRequired
                   ? AppTheme.dangerSoft
                   : AppTheme.primarySoft,
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               service.actionRequired
                   ? Icons.priority_high_rounded
                   : Icons.work_outline_rounded,
-              color: service.actionRequired
-                  ? AppTheme.danger
-                  : AppTheme.primary,
+              color: service.actionRequired ? AppTheme.danger : AppTheme.primary,
             ),
           ),
           const SizedBox(width: 12),
@@ -494,32 +540,33 @@ class _CompactServiceCard extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppTheme.textPrimary,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                    height: 1.3,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   service.stageLabel,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppTheme.textSecondary,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    height: 1.4,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: AppTheme.textSecondary,
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.textSecondary,
+            ),
           ),
         ],
       ),
@@ -550,7 +597,7 @@ class _NoActiveServiceCard extends StatelessWidget {
                 color: OmcPremium.track,
                 size: 50,
                 iconSize: 24,
-                radius: 15,
+                radius: 14,
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -562,8 +609,8 @@ class _NoActiveServiceCard extends StatelessWidget {
                       style: TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 19,
-                        height: 1.15,
-                        fontWeight: FontWeight.w900,
+                        height: 1.2,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -573,8 +620,9 @@ class _NoActiveServiceCard extends StatelessWidget {
                           : 'Start an OMC service when you are ready. Your next steps will appear here.',
                       style: const TextStyle(
                         color: AppTheme.textSecondary,
-                        height: 1.4,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        height: 1.45,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -583,7 +631,7 @@ class _NoActiveServiceCard extends StatelessWidget {
             ],
           ),
           if (onStartService != null) ...[
-            const SizedBox(height: 17),
+            const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: onStartService,
               icon: const Icon(Icons.grid_view_rounded),
@@ -622,7 +670,7 @@ class _ActiveServiceCountCard extends StatelessWidget {
                 color: OmcPremium.track,
                 size: 50,
                 iconSize: 24,
-                radius: 15,
+                radius: 14,
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -634,8 +682,8 @@ class _ActiveServiceCountCard extends StatelessWidget {
                       style: const TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 19,
-                        height: 1.15,
-                        fontWeight: FontWeight.w900,
+                        height: 1.2,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -643,8 +691,9 @@ class _ActiveServiceCountCard extends StatelessWidget {
                       'Open My requests to view the tracking information currently available for your active work.',
                       style: TextStyle(
                         color: AppTheme.textSecondary,
-                        height: 1.4,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        height: 1.45,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -653,7 +702,7 @@ class _ActiveServiceCountCard extends StatelessWidget {
             ],
           ),
           if (onTrackServices != null) ...[
-            const SizedBox(height: 17),
+            const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: onTrackServices,
               icon: const Icon(Icons.arrow_forward_rounded),
