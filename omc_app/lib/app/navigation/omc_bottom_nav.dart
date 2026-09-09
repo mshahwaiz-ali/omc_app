@@ -3,7 +3,6 @@ import 'package:flutter/semantics.dart';
 
 import '../../core/interaction/app_feedback.dart';
 import '../../core/diagnostics/omc_widget_keys.dart';
-import '../../core/widgets/omc_premium.dart';
 import '../design_tokens.dart';
 import '../theme.dart';
 import 'omc_nav_models.dart';
@@ -75,47 +74,33 @@ class OmcBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = isInternal ? _adminItems : _customerItems;
-    final readableForeground =
-        onAccentColor ??
-        (ThemeData.estimateBrightnessForColor(primaryColor) == Brightness.dark
-            ? Colors.white
-            : const Color(0xFF111827));
-
+    final theme = Theme.of(context);
+    final readableForeground = onAccentColor ?? theme.colorScheme.onPrimary;
+    final selectedInk = theme.colorScheme.onPrimaryContainer;
     final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
-    final textScale = MediaQuery.textScalerOf(context).scale(1);
-    final scaleGrowth = (textScale - 1).clamp(0.0, 2.0).toDouble();
-    final extraHeight = scaleGrowth * 14;
-    final navigationHeight = 72 + extraHeight;
-    final tabHeight = 58 + extraHeight;
 
     return Material(
-      color: Colors.white,
+      color: theme.colorScheme.surface,
       elevation: 0,
       child: Padding(
         padding: EdgeInsets.only(bottom: bottomInset),
         child: Container(
           key: const ValueKey('omc_bottom_nav_surface'),
-          height: navigationHeight,
-          padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+          constraints: const BoxConstraints(minHeight: 72),
+          padding: const EdgeInsets.fromLTRB(6, 6, 6, 8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.colorScheme.surface,
             border: const Border(top: BorderSide(color: AppTheme.border)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 18,
-                offset: const Offset(0, -6),
-              ),
-            ],
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
                 child: _NavTab(
                   item: items[0],
                   selected: selectedIndex == 0,
                   accentColor: primaryColor,
-                  height: tabHeight,
+                  selectedInk: selectedInk,
                   semanticsOrder: 0,
                   onTap: () => onTabSelected(0),
                 ),
@@ -125,23 +110,26 @@ class OmcBottomNav extends StatelessWidget {
                   item: items[1],
                   selected: selectedIndex == 1,
                   accentColor: primaryColor,
-                  height: tabHeight,
+                  selectedInk: selectedInk,
                   semanticsOrder: 1,
                   onTap: () => onTabSelected(1),
                 ),
               ),
-              _CenterActionButton(
-                onTap: onQuickActions,
-                isInternal: isInternal,
-                accentColor: primaryColor,
-                onAccentColor: readableForeground,
+              Expanded(
+                child: _CenterActionButton(
+                  onTap: onQuickActions,
+                  isInternal: isInternal,
+                  accentColor: primaryColor,
+                  onAccentColor: readableForeground,
+                  accentInk: selectedInk,
+                ),
               ),
               Expanded(
                 child: _NavTab(
                   item: items[2],
                   selected: selectedIndex == 2,
                   accentColor: primaryColor,
-                  height: tabHeight,
+                  selectedInk: selectedInk,
                   semanticsOrder: 3,
                   onTap: () => onTabSelected(2),
                 ),
@@ -151,7 +139,8 @@ class OmcBottomNav extends StatelessWidget {
                   selected: selectedIndex >= 3,
                   badgeCount: notificationBadgeCount,
                   accentColor: primaryColor,
-                  height: tabHeight,
+                  selectedInk: selectedInk,
+                  onAccentColor: readableForeground,
                   onTap: onMore,
                 ),
               ),
@@ -169,51 +158,74 @@ class _CenterActionButton extends StatelessWidget {
     required this.isInternal,
     required this.accentColor,
     required this.onAccentColor,
+    required this.accentInk,
   });
 
   final VoidCallback onTap;
   final bool isInternal;
   final Color accentColor;
   final Color onAccentColor;
+  final Color accentInk;
 
   @override
   Widget build(BuildContext context) {
-    final label = isInternal ? 'Open work quick actions' : 'Open quick actions';
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 5),
-      child: Tooltip(
-        message: label,
-        child: Semantics(
-          button: true,
-          label: label,
-          hint: 'Shows actions available to your account',
-          sortKey: const OrdinalSortKey(2),
-          excludeSemantics: true,
-          child: Material(
-            color: accentColor,
+    final semanticLabel = isInternal
+        ? 'Open work quick actions'
+        : 'Open quick actions';
+
+    return Tooltip(
+      message: semanticLabel,
+      child: Semantics(
+        button: true,
+        label: semanticLabel,
+        hint: 'Shows actions available to your account',
+        sortKey: const OrdinalSortKey(2),
+        excludeSemantics: true,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              AppFeedback.action();
+              onTap();
+            },
             borderRadius: BorderRadius.circular(AppRadius.control),
-            child: InkWell(
-              onTap: () {
-                AppFeedback.action();
-                onTap();
-              },
-              borderRadius: BorderRadius.circular(AppRadius.control),
-              child: Container(
-                constraints: AppTouchTarget.constraints,
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: accentColor,
-                  borderRadius: BorderRadius.circular(AppRadius.control),
-                  boxShadow: [
-                    BoxShadow(
-                      color: accentColor.withValues(alpha: 0.20),
-                      blurRadius: 14,
-                      offset: const Offset(0, 5),
+            child: Container(
+              constraints: const BoxConstraints(
+                minHeight: AppTouchTarget.minimum,
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 2,
+                vertical: AppSpacing.xxs,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: accentColor,
+                      borderRadius: BorderRadius.circular(AppRadius.control),
                     ),
-                  ],
-                ),
-                child: Icon(Icons.add_rounded, color: onAccentColor, size: 27),
+                    child: Icon(
+                      Icons.add_rounded,
+                      color: onAccentColor,
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Quick',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: accentInk,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      height: 1.2,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -228,7 +240,7 @@ class _NavTab extends StatelessWidget {
     required this.item,
     required this.selected,
     required this.accentColor,
-    required this.height,
+    required this.selectedInk,
     required this.semanticsOrder,
     required this.onTap,
   });
@@ -236,14 +248,15 @@ class _NavTab extends StatelessWidget {
   final OmcBottomNavItem item;
   final bool selected;
   final Color accentColor;
-  final double height;
+  final Color selectedInk;
   final double semanticsOrder;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? accentColor : AppTheme.textMuted;
+    final color = selected ? selectedInk : AppTheme.textCaption;
     final motionDuration = AppMotion.durationFor(context, AppMotion.quick);
+
     return Semantics(
       button: true,
       selected: selected,
@@ -262,23 +275,24 @@ class _NavTab extends StatelessWidget {
             if (!selected) AppFeedback.selection();
             onTap();
           },
-          borderRadius: BorderRadius.circular(AppRadius.medium),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           child: AnimatedContainer(
             duration: motionDuration,
             curve: Curves.easeOutCubic,
-            height: height,
             constraints: const BoxConstraints(
               minHeight: AppTouchTarget.minimum,
             ),
-            margin: const EdgeInsets.symmetric(horizontal: 2),
+            margin: const EdgeInsets.symmetric(horizontal: 1),
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 5),
             decoration: BoxDecoration(
               color: selected
                   ? accentColor.withValues(alpha: 0.08)
                   : Colors.transparent,
-              borderRadius: BorderRadius.circular(AppRadius.medium),
+              borderRadius: BorderRadius.circular(AppRadius.control),
             ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 AnimatedScale(
                   duration: motionDuration,
@@ -286,23 +300,20 @@ class _NavTab extends StatelessWidget {
                   child: Icon(
                     selected ? item.activeIcon : item.icon,
                     color: color,
-                    size: 22,
+                    size: 24,
                   ),
                 ),
                 const SizedBox(height: 3),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: Text(
-                    item.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 10,
-                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                      height: 1.1,
-                    ),
+                Text(
+                  item.label,
+                  maxLines: 3,
+                  softWrap: true,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    height: 1.2,
                   ),
                 ),
               ],
@@ -319,19 +330,21 @@ class _MoreTab extends StatelessWidget {
     required this.selected,
     required this.badgeCount,
     required this.accentColor,
-    required this.height,
+    required this.selectedInk,
+    required this.onAccentColor,
     required this.onTap,
   });
 
   final bool selected;
   final int badgeCount;
   final Color accentColor;
-  final double height;
+  final Color selectedInk;
+  final Color onAccentColor;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? accentColor : AppTheme.textMuted;
+    final color = selected ? selectedInk : AppTheme.textCaption;
     final semanticLabel = badgeCount > 0
         ? 'More, $badgeCount unread notifications'
         : 'More';
@@ -350,46 +363,52 @@ class _MoreTab extends StatelessWidget {
             AppFeedback.selection();
             onTap();
           },
-          borderRadius: BorderRadius.circular(AppRadius.medium),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           child: AnimatedContainer(
             duration: AppMotion.durationFor(context, AppMotion.quick),
-            height: height,
             constraints: const BoxConstraints(
               minHeight: AppTouchTarget.minimum,
             ),
-            margin: const EdgeInsets.symmetric(horizontal: 2),
+            margin: const EdgeInsets.symmetric(horizontal: 1),
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 5),
             decoration: BoxDecoration(
               color: selected
                   ? accentColor.withValues(alpha: 0.08)
                   : Colors.transparent,
-              borderRadius: BorderRadius.circular(AppRadius.medium),
+              borderRadius: BorderRadius.circular(AppRadius.control),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    Icon(Icons.more_horiz_rounded, color: color, size: 23),
+                    Icon(Icons.more_horiz_rounded, color: color, size: 24),
                     if (badgeCount > 0)
                       Positioned(
-                        top: -7,
-                        right: -12,
+                        top: -8,
+                        right: -13,
                         child: ExcludeSemantics(
-                          child: _Badge(count: badgeCount),
+                          child: _Badge(
+                            count: badgeCount,
+                            backgroundColor: accentColor,
+                            foregroundColor: onAccentColor,
+                          ),
                         ),
                       ),
                   ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   'More',
+                  maxLines: 3,
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     color: color,
-                    fontSize: 10,
-                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                    height: 1.1,
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    height: 1.2,
                   ),
                 ),
               ],
@@ -402,28 +421,34 @@ class _MoreTab extends StatelessWidget {
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge({required this.count});
+  const _Badge({
+    required this.count,
+    required this.backgroundColor,
+    required this.foregroundColor,
+  });
+
   final int count;
+  final Color backgroundColor;
+  final Color foregroundColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 17),
-      height: 17,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
       decoration: BoxDecoration(
-        color: OmcPremium.services,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: Colors.white, width: 2),
+        border: Border.all(color: Colors.white, width: 1.5),
       ),
       child: Center(
         child: Text(
           count > 99 ? '99+' : count.toString(),
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 8.5,
-            fontWeight: FontWeight.w900,
-            height: 1,
+          style: TextStyle(
+            color: foregroundColor,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            height: 1.2,
           ),
         ),
       ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../core/widgets/omc_premium.dart';
 import '../../features/auth/application/auth_state.dart';
+import '../design_tokens.dart';
 import '../theme.dart';
 import 'omc_navigation_ia.dart';
 
@@ -58,12 +58,9 @@ Future<void> showOmcQuickActionsSheet({
   final selectedAction = await showModalBottomSheet<VoidCallback>(
     context: context,
     useSafeArea: true,
+    isScrollControlled: true,
     showDragHandle: true,
-    backgroundColor: Colors.white,
     barrierColor: Colors.black.withValues(alpha: 0.28),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-    ),
     builder: (sheetContext) =>
         _QuickActionsContent(actions: actions, callbackFor: callbackFor),
   );
@@ -83,50 +80,62 @@ class _QuickActionsContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+
     return ConstrainedBox(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.58,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.90,
       ),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(18, 2, 18, 24),
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          0,
+          AppSpacing.lg,
+          AppSpacing.md + bottomInset,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Quick actions',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 19,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.2,
+            Semantics(
+              header: true,
+              child: Text('Quick actions', style: theme.textTheme.titleLarge),
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              'Actions available to your account right now.',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'Actions for the work you can perform right now.',
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 14),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: actions.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: 1.05,
-              ),
-              itemBuilder: (context, index) {
-                final item = actions[index];
-                return _QuickActionButton(
-                  item: item,
-                  onTap: () => Navigator.of(context).pop(callbackFor(item.id)),
+            const SizedBox(height: AppSpacing.xl),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final textScale = MediaQuery.textScalerOf(context).scale(1);
+                final columns = _columnCount(
+                  width: constraints.maxWidth,
+                  textScale: textScale,
+                );
+                final spacing = AppSpacing.sm;
+                final itemWidth =
+                    (constraints.maxWidth - spacing * (columns - 1)) / columns;
+
+                return Wrap(
+                  spacing: spacing,
+                  runSpacing: spacing,
+                  children: [
+                    for (final item in actions)
+                      SizedBox(
+                        width: itemWidth,
+                        child: _QuickActionButton(
+                          item: item,
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pop(callbackFor(item.id)),
+                        ),
+                      ),
+                  ],
                 );
               },
             ),
@@ -134,6 +143,16 @@ class _QuickActionsContent extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  int _columnCount({required double width, required double textScale}) {
+    if (width < 300 || textScale >= 1.5) return 1;
+    if (width >= 600 && textScale < 1.3) {
+      final threeColumnItemWidth =
+          (width - AppSpacing.sm * 2) / 3;
+      if (threeColumnItemWidth >= 176) return 3;
+    }
+    return 2;
   }
 }
 
@@ -145,46 +164,63 @@ class _QuickActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = OmcPremium.moduleColor(item.label);
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(15),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: AppTheme.border),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(12),
+    final theme = Theme.of(context);
+    final radius = BorderRadius.circular(AppRadius.card);
+
+    return Semantics(
+      button: true,
+      label: item.label,
+      excludeSemantics: true,
+      child: Material(
+        color: theme.colorScheme.surface,
+        borderRadius: radius,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 72),
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              borderRadius: radius,
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                ExcludeSemantics(
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(AppRadius.control),
+                    ),
+                    child: Icon(
+                      _iconFor(item.id),
+                      color: theme.colorScheme.onSurfaceVariant,
+                      size: 24,
+                    ),
+                  ),
                 ),
-                child: Icon(_iconFor(item.id), color: color, size: 20),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                item.label,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 10.8,
-                  height: 1.12,
-                  fontWeight: FontWeight.w800,
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    item.label,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      height: 1.25,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: AppSpacing.xs),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: theme.colorScheme.onSurfaceVariant,
+                  size: 20,
+                ),
+              ],
+            ),
           ),
         ),
       ),
