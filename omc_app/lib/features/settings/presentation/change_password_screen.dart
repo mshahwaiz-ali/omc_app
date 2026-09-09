@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/navigation/navigation_coordinator.dart';
+import '../../../app/theme.dart';
 import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
@@ -157,6 +159,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     return UnsavedChangesGuard(
       controller: _dirtyForm,
       child: Scaffold(
+        backgroundColor: AppTheme.background,
         appBar: AppBar(
           title: const Text('Change password'),
           leading: IconButton(
@@ -171,123 +174,163 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
           ),
         ),
         body: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
-            children: [
-              PremiumCard(
-                padding: const EdgeInsets.all(22),
-                child: Form(
-                  key: _formKey,
-                  child: AutofillGroup(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const Icon(
-                          Icons.admin_panel_settings_outlined,
-                          size: 44,
+          top: false,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: AppLayout.formMaxWidth),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 40),
+                children: [
+                  Text(
+                    'Secure your account',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Confirm your current password, then choose a new one. A successful change clears biometric sign-in enrollment and signs this device out.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 20),
+                  PremiumCard(
+                    padding: const EdgeInsets.all(20),
+                    child: Form(
+                      key: _formKey,
+                      child: AutofillGroup(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'Current password',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 10),
+                            TextFormField(
+                              controller: _currentPasswordController,
+                              obscureText: _obscureCurrent,
+                              enabled: !_submitting,
+                              textInputAction: TextInputAction.next,
+                              autofillHints: const [AutofillHints.password],
+                              decoration: _passwordDecoration(
+                                label: 'Current password',
+                                icon: Icons.lock_outline_rounded,
+                                obscure: _obscureCurrent,
+                                onToggle: () {
+                                  setState(
+                                    () => _obscureCurrent = !_obscureCurrent,
+                                  );
+                                },
+                              ),
+                              validator: (value) =>
+                                  _requiredPassword(value, 'Current password'),
+                            ),
+                            const SizedBox(height: 22),
+                            Text(
+                              'New password',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 6),
+                            const _PasswordRequirements(),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _newPasswordController,
+                              obscureText: _obscureNew,
+                              enabled: !_submitting,
+                              textInputAction: TextInputAction.next,
+                              autofillHints: const [AutofillHints.newPassword],
+                              decoration: _passwordDecoration(
+                                label: 'New password',
+                                icon: Icons.password_rounded,
+                                obscure: _obscureNew,
+                                onToggle: () {
+                                  setState(() => _obscureNew = !_obscureNew);
+                                },
+                              ),
+                              validator: _newPasswordValidator,
+                            ),
+                            const SizedBox(height: 14),
+                            TextFormField(
+                              controller: _confirmPasswordController,
+                              obscureText: _obscureConfirm,
+                              enabled: !_submitting,
+                              textInputAction: TextInputAction.done,
+                              autofillHints: const [AutofillHints.newPassword],
+                              onFieldSubmitted: (_) => _submit(),
+                              decoration: _passwordDecoration(
+                                label: 'Confirm new password',
+                                icon: Icons.lock_reset_outlined,
+                                obscure: _obscureConfirm,
+                                onToggle: () {
+                                  setState(
+                                    () => _obscureConfirm = !_obscureConfirm,
+                                  );
+                                },
+                              ),
+                              validator: (value) {
+                                final required = _requiredPassword(
+                                  value,
+                                  'Password confirmation',
+                                );
+                                if (required != null) return required;
+                                if (value != _newPasswordController.text) {
+                                  return 'Passwords do not match.';
+                                }
+                                return null;
+                              },
+                            ),
+                            if (_message != null) ...[
+                              const SizedBox(height: 14),
+                              AuthErrorBanner(message: _message!),
+                            ],
+                            const SizedBox(height: 22),
+                            AppButton(
+                              label: 'Change password',
+                              icon: Icons.lock_reset_rounded,
+                              isLoading: _submitting,
+                              onPressed: _submitting ? null : _submit,
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Protect your OMC account',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w900),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Enter your current password, then choose a new password. You will be signed out after the change.',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 22),
-                        TextFormField(
-                          controller: _currentPasswordController,
-                          obscureText: _obscureCurrent,
-                          enabled: !_submitting,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [AutofillHints.password],
-                          decoration: _passwordDecoration(
-                            label: 'Current password',
-                            icon: Icons.lock_outline_rounded,
-                            obscure: _obscureCurrent,
-                            onToggle: () {
-                              setState(
-                                () => _obscureCurrent = !_obscureCurrent,
-                              );
-                            },
-                          ),
-                          validator: (value) =>
-                              _requiredPassword(value, 'Current password'),
-                        ),
-                        const SizedBox(height: 14),
-                        TextFormField(
-                          controller: _newPasswordController,
-                          obscureText: _obscureNew,
-                          enabled: !_submitting,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [AutofillHints.newPassword],
-                          decoration: _passwordDecoration(
-                            label: 'New password',
-                            icon: Icons.password_rounded,
-                            obscure: _obscureNew,
-                            onToggle: () {
-                              setState(() => _obscureNew = !_obscureNew);
-                            },
-                          ),
-                          validator: _newPasswordValidator,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Use at least 8 characters.',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 14),
-                        TextFormField(
-                          controller: _confirmPasswordController,
-                          obscureText: _obscureConfirm,
-                          enabled: !_submitting,
-                          textInputAction: TextInputAction.done,
-                          autofillHints: const [AutofillHints.newPassword],
-                          onFieldSubmitted: (_) => _submit(),
-                          decoration: _passwordDecoration(
-                            label: 'Confirm new password',
-                            icon: Icons.lock_reset_outlined,
-                            obscure: _obscureConfirm,
-                            onToggle: () {
-                              setState(
-                                () => _obscureConfirm = !_obscureConfirm,
-                              );
-                            },
-                          ),
-                          validator: (value) {
-                            final required = _requiredPassword(
-                              value,
-                              'Password confirmation',
-                            );
-                            if (required != null) return required;
-                            if (value != _newPasswordController.text) {
-                              return 'Passwords do not match.';
-                            }
-                            return null;
-                          },
-                        ),
-                        if (_message != null) ...[
-                          const SizedBox(height: 14),
-                          AuthErrorBanner(message: _message!),
-                        ],
-                        const SizedBox(height: 22),
-                        AppButton(
-                          label: 'Change Password',
-                          icon: Icons.lock_reset_rounded,
-                          isLoading: _submitting,
-                          onPressed: _submitting ? null : _submit,
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PasswordRequirements extends StatelessWidget {
+  const _PasswordRequirements();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.infoSoft,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            size: 20,
+            color: AppTheme.info,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Use at least 8 characters, no more than 128, and choose a password different from your current one.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ],
       ),
     );
   }
