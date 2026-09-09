@@ -18,6 +18,7 @@ No E001–E146 surface is removed by this consolidation.
 
 - Baseline main SHA: `bd2c0d2c704b5ceb9ec7fae00cbf2e3746c94f9b`
 - Latest Phase 4 implementation code head: `19aa7be3ddd04c52d130ade98d540f755f17e1b9`
+- Latest Phase 5 implementation code head: `d67633724f952b787d13bf220f7cc25761e990e8`
 - Blueprint source-audit parent: `b42ed754fdb58dcd672497ba2e2e612658e1b882`
 - Backend: out of scope unless a genuine blocking defect is proven.
 - Functional/navigation/provider/payload authority: frozen per `ui-ux.md` J1/J2 and lifecycle clarification.
@@ -30,7 +31,7 @@ No E001–E146 surface is removed by this consolidation.
 | 2 — Shell/navigation/global UI | **SOURCE COMPLETE** — runtime validation pending | E042, E043, E062–E067, E090 plus shared shell/header work |
 | 3 — Customer journey + operations | **SOURCE COMPLETE** — runtime validation pending | **E001–E025** plus their routed customer/document/payment/support presentation owners |
 | 4 — Customer tools + account/auth | **SOURCE COMPLETE** — runtime validation pending | **E026–E041** plus applicable nested/modal/native tickets audited below |
-| 5 — Internal/staff + final QA closure | PENDING | Starts with E044; final analyze/test/device/accessibility closure also remains here |
+| 5 — Internal/staff + final QA closure | **IN PROGRESS** — runtime validation pending | **E044–E047 source-complete**; next E048. Final analyze/test/device/accessibility closure remains pending |
 
 ## Phase 1 source batches
 
@@ -157,6 +158,13 @@ No E001–E146 surface is removed by this consolidation.
 - **E144** document file selection/validation and **E146** customer document external opening belong to the already-routed document/customer-operation family and remain subject to final Phase 5 regression/runtime closure rather than being reclassified into Phase 4.
 - E042/E043 remain Phase 2 source-complete and were not redone.
 
+## Phase 5 — internal/staff source completion in progress
+
+- **E044 Customers directory** — `708348dbfe3a08658a96231eece3a4eda2cc9a31` + pager typing follow-up `7943902f8fcb64e64fd83dc522a8b8a92df1f84a`. Exact `customersResultPageProvider((start, search))`, 300ms debounce, backend `start`/`limit: 50`/trimmed search, server paging, local status filters, current-page-only counts and encoded customer-detail route retained.
+- **E045 Customer detail** — `1fecfb153c86e35b53d1ad5bfdde6bb2433e845f`. `customerDetailProvider(customerId)`, scoped ownership, read-only behavior, CNIC/NTN/technical/activity metadata and avatar fallback retained. Missing profile values now render explicitly as `Not added`.
+- **E046 Internal workspace** — `0b83057f1567dbb09c51e1c7892bb333187ac6d4`. P0 parity re-check completed. Existing capability-derived focus, summary/case providers, queue totals, ranking helpers, customer/case search handoff, settlement/admin/operations routes and capability gates remain unchanged.
+- **E047 Service case queue** — `d67633724f952b787d13bf220f7cc25761e990e8`. P0 source audit and post-commit parity re-check completed. Exact `internalServiceCasePageRepositoryProvider.fetchPage(...)` query, page size 50, 350ms trimmed search debounce, server `status`/`document_status`, load-more paging/dedupe, local primary filters/counts and encoded case-detail route retained. UI now follows Title/count → search + filter summary → customer/service → current operational state → next required action → secondary case/document counts. Loaded primary-filter counts are explicitly identified as loaded-page counts, never global totals. Advanced filter choices/values and apply/reset semantics remain unchanged; sheet now scrolls/stacks safely for narrow/large-text layouts.
+
 ## Source-level parity checks performed
 
 - GitHub `main` was rechecked before meaningful editing batches; all source changes remained on `main`, no feature branch or PR was created.
@@ -168,7 +176,8 @@ No E001–E146 surface is removed by this consolidation.
 - E115–E126 were checked against active routed V2 owners before E118 was changed; only the backup JSON typography changed.
 - E141 commit diff confirms intent lookup, `consumeOpen`, owner/binding/cancel checks and retry scheduling logic were untouched.
 - E142/E143 were checked together so device registration presentation did not alter native permission behavior.
-- No backend, API schema, provider authority, payment-first lifecycle, ERP authority or ERPNext core file was intentionally changed by Phase 4.
+- E047 was re-read after commit against `internal_service_case_page_repository.dart`, `internal_service_case.dart`, route access, and backend `internal_workspace_read_guard.get_service_cases`; scope authority, query parameters, paging metadata, document filter mapping and route encoding remain authoritative.
+- No backend, API schema, provider authority, payment-first lifecycle, ERP authority or ERPNext core file was intentionally changed by Phases 4–5 source modernization to this checkpoint.
 
 ## Validation not yet available in this environment
 
@@ -182,8 +191,7 @@ No E001–E146 surface is removed by this consolidation.
 
 ## Exact next batch
 
-1. Start **Phase 5 — Internal/Staff + final QA closure** with **E044** in exact `ui-ux.md` order.
-2. Re-read E044 and its current `main` presentation owner before editing; identify capability/provider/repository/payload authority first.
-3. Continue internal/staff E-tickets in blueprint order; do not reuse customer-role assumptions or broaden permissions.
-4. During final Phase 5 regression, explicitly re-check previously source-complete shared/native document tickets such as E144/E146 and all runtime-only acceptance criteria.
-5. Keep runtime/analyze/test claims pending until they actually run.
+1. Continue **Phase 5** with **E048 — Internal payment operations** only, in exact `ui-ux.md` order.
+2. Re-check current GitHub `main`, read the exact E048 blueprint row, then read its complete current presentation owner and all repository/provider/query/mutation contracts before editing.
+3. Do not begin E049 until E048 is source-audited, source-complete, post-diff parity-checked and safely checkpointed in this ledger.
+4. Keep runtime/analyze/test/device/accessibility claims pending until they actually run.
