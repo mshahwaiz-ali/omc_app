@@ -6,9 +6,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/resilience/app_failure.dart';
-import '../../../core/widgets/app_state.dart';
-import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/app_back_header.dart';
+import '../../../core/widgets/app_state.dart';
+import '../../../core/widgets/omc_premium.dart';
+import '../../../core/widgets/premium_card.dart';
 import '../../internal_workspace/presentation/internal_workspace_providers.dart';
 import '../../payments/data/payments_repository.dart';
 import '../../service_requests/data/service_case_repository.dart';
@@ -27,8 +28,9 @@ class NotificationDetailScreen extends ConsumerWidget {
     );
 
     return Scaffold(
-      appBar: const AppBackHeader(title: 'Notification Details'),
+      appBar: const AppBackHeader(title: 'Alert details'),
       body: SafeArea(
+        top: false,
         child: notificationAsync.when(
           data: (notification) {
             if (notification == null) {
@@ -36,9 +38,9 @@ class NotificationDetailScreen extends ConsumerWidget {
                 padding: EdgeInsets.all(20),
                 child: AppEmptyState(
                   icon: Icons.notifications_none_rounded,
-                  title: 'Notification unavailable',
+                  title: 'Alert unavailable',
                   message:
-                      'This notification may have been removed or is no longer available.',
+                      'This alert may have been removed or is no longer available.',
                 ),
               );
             }
@@ -50,9 +52,9 @@ class NotificationDetailScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(20),
             child: AppErrorState.fromError(
               error: error,
-              fallbackTitle: 'Notification unavailable',
+              fallbackTitle: 'Alert unavailable',
               fallbackMessage:
-                  'Notification details could not be loaded right now. Please try again.',
+                  'Alert details could not be loaded right now. Please try again.',
               onRetry: () =>
                   ref.invalidate(notificationDetailProvider(notificationId)),
             ),
@@ -108,45 +110,132 @@ class _NotificationDetailBodyState
   @override
   Widget build(BuildContext context) {
     final color = _typeColor(notification.type);
+    final relatedAction = _relatedActionLabel(notification);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 36),
       children: [
-        _NotificationHeroCard(
-          notification: notification,
-          color: color,
-          icon: _typeIcon(notification.type),
+        PremiumCard(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OmcStatusBadge(
+                    label: notification.type.label,
+                    color: color,
+                    icon: _typeIcon(notification.type),
+                  ),
+                  OmcStatusBadge(
+                    label: notification.isRead ? 'Read' : 'Unread',
+                    color: notification.isRead
+                        ? AppTheme.textSecondary
+                        : AppTheme.info,
+                    icon: notification.isRead
+                        ? Icons.done_rounded
+                        : Icons.circle_notifications_outlined,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Semantics(
+                header: true,
+                child: Text(
+                  notification.title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 21,
+                    height: 1.25,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                notification.message,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 16,
+                  height: 1.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 18),
-        _DetailSection(
-          title: 'Notification details',
-          subtitle: 'Reference and time for this update.',
-          children: [
-            _DetailTile(
-              icon: Icons.tag_rounded,
-              label: 'Reference',
-              value: notification.reference ?? 'Not available',
-            ),
-            const _DividerIndent(),
-            _DetailTile(
-              icon: Icons.schedule_rounded,
-              label: 'Created',
-              value: notification.createdAtLabel ?? 'Not available',
-            ),
-            const _DividerIndent(),
-            _DetailTile(
-              icon: Icons.link_rounded,
-              label: 'Action link',
-              value: notification.actionUrl == null
-                  ? 'Not available'
-                  : 'Available',
-            ),
-          ],
+        const SizedBox(height: 12),
+        PremiumCard(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Semantics(
+                header: true,
+                child: Text(
+                  'Alert information',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              _DetailRow(
+                label: 'Reference',
+                value: notification.reference ?? 'Not available',
+              ),
+              _DetailRow(
+                label: 'Created',
+                value: notification.createdAtLabel ?? 'Not available',
+              ),
+              _DetailRow(
+                label: 'Action',
+                value: notification.actionUrl == null
+                    ? 'Related record routing'
+                    : 'Action link available',
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 20),
-        _ActionsCard(
-          relatedActionLabel: _relatedActionLabel(notification),
-          onOpenRelated: () => _openRelatedRecord(context, notification),
+        const SizedBox(height: 12),
+        PremiumCard(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Semantics(
+                header: true,
+                child: Text(
+                  'Related action',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _relatedActionDescription(notification),
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 15,
+                  height: 1.45,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 14),
+              FilledButton.icon(
+                onPressed: () => _openRelatedRecord(context, notification),
+                icon: const Icon(Icons.arrow_forward_rounded),
+                label: Text(relatedAction),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -214,6 +303,16 @@ class _NotificationDetailBodyState
       case AppNotificationType.general:
         return 'Open related record';
     }
+  }
+
+  String _relatedActionDescription(NotificationItem notification) {
+    if (notification.actionUrl?.trim().isNotEmpty == true) {
+      return 'Open the destination supplied with this alert. Internal destinations are restricted to approved app routes; external links are limited to web URLs.';
+    }
+    if (notification.reference?.trim().isEmpty ?? true) {
+      return 'This alert does not currently include a related record reference.';
+    }
+    return 'Open the app record associated with this alert using its existing reference.';
   }
 
   void _openRelatedRecord(BuildContext context, NotificationItem notification) {
@@ -376,15 +475,15 @@ class _NotificationDetailBodyState
   Color _typeColor(AppNotificationType type) {
     switch (type) {
       case AppNotificationType.documentRequest:
-        return Colors.orange.shade800;
+        return AppTheme.warning;
       case AppNotificationType.paymentAlert:
-        return Colors.green.shade700;
+        return AppTheme.success;
       case AppNotificationType.serviceUpdate:
-        return AppTheme.primary;
+        return AppTheme.info;
       case AppNotificationType.taskUpdate:
-        return AppTheme.primary;
+        return AppTheme.info;
       case AppNotificationType.general:
-        return Colors.blueGrey.shade700;
+        return AppTheme.textSecondary;
     }
   }
 
@@ -404,360 +503,58 @@ class _NotificationDetailBodyState
   }
 }
 
-class _NotificationHeroCard extends StatelessWidget {
-  const _NotificationHeroCard({
-    required this.notification,
-    required this.color,
-    required this.icon,
-  });
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
 
-  final NotificationItem notification;
-  final Color color;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: EdgeInsets.zero,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: Stack(
-          children: [
-            Positioned(
-              top: -42,
-              right: -34,
-              child: Container(
-                width: 132,
-                height: 132,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color.withValues(alpha: 0.08),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 58,
-                        height: 58,
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.10),
-                          borderRadius: BorderRadius.circular(22),
-                        ),
-                        child: Icon(icon, color: color, size: 30),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _InfoPill(
-                              label: notification.type.label,
-                              color: color,
-                            ),
-                            _InfoPill(
-                              label: notification.isRead ? 'Read' : 'Unread',
-                              color: notification.isRead
-                                  ? Colors.green.shade700
-                                  : AppTheme.primary,
-                            ),
-                            if (notification.actionUrl != null)
-                              const _InfoPill(label: 'Action available'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    notification.title,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 23,
-                      fontWeight: FontWeight.w900,
-                      height: 1.15,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    notification.message,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      height: 1.45,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DetailSection extends StatelessWidget {
-  const _DetailSection({
-    required this.title,
-    required this.children,
-    this.subtitle,
-  });
-
-  final String title;
-  final String? subtitle;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 19,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        if (subtitle != null) ...[
-          const SizedBox(height: 5),
-          Text(
-            subtitle!,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-        const SizedBox(height: 12),
-        PremiumCard(
-          padding: EdgeInsets.zero,
-          child: Column(children: children),
-        ),
-      ],
-    );
-  }
-}
-
-class _ActionsCard extends StatelessWidget {
-  const _ActionsCard({
-    required this.relatedActionLabel,
-    required this.onOpenRelated,
-  });
-
-  final String relatedActionLabel;
-  final VoidCallback onOpenRelated;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.tune_rounded, color: AppTheme.primary, size: 20),
-              SizedBox(width: 8),
-              Text(
-                'Actions',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 7),
-          const Text(
-            'Open the related record for this notification.',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _ActionButton(
-            icon: Icons.open_in_new_rounded,
-            label: relatedActionLabel,
-            onTap: onOpenRelated,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoPill extends StatelessWidget {
-  const _InfoPill({required this.label, this.color});
-
-  final String label;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    final pillColor = color ?? AppTheme.primary;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: pillColor.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: pillColor,
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DetailTile extends StatelessWidget {
-  const _DetailTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(15),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stack =
+              constraints.maxWidth < 330 ||
+              MediaQuery.textScalerOf(context).scale(1) >= 1.4;
+          final labelWidget = Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
-            child: Icon(icon, color: AppTheme.primary, size: 21),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
+          );
+          final valueWidget = Text(
+            value,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 15,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          );
+
+          if (stack) {
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                labelWidget,
                 const SizedBox(height: 4),
-                Text(
-                  value,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 14,
-                    height: 1.25,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+                valueWidget,
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final isEnabled = onTap != null;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isEnabled
-              ? Colors.white
-              : AppTheme.primary.withValues(alpha: 0.035),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Theme.of(
-              context,
-            ).colorScheme.outlineVariant.withValues(alpha: 0.62),
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(
-                  alpha: isEnabled ? 0.08 : 0.04,
-                ),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Icon(
-                icon,
-                color: isEnabled ? AppTheme.primary : AppTheme.textSecondary,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: isEnabled
-                      ? AppTheme.textPrimary
-                      : AppTheme.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppTheme.textSecondary,
-            ),
-          ],
-        ),
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: 90, child: labelWidget),
+              const SizedBox(width: 12),
+              Expanded(child: valueWidget),
+            ],
+          );
+        },
       ),
     );
   }
@@ -769,151 +566,31 @@ class _NotificationDetailLoadingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
-      children: const [
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 36),
+      children: [
         PremiumCard(
-          padding: EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.all(20),
+          child: Row(
             children: [
-              Row(
-                children: [
-                  _LoadingBox(width: 58, height: 58, radius: 22),
-                  SizedBox(width: 14),
-                  Expanded(
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _LoadingPill(width: 96),
-                        _LoadingPill(width: 74),
-                      ],
-                    ),
-                  ),
-                ],
+              const SizedBox.square(
+                dimension: 46,
+                child: Center(
+                  child: CircularProgressIndicator(strokeWidth: 2.2),
+                ),
               ),
-              SizedBox(height: 18),
-              _LoadingBar(widthFactor: 0.82, height: 17),
-              SizedBox(height: 10),
-              _LoadingBar(widthFactor: 0.95),
-              SizedBox(height: 8),
-              _LoadingBar(widthFactor: 0.68),
-            ],
-          ),
-        ),
-        SizedBox(height: 20),
-        PremiumCard(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              _LoadingDetailTile(),
-              _DividerIndent(),
-              _LoadingDetailTile(),
-              _DividerIndent(),
-              _LoadingDetailTile(),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  'Loading alert details...',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
       ],
     );
-  }
-}
-
-class _LoadingDetailTile extends StatelessWidget {
-  const _LoadingDetailTile();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      child: Row(
-        children: [
-          _LoadingBox(width: 42, height: 42, radius: 15),
-          SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _LoadingBar(widthFactor: 0.35),
-                SizedBox(height: 9),
-                _LoadingBar(widthFactor: 0.72),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LoadingBox extends StatelessWidget {
-  const _LoadingBox({
-    required this.width,
-    required this.height,
-    required this.radius,
-  });
-
-  final double width;
-  final double height;
-  final double radius;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: AppTheme.primary.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(radius),
-      ),
-    );
-  }
-}
-
-class _LoadingPill extends StatelessWidget {
-  const _LoadingPill({required this.width});
-
-  final double width;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: 28,
-      decoration: BoxDecoration(
-        color: AppTheme.primary.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(999),
-      ),
-    );
-  }
-}
-
-class _LoadingBar extends StatelessWidget {
-  const _LoadingBar({required this.widthFactor, this.height = 9});
-
-  final double widthFactor;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return FractionallySizedBox(
-      widthFactor: widthFactor,
-      child: Container(
-        height: height,
-        decoration: BoxDecoration(
-          color: AppTheme.primary.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(999),
-        ),
-      ),
-    );
-  }
-}
-
-class _DividerIndent extends StatelessWidget {
-  const _DividerIndent();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Divider(height: 1, indent: 76);
   }
 }
