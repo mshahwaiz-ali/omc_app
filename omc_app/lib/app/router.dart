@@ -25,7 +25,7 @@ import '../features/commissions/presentation/my_commissions_screen.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/documents/presentation/document_detail_screen.dart';
-import '../features/expense_tracker/presentation/expense_budget_screen.dart';
+import '../features/expense_tracker/presentation/expense_budget_v2_screen.dart';
 import '../features/expense_tracker/presentation/expense_tracker_v2_screen.dart';
 import '../features/internal_workspace/presentation/internal_operations_center_screen.dart';
 import '../features/internal_workspace/presentation/internal_service_cases_screen.dart';
@@ -575,8 +575,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/expense-budget',
         name: 'expense-budget',
-        builder: (context, state) =>
-            _withShell(ShellNavScaffold.moreIndex, const ExpenseBudgetScreen()),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const ExpenseBudgetV2Screen(),
+        ),
       ),
       GoRoute(
         path: '/support-tickets/:ticketId',
