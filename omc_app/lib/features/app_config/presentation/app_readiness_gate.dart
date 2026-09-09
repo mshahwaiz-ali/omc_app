@@ -6,7 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/router.dart';
+import '../../../app/theme.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../application/app_gate_controller.dart';
@@ -295,6 +297,7 @@ class AppGatePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final title = switch (decision.kind) {
       AppGateKind.loading => 'Checking OMC availability',
       AppGateKind.maintenance => 'OMC is under maintenance',
@@ -318,63 +321,142 @@ class AppGatePanel extends StatelessWidget {
         'Current app controls could not be verified. Check your connection and retry. Saved forms have been retained.',
     };
     final loading = decision.kind == AppGateKind.loading;
+
     return Material(
       key: const ValueKey('omc-app-readiness-gate'),
-      color: Theme.of(context).colorScheme.surface,
+      color: theme.scaffoldBackgroundColor,
       child: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(28),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl,
+              vertical: AppSpacing.xxl,
+            ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
+              constraints: const BoxConstraints(maxWidth: AppLayout.formMaxWidth),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (loading)
-                    const CircularProgressIndicator()
+                    Semantics(
+                      label: title,
+                      liveRegion: true,
+                      child: const SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: CircularProgressIndicator(strokeWidth: 3),
+                      ),
+                    )
                   else
-                    Icon(
-                      decision.offersUpdate
-                          ? Icons.system_update_rounded
-                          : Icons.shield_outlined,
-                      size: 52,
+                    ExcludeSemantics(
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(AppRadius.card),
+                        ),
+                        child: Icon(
+                          decision.offersUpdate
+                              ? Icons.system_update_rounded
+                              : Icons.shield_outlined,
+                          size: 40,
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
                     ),
-                  const SizedBox(height: 24),
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineSmall,
+                  const SizedBox(height: AppSpacing.xl),
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  Text(message, textAlign: TextAlign.center),
-                  if (error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16),
-                      child: Text(error!, textAlign: TextAlign.center),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: AppTheme.textSecondary,
                     ),
-                  const SizedBox(height: 24),
+                  ),
+                  if (error != null) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    Semantics(
+                      liveRegion: true,
+                      label: error!,
+                      excludeSemantics: true,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: AppTheme.dangerSoft,
+                          borderRadius: BorderRadius.circular(AppRadius.card),
+                          border: Border.all(
+                            color: AppTheme.danger.withValues(alpha: 0.20),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.error_outline_rounded,
+                              color: AppTheme.danger,
+                              size: 24,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                error!,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.xl),
                   if (decision.offersUpdate)
-                    FilledButton.icon(
-                      onPressed: busy ? null : onUpdate,
-                      icon: const Icon(Icons.open_in_new),
-                      label: const Text('Open Google Play'),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: busy ? null : onUpdate,
+                        icon: const Icon(Icons.open_in_new_rounded),
+                        label: const Text('Open Google Play'),
+                      ),
                     ),
-                  if (decision.kind == AppGateKind.recommendedUpdate)
+                  if (decision.kind == AppGateKind.recommendedUpdate) ...[
+                    const SizedBox(height: AppSpacing.xs),
                     TextButton(
                       onPressed: busy ? null : onDismissUpdate,
                       child: const Text('Continue for now'),
                     ),
-                  if (!loading)
-                    OutlinedButton.icon(
-                      onPressed: busy ? null : onRetry,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Retry'),
+                  ],
+                  if (!loading) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: busy ? null : onRetry,
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Retry'),
+                      ),
                     ),
-                  if (onHome != null)
+                  ],
+                  if (onHome != null) ...[
+                    const SizedBox(height: AppSpacing.xs),
                     TextButton(
                       onPressed: busy ? null : onHome,
                       child: const Text('Return home'),
                     ),
+                  ],
                   if (onLogout != null)
                     TextButton(
                       onPressed: busy ? null : onLogout,
