@@ -4,9 +4,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/design_tokens.dart';
 import '../../app/providers/core_providers.dart';
 import '../../app/providers/effective_capabilities_provider.dart';
 import '../../app/router.dart';
+import '../../app/theme.dart';
 import '../../features/app_config/application/app_gate_controller.dart';
 import '../../features/auth/application/auth_controller.dart';
 import '../../features/auth/application/auth_state.dart';
@@ -211,42 +213,105 @@ class _PushRuntimeHostState extends ConsumerState<PushRuntimeHost>
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Material(
-                  elevation: 8,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(_error!),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton(
-                              onPressed: () {
-                                _coordinator.boundSource?.clearPending();
-                                setState(() {
-                                  _error = null;
-                                  _failedIntent = null;
-                                });
-                              },
-                              child: const Text('Dismiss'),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: Material(
+                    color: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.card),
+                      side: const BorderSide(color: AppTheme.border),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final stackActions =
+                              constraints.maxWidth < 320 ||
+                              MediaQuery.textScalerOf(context).scale(1) > 1.3;
+                          final dismiss = OutlinedButton(
+                            onPressed: () {
+                              _coordinator.boundSource?.clearPending();
+                              setState(() {
+                                _error = null;
+                                _failedIntent = null;
+                              });
+                            },
+                            child: const Text('Dismiss'),
+                          );
+                          final retry = _failedIntent == null
+                              ? null
+                              : FilledButton.icon(
+                                  onPressed: () {
+                                    setState(() {
+                                      _error = null;
+                                      _failedIntent = null;
+                                    });
+                                    _schedule();
+                                  },
+                                  icon: const Icon(Icons.refresh_rounded),
+                                  label: const Text('Retry'),
+                                );
+
+                          return Semantics(
+                            container: true,
+                            liveRegion: true,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(
+                                      Icons.error_outline_rounded,
+                                      color: AppTheme.danger,
+                                      size: 22,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Update could not be opened',
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.titleMedium,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            _error!,
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.bodyMedium,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                if (stackActions) ...[
+                                  if (retry != null) retry,
+                                  if (retry != null) const SizedBox(height: 8),
+                                  dismiss,
+                                ] else
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      Flexible(child: dismiss),
+                                      if (retry != null) ...[
+                                        const SizedBox(width: 8),
+                                        Flexible(child: retry),
+                                      ],
+                                    ],
+                                  ),
+                              ],
                             ),
-                            if (_failedIntent != null)
-                              TextButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _error = null;
-                                    _failedIntent = null;
-                                  });
-                                  _schedule();
-                                },
-                                child: const Text('Retry'),
-                              ),
-                          ],
-                        ),
-                      ],
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
