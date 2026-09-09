@@ -204,11 +204,7 @@ class _InternalHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            _InternalAvatar(
-              name: name,
-              avatarUrl: avatarUrl,
-              onTap: onAvatar,
-            ),
+            _InternalAvatar(name: name, avatarUrl: avatarUrl, onTap: onAvatar),
           ],
         );
 
@@ -246,9 +242,7 @@ class _InternalAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cleanUrl = avatarUrl?.trim();
-    final initial = name.trim().isEmpty
-        ? 'O'
-        : name.trim()[0].toUpperCase();
+    final initial = name.trim().isEmpty ? 'O' : name.trim()[0].toUpperCase();
 
     return Semantics(
       button: true,
@@ -461,79 +455,84 @@ class _InternalQuickActions extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns =
-            constraints.maxWidth < 330 ||
-                MediaQuery.textScalerOf(context).scale(1) >= 1.6
-            ? 1
-            : 2;
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: visible.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            mainAxisExtent: 92,
-          ),
-          itemBuilder: (context, index) {
-            final action = visible[index];
-            final count = _actionCount(action, summary);
-            return PremiumCard(
-              padding: EdgeInsets.zero,
-              onTap: () => onTap(action),
-              semanticLabel:
-                  '${action.title}${count == null ? '' : ', $count items'}',
-              semanticHint: 'Open operational queue',
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    OmcIconBadge(
-                      icon: _actionIcon(action.iconKey),
-                      color: _actionColor(action.iconKey),
-                      size: 42,
-                      iconSize: 21,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            action.title,
-                            style: const TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 15,
-                              height: 1.25,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          if (count != null) ...[
-                            const SizedBox(height: 3),
-                            Text(
-                              '$count items',
-                              style: const TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final singleColumn = constraints.maxWidth < 330 || textScale >= 1.5;
+        final tileWidth = singleColumn
+            ? constraints.maxWidth
+            : (constraints.maxWidth - 10) / 2;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final action in visible)
+              Builder(
+                builder: (context) {
+                  final count = _actionCount(action, summary);
+                  return SizedBox(
+                    width: tileWidth,
+                    child: PremiumCard(
+                      padding: EdgeInsets.zero,
+                      onTap: () => onTap(action),
+                      semanticLabel:
+                          '${action.title}${count == null ? '' : ', $count items'}',
+                      semanticHint: 'Open operational queue',
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 72),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              OmcIconBadge(
+                                icon: _actionIcon(action.iconKey),
+                                color: _actionColor(action.iconKey),
+                                size: 42,
+                                iconSize: 21,
                               ),
-                            ),
-                          ],
-                        ],
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      action.title,
+                                      softWrap: true,
+                                      style: const TextStyle(
+                                        color: AppTheme.textPrimary,
+                                        fontSize: 15,
+                                        height: 1.25,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (count != null) ...[
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        '$count items',
+                                        style: const TextStyle(
+                                          color: AppTheme.textSecondary,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Icon(
+                                Icons.chevron_right_rounded,
+                                color: AppTheme.textSecondary,
+                                size: 20,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      color: AppTheme.textSecondary,
-                      size: 20,
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
-            );
-          },
+          ],
         );
       },
     );
@@ -642,8 +641,8 @@ class _MetricRow extends StatelessWidget {
                 Text(
                   available
                       ? metric.value == 0
-                          ? '0 items'
-                          : '${metric.value} items'
+                            ? '0 items'
+                            : '${metric.value} items'
                       : 'Not available for this role',
                   style: const TextStyle(
                     color: AppTheme.textSecondary,
@@ -664,18 +663,12 @@ class _MetricRow extends StatelessWidget {
     );
 
     if (!available) return child;
-    return InkWell(
-      onTap: () => onOpen(metric.route),
-      child: child,
-    );
+    return InkWell(onTap: () => onOpen(metric.route), child: child);
   }
 }
 
 class _RecentActivityList extends StatelessWidget {
-  const _RecentActivityList({
-    required this.summary,
-    required this.onOpen,
-  });
+  const _RecentActivityList({required this.summary, required this.onOpen});
 
   final HomeDashboardSummary summary;
   final VoidCallback onOpen;
@@ -855,7 +848,10 @@ class _InternalSectionHeader extends StatelessWidget {
           ],
         );
         if (actionLabel == null || onAction == null) return text;
-        final action = TextButton(onPressed: onAction, child: Text(actionLabel!));
+        final action = TextButton(
+          onPressed: onAction,
+          child: Text(actionLabel!),
+        );
 
         if (stack) {
           return Column(
@@ -912,7 +908,10 @@ class _HomeLoadNotice extends StatelessWidget {
               ),
             ],
           );
-          final retry = TextButton(onPressed: onRetry, child: const Text('Retry'));
+          final retry = TextButton(
+            onPressed: onRetry,
+            child: const Text('Try again'),
+          );
           if (stack) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -921,7 +920,11 @@ class _HomeLoadNotice extends StatelessWidget {
           }
           return Row(
             crossAxisAlignment: CrossAxisAlignment.center,
-            children: [Expanded(child: body), const SizedBox(width: 8), retry],
+            children: [
+              Expanded(child: body),
+              const SizedBox(width: 8),
+              retry,
+            ],
           );
         },
       ),
@@ -950,7 +953,8 @@ List<_AttentionItem> _buildAttentionItems(HomeDashboardSummary summary) {
       critical.add(
         _AttentionItem(
           title: title,
-          subtitle: 'Financial hold requires internal review before work can continue.',
+          subtitle:
+              'Financial hold requires internal review before work can continue.',
           icon: Icons.account_balance_wallet_outlined,
           color: AppTheme.danger,
           route: route,

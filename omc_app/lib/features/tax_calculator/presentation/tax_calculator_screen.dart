@@ -10,7 +10,6 @@ import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/loading_view.dart';
-import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
@@ -27,6 +26,7 @@ class TaxCalculatorScreen extends ConsumerStatefulWidget {
 class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
   final _amountController = TextEditingController();
   final Map<String, TextEditingController> _advancedControllers = {};
+  final Map<String, FocusNode> _advancedFocusNodes = {};
   final Map<String, dynamic> _advancedValues = {};
 
   TaxIncomeType _incomeType = TaxIncomeType.salary;
@@ -38,6 +38,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
   bool _isStartingService = false;
   AppFailure? _calculationFailure;
   String? _validationMessage;
+  String? _invalidAdvancedFieldKey;
   String? _selectedTaxYear;
   late Future<TaxCalculatorConfig> _configFuture;
 
@@ -68,6 +69,9 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
     _amountController.dispose();
     for (final controller in _advancedControllers.values) {
       controller.dispose();
+    }
+    for (final focusNode in _advancedFocusNodes.values) {
+      focusNode.dispose();
     }
     super.dispose();
   }
@@ -175,12 +179,17 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                       _selectedTaxYear = value;
                       _result = null;
                       _validationMessage = null;
+                      _invalidAdvancedFieldKey = null;
                       _calculationFailure = null;
                       _advancedValues.clear();
                       for (final controller in _advancedControllers.values) {
                         controller.dispose();
                       }
                       _advancedControllers.clear();
+                      for (final focusNode in _advancedFocusNodes.values) {
+                        focusNode.dispose();
+                      }
+                      _advancedFocusNodes.clear();
                       _configFuture = ref
                           .read(taxCalculationRepositoryProvider)
                           .getConfig(taxYear: value);
@@ -190,7 +199,8 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                 const SizedBox(height: 24),
                 const _SectionHeader(
                   title: 'Income details',
-                  subtitle: 'Enter the values used for this server-calculated estimate.',
+                  subtitle:
+                      'Enter the values used for this server-calculated estimate.',
                 ),
                 const SizedBox(height: 10),
                 _IncomeSection(
@@ -204,6 +214,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                       _incomeType = value;
                       _result = null;
                       _validationMessage = null;
+                      _invalidAdvancedFieldKey = null;
                       _calculationFailure = null;
                     });
                   },
@@ -231,13 +242,21 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                     expanded: _showAdvanced,
                     fields: activeAdvancedFields,
                     controllers: _advancedControllers,
+                    focusNodeFor: _advancedFocusNodeFor,
                     values: _advancedValues,
+                    invalidFieldKey: _invalidAdvancedFieldKey,
                     currency: currency,
                     onToggle: () =>
                         setState(() => _showAdvanced = !_showAdvanced),
                     onChanged: (key, value) {
-                      _advancedValues[key] = value;
-                      _result = null;
+                      setState(() {
+                        _advancedValues[key] = value;
+                        _result = null;
+                        if (_invalidAdvancedFieldKey == key) {
+                          _invalidAdvancedFieldKey = null;
+                          _validationMessage = null;
+                        }
+                      });
                     },
                   ),
                 ],
@@ -300,7 +319,39 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
           _advancedValues[field.fieldKey] = field.defaultValue;
         }
       }
+      _advancedFocusNodes.putIfAbsent(field.fieldKey, () => FocusNode());
     }
+  }
+
+  FocusNode _advancedFocusNodeFor(TaxInputField field) {
+    return _advancedFocusNodes.putIfAbsent(field.fieldKey, () => FocusNode());
+  }
+
+  bool _advancedFieldMissing(TaxInputField field) {
+    if (!field.isRequired) return false;
+    final type = field.inputType.toLowerCase();
+    if (type == 'toggle' || type == 'check') return false;
+    if (type == 'select') {
+      return (_advancedValues[field.fieldKey]?.toString().trim() ?? '').isEmpty;
+    }
+    return (_advancedControllers[field.fieldKey]?.text.trim() ?? '').isEmpty;
+  }
+
+  void _focusAdvancedField(TaxInputField field) {
+    final focusNode = _advancedFocusNodeFor(field);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      focusNode.requestFocus();
+      final fieldContext = focusNode.context;
+      if (fieldContext != null) {
+        Scrollable.ensureVisible(
+          fieldContext,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: 0.2,
+        );
+      }
+    });
   }
 
   Future<void> _calculate(
@@ -316,6 +367,29 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
       return;
     }
 
+    final activeAdvancedFields = config.advancedFields
+        .where((field) => field.appliesTo(_incomeType))
+        .toList(growable: false);
+    TaxInputField? firstMissingAdvanced;
+    for (final field in activeAdvancedFields) {
+      if (_advancedFieldMissing(field)) {
+        firstMissingAdvanced = field;
+        break;
+      }
+    }
+    final missingAdvanced = firstMissingAdvanced;
+    if (missingAdvanced != null) {
+      setState(() {
+        _showAdvanced = true;
+        _invalidAdvancedFieldKey = missingAdvanced.fieldKey;
+        _validationMessage =
+            '${missingAdvanced.label} is required for this calculation.';
+        _calculationFailure = null;
+      });
+      _focusAdvancedField(missingAdvanced);
+      return;
+    }
+
     final selectedAdvancedInputs = <String, dynamic>{};
     for (final entry in _advancedValues.entries) {
       final value = entry.value;
@@ -326,6 +400,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
     setState(() {
       _isCalculating = true;
       _validationMessage = null;
+      _invalidAdvancedFieldKey = null;
       _calculationFailure = null;
     });
 
@@ -453,7 +528,7 @@ class _TaxYearSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final active = config.activeTaxYear;
     final years = config.availableTaxYears.isEmpty
-        ? <TaxYearInfo>[if (active != null) active]
+        ? <TaxYearInfo>[?active]
         : config.availableTaxYears;
     final currentValue = years.any((item) => item.name == selectedTaxYear)
         ? selectedTaxYear
@@ -466,7 +541,8 @@ class _TaxYearSection extends StatelessWidget {
         children: [
           const _SectionHeader(
             title: 'Tax year & rules',
-            subtitle: 'Select the backend tax-year configuration for this estimate.',
+            subtitle:
+                'Select the backend tax-year configuration for this estimate.',
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
@@ -599,7 +675,9 @@ class _AdvancedSection extends StatelessWidget {
     required this.expanded,
     required this.fields,
     required this.controllers,
+    required this.focusNodeFor,
     required this.values,
+    required this.invalidFieldKey,
     required this.currency,
     required this.onToggle,
     required this.onChanged,
@@ -608,7 +686,9 @@ class _AdvancedSection extends StatelessWidget {
   final bool expanded;
   final List<TaxInputField> fields;
   final Map<String, TextEditingController> controllers;
+  final FocusNode Function(TaxInputField field) focusNodeFor;
   final Map<String, dynamic> values;
+  final String? invalidFieldKey;
   final String currency;
   final VoidCallback onToggle;
   final void Function(String key, dynamic value) onChanged;
@@ -630,7 +710,8 @@ class _AdvancedSection extends StatelessWidget {
                   const Expanded(
                     child: _SectionHeader(
                       title: 'Refine calculation',
-                      subtitle: 'Optional backend-configured fields for this income type.',
+                      subtitle:
+                          'Optional backend-configured fields for this income type.',
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -649,7 +730,9 @@ class _AdvancedSection extends StatelessWidget {
               _AdvancedField(
                 field: fields[index],
                 controller: controllers[fields[index].fieldKey]!,
+                focusNode: focusNodeFor(fields[index]),
                 value: values[fields[index].fieldKey],
+                invalid: invalidFieldKey == fields[index].fieldKey,
                 currency: currency,
                 onChanged: (value) => onChanged(fields[index].fieldKey, value),
               ),
@@ -666,14 +749,18 @@ class _AdvancedField extends StatelessWidget {
   const _AdvancedField({
     required this.field,
     required this.controller,
+    required this.focusNode,
     required this.value,
+    required this.invalid,
     required this.currency,
     required this.onChanged,
   });
 
   final TaxInputField field;
   final TextEditingController controller;
+  final FocusNode focusNode;
   final dynamic value;
+  final bool invalid;
   final String currency;
   final ValueChanged<dynamic> onChanged;
 
@@ -703,11 +790,13 @@ class _AdvancedField extends StatelessWidget {
 
     if (type == 'select' && field.options.isNotEmpty) {
       return DropdownButtonFormField<String>(
+        focusNode: focusNode,
         initialValue: field.options.contains(value) ? value?.toString() : null,
         isExpanded: true,
         decoration: InputDecoration(
-          labelText: field.label,
+          labelText: field.isRequired ? '${field.label} *' : field.label,
           helperText: field.helpText.isEmpty ? null : field.helpText,
+          errorText: invalid ? '${field.label} is required.' : null,
         ),
         items: field.options
             .map(
@@ -720,6 +809,7 @@ class _AdvancedField extends StatelessWidget {
 
     return TextField(
       controller: controller,
+      focusNode: focusNode,
       keyboardType: type == 'number'
           ? const TextInputType.numberWithOptions(decimal: true)
           : TextInputType.text,
@@ -728,8 +818,9 @@ class _AdvancedField extends StatelessWidget {
           : null,
       onChanged: (raw) => onChanged(type == 'number' ? _parseAmount(raw) : raw),
       decoration: InputDecoration(
-        labelText: field.label,
+        labelText: field.isRequired ? '${field.label} *' : field.label,
         helperText: field.helpText.isEmpty ? null : field.helpText,
+        errorText: invalid ? '${field.label} is required.' : null,
         prefixText: type == 'number' ? '$currency ' : null,
       ),
     );
@@ -771,7 +862,8 @@ class _ResultSection extends StatelessWidget {
       children: [
         const _SectionHeader(
           title: 'Your estimate',
-          subtitle: 'Calculated by the backend using the selected tax configuration.',
+          subtitle:
+              'Calculated by the backend using the selected tax configuration.',
         ),
         const SizedBox(height: 10),
         PremiumCard(
@@ -781,10 +873,7 @@ class _ResultSection extends StatelessWidget {
             children: [
               const Text(
                 'Estimated annual tax',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 15,
-                ),
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 15),
               ),
               const SizedBox(height: 5),
               Text(
@@ -892,7 +981,8 @@ class _ResultDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasBreakdown = config.showBreakdown && result.breakdown.isNotEmpty;
-    final hasComparison = config.showFilerComparison && result.comparison != null;
+    final hasComparison =
+        config.showFilerComparison && result.comparison != null;
     final hasGuidance =
         (config.showTaxHealthScore && result.taxHealth != null) ||
         steps.isNotEmpty ||
@@ -973,7 +1063,10 @@ class _BreakdownContent extends StatelessWidget {
     final data = result.breakdown;
     return Column(
       children: [
-        _KeyValue(label: 'Slab used', value: data['slab_label']?.toString() ?? '-'),
+        _KeyValue(
+          label: 'Slab used',
+          value: data['slab_label']?.toString() ?? '-',
+        ),
         _KeyValue(
           label: 'Taxable income',
           value: _formatMoney(_num(data['taxable_income']), currency),
@@ -1095,10 +1188,7 @@ class _ResultMetricRow extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 15,
-            ),
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 15),
           ),
         ),
         const SizedBox(width: 12),

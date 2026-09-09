@@ -28,53 +28,73 @@ class PremiumListHeader extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final hasMeta = cleanMeta != null && cleanMeta.isNotEmpty;
+        final largeText = textScale >= 1.5;
         final stackMeta =
-            cleanMeta != null &&
-            cleanMeta.isNotEmpty &&
-            (constraints.maxWidth < 420 || textScale >= 1.3);
+            hasMeta && (constraints.maxWidth < 420 || textScale >= 1.3);
+
+        final iconBadge = ExcludeSemantics(
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppRadius.control),
+            ),
+            child: Icon(icon, color: AppTheme.textSecondary, size: 20),
+          ),
+        );
+
+        final textBlock = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Semantics(
+              header: true,
+              child: Text(
+                title,
+                softWrap: true,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              subtitle,
+              softWrap: true,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ],
+        );
+
+        if (largeText) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                iconBadge,
+                const SizedBox(height: AppSpacing.xs),
+                textBlock,
+                if (hasMeta) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  _MetaBadge(label: cleanMeta, accent: accent),
+                ],
+              ],
+            ),
+          );
+        }
 
         final heading = Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ExcludeSemantics(
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(AppRadius.control),
-                ),
-                child: Icon(icon, color: AppTheme.textSecondary, size: 20),
-              ),
-            ),
+            iconBadge,
             const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Semantics(
-                    header: true,
-                    child: Text(
-                      title,
-                      softWrap: true,
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    subtitle,
-                    softWrap: true,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (!stackMeta && cleanMeta != null && cleanMeta.isNotEmpty) ...[
+            Expanded(child: textBlock),
+            if (!stackMeta && hasMeta) ...[
               const SizedBox(width: AppSpacing.xs),
               _MetaBadge(label: cleanMeta, accent: accent),
             ],

@@ -59,42 +59,52 @@ void main() {
     );
   });
 
-  test('runtime accent preserves fill and derives contrast-safe surface tones', () {
-    for (final accent in const [
-      '#FFFFFF',
-      '#F2C94C',
-      '#2563EB',
-      '#E83F5B',
-      '#11A97D',
-      '#111111',
-    ]) {
-      final colors = OmcAppColors.resolve(accentColor: accent);
-      expect(
-        _contrastRatio(colors.accent, colors.onAccent),
-        greaterThanOrEqualTo(4.5),
-        reason: 'Accent $accent must keep readable filled-button text.',
-      );
+  test(
+    'runtime accent preserves fill and derives contrast-safe surface tones',
+    () {
+      for (final accent in const [
+        '#FFFFFF',
+        '#F2C94C',
+        '#2563EB',
+        '#E83F5B',
+        '#11A97D',
+        '#111111',
+      ]) {
+        final colors = OmcAppColors.resolve(accentColor: accent);
+        expect(
+          _contrastRatio(colors.accent, colors.onAccent),
+          greaterThanOrEqualTo(4.5),
+          reason: 'Accent $accent must keep readable filled-button text.',
+        );
+        expect(
+          _contrastRatio(colors.accentInk, Colors.white),
+          greaterThanOrEqualTo(4.5),
+          reason:
+              'Accent $accent needs readable accent text on a light surface.',
+        );
+        expect(
+          _contrastRatio(colors.accentFocus, Colors.white),
+          greaterThanOrEqualTo(3.0),
+          reason: 'Accent $accent needs a visible focus indicator.',
+        );
+      }
+
+      final white = OmcAppColors.resolve(accentColor: '#FFFFFF');
+      expect(white.accent, const Color(0xFFFFFFFF));
+    },
+  );
+
+  test(
+    'invalid runtime accent still falls back without changing the contract',
+    () {
+      final colors = OmcAppColors.resolve(accentColor: 'not-a-color');
+      expect(colors.accent, const Color(0xFF111827));
       expect(
         _contrastRatio(colors.accentInk, Colors.white),
         greaterThanOrEqualTo(4.5),
-        reason: 'Accent $accent needs readable accent text on a light surface.',
       );
-      expect(
-        _contrastRatio(colors.accentFocus, Colors.white),
-        greaterThanOrEqualTo(3.0),
-        reason: 'Accent $accent needs a visible focus indicator.',
-      );
-    }
-
-    final white = OmcAppColors.resolve(accentColor: '#FFFFFF');
-    expect(white.accent, const Color(0xFFFFFFFF));
-  });
-
-  test('invalid runtime accent still falls back without changing the contract', () {
-    final colors = OmcAppColors.resolve(accentColor: 'not-a-color');
-    expect(colors.accent, const Color(0xFF111827));
-    expect(_contrastRatio(colors.accentInk, Colors.white), greaterThanOrEqualTo(4.5));
-  });
+    },
+  );
 
   testWidgets('bottom navigation scales and exposes meaningful semantics', (
     tester,
@@ -169,16 +179,18 @@ void main() {
         home: MediaQuery(
           data: const MediaQueryData(textScaler: TextScaler.linear(2.0)),
           child: const Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: 320,
-                child: PremiumListHeader(
-                  icon: Icons.support_agent_outlined,
-                  title: 'Support workspace with a long operational heading',
-                  subtitle:
-                      'Review customer conversations and operational support requests without hiding important context.',
-                  metaLabel: 'Customer support queue',
+            body: SingleChildScrollView(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 320,
+                  child: PremiumListHeader(
+                    icon: Icons.support_agent_outlined,
+                    title: 'Support workspace with a long operational heading',
+                    subtitle:
+                        'Review customer conversations and operational support requests without hiding important context.',
+                    metaLabel: 'Customer support queue',
+                  ),
                 ),
               ),
             ),
@@ -204,16 +216,18 @@ void main() {
         home: MediaQuery(
           data: const MediaQueryData(textScaler: TextScaler.linear(2.0)),
           child: Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: 320,
-                child: OmcIdentityHeader(
-                  displayName: longName,
-                  avatarUrl: null,
-                  unreadNotifications: 12,
-                  onNotifications: _noop,
-                  onAvatar: _noop,
+            body: SingleChildScrollView(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 320,
+                  child: OmcIdentityHeader(
+                    displayName: longName,
+                    avatarUrl: null,
+                    unreadNotifications: 12,
+                    onNotifications: _noop,
+                    onAvatar: _noop,
+                  ),
                 ),
               ),
             ),
@@ -237,20 +251,22 @@ void main() {
         home: MediaQuery(
           data: const MediaQueryData(textScaler: TextScaler.linear(2.0)),
           child: Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: 320,
-                child: PremiumListCard(
-                  icon: Icons.description_outlined,
-                  title: 'A document with a long operational title',
-                  subtitle:
-                      'Supporting context must remain readable without squeezing the action.',
-                  trailing: TextButton(
-                    onPressed: _noop,
-                    child: const Text('Review document'),
+            body: SingleChildScrollView(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 320,
+                  child: PremiumListCard(
+                    icon: Icons.description_outlined,
+                    title: 'A document with a long operational title',
+                    subtitle:
+                        'Supporting context must remain readable without squeezing the action.',
+                    trailing: TextButton(
+                      onPressed: _noop,
+                      child: const Text('Review document'),
+                    ),
+                    children: const [Text('Reference OMC-000001')],
                   ),
-                  children: const [Text('Reference OMC-000001')],
                 ),
               ),
             ),

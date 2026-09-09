@@ -293,7 +293,7 @@ class _PushRuntimeHostState extends ConsumerState<PushRuntimeHost>
                                 ),
                                 const SizedBox(height: 14),
                                 if (stackActions) ...[
-                                  if (retry != null) retry,
+                                  ?retry,
                                   if (retry != null) const SizedBox(height: 8),
                                   dismiss,
                                 ] else

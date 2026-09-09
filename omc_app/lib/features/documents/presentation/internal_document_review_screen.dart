@@ -67,7 +67,10 @@ class _InternalDocumentReviewScreenState
 
   Future<DocumentPage> _loadDocuments() {
     final repository = ref.read(documentsRepositoryProvider);
-    return repository.fetchDocumentPage(queue: _selectedFilter.queue);
+    return repository.fetchDocumentPage(
+      queue: _selectedFilter.queue,
+      customer: _selectedCustomerProfile,
+    );
   }
 
   void _resetPagingState() {
@@ -115,7 +118,11 @@ class _InternalDocumentReviewScreenState
     try {
       final page = await ref
           .read(documentsRepositoryProvider)
-          .fetchDocumentPage(queue: _selectedFilter.queue, start: start);
+          .fetchDocumentPage(
+            queue: _selectedFilter.queue,
+            customer: _selectedCustomerProfile,
+            start: start,
+          );
       if (!mounted) return;
 
       final firstPage = await _documentsFuture;
@@ -147,9 +154,13 @@ class _InternalDocumentReviewScreenState
   }
 
   void _selectCustomer(String? customerProfile) {
+    if (_selectedCustomerProfile == customerProfile) return;
     setState(() {
       _selectedCustomerProfile = customerProfile;
+      _selectedDocumentType = null;
       _selectedServiceReference = null;
+      _resetPagingState();
+      _documentsFuture = _loadDocuments();
     });
   }
 
@@ -375,8 +386,7 @@ class _InternalDocumentReviewScreenState
                 onDocumentTypeSelected: _selectDocumentType,
                 onServiceSelected: _selectService,
                 onPreview: _openDocumentPreview,
-                onApprove: (document) =>
-                    _reviewDocument(document, 'Approved'),
+                onApprove: (document) => _reviewDocument(document, 'Approved'),
                 onReject: _rejectWithRemarks,
               );
             },
@@ -485,7 +495,9 @@ class _ReviewContent extends StatelessWidget {
           title: 'Document review',
           subtitle:
               'Review customer evidence by service request and keep decisions explicit.',
-          metaLabel: '$reviewCount awaiting review',
+          metaLabel: hasMore
+              ? '$reviewCount awaiting review in loaded results · more available'
+              : '$reviewCount awaiting review in loaded results',
         ),
         const SizedBox(height: 16),
         _ReviewFilterBar(
@@ -499,7 +511,7 @@ class _ReviewContent extends StatelessWidget {
           textInputAction: TextInputAction.search,
           style: const TextStyle(fontSize: 16),
           decoration: InputDecoration(
-            hintText: 'Search customer, request, service or document',
+            hintText: 'Search loaded request, service or document',
             prefixIcon: const Icon(Icons.search_rounded),
             suffixIcon: searchController.text.isEmpty
                 ? null
@@ -510,6 +522,14 @@ class _ReviewContent extends StatelessWidget {
                   ),
           ),
         ),
+        const SizedBox(height: 8),
+        if (hasMore)
+          Text(
+            'Search, document type and available customer choices are based on loaded results. After you select a customer, that customer filter is applied by the server before paging.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
+          ),
         const SizedBox(height: 12),
         _AdvancedFilterPanel(
           customerOptions: customerOptions,
@@ -668,7 +688,9 @@ class _AdvancedFilterPanel extends StatelessWidget {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
         subtitle: Text(
-          activeCount == 0 ? 'Customer and document type' : '$activeCount active',
+          activeCount == 0
+              ? 'Loaded choices · server-applied customer'
+              : '$activeCount active',
           style: const TextStyle(fontSize: 14),
         ),
         children: [

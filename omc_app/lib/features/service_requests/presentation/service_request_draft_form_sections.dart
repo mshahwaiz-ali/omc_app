@@ -5,6 +5,7 @@ class _DynamicFormCard extends StatelessWidget {
     required this.fields,
     required this.remarksController,
     required this.controllerFor,
+    required this.focusNodeFor,
     required this.selectValueFor,
     required this.checkedValueFor,
     required this.onSelectChanged,
@@ -16,6 +17,7 @@ class _DynamicFormCard extends StatelessWidget {
   final TextEditingController remarksController;
   final TextEditingController Function(ServiceTemplateField field)
   controllerFor;
+  final FocusNode Function(ServiceTemplateField field) focusNodeFor;
   final String? Function(ServiceTemplateField field) selectValueFor;
   final bool Function(ServiceTemplateField field) checkedValueFor;
   final void Function(ServiceTemplateField field, String? value)
@@ -40,6 +42,7 @@ class _DynamicFormCard extends StatelessWidget {
             _DynamicField(
               field: field,
               controller: controllerFor(field),
+              focusNode: focusNodeFor(field),
               selectValue: selectValueFor(field),
               checkedValue: checkedValueFor(field),
               onSelectChanged: (value) => onSelectChanged(field, value),
@@ -70,6 +73,7 @@ class _DynamicField extends StatelessWidget {
   const _DynamicField({
     required this.field,
     required this.controller,
+    required this.focusNode,
     required this.selectValue,
     required this.checkedValue,
     required this.onSelectChanged,
@@ -79,6 +83,7 @@ class _DynamicField extends StatelessWidget {
 
   final ServiceTemplateField field;
   final TextEditingController controller;
+  final FocusNode focusNode;
   final String? selectValue;
   final bool checkedValue;
   final ValueChanged<String?> onSelectChanged;
@@ -103,7 +108,10 @@ class _DynamicField extends StatelessWidget {
           border: Border.all(color: AppTheme.border),
         ),
         child: CheckboxListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 4,
+          ),
           value: checkedValue,
           onChanged: onCheckChanged,
           title: Text(
@@ -133,6 +141,7 @@ class _DynamicField extends StatelessWidget {
     if (_isSelectField(field) && field.options.isNotEmpty) {
       final selected = field.options.contains(selectValue) ? selectValue : null;
       return DropdownButtonFormField<String>(
+        focusNode: focusNode,
         initialValue: selected,
         isExpanded: true,
         items: field.options
@@ -154,6 +163,7 @@ class _DynamicField extends StatelessWidget {
 
     return TextFormField(
       controller: controller,
+      focusNode: focusNode,
       minLines: _isLongTextField(field) ? 3 : 1,
       maxLines: _isLongTextField(field) ? 6 : 1,
       keyboardType: _keyboardTypeFor(field),

@@ -76,7 +76,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     });
 
     try {
-      final page = await ref.read(tasksRepositoryProvider).fetchTasksPage(
+      final page = await ref
+          .read(tasksRepositoryProvider)
+          .fetchTasksPage(
             limitStart: 0,
             pageLength: 50,
             search: _query,
@@ -108,7 +110,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     setState(() => _loadingMore = true);
 
     try {
-      final page = await ref.read(tasksRepositoryProvider).fetchTasksPage(
+      final page = await ref
+          .read(tasksRepositoryProvider)
+          .fetchTasksPage(
             limitStart: nextStart,
             pageLength: 50,
             search: _query,
@@ -131,9 +135,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         _error = error;
         _loadingMore = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_backendErrorMessage(error))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_backendErrorMessage(error))));
     }
   }
 
@@ -295,79 +299,124 @@ class _TasksContent extends StatelessWidget {
         statusFilter != 'All' ||
         priorityFilter != 'All';
 
-    return _TaskListView(
-      children: [
-        const _TasksPageHeader(),
-        const SizedBox(height: AppSpacing.xl),
-        _SearchAndPriority(
-          query: query,
-          onChanged: onQueryChanged,
-          onOpenPriorityFilter: onOpenPriorityFilter,
-          priorityFilter: priorityFilter,
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text('Status', style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: AppSpacing.xs),
-        _StatusTabs(
-          statuses: statuses,
-          selected: statusFilter,
-          onSelected: onStatusChanged,
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Search, status and priority filters are applied by the backend before paging.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppTheme.textSecondary,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inset = AppLayout.pageInsetFor(constraints.maxWidth);
+        final horizontal =
+            constraints.maxWidth > AppLayout.generalMaxWidth + inset * 2
+            ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
+            : inset;
+
+        final leadingChildren = <Widget>[
+          const _TasksPageHeader(),
+          const SizedBox(height: AppSpacing.xl),
+          _SearchAndPriority(
+            query: query,
+            onChanged: onQueryChanged,
+            onOpenPriorityFilter: onOpenPriorityFilter,
+            priorityFilter: priorityFilter,
           ),
-        ),
-        if (hasFilters) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text('Status', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: AppSpacing.xs),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(
-              onPressed: onClearFilters,
-              child: const Text('Clear filters'),
-            ),
+          _StatusTabs(
+            statuses: statuses,
+            selected: statusFilter,
+            onSelected: onStatusChanged,
           ),
-        ],
-        const SizedBox(height: AppSpacing.xl),
-        _ResultsHeading(count: tasks.length, hasMore: hasMore),
-        const SizedBox(height: AppSpacing.sm),
-        if (tasks.isEmpty)
-          PremiumEmptyState(
-            icon: Icons.assignment_outlined,
-            title: hasFilters ? 'No matching tasks' : 'No tasks',
-            message: hasFilters
-                ? 'No ERP Task matches the current backend search or filters.'
-                : 'No ERP Tasks are currently available.',
-            actionLabel: hasFilters ? 'Clear filters' : null,
-            onAction: hasFilters ? onClearFilters : null,
-          )
-        else
-          for (var index = 0; index < tasks.length; index++) ...[
-            _TaskCard(task: tasks[index]),
-            if (index != tasks.length - 1)
-              const SizedBox(height: AppSpacing.sm),
-          ],
-        if (tasks.isNotEmpty && hasMore) ...[
-          const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: loadingMore ? null : onLoadMore,
-              icon: loadingMore
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.expand_more_rounded),
-              label: Text(
-                loadingMore ? 'Loading more tasks' : 'Load more tasks',
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Search, status and priority filters are applied by the backend before paging.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
+          ),
+          if (hasFilters) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: onClearFilters,
+                child: const Text('Clear filters'),
               ),
             ),
+          ],
+          const SizedBox(height: AppSpacing.xl),
+          _ResultsHeading(count: tasks.length, hasMore: hasMore),
+          const SizedBox(height: AppSpacing.sm),
+          if (tasks.isEmpty)
+            PremiumEmptyState(
+              icon: Icons.assignment_outlined,
+              title: hasFilters ? 'No matching tasks' : 'No tasks',
+              message: hasFilters
+                  ? 'No ERP Task matches the current backend search or filters.'
+                  : 'No ERP Tasks are currently available.',
+              actionLabel: hasFilters ? 'Clear filters' : null,
+              onAction: hasFilters ? onClearFilters : null,
+            ),
+        ];
+
+        return CustomScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
           ),
-        ],
-      ],
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(horizontal, 18, horizontal, 0),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate(leadingChildren),
+              ),
+            ),
+            if (tasks.isNotEmpty)
+              SliverPadding(
+                padding: EdgeInsets.symmetric(horizontal: horizontal),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => Padding(
+                      padding: EdgeInsets.only(
+                        bottom: index == tasks.length - 1 ? 0 : AppSpacing.sm,
+                      ),
+                      child: _TaskCard(task: tasks[index]),
+                    ),
+                    childCount: tasks.length,
+                  ),
+                ),
+              ),
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                horizontal,
+                tasks.isNotEmpty && hasMore ? AppSpacing.md : 0,
+                horizontal,
+                164,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: tasks.isNotEmpty && hasMore
+                    ? SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: loadingMore ? null : onLoadMore,
+                          icon: loadingMore
+                              ? const SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.expand_more_rounded),
+                          label: Text(
+                            loadingMore
+                                ? 'Loading more tasks'
+                                : 'Load more tasks',
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -382,8 +431,8 @@ class _TaskListView extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final inset = AppLayout.pageInsetFor(constraints.maxWidth);
-        final horizontal = constraints.maxWidth >
-                AppLayout.generalMaxWidth + inset * 2
+        final horizontal =
+            constraints.maxWidth > AppLayout.generalMaxWidth + inset * 2
             ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
             : inset;
         return ListView(
@@ -545,8 +594,7 @@ class _StatusTabs extends StatelessWidget {
               label: Text(status),
               onSelected: (_) => onSelected(status),
             ),
-            if (status != statuses.last)
-              const SizedBox(width: AppSpacing.xs),
+            if (status != statuses.last) const SizedBox(width: AppSpacing.xs),
           ],
         ],
       ),
@@ -576,9 +624,9 @@ class _ResultsHeading extends StatelessWidget {
           child: Text(
             hasMore ? '$count loaded · more available' : '$count loaded',
             textAlign: TextAlign.end,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
           ),
         ),
       ],
@@ -620,9 +668,9 @@ class _TaskCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xxs),
           Text(
             task.id,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: AppSpacing.sm),
           _TaskStatusBadge(label: task.status),
@@ -696,7 +744,11 @@ class _DuePriorityRow extends StatelessWidget {
         final stack = constraints.maxWidth < 420 || textScale >= 1.5;
         if (stack) {
           return Column(
-            children: [rows[0], const SizedBox(height: AppSpacing.sm), rows[1]],
+            children: [
+              rows[0],
+              const SizedBox(height: AppSpacing.sm),
+              rows[1],
+            ],
           );
         }
         return Row(
@@ -739,9 +791,9 @@ class _LabelValue extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: AppSpacing.xxs),
               Text(
@@ -795,9 +847,9 @@ class _TaskStatusBadge extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: foreground,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.labelMedium?.copyWith(color: foreground),
         ),
       ),
     );

@@ -224,8 +224,8 @@ class ExpenseTrackerV2Screen extends ConsumerWidget {
                   ),
                   onSync: shouldSync
                       ? () => ref
-                          .read(expenseTransactionsProvider.notifier)
-                          .bulkSync()
+                            .read(expenseTransactionsProvider.notifier)
+                            .bulkSync()
                       : null,
                   onEdit: (transaction) => _showTransactionSheet(
                     context,
@@ -439,23 +439,74 @@ class ExpenseTrackerV2Screen extends ConsumerWidget {
                         if (decoded is! List) {
                           throw const FormatException('Backup must be a list.');
                         }
-                        transactions = decoded
-                            .whereType<Map>()
-                            .map(
-                              (item) => ExpenseTransaction.fromJson(
-                                Map<String, dynamic>.from(item),
-                              ),
-                            )
-                            .where(
-                              (item) => item.id.isNotEmpty && item.amount > 0,
-                            )
-                            .toList(growable: false);
-                      } on FormatException {
+                        final parsed = <ExpenseTransaction>[];
+                        final seenIds = <String>{};
+                        for (var index = 0; index < decoded.length; index++) {
+                          final raw = decoded[index];
+                          if (raw is! Map) {
+                            throw FormatException(
+                              'Entry ${index + 1} must be a transaction object.',
+                            );
+                          }
+                          final data = Map<String, dynamic>.from(raw);
+                          final rawId =
+                              data['id'] ?? data['name'] ?? data['sync_id'];
+                          if (rawId?.toString().trim().isEmpty ?? true) {
+                            throw FormatException(
+                              'Entry ${index + 1} is missing a transaction ID.',
+                            );
+                          }
+                          final rawType =
+                              (data['transaction_type'] ?? data['type'])
+                                  ?.toString()
+                                  .trim()
+                                  .toLowerCase();
+                          if (rawType != 'income' && rawType != 'expense') {
+                            throw FormatException(
+                              'Entry ${index + 1} has an invalid transaction type.',
+                            );
+                          }
+                          final rawAmount = double.tryParse(
+                            data['amount']?.toString() ?? '',
+                          );
+                          if (rawAmount == null || rawAmount <= 0) {
+                            throw FormatException(
+                              'Entry ${index + 1} must have an amount greater than zero.',
+                            );
+                          }
+                          final rawDate =
+                              data['date'] ?? data['transaction_date'];
+                          if (DateTime.tryParse(rawDate?.toString() ?? '') ==
+                              null) {
+                            throw FormatException(
+                              'Entry ${index + 1} has an invalid transaction date.',
+                            );
+                          }
+                          if (data['category']?.toString().trim().isEmpty ??
+                              true) {
+                            throw FormatException(
+                              'Entry ${index + 1} is missing a category.',
+                            );
+                          }
+                          final transaction = ExpenseTransaction.fromJson(data);
+                          if (!seenIds.add(transaction.id)) {
+                            throw FormatException(
+                              'Duplicate transaction ID: ${transaction.id}.',
+                            );
+                          }
+                          parsed.add(transaction);
+                        }
+                        transactions = List<ExpenseTransaction>.unmodifiable(
+                          parsed,
+                        );
+                      } on FormatException catch (error) {
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
+                          SnackBar(
                             content: Text(
-                              'Invalid backup JSON. Please check format.',
+                              error.message.toString().trim().isEmpty
+                                  ? 'Invalid backup JSON. Please check format.'
+                                  : error.message.toString(),
                             ),
                           ),
                         );
@@ -657,15 +708,19 @@ class _LocalLedgerViewState extends State<_LocalLedgerView> {
   @override
   Widget build(BuildContext context) {
     final periodTransactions = _filterByPeriod(widget.transactions);
-    final categories = periodTransactions
-        .map((item) => item.category.trim())
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-    final filteredTransactions = periodTransactions.where((item) {
-      return _category == _allCategories || item.category.trim() == _category;
-    }).toList(growable: false);
+    final categories =
+        periodTransactions
+            .map((item) => item.category.trim())
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    final filteredTransactions = periodTransactions
+        .where((item) {
+          return _category == _allCategories ||
+              item.category.trim() == _category;
+        })
+        .toList(growable: false);
     final allStats = _TrackerStats.fromTransactions(widget.transactions);
     final periodStats = _TrackerStats.fromTransactions(periodTransactions);
     final quickCategories = widget.config.categories
@@ -739,7 +794,11 @@ class _LocalLedgerViewState extends State<_LocalLedgerView> {
               message: 'Choose another period or category.',
             )
           else
-            for (var index = 0; index < filteredTransactions.length; index++) ...[
+            for (
+              var index = 0;
+              index < filteredTransactions.length;
+              index++
+            ) ...[
               _TransactionRow(
                 transaction: filteredTransactions[index],
                 onEdit: () => widget.onEdit(filteredTransactions[index]),
@@ -774,14 +833,17 @@ class _LocalLedgerViewState extends State<_LocalLedgerView> {
     List<ExpenseTransaction> transactions,
   ) {
     final now = DateTime.now();
-    return transactions.where((item) {
-      if (_period == _TrackerPeriod.all) return true;
-      if (_period == _TrackerPeriod.thisMonth) {
-        return item.date.year == now.year && item.date.month == now.month;
-      }
-      final lastMonth = DateTime(now.year, now.month - 1);
-      return item.date.year == lastMonth.year && item.date.month == lastMonth.month;
-    }).toList(growable: false);
+    return transactions
+        .where((item) {
+          if (_period == _TrackerPeriod.all) return true;
+          if (_period == _TrackerPeriod.thisMonth) {
+            return item.date.year == now.year && item.date.month == now.month;
+          }
+          final lastMonth = DateTime(now.year, now.month - 1);
+          return item.date.year == lastMonth.year &&
+              item.date.month == lastMonth.month;
+        })
+        .toList(growable: false);
   }
 }
 
@@ -833,7 +895,9 @@ class _TrackerStats {
     return 'Low';
   }
 
-  factory _TrackerStats.fromTransactions(List<ExpenseTransaction> transactions) {
+  factory _TrackerStats.fromTransactions(
+    List<ExpenseTransaction> transactions,
+  ) {
     double income = 0;
     double expenses = 0;
     double taxRelevantTotal = 0;
@@ -954,10 +1018,7 @@ class _FinancialValue extends StatelessWidget {
             children: [
               Text(label, style: Theme.of(context).textTheme.bodyMedium),
               const SizedBox(height: 2),
-              Text(
-                value,
-                style: Theme.of(context).textTheme.amountSecondary,
-              ),
+              Text(value, style: Theme.of(context).textTheme.amountSecondary),
             ],
           ),
         ),
@@ -1038,7 +1099,9 @@ class _LedgerFilters extends StatelessWidget {
         ),
         _MenuFilter<String>(
           label: 'Category',
-          valueLabel: category == allCategoryValue ? 'All categories' : category,
+          valueLabel: category == allCategoryValue
+              ? 'All categories'
+              : category,
           values: [allCategoryValue, ...categories],
           itemLabel: (value) =>
               value == allCategoryValue ? 'All categories' : value,
@@ -1070,10 +1133,8 @@ class _MenuFilter<T> extends StatelessWidget {
       onSelected: onSelected,
       itemBuilder: (context) => values
           .map(
-            (value) => PopupMenuItem<T>(
-              value: value,
-              child: Text(itemLabel(value)),
-            ),
+            (value) =>
+                PopupMenuItem<T>(value: value, child: Text(itemLabel(value))),
           )
           .toList(growable: false),
       child: ConstrainedBox(
@@ -1140,7 +1201,7 @@ class _TransactionRow extends StatelessWidget {
           final amountWidget = Text(
             amount,
             textAlign: stacked ? TextAlign.start : TextAlign.end,
-            style: Theme.of(context).textTheme.amountSecondary?.copyWith(
+            style: Theme.of(context).textTheme.amountSecondary.copyWith(
               color: isIncome ? AppTheme.success : AppTheme.textPrimary,
             ),
           );
@@ -1198,10 +1259,14 @@ class _TransactionRow extends StatelessWidget {
                           DateFormat('dd MMM yyyy').format(transaction.date),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
-                        Text('· ${transaction.account}',
-                            style: Theme.of(context).textTheme.bodySmall),
-                        Text('· ${transaction.paymentMethod}',
-                            style: Theme.of(context).textTheme.bodySmall),
+                        Text(
+                          '· ${transaction.account}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        Text(
+                          '· ${transaction.paymentMethod}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ],
                     ),
                     if ((transaction.note ?? '').trim().isNotEmpty) ...[
@@ -1309,7 +1374,11 @@ class _PeriodSummaryExpansion extends StatelessWidget {
           children: [
             _KeyValue(label: 'Income', value: _money(stats.income)),
             _KeyValue(label: 'Expenses', value: _money(stats.expenses)),
-            _KeyValue(label: 'Balance', value: _money(stats.balance), strong: true),
+            _KeyValue(
+              label: 'Balance',
+              value: _money(stats.balance),
+              strong: true,
+            ),
             if (rows.isNotEmpty) ...[
               const Divider(height: 22),
               Align(
@@ -1344,7 +1413,9 @@ class _TaxRecordExpansion extends StatelessWidget {
           tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           title: const Text('Tax record summary'),
-          subtitle: Text('${stats.readinessLabel} · score ${stats.readinessScore}'),
+          subtitle: Text(
+            '${stats.readinessLabel} · score ${stats.readinessScore}',
+          ),
           children: [
             _KeyValue(
               label: 'Tax-relevant expenses',
@@ -1576,8 +1647,7 @@ class _CloudLedgerViewState extends ConsumerState<_CloudLedgerView> {
                   onEdit: () => widget.onEdit(page.entries[index]),
                   onDelete: () => widget.onDelete(page.entries[index].id),
                 ),
-                if (index != page.entries.length - 1)
-                  const Divider(height: 1),
+                if (index != page.entries.length - 1) const Divider(height: 1),
               ],
             const SizedBox(height: 14),
             _Pager(
@@ -1585,9 +1655,7 @@ class _CloudLedgerViewState extends ConsumerState<_CloudLedgerView> {
               nextStart: page.nextStart,
               onPrevious: start == 0
                   ? null
-                  : () => setState(
-                      () => start = (start - 100).clamp(0, start),
-                    ),
+                  : () => setState(() => start = (start - 100).clamp(0, start)),
               onNext: page.nextStart == null
                   ? null
                   : () => setState(() => start = page.nextStart!),
@@ -1732,10 +1800,7 @@ class _Pager extends StatelessWidget {
         Text('Page ${start ~/ 100 + 1}'),
         const SizedBox(width: 12),
         Expanded(
-          child: OutlinedButton(
-            onPressed: onNext,
-            child: const Text('Next'),
-          ),
+          child: OutlinedButton(onPressed: onNext, child: const Text('Next')),
         ),
       ],
     );
@@ -1961,15 +2026,16 @@ class _TransactionSheetState extends State<_TransactionSheet> {
                             : 'Expense category',
                         prefixIcon: const Icon(Icons.category_outlined),
                       ),
-                      validator: (value) => value == null || value.trim().isEmpty
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
                           ? 'Category is required.'
                           : null,
                     ),
                     const SizedBox(height: 12),
                     Theme(
-                      data: Theme.of(context).copyWith(
-                        dividerColor: Colors.transparent,
-                      ),
+                      data: Theme.of(
+                        context,
+                      ).copyWith(dividerColor: Colors.transparent),
                       child: ExpansionTile(
                         initiallyExpanded: _advanced,
                         onExpansionChanged: (value) =>
@@ -2323,10 +2389,11 @@ class _KeyValue extends StatelessWidget {
             child: Text(
               value,
               textAlign: TextAlign.end,
-              style: (strong
-                      ? Theme.of(context).textTheme.titleMedium
-                      : Theme.of(context).textTheme.bodyLarge)
-                  ?.copyWith(fontWeight: strong ? FontWeight.w600 : null),
+              style:
+                  (strong
+                          ? Theme.of(context).textTheme.titleMedium
+                          : Theme.of(context).textTheme.bodyLarge)
+                      ?.copyWith(fontWeight: strong ? FontWeight.w600 : null),
             ),
           ),
         ],

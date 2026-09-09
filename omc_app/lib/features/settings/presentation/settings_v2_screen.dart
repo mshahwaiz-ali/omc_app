@@ -39,7 +39,8 @@ class SettingsV2Screen extends ConsumerWidget {
     final activeIdentity = authState.userId?.trim() ?? '';
     final biometricEnabled =
         activeIdentity.isNotEmpty &&
-        ref.watch(biometricLoginEnabledForProvider(activeIdentity)).value == true;
+        ref.watch(biometricLoginEnabledForProvider(activeIdentity)).value ==
+            true;
     final profile = profileSummary.maybeWhen(
       data: (profile) => profile,
       orElse: () => null,
@@ -48,7 +49,8 @@ class SettingsV2Screen extends ConsumerWidget {
     final accountStatus = profile?.status ?? authState.customerStatus;
     final approvalStatus = profile?.approvalStatus ?? authState.approvalStatus;
     final isInternal =
-        authState.capabilities.isInternal || authState.canAccessInternalWorkspace;
+        authState.capabilities.isInternal ||
+        authState.canAccessInternalWorkspace;
 
     return Scaffold(
       key: OmcWidgetKeys.settingsScreen,
@@ -277,7 +279,7 @@ class SettingsV2Screen extends ConsumerWidget {
     if (currentlyEnabled) {
       final identity = ref.read(authControllerProvider).userId?.trim() ?? '';
       if (identity.isNotEmpty) {
-        await service.removeBiometricLoginFor(identity);
+        await service.disableBiometricLoginFor(identity);
       }
 
       ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
@@ -319,35 +321,50 @@ class SettingsV2Screen extends ConsumerWidget {
       await ref
           .read(authRepositoryProvider)
           .verifyCurrentPassword(currentPassword: password);
-
-      if (!context.mounted) return;
-      ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
-      final enabled = await service.enable();
-
-      if (enabled) {
-        await service.enrollBiometricLogin(
-          identifier: identifier,
-          password: password,
-        );
-        ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
+    } catch (_) {
+      if (context.mounted) {
+        _showSnack(context, 'Password verification failed.');
       }
+      return;
+    }
+
+    if (!context.mounted) return;
+    ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
+
+    try {
+      final enabled = await service.enableBiometricLogin(
+        identifier: identifier,
+        password: password,
+      );
 
       ref.invalidate(deviceLockEnabledProvider);
       ref.invalidate(biometricLoginAvailableProvider);
       ref.invalidate(biometricLoginAccountsProvider);
       ref.invalidate(biometricLoginEnabledForProvider(identifier));
 
-      if (context.mounted) {
-        _showSnack(
-          context,
-          enabled
-              ? 'Biometric sign in enabled.'
-              : 'Biometric setup was cancelled. You can continue using your password.',
-        );
+      if (!context.mounted) return;
+      if (enabled) {
+        ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
       }
-    } catch (_) {
+      _showSnack(
+        context,
+        enabled
+            ? 'Biometric sign in enabled.'
+            : 'Biometric setup was cancelled. You can continue using your password.',
+      );
+    } catch (error) {
+      ref.invalidate(deviceLockEnabledProvider);
+      ref.invalidate(biometricLoginAvailableProvider);
+      ref.invalidate(biometricLoginAccountsProvider);
+      ref.invalidate(biometricLoginEnabledForProvider(identifier));
       if (context.mounted) {
-        _showSnack(context, 'Password verification failed.');
+        final failure = AppFailureClassifier.classify(
+          error,
+          fallbackTitle: 'Biometric setup not completed',
+          fallbackMessage:
+              'Biometric sign in could not be enabled. Your password sign in remains available.',
+        );
+        _showSnack(context, failure.message);
       }
     }
   }
@@ -384,8 +401,7 @@ class SettingsV2Screen extends ConsumerWidget {
                     labelText: 'Current password',
                     prefixIcon: const Icon(Icons.lock_outline_rounded),
                     suffixIcon: IconButton(
-                      onPressed: () =>
-                          setDialogState(() => obscure = !obscure),
+                      onPressed: () => setDialogState(() => obscure = !obscure),
                       icon: Icon(
                         obscure
                             ? Icons.visibility_outlined
@@ -476,11 +492,7 @@ class SettingsV2Screen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(
-              Icons.logout_rounded,
-              size: 36,
-              color: AppTheme.danger,
-            ),
+            const Icon(Icons.logout_rounded, size: 36, color: AppTheme.danger),
             const SizedBox(height: 14),
             Text(
               'Logout from OMC?',
@@ -511,9 +523,7 @@ class SettingsV2Screen extends ConsumerWidget {
       ),
     );
 
-    if (shouldLogout != true ||
-        !context.mounted ||
-        _settingsV2LogoutInFlight) {
+    if (shouldLogout != true || !context.mounted || _settingsV2LogoutInFlight) {
       return;
     }
 
@@ -609,9 +619,9 @@ class SettingsV2Screen extends ConsumerWidget {
   }
 
   void _showSnack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -722,12 +732,16 @@ class _SettingsRow extends StatelessWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: destructive ? AppTheme.dangerSoft : AppTheme.cardSoft,
+                    color: destructive
+                        ? AppTheme.dangerSoft
+                        : AppTheme.cardSoft,
                     borderRadius: BorderRadius.circular(AppRadius.control),
                   ),
                   child: Icon(
                     icon,
-                    color: destructive ? AppTheme.danger : AppTheme.textSecondary,
+                    color: destructive
+                        ? AppTheme.danger
+                        : AppTheme.textSecondary,
                     size: 21,
                   ),
                 ),
@@ -738,10 +752,9 @@ class _SettingsRow extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(color: foreground),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.titleMedium?.copyWith(color: foreground),
                       ),
                       const SizedBox(height: 3),
                       Text(
@@ -878,10 +891,7 @@ class _PreferenceSwitch extends StatelessWidget {
 }
 
 class _InlinePreferenceError extends StatelessWidget {
-  const _InlinePreferenceError({
-    required this.message,
-    required this.onRetry,
-  });
+  const _InlinePreferenceError({required this.message, required this.onRetry});
   final String message;
   final VoidCallback onRetry;
 
@@ -892,7 +902,11 @@ class _InlinePreferenceError extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.cloud_off_outlined, color: AppTheme.danger, size: 20),
+          const Icon(
+            Icons.cloud_off_outlined,
+            color: AppTheme.danger,
+            size: 20,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
@@ -955,32 +969,43 @@ class _AccountRequestSheet extends StatelessWidget {
             borderRadius: const BorderRadius.vertical(
               top: Radius.circular(AppRadius.sheet),
             ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(title, style: Theme.of(context).textTheme.headlineSmall),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: controller,
-                    minLines: 4,
-                    maxLines: 7,
-                    textInputAction: TextInputAction.newline,
-                    decoration: InputDecoration(
-                      labelText: label,
-                      hintText: hint,
-                      alignLabelWithHint: true,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+              ),
+              child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: () => Navigator.of(context).pop(controller.text),
-                    icon: const Icon(Icons.send_rounded),
-                    label: Text(submitLabel),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: controller,
+                      minLines: 4,
+                      maxLines: 7,
+                      textInputAction: TextInputAction.newline,
+                      decoration: InputDecoration(
+                        labelText: label,
+                        hintText: hint,
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () =>
+                          Navigator.of(context).pop(controller.text),
+                      icon: const Icon(Icons.send_rounded),
+                      label: Text(submitLabel),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

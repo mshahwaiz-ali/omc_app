@@ -16,7 +16,7 @@ void main() {
     expect(find.text('Business Partner'), findsNothing);
     expect(find.text('Tax Associate'), findsNothing);
     expect(find.textContaining('Staff options'), findsNothing);
-    expect(find.textContaining('Create a customer account'), findsOneWidget);
+    expect(find.text('Create your account'), findsOneWidget);
   });
 
   testWidgets('final step submits canonical verification payload', (
@@ -183,13 +183,13 @@ void main() {
       ),
     );
 
-    expect(find.text('Are you already an OMC customer?'), findsOneWidget);
+    expect(find.text('Customer relationship'), findsOneWidget);
     expect(find.text('New to OMC'), findsOneWidget);
-    expect(find.text('Already an OMC customer'), findsOneWidget);
+    expect(find.text('Existing customer'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Already an OMC customer'));
+    await tester.ensureVisible(find.text('Existing customer'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Already an OMC customer'));
+    await tester.tap(find.text('Existing customer'));
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('Continue'));

@@ -247,7 +247,7 @@ class _DocumentsWorkspaceState extends State<_DocumentsWorkspace> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            const Expanded(
+            Expanded(
               child: Semantics(
                 header: true,
                 child: Text(
@@ -416,7 +416,7 @@ class _Header extends StatelessWidget {
                   Text(
                     documents.isEmpty
                         ? 'Required and submitted files will appear here.'
-                        : '$active active · $action need action · $review under review',
+                        : 'Loaded: $active active · $action need action · $review under review',
                     style: const TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 15,
@@ -667,8 +667,7 @@ class _RequestDocumentCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Semantics(
-                  label:
-                      '${group.approvedCount} of $total documents approved',
+                  label: '${group.approvedCount} of $total documents approved',
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(999),
                     child: LinearProgressIndicator(
@@ -697,8 +696,7 @@ class _RequestDocumentCard extends StatelessWidget {
               assisted: assisted,
               customerName: customerName,
             ),
-            if (index != group.documents.length - 1)
-              const Divider(height: 20),
+            if (index != group.documents.length - 1) const Divider(height: 20),
           ],
         ],
       ),

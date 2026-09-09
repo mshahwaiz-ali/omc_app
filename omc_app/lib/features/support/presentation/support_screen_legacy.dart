@@ -616,9 +616,11 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
                       color: AppTheme.textSecondary,
                     )
                   else
-                    for (var index = 0;
-                        index < selectedTickets.length;
-                        index++) ...[
+                    for (
+                      var index = 0;
+                      index < selectedTickets.length;
+                      index++
+                    ) ...[
                       _TicketTile(
                         ticket: selectedTickets[index],
                         showAssignment: isInternalQueue,
@@ -629,8 +631,7 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
                             !selectedTickets[index].isClosed,
                         isAssigning:
                             _assigningTicketId == selectedTickets[index].id,
-                        onAssignToMe: () =>
-                            _assignToMe(selectedTickets[index]),
+                        onAssignToMe: () => _assignToMe(selectedTickets[index]),
                       ),
                       if (index != selectedTickets.length - 1)
                         const SizedBox(height: 10),
@@ -644,7 +645,9 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
                         icon: _loadingMore
                             ? const SizedBox.square(
                                 dimension: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Icon(Icons.expand_more_rounded),
                         label: Text(
@@ -716,9 +719,8 @@ class _TicketTile extends StatelessWidget {
     return PremiumCard(
       padding: EdgeInsets.zero,
       child: InkWell(
-        onTap: () => context.push(
-          '/support-tickets/${Uri.encodeComponent(ticket.id)}',
-        ),
+        onTap: () =>
+            context.push('/support-tickets/${Uri.encodeComponent(ticket.id)}'),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(14),
@@ -841,7 +843,7 @@ class _TicketTile extends StatelessWidget {
                     return Row(
                       children: [
                         Expanded(child: assignment),
-                        if (action != null) action,
+                        ?action,
                       ],
                     );
                   },
@@ -929,12 +931,11 @@ class _SupportTopicsCard extends StatelessWidget {
         children: [
           const _SectionHeader(
             title: 'Support topics',
-            subtitle: 'Open WhatsApp with a ready message for the selected topic.',
+            subtitle:
+                'Open WhatsApp with a ready message for the selected topic.',
           ),
           const SizedBox(height: 12),
-          for (var index = 0;
-              index < sorted.length && index < 6;
-              index++) ...[
+          for (var index = 0; index < sorted.length && index < 6; index++) ...[
             _TopicRow(
               topic: sorted[index],
               whatsappChannel: whatsappChannel,
@@ -988,10 +989,7 @@ class _BackendFaqCard extends ConsumerWidget {
             Expanded(
               child: Text(
                 'Loading frequently asked questions…',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 15,
-                ),
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 15),
               ),
             ),
           ],
@@ -1043,10 +1041,7 @@ class _FaqTile extends StatelessWidget {
       ),
       subtitle: faq.category == null
           ? null
-          : Text(
-              faq.category!,
-              style: const TextStyle(fontSize: 13),
-            ),
+          : Text(faq.category!, style: const TextStyle(fontSize: 13)),
       children: [
         Align(
           alignment: Alignment.centerLeft,

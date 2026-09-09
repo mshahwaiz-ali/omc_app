@@ -22,14 +22,15 @@ class LeadDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: const AppBackHeader(title: 'Lead details'),
+      appBar: const AppBackHeader(title: 'Lead record'),
       body: leadAsync.when(
         data: (lead) {
           if (lead == null) {
             return const PremiumEmptyState(
               icon: Icons.trending_up_rounded,
               title: 'Lead detail unavailable',
-              message: 'This lead record is not available in your current scope.',
+              message:
+                  'This lead record is not available in your current scope.',
             );
           }
           return _LeadDetailBody(lead: lead);
@@ -102,8 +103,8 @@ class _LeadDetailBody extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final inset = AppLayout.pageInsetFor(constraints.maxWidth);
-        final horizontal = constraints.maxWidth >
-                AppLayout.generalMaxWidth + inset * 2
+        final horizontal =
+            constraints.maxWidth > AppLayout.generalMaxWidth + inset * 2
             ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
             : inset;
         return ListView(

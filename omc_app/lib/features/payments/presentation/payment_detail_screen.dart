@@ -281,35 +281,40 @@ _paymentVerificationVisual(PaymentStatus status) {
         color: AppTheme.warning,
         icon: Icons.account_balance_wallet_outlined,
         title: 'Payment pending',
-        message: 'Payment has not been verified yet. Complete the available payment step and submit proof when required.',
+        message:
+            'Payment has not been verified yet. Complete the available payment step and submit proof when required.',
       );
     case PaymentStatus.overdue:
       return (
         color: AppTheme.danger,
         icon: Icons.warning_amber_rounded,
         title: 'Payment overdue',
-        message: 'This payment remains unpaid or unverified past its due date and needs attention.',
+        message:
+            'This payment remains unpaid or unverified past its due date and needs attention.',
       );
     case PaymentStatus.rejected:
       return (
         color: AppTheme.danger,
         icon: Icons.error_outline_rounded,
         title: 'Payment proof needs correction',
-        message: 'The submitted proof was rejected. Upload corrected proof for another finance review.',
+        message:
+            'The submitted proof was rejected. Upload corrected proof for another finance review.',
       );
     case PaymentStatus.receiptSubmitted:
       return (
         color: AppTheme.info,
         icon: Icons.receipt_long_outlined,
         title: 'Payment proof submitted',
-        message: 'Proof has been received for review. Submission does not mean the payment is verified or paid.',
+        message:
+            'Proof has been received for review. Submission does not mean the payment is verified or paid.',
       );
     case PaymentStatus.underReview:
       return (
         color: AppTheme.info,
         icon: Icons.manage_search_rounded,
         title: 'Payment under review',
-        message: 'OMC is reviewing the submitted proof. The payment is not presented as verified until its status changes to Paid.',
+        message:
+            'OMC is reviewing the submitted proof. The payment is not presented as verified until its status changes to Paid.',
       );
     case PaymentStatus.paid:
       return (
@@ -323,7 +328,8 @@ _paymentVerificationVisual(PaymentStatus status) {
         color: AppTheme.textSecondary,
         icon: Icons.cancel_outlined,
         title: 'Payment cancelled',
-        message: 'This payment record is no longer active and has no payment action.',
+        message:
+            'This payment record is no longer active and has no payment action.',
       );
   }
 }
@@ -340,7 +346,7 @@ class _PaymentInfoCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Semantics(
+          Semantics(
             header: true,
             child: Text(
               'Payment information',
@@ -422,11 +428,7 @@ class _PaymentInfoRow extends StatelessWidget {
           if (stack) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                labelWidget,
-                const SizedBox(height: 4),
-                valueWidget,
-              ],
+              children: [labelWidget, const SizedBox(height: 4), valueWidget],
             );
           }
 
@@ -462,7 +464,7 @@ class _PaymentAdminReviewCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Semantics(
+          Semantics(
             header: true,
             child: Text(
               'Payment review',
@@ -549,8 +551,7 @@ class _PaymentDetailBody extends ConsumerStatefulWidget {
   final String? customerName;
 
   @override
-  ConsumerState<_PaymentDetailBody> createState() =>
-      _PaymentDetailBodyState();
+  ConsumerState<_PaymentDetailBody> createState() => _PaymentDetailBodyState();
 }
 
 class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
@@ -654,7 +655,9 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
         builder: (context, setDialogState) => AlertDialog(
           scrollable: true,
           title: Text(
-            status == 'Rejected' ? 'Reject payment proof' : 'Mark payment paid?',
+            status == 'Rejected'
+                ? 'Reject payment proof'
+                : 'Mark payment paid?',
           ),
           content: TextField(
             controller: remarksController,
@@ -679,8 +682,12 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
             FilledButton(
               style: status == 'Rejected'
                   ? FilledButton.styleFrom(
-                      backgroundColor: Theme.of(dialogContext).colorScheme.error,
-                      foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+                      backgroundColor: Theme.of(
+                        dialogContext,
+                      ).colorScheme.error,
+                      foregroundColor: Theme.of(
+                        dialogContext,
+                      ).colorScheme.onError,
                     )
                   : null,
               onPressed:
@@ -691,9 +698,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
                       FocusScope.of(dialogContext).unfocus();
                       Navigator.pop(dialogContext, value);
                     },
-              child: Text(
-                status == 'Rejected' ? 'Reject proof' : 'Mark paid',
-              ),
+              child: Text(status == 'Rejected' ? 'Reject proof' : 'Mark paid'),
             ),
           ],
         ),

@@ -424,6 +424,7 @@ class _InternalOperationsCenterScreenState
   }
 }
 
+// ignore: unused_element
 class _PaymentPager extends StatelessWidget {
   const _PaymentPager({
     required this.start,
@@ -555,6 +556,7 @@ class InternalServiceCaseWorkspaceScreen extends ConsumerWidget {
   }
 }
 
+// ignore: unused_element
 class _InternalPaymentFilters extends StatelessWidget {
   const _InternalPaymentFilters({
     required this.controller,
@@ -638,6 +640,7 @@ class _InternalPaymentFilters extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _InternalPaymentSummary extends StatelessWidget {
   const _InternalPaymentSummary({
     required this.payments,
@@ -734,6 +737,7 @@ class _InternalPaymentMetric extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _InternalPaymentCard extends StatelessWidget {
   const _InternalPaymentCard({required this.payment});
 
@@ -2191,6 +2195,7 @@ class _MiniTag extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _ServiceWorkspaceHeader extends StatelessWidget {
   const _ServiceWorkspaceHeader({required this.serviceCase});
 
@@ -2291,6 +2296,7 @@ class _ServiceWorkspaceHeader extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _NextCaseAction extends StatelessWidget {
   const _NextCaseAction({required this.serviceCase});
 
@@ -2380,6 +2386,7 @@ class _NextCaseAction extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _WorkspaceOverview extends StatelessWidget {
   const _WorkspaceOverview({required this.serviceCase});
 
@@ -2504,6 +2511,7 @@ class _OverviewItem extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _StatusProgressBlock extends StatelessWidget {
   const _StatusProgressBlock({required this.serviceCase});
 
@@ -2682,6 +2690,7 @@ class _ProgressStage extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _DocumentsBlock extends StatelessWidget {
   const _DocumentsBlock({required this.serviceCase});
 
@@ -2811,6 +2820,7 @@ class _DocumentMetric extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _PaymentsBlock extends StatelessWidget {
   const _PaymentsBlock({required this.serviceCase});
 
@@ -2843,6 +2853,7 @@ class _PaymentsBlock extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _ActivityTimelineBlock extends StatelessWidget {
   const _ActivityTimelineBlock({required this.serviceCase});
 
@@ -3640,7 +3651,8 @@ class _InternalPaymentFiltersV2 extends StatelessWidget {
               for (final filter in filters) ...[
                 Semantics(
                   selected: selectedFilter == filter,
-                  label: '$filter, ${counts[filter] ?? 0} payments on this loaded page',
+                  label:
+                      '$filter, ${counts[filter] ?? 0} payments on this loaded page',
                   child: ChoiceChip(
                     selected: selectedFilter == filter,
                     label: Text('$filter · ${counts[filter] ?? 0}'),
@@ -3655,9 +3667,9 @@ class _InternalPaymentFiltersV2 extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           'Filter counts describe the currently loaded server page only, not the full payment queue.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
         ),
       ],
     );
@@ -3715,9 +3727,9 @@ class _InternalPaymentSummaryV2 extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'These counts describe only the payment records loaded on this page.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 14),
           LayoutBuilder(
@@ -3824,9 +3836,9 @@ class _PaymentResultsHeader extends StatelessWidget {
         );
         final count = Text(
           '$shown shown from $loaded loaded',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
         );
         if (stack) {
           return Column(
@@ -3890,9 +3902,9 @@ class _InternalPaymentCardV2 extends StatelessWidget {
                 children: [
                   Text(
                     payment.amountLabel,
-                    style: Theme.of(context).textTheme.amount.copyWith(
-                      color: AppTheme.textPrimary,
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.amount.copyWith(color: AppTheme.textPrimary),
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -4103,16 +4115,16 @@ class _PaymentVerificationBanner extends StatelessWidget {
               children: [
                 Text(
                   'Verification state',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: visual.color,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(color: visual.color),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   visual.message,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: visual.color,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: visual.color),
                 ),
               ],
             ),
@@ -4149,9 +4161,9 @@ class _PaymentEvidenceRow extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: 2),
               SelectableText(
@@ -4205,9 +4217,9 @@ class _PaymentPagerV2 extends StatelessWidget {
         final stack = constraints.maxWidth < 360 || textScale >= 1.5;
         final description = Text(
           'Server page $first-$last of $total backend query matches. Local filters can show fewer records from this page.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
         );
         final controls = Row(
           mainAxisSize: MainAxisSize.min,
@@ -4327,18 +4339,14 @@ class _CaseIdentityV2 extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.flag_outlined,
-                  size: 20,
-                  color: colors.foreground,
-                ),
+                Icon(Icons.flag_outlined, size: 20, color: colors.foreground),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     _displayValue(serviceCase.status),
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: colors.foreground,
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelMedium?.copyWith(color: colors.foreground),
                   ),
                 ),
               ],
@@ -4359,9 +4367,9 @@ class _CaseIdentityV2 extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             'Case reference',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 2),
           SelectableText(
@@ -4392,9 +4400,9 @@ class _CaseIdentityMetaV2 extends StatelessWidget {
         children: [
           Text(
             label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 2),
           Text(value, style: Theme.of(context).textTheme.bodyMedium),
@@ -4445,9 +4453,9 @@ class _CaseNextActionV2 extends StatelessWidget {
               children: [
                 Text(
                   completed ? 'Service completed' : 'Next case action',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: color,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(color: color),
                 ),
                 const SizedBox(height: 6),
                 Text(nextAction, style: Theme.of(context).textTheme.bodyLarge),
@@ -4510,16 +4518,19 @@ class _CaseEvidenceV2 extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Document evidence', style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'Document evidence',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: 4),
           Text(
             serviceCase.documentSummaryLabel.trim().isNotEmpty &&
                     serviceCase.documentSummaryLabel != '-'
                 ? serviceCase.documentSummaryLabel
                 : 'Document counts from the current case queue record.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 14),
           LayoutBuilder(
@@ -4557,9 +4568,9 @@ class _CaseEvidenceV2 extends StatelessWidget {
             total == 0
                 ? 'No document requirements are available in this summary.'
                 : '$received of $total documents received',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 14),
           SizedBox(
@@ -4625,7 +4636,10 @@ class _CaseEvidenceMetricViewV2 extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(metric.label, style: Theme.of(context).textTheme.bodySmall),
+                Text(
+                  metric.label,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ],
             ),
           ),
@@ -4759,7 +4773,14 @@ class _CaseProgressV2 extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const labels = ['Open', 'Documents', 'Payment', 'Processing', 'Review', 'Completed'];
+    const labels = [
+      'Open',
+      'Documents',
+      'Payment',
+      'Processing',
+      'Review',
+      'Completed',
+    ];
     final state = _progressState(serviceCase);
 
     return PremiumCard(
@@ -4767,13 +4788,16 @@ class _CaseProgressV2 extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Service progress', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Service progress',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 4),
           Text(
             _progressHeading(serviceCase),
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 14),
           for (var index = 0; index < labels.length; index++) ...[
@@ -4914,9 +4938,9 @@ class _CaseTimelineRowV2 extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 value,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
               ),
             ],
           ),
@@ -4942,9 +4966,9 @@ class _CaseOperationsV2 extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'Review invoices, receipts and payment status in the existing scoped payment workspace. Payment records are not loaded into this case summary.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 14),
           SizedBox(

@@ -73,9 +73,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('My commissions'), findsOneWidget);
-    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    final serviceFinder = find.textContaining('Annual income tax');
+    await tester.scrollUntilVisible(
+      serviceFinder,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
-    expect(find.textContaining('Annual income tax'), findsOneWidget);
+    expect(serviceFinder, findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

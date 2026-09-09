@@ -53,6 +53,10 @@ class DocumentAttachmentController {
     final existingIds = existingAttachments
         .map((attachment) => attachment.id)
         .toSet();
+    final normalizedAllowedExtensions = allowedExtensionsOverride
+        .map((extension) => extension.trim().toLowerCase())
+        .where((extension) => extension.isNotEmpty)
+        .toSet();
     final accepted = <DocumentAttachment>[];
     final rejectedMessages = <String>[];
 
@@ -65,9 +69,27 @@ class DocumentAttachmentController {
         continue;
       }
       final attachment = _fromPlatformFile(file);
+      final extension = attachment.extension?.trim().toLowerCase() ?? '';
+      if (extension.isEmpty ||
+          !normalizedAllowedExtensions.contains(extension)) {
+        rejectedMessages.add('${file.name} has an unsupported file type.');
+        continue;
+      }
+      if (file.size <= 0) {
+        rejectedMessages.add('${file.name} is empty.');
+        continue;
+      }
       if (file.size > maxFileSizeInBytes) {
         rejectedMessages.add(
           '${file.name} is larger than ${formatFileSize(maxFileSizeInBytes)}.',
+        );
+        continue;
+      }
+      final hasPath = attachment.path?.trim().isNotEmpty == true;
+      final hasBytes = attachment.bytes != null && attachment.bytes!.isNotEmpty;
+      if (!hasPath && !hasBytes) {
+        rejectedMessages.add(
+          '${file.name} is not available on this device. Please select it again.',
         );
         continue;
       }

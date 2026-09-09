@@ -78,10 +78,7 @@ Future<bool> showDiscardChangesDialog(BuildContext context) async {
         barrierDismissible: false,
         builder: (dialogContext) => AlertDialog(
           scrollable: true,
-          title: const Semantics(
-            header: true,
-            child: Text('Discard changes?'),
-          ),
+          title: Semantics(header: true, child: Text('Discard changes?')),
           content: const Text(
             'You have unsaved changes. Leaving now will discard them.',
           ),

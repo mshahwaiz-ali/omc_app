@@ -58,7 +58,15 @@ class _ServiceRequestDraftScreenState
   final _remarksController = TextEditingController();
   final _discountValueController = TextEditingController();
   final _discountReasonController = TextEditingController();
+  final _nameFocusNode = FocusNode();
+  final _phoneFocusNode = FocusNode();
+  final _emailFocusNode = FocusNode();
+  final _taxIdFocusNode = FocusNode();
+  final _discountValueFocusNode = FocusNode();
+  final _discountReasonFocusNode = FocusNode();
+  final _assistedCustomerKey = GlobalKey();
   final Map<String, TextEditingController> _dynamicControllers = {};
+  final Map<String, FocusNode> _dynamicFocusNodes = {};
   final Map<String, String?> _selectValues = {};
   final Map<String, bool> _checkValues = {};
   final _dirtyFormController = DirtyFormController();
@@ -66,7 +74,9 @@ class _ServiceRequestDraftScreenState
 
   bool _customerProfilePrefillScheduled = false;
   bool _customerProfilePrefilled = false;
+  bool _resettingAssistedDraft = false;
   AssistedCustomerDraftSelection? _assistedSelection;
+  String? _lastAssistedCustomerId;
   String _discountType = 'Percentage';
   bool _isSubmitting = false;
 
@@ -103,11 +113,25 @@ class _ServiceRequestDraftScreenState
     for (final controller in _dynamicControllers.values) {
       controller.dispose();
     }
+    for (final focusNode in [
+      _nameFocusNode,
+      _phoneFocusNode,
+      _emailFocusNode,
+      _taxIdFocusNode,
+      _discountValueFocusNode,
+      _discountReasonFocusNode,
+    ]) {
+      focusNode.dispose();
+    }
+    for (final focusNode in _dynamicFocusNodes.values) {
+      focusNode.dispose();
+    }
     _dirtyFormController.dispose();
     super.dispose();
   }
 
   void _onTextChanged() {
+    if (_resettingAssistedDraft) return;
     _dirtyFormController.markDirty();
     if (mounted) setState(() {});
   }
@@ -204,11 +228,13 @@ class _ServiceRequestDraftScreenState
                         .isInternal) ...[
                       const SizedBox(height: 12),
                       AssistedCustomerCard(
+                        key: _assistedCustomerKey,
                         initialMode: widget.assisted ? 'My Referral' : null,
                         initialCustomerId: widget.assisted
                             ? widget.customerProfile
                             : null,
-                        onChanged: _onAssistedSelectionChanged,
+                        onChanged: (selection) =>
+                            _onAssistedSelectionChanged(selection, fields),
                       ),
                       const SizedBox(height: 12),
                       _InternalDiscountCard(
@@ -216,6 +242,8 @@ class _ServiceRequestDraftScreenState
                         discountType: _discountType,
                         discountValueController: _discountValueController,
                         discountReasonController: _discountReasonController,
+                        discountValueFocusNode: _discountValueFocusNode,
+                        discountReasonFocusNode: _discountReasonFocusNode,
                         onDiscountTypeChanged: (value) {
                           if (value == null || value == _discountType) {
                             return;
@@ -231,6 +259,10 @@ class _ServiceRequestDraftScreenState
                       phoneController: _phoneController,
                       emailController: _emailController,
                       taxIdController: _taxIdController,
+                      nameFocusNode: _nameFocusNode,
+                      phoneFocusNode: _phoneFocusNode,
+                      emailFocusNode: _emailFocusNode,
+                      taxIdFocusNode: _taxIdFocusNode,
                       requiredValidator: _required,
                       emailValidator: _validateEmail,
                       taxIdValidator: _validateOptionalCnicOrNtn,
@@ -240,6 +272,7 @@ class _ServiceRequestDraftScreenState
                       fields: fields,
                       remarksController: _remarksController,
                       controllerFor: _controllerFor,
+                      focusNodeFor: _focusNodeFor,
                       selectValueFor: (field) => _selectValues[field.fieldname],
                       checkedValueFor: (field) =>
                           _checkValues[field.fieldname] ?? _boolDefault(field),
@@ -340,16 +373,120 @@ class _ServiceRequestDraftScreenState
     controller.text = cleanValue;
   }
 
-  void _onAssistedSelectionChanged(AssistedCustomerDraftSelection? selection) {
+  void _onAssistedSelectionChanged(
+    AssistedCustomerDraftSelection? selection,
+    List<ServiceTemplateField> fields,
+  ) {
+    final nextCustomerId = selection?.customerId?.trim();
+    if (nextCustomerId != null &&
+        nextCustomerId.isNotEmpty &&
+        nextCustomerId != _lastAssistedCustomerId) {
+      _resetAssistedCustomerDraft(fields);
+      _lastAssistedCustomerId = nextCustomerId;
+    }
+
     _dirtyFormController.markDirty();
     _assistedSelection = selection;
     final customer = selection?.customer;
     if (customer != null) {
-      _nameController.text = customer.fullName;
-      _phoneController.text = customer.phone;
-      _emailController.text = customer.email;
+      _resettingAssistedDraft = true;
+      try {
+        _nameController.text = customer.fullName;
+        _phoneController.text = customer.phone;
+        _emailController.text = customer.email;
+      } finally {
+        _resettingAssistedDraft = false;
+      }
     }
     if (mounted) setState(() {});
+  }
+
+  void _resetAssistedCustomerDraft(List<ServiceTemplateField> fields) {
+    final defaults = <String, String>{
+      for (final field in fields)
+        if (!_isCheckField(field) && !_isSelectField(field))
+          field.fieldname: field.defaultValue,
+    };
+
+    _resettingAssistedDraft = true;
+    try {
+      _nameController.clear();
+      _phoneController.clear();
+      _emailController.clear();
+      _taxIdController.clear();
+      _remarksController.clear();
+      _discountValueController.clear();
+      _discountReasonController.clear();
+      _discountType = 'Percentage';
+      _selectValues.clear();
+      _checkValues.clear();
+      for (final entry in _dynamicControllers.entries) {
+        entry.value.text = defaults[entry.key] ?? '';
+      }
+    } finally {
+      _resettingAssistedDraft = false;
+    }
+  }
+
+  FocusNode _focusNodeFor(ServiceTemplateField field) {
+    return _dynamicFocusNodes.putIfAbsent(field.fieldname, () => FocusNode());
+  }
+
+  void _focusAndReveal(FocusNode focusNode) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      focusNode.requestFocus();
+      final fieldContext = focusNode.context;
+      if (fieldContext != null) {
+        Scrollable.ensureVisible(
+          fieldContext,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: 0.2,
+        );
+      }
+    });
+  }
+
+  void _revealAssistedCustomerCard() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final cardContext = _assistedCustomerKey.currentContext;
+      if (cardContext != null) {
+        Scrollable.ensureVisible(
+          cardContext,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: 0.15,
+        );
+      }
+    });
+  }
+
+  FocusNode? _firstInvalidFocusNode(List<ServiceTemplateField> fields) {
+    final capabilities = ref.read(authControllerProvider).capabilities;
+    if (capabilities.isInternal) {
+      final cleanDiscount = _discountValueController.text.trim().replaceAll(
+        ',',
+        '',
+      );
+      if (cleanDiscount.isNotEmpty) {
+        final parsed = double.tryParse(cleanDiscount);
+        if (parsed == null || parsed < 0) return _discountValueFocusNode;
+      }
+    }
+    if (_nameController.text.trim().isEmpty) return _nameFocusNode;
+    if (_phoneController.text.trim().isEmpty) return _phoneFocusNode;
+    if (_validateEmail(_emailController.text) != null) return _emailFocusNode;
+    if (_validateOptionalCnicOrNtn(_taxIdController.text) != null) {
+      return _taxIdFocusNode;
+    }
+    for (final field in fields) {
+      if (field.isRequired && _fieldValue(field).trim().isEmpty) {
+        return _focusNodeFor(field);
+      }
+    }
+    return null;
   }
 
   ServiceItem? _findService(List<ServiceItem> services) {
@@ -437,7 +574,12 @@ class _ServiceRequestDraftScreenState
     if (_isSubmitting) return;
 
     final form = _formKey.currentState;
-    if (form == null || !form.validate()) return;
+    if (form == null) return;
+    if (!form.validate()) {
+      final invalidFocus = _firstInvalidFocusNode(fields);
+      if (invalidFocus != null) _focusAndReveal(invalidFocus);
+      return;
+    }
 
     final missingRequired = fields
         .where((field) => field.isRequired && _fieldValue(field).trim().isEmpty)
@@ -445,6 +587,10 @@ class _ServiceRequestDraftScreenState
         .toList(growable: false);
 
     if (missingRequired.isNotEmpty) {
+      final firstMissing = fields.firstWhere(
+        (field) => field.isRequired && _fieldValue(field).trim().isEmpty,
+      );
+      _focusAndReveal(_focusNodeFor(firstMissing));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Please complete: ${missingRequired.join(', ')}'),
@@ -455,6 +601,7 @@ class _ServiceRequestDraftScreenState
 
     final capabilities = ref.read(authControllerProvider).capabilities;
     if (capabilities.isInternal && _assistedSelection == null) {
+      _revealAssistedCustomerCard();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Select the request customer first.')),
       );
@@ -475,6 +622,7 @@ class _ServiceRequestDraftScreenState
         return;
       }
       if (_discountType == 'Percentage' && discountValue > 100) {
+        _focusAndReveal(_discountValueFocusNode);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Percentage discount cannot exceed 100%.'),
@@ -483,6 +631,7 @@ class _ServiceRequestDraftScreenState
         return;
       }
       if (_discountType == 'Fixed Amount' && discountValue > originalPrice) {
+        _focusAndReveal(_discountValueFocusNode);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Fixed discount cannot exceed the service price.'),
@@ -491,6 +640,7 @@ class _ServiceRequestDraftScreenState
         return;
       }
       if (_discountReasonController.text.trim().isEmpty) {
+        _focusAndReveal(_discountReasonFocusNode);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Enter a reason for the customer discount.'),

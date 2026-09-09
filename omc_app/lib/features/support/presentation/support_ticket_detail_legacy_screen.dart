@@ -208,9 +208,9 @@ class _SupportTicketChatBodyState
                     ),
                   ],
                   const SizedBox(height: 22),
-                  const Semantics(
+                  Semantics(
                     header: true,
-                    child: Text(
+                    child: const Text(
                       'Conversation',
                       style: TextStyle(
                         color: AppTheme.textPrimary,
@@ -550,7 +550,8 @@ class _TicketInfoCard extends StatelessWidget {
               );
             },
           ),
-          if (ticket.message.trim().isNotEmpty && ticket.message.trim() != '-') ...[
+          if (ticket.message.trim().isNotEmpty &&
+              ticket.message.trim() != '-') ...[
             const SizedBox(height: 14),
             Text(
               ticket.message.trim(),
@@ -580,7 +581,10 @@ class _TicketInfoCard extends StatelessWidget {
               if (ticket.raisedOnLabel?.trim().isNotEmpty == true)
                 _MetaText(label: 'Opened', value: ticket.raisedOnLabel!.trim()),
               if (ticket.updatedAtLabel?.trim().isNotEmpty == true)
-                _MetaText(label: 'Updated', value: ticket.updatedAtLabel!.trim()),
+                _MetaText(
+                  label: 'Updated',
+                  value: ticket.updatedAtLabel!.trim(),
+                ),
               if (ticket.assignedTo?.trim().isNotEmpty == true)
                 _MetaText(label: 'Assigned', value: ticket.assignedTo!.trim()),
             ],
@@ -627,9 +631,9 @@ class _CustomerInformationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Semantics(
+          Semantics(
             header: true,
-            child: Text(
+            child: const Text(
               'Customer context',
               style: TextStyle(
                 color: AppTheme.textPrimary,
@@ -1171,11 +1175,7 @@ class _PickedAttachmentPreview extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.attach_file_rounded,
-            color: AppTheme.info,
-            size: 20,
-          ),
+          const Icon(Icons.attach_file_rounded, color: AppTheme.info, size: 20),
           const SizedBox(width: 9),
           Expanded(
             child: Column(
@@ -1302,9 +1302,9 @@ class _SupportAdminStatusCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Semantics(
+              Semantics(
                 header: true,
-                child: Text(
+                child: const Text(
                   'Update ticket status',
                   style: TextStyle(
                     color: AppTheme.textPrimary,

@@ -135,6 +135,33 @@ class DeviceLockService {
     return true;
   }
 
+  Future<bool> enableBiometricLogin({
+    required String identifier,
+    required String password,
+  }) async {
+    final cleanIdentifier = identifier.trim();
+    if (cleanIdentifier.isEmpty || password.isEmpty) return false;
+    if (!await authenticate()) return false;
+
+    try {
+      await enrollBiometricLogin(
+        identifier: cleanIdentifier,
+        password: password,
+      );
+      await storage.saveDeviceLockEnabled(true);
+      return true;
+    } catch (_) {
+      await removeBiometricLoginFor(cleanIdentifier);
+      await storage.saveDeviceLockEnabled((await accounts()).isNotEmpty);
+      rethrow;
+    }
+  }
+
+  Future<void> disableBiometricLoginFor(String identity) async {
+    await removeBiometricLoginFor(identity);
+    await storage.saveDeviceLockEnabled((await accounts()).isNotEmpty);
+  }
+
   Future<void> enrollBiometricLogin({
     required String identifier,
     required String password,

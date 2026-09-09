@@ -84,7 +84,11 @@ class KnowledgeScreen extends ConsumerWidget {
                     ),
                     child: Column(
                       children: [
-                        for (var index = 0; index < articles.length; index++) ...[
+                        for (
+                          var index = 0;
+                          index < articles.length;
+                          index++
+                        ) ...[
                           _KnowledgeArticleRow(article: articles[index]),
                           if (index != articles.length - 1)
                             const Divider(height: 1),
@@ -216,8 +220,7 @@ class _KnowledgeArticleRow extends StatelessWidget {
                 children: [
                   Text(
                     article.title,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
+                    softWrap: true,
                     style: const TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 17,

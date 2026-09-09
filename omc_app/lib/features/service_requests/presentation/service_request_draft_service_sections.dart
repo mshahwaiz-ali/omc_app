@@ -6,6 +6,8 @@ class _InternalDiscountCard extends StatelessWidget {
     required this.discountType,
     required this.discountValueController,
     required this.discountReasonController,
+    required this.discountValueFocusNode,
+    required this.discountReasonFocusNode,
     required this.onDiscountTypeChanged,
   });
 
@@ -13,6 +15,8 @@ class _InternalDiscountCard extends StatelessWidget {
   final String discountType;
   final TextEditingController discountValueController;
   final TextEditingController discountReasonController;
+  final FocusNode discountValueFocusNode;
+  final FocusNode discountReasonFocusNode;
   final ValueChanged<String?> onDiscountTypeChanged;
 
   @override
@@ -66,6 +70,7 @@ class _InternalDiscountCard extends StatelessWidget {
           const SizedBox(height: 14),
           TextFormField(
             controller: discountValueController,
+            focusNode: discountValueFocusNode,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
@@ -89,6 +94,7 @@ class _InternalDiscountCard extends StatelessWidget {
           const SizedBox(height: 14),
           TextFormField(
             controller: discountReasonController,
+            focusNode: discountReasonFocusNode,
             minLines: 2,
             maxLines: 4,
             decoration: const InputDecoration(
@@ -141,13 +147,12 @@ class _DiscountSummaryRow extends StatelessWidget {
       color: AppTheme.textSecondary,
       fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
     );
-    final valueStyle = (emphasized
-            ? theme.textTheme.titleMedium
-            : theme.textTheme.bodyLarge)
-        ?.copyWith(
-          color: AppTheme.textPrimary,
-          fontWeight: emphasized ? FontWeight.w700 : FontWeight.w600,
-        );
+    final valueStyle =
+        (emphasized ? theme.textTheme.titleMedium : theme.textTheme.bodyLarge)
+            ?.copyWith(
+              color: AppTheme.textPrimary,
+              fontWeight: emphasized ? FontWeight.w700 : FontWeight.w600,
+            );
     final stack = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
 
     if (stack) {
@@ -233,10 +238,7 @@ class _SelectedServiceCard extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 6,
                 children: [
-                  _RequestMetaChip(
-                    icon: Icons.payments_outlined,
-                    label: price,
-                  ),
+                  _RequestMetaChip(icon: Icons.payments_outlined, label: price),
                   _RequestMetaChip(
                     icon: Icons.schedule_outlined,
                     label: timeline,
@@ -253,7 +255,8 @@ class _SelectedServiceCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final stacked = constraints.maxWidth < 350 ||
+          final stacked =
+              constraints.maxWidth < 350 ||
               MediaQuery.textScalerOf(context).scale(1) >= 1.4;
 
           if (stacked) {
@@ -327,6 +330,10 @@ class _ContactDetailsCard extends StatelessWidget {
     required this.phoneController,
     required this.emailController,
     required this.taxIdController,
+    required this.nameFocusNode,
+    required this.phoneFocusNode,
+    required this.emailFocusNode,
+    required this.taxIdFocusNode,
     required this.requiredValidator,
     required this.emailValidator,
     required this.taxIdValidator,
@@ -336,6 +343,10 @@ class _ContactDetailsCard extends StatelessWidget {
   final TextEditingController phoneController;
   final TextEditingController emailController;
   final TextEditingController taxIdController;
+  final FocusNode nameFocusNode;
+  final FocusNode phoneFocusNode;
+  final FocusNode emailFocusNode;
+  final FocusNode taxIdFocusNode;
   final String? Function(String?, String) requiredValidator;
   final String? Function(String?) emailValidator;
   final String? Function(String?) taxIdValidator;
@@ -356,6 +367,7 @@ class _ContactDetailsCard extends StatelessWidget {
           const SizedBox(height: 18),
           TextFormField(
             controller: nameController,
+            focusNode: nameFocusNode,
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.name],
             decoration: const InputDecoration(
@@ -367,6 +379,7 @@ class _ContactDetailsCard extends StatelessWidget {
           const SizedBox(height: 14),
           TextFormField(
             controller: phoneController,
+            focusNode: phoneFocusNode,
             keyboardType: TextInputType.phone,
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.telephoneNumber],
@@ -379,6 +392,7 @@ class _ContactDetailsCard extends StatelessWidget {
           const SizedBox(height: 14),
           TextFormField(
             controller: emailController,
+            focusNode: emailFocusNode,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.email],
@@ -391,6 +405,7 @@ class _ContactDetailsCard extends StatelessWidget {
           const SizedBox(height: 14),
           TextFormField(
             controller: taxIdController,
+            focusNode: taxIdFocusNode,
             keyboardType: TextInputType.text,
             textInputAction: TextInputAction.next,
             decoration: const InputDecoration(

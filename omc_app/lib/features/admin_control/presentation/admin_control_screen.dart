@@ -54,8 +54,8 @@ class AdminControlScreen extends ConsumerWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final inset = AppLayout.pageInsetFor(constraints.maxWidth);
-            final horizontal = constraints.maxWidth >
-                    AppLayout.generalMaxWidth + inset * 2
+            final horizontal =
+                constraints.maxWidth > AppLayout.generalMaxWidth + inset * 2
                 ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
                 : inset;
             return ListView(
@@ -106,7 +106,8 @@ class AdminControlScreen extends ConsumerWidget {
                       message: AppFailureClassifier.classify(
                         error,
                         fallbackTitle: 'Business settings unavailable',
-                        fallbackMessage: 'Could not load OMC business settings.',
+                        fallbackMessage:
+                            'Could not load OMC business settings.',
                       ).message,
                       onRetry: () =>
                           ref.invalidate(adminBusinessSettingsProvider),
@@ -139,12 +140,8 @@ class AdminControlScreen extends ConsumerWidget {
                               const SizedBox(height: AppSpacing.xxs),
                               Text(
                                 'Reassignment, processing recovery and reviewed pricing operations.',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      color: AppTheme.textSecondary,
-                                    ),
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(color: AppTheme.textSecondary),
                               ),
                             ],
                           ),
@@ -330,9 +327,9 @@ class _ApplicationsCard extends ConsumerWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             'Customer registrations and staff access applications awaiting an authorized OMC decision. Staff applications require a matching enabled staff login first.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: AppSpacing.sm),
           if (data.applications.isEmpty)
@@ -364,14 +361,15 @@ class _ApplicationsCard extends ConsumerWidget {
         ? application.email
         : application.fullName;
     final isStaff = application.requestedRole.isNotEmpty;
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: Text(
               approve
                   ? isStaff
-                      ? 'Approve staff access?'
-                      : 'Approve customer registration?'
+                        ? 'Approve staff access?'
+                        : 'Approve customer registration?'
                   : isStaff
                   ? 'Reject staff access?'
                   : 'Reject customer registration?',
@@ -381,7 +379,10 @@ class _ApplicationsCard extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(identity, style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    identity,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   if (application.email.trim().isNotEmpty &&
                       application.email != identity) ...[
                     const SizedBox(height: AppSpacing.xxs),
@@ -432,8 +433,8 @@ class _ApplicationsCard extends ConsumerWidget {
           content: Text(
             approve
                 ? isStaff
-                    ? 'OMC staff access approved.'
-                    : 'Customer registration approved.'
+                      ? 'OMC staff access approved.'
+                      : 'Customer registration approved.'
                 : isStaff
                 ? 'Staff access application rejected.'
                 : 'Customer registration rejected.',
@@ -475,9 +476,9 @@ class _ApplicationRow extends StatelessWidget {
           const SizedBox(height: AppSpacing.xxs),
           Text(
             type,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
@@ -525,9 +526,9 @@ class _StaffCard extends ConsumerWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             'Enable, suspend or change OMC capability profiles. This does not change the person’s core system login or core roles.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: AppSpacing.sm),
           if (data.staff.isEmpty)
@@ -675,13 +676,16 @@ class _StaffRow extends StatelessWidget {
         final identity = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(staff.fullName, style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              staff.fullName,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.xxs),
             Text(
               staff.roles.isEmpty ? staff.userId : staff.roles.join(' · '),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
             ),
           ],
         );
@@ -765,9 +769,9 @@ class _BusinessSettingsCard extends ConsumerWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             'Mobile availability and reviewed business rules. Changes apply to the live OMC app configuration.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: AppSpacing.sm),
           for (final entry in _toggleLabels.entries)
@@ -790,6 +794,7 @@ class _BusinessSettingsCard extends ConsumerWidget {
                 key: 'discount_auto_approval_percent',
                 title: 'Auto-approved discount percent',
                 currentValue: settings['discount_auto_approval_percent'],
+                unit: '%',
               ),
             ),
           if (settings.containsKey('minimum_service_price'))
@@ -802,6 +807,7 @@ class _BusinessSettingsCard extends ConsumerWidget {
                 key: 'minimum_service_price',
                 title: 'Minimum service price',
                 currentValue: settings['minimum_service_price'],
+                unit: 'PKR',
               ),
             ),
         ],
@@ -837,6 +843,7 @@ class _BusinessSettingsCard extends ConsumerWidget {
     required String key,
     required String title,
     required Object? currentValue,
+    required String unit,
   }) async {
     final controller = TextEditingController(text: '$currentValue');
     final dirty = DirtyFormController();
@@ -856,7 +863,9 @@ class _BusinessSettingsCard extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Current value: $currentValue',
+                    unit == '%'
+                        ? 'Current value: $currentValue%'
+                        : 'Current value: $unit $currentValue',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppTheme.textSecondary,
                     ),
@@ -868,7 +877,11 @@ class _BusinessSettingsCard extends ConsumerWidget {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: const InputDecoration(labelText: 'Value'),
+                    decoration: InputDecoration(
+                      labelText: 'Value',
+                      prefixText: unit == '%' ? null : '$unit ',
+                      suffixText: unit == '%' ? '%' : null,
+                    ),
                     onChanged: (_) => setDialogState(() {}),
                   ),
                 ],
@@ -982,9 +995,9 @@ class _DialogNotice extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
             ),
           ),
         ],
@@ -1041,7 +1054,7 @@ void _showFailure(
     error,
     fallbackMessage: fallback,
   );
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(failure.message)),
-  );
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(failure.message)));
 }

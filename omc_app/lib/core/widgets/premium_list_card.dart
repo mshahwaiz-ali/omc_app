@@ -42,61 +42,76 @@ class PremiumListCard extends StatelessWidget {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final textScale = MediaQuery.textScalerOf(context).scale(1);
-                final stackTrailing =
-                    trailing != null &&
-                    (constraints.maxWidth < 360 || textScale >= 1.5);
+                final stackLayout =
+                    constraints.maxWidth < 360 || textScale >= 1.5;
 
-                final heading = Row(
+                final iconBadge = ExcludeSemantics(
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(AppRadius.control),
+                    ),
+                    child: Icon(
+                      icon,
+                      color: theme.colorScheme.onSurfaceVariant,
+                      size: 24,
+                    ),
+                  ),
+                );
+
+                final textBlock = Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ExcludeSemantics(
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(AppRadius.control),
-                        ),
-                        child: Icon(
-                          icon,
+                    Text(
+                      title,
+                      softWrap: true,
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        subtitle!,
+                        softWrap: true,
+                        style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
-                          size: 24,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(title, style: theme.textTheme.titleMedium),
-                          if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
-                            const SizedBox(height: AppSpacing.xxs),
-                            Text(
-                              subtitle!,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    if (!stackTrailing && trailing != null) ...[
-                      const SizedBox(width: AppSpacing.sm),
-                      trailing!,
                     ],
                   ],
                 );
+
+                final heading = stackLayout
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          iconBadge,
+                          const SizedBox(height: AppSpacing.xs),
+                          textBlock,
+                          if (trailing != null) ...[
+                            const SizedBox(height: AppSpacing.sm),
+                            trailing!,
+                          ],
+                        ],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          iconBadge,
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(child: textBlock),
+                          if (trailing != null) ...[
+                            const SizedBox(width: AppSpacing.sm),
+                            trailing!,
+                          ],
+                        ],
+                      );
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     heading,
-                    if (stackTrailing) ...[
-                      const SizedBox(height: AppSpacing.sm),
-                      Align(alignment: Alignment.centerLeft, child: trailing!),
-                    ],
                     if (children.isNotEmpty) ...[
                       const SizedBox(height: AppSpacing.md),
                       Wrap(

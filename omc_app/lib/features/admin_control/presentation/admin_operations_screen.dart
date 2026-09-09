@@ -126,9 +126,9 @@ class _AdminOperationsScreenState extends ConsumerState<AdminOperationsScreen> {
             const SizedBox(height: AppSpacing.xs),
             Text(
               _queueDescription(queue),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
             ),
             const SizedBox(height: AppSpacing.md),
             page.when(
@@ -194,10 +194,10 @@ class _AdminOperationsScreenState extends ConsumerState<AdminOperationsScreen> {
                     onPrevious: data.start == 0
                         ? null
                         : () => setState(() {
-                              _start = (_start - _pageLength)
-                                  .clamp(0, 1 << 30)
-                                  .toInt();
-                            }),
+                            _start = (_start - _pageLength)
+                                .clamp(0, 1 << 30)
+                                .toInt();
+                          }),
                     onNext: data.hasMore
                         ? () => setState(() => _start += _pageLength)
                         : null,
@@ -280,8 +280,16 @@ class _AdminOperationsScreenState extends ConsumerState<AdminOperationsScreen> {
                               ? 'Unassigned'
                               : options.text('assigned_staff'),
                         ),
-                        ('Customer', item.customer.isEmpty ? 'Not available' : item.customer),
-                        ('Service', item.service.isEmpty ? 'Not available' : item.service),
+                        (
+                          'Customer',
+                          item.customer.isEmpty
+                              ? 'Not available'
+                              : item.customer,
+                        ),
+                        (
+                          'Service',
+                          item.service.isEmpty ? 'Not available' : item.service,
+                        ),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -319,7 +327,8 @@ class _AdminOperationsScreenState extends ConsumerState<AdminOperationsScreen> {
                             value: candidate,
                             child: Text(
                               '${candidate.fullName} (${candidate.userId})',
-                              overflow: TextOverflow.ellipsis,
+                              softWrap: true,
+                              maxLines: 2,
                             ),
                           ),
                       ],
@@ -333,8 +342,8 @@ class _AdminOperationsScreenState extends ConsumerState<AdminOperationsScreen> {
                       Text(
                         'No eligible staff match this search.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppTheme.textSecondary,
-                            ),
+                          color: AppTheme.textSecondary,
+                        ),
                       ),
                     ],
                     const SizedBox(height: AppSpacing.sm),
@@ -392,7 +401,8 @@ class _AdminOperationsScreenState extends ConsumerState<AdminOperationsScreen> {
     AdminOperationItem item,
     AdminCaseOptions options,
   ) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: Text('Retry exhausted sync for ${item.id}?'),
@@ -587,7 +597,9 @@ class _AdminOperationsScreenState extends ConsumerState<AdminOperationsScreen> {
   }
 
   void _message(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -601,8 +613,8 @@ class _ResponsiveList extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final inset = AppLayout.pageInsetFor(constraints.maxWidth);
-        final horizontal = constraints.maxWidth >
-                AppLayout.generalMaxWidth + inset * 2
+        final horizontal =
+            constraints.maxWidth > AppLayout.generalMaxWidth + inset * 2
             ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
             : inset;
         return ListView(
@@ -642,9 +654,10 @@ class _OperationCard extends StatelessWidget {
         'Current assignee: ${item.assignedStaff.isEmpty ? 'Unassigned' : item.assignedStaff}',
       AdminOperationQueue.sync =>
         '${item.syncStatus.isEmpty ? 'Sync status unavailable' : item.syncStatus} · ${item.retryCount} retries${item.lastError.isEmpty ? '' : ' · ${item.lastError}'}',
-      AdminOperationQueue.discount => item.discountStatus.isEmpty
-          ? 'Discount review status unavailable'
-          : item.discountStatus,
+      AdminOperationQueue.discount =>
+        item.discountStatus.isEmpty
+            ? 'Discount review status unavailable'
+            : item.discountStatus,
     };
     final actionLabel = switch (queue) {
       AdminOperationQueue.reassignment => 'Review reassignment',
@@ -661,16 +674,13 @@ class _OperationCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xxs),
           Text(
             item.id,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
           ),
           if (contextLine.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.xs),
-            Text(
-              contextLine,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            Text(contextLine, style: Theme.of(context).textTheme.bodyMedium),
           ],
           const SizedBox(height: AppSpacing.md),
           Container(
@@ -687,8 +697,8 @@ class _OperationCard extends StatelessWidget {
                 Text(
                   'Current blocker / review context',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: AppTheme.textSecondary,
-                      ),
+                    color: AppTheme.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(blocker, style: Theme.of(context).textTheme.bodyMedium),
@@ -733,9 +743,9 @@ class _QueueScopeBadge extends StatelessWidget {
       ),
       child: Text(
         'Authorized',
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: AppTheme.processing,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.labelMedium?.copyWith(color: AppTheme.processing),
       ),
     );
   }
@@ -767,9 +777,9 @@ class _Pager extends StatelessWidget {
         Expanded(
           child: Text(
             shown == 0 ? 'No records' : '$first-$last of $total',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
           ),
         ),
         IconButton(
@@ -810,8 +820,7 @@ class _DecisionContext extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           for (var index = 0; index < rows.length; index++) ...[
             _DecisionRow(label: rows[index].$1, value: rows[index].$2),
-            if (index != rows.length - 1)
-              const Divider(height: AppSpacing.md),
+            if (index != rows.length - 1) const Divider(height: AppSpacing.md),
           ],
         ],
       ),
@@ -833,9 +842,9 @@ class _DecisionRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.labelMedium?.copyWith(color: AppTheme.textSecondary),
         ),
         const SizedBox(height: AppSpacing.xxs),
         SelectableText(cleanValue),
@@ -871,10 +880,10 @@ class _DecisionNotice extends StatelessWidget {
 }
 
 String _queueDescription(AdminOperationQueue queue) => switch (queue) {
-      AdminOperationQueue.reassignment =>
-        'Review the current assignment, then choose only from backend-eligible staff.',
-      AdminOperationQueue.sync =>
-        'Review exhausted ERP sync context before explicitly retrying processing.',
-      AdminOperationQueue.discount =>
-        'Review pricing context and record an explicit approve or reject decision.',
-    };
+  AdminOperationQueue.reassignment =>
+    'Review the current assignment, then choose only from backend-eligible staff.',
+  AdminOperationQueue.sync =>
+    'Review exhausted ERP sync context before explicitly retrying processing.',
+  AdminOperationQueue.discount =>
+    'Review pricing context and record an explicit approve or reject decision.',
+};

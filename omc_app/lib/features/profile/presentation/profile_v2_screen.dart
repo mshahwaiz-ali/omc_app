@@ -84,9 +84,9 @@ Future<void> _refreshProfile(
     await ref.read(profileSummaryProvider.future);
 
     if (!context.mounted || !showSuccess) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Profile data refreshed.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Profile data refreshed.')));
   } catch (error) {
     if (!context.mounted) return;
     final failure = AppFailureClassifier.classify(
@@ -95,9 +95,9 @@ Future<void> _refreshProfile(
       fallbackMessage:
           'Profile data could not be refreshed right now. Please try again.',
     );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(failure.message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(failure.message)));
   }
 }
 
@@ -651,7 +651,10 @@ class _ActionRow extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       const SizedBox(height: 3),
                       Text(
                         supporting,
@@ -856,9 +859,9 @@ Future<void> _changeProfilePhoto(BuildContext context, WidgetRef ref) async {
     if (image == null) return;
     if (!context.mounted) return;
     _profileV2PhotoUploading.value = true;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Uploading profile photo...')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Uploading profile photo...')));
 
     await ref
         .read(profileRepositoryProvider)
@@ -868,9 +871,9 @@ Future<void> _changeProfilePhoto(BuildContext context, WidgetRef ref) async {
     await ref.read(profileSummaryProvider.future);
 
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Profile photo updated.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
   } catch (error) {
     if (!context.mounted) return;
     final failure = AppFailureClassifier.classify(
@@ -878,9 +881,9 @@ Future<void> _changeProfilePhoto(BuildContext context, WidgetRef ref) async {
       fallbackTitle: 'Profile photo not updated',
       fallbackMessage: 'Could not update profile photo. Please try again.',
     );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(failure.message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(failure.message)));
   } finally {
     _profileV2PhotoUploading.value = false;
     _profileV2PhotoUploadInFlight = false;
@@ -921,7 +924,9 @@ Future<void> _showProfileSupportSheet(
 
   _profileV2SupportSubmissionInFlight = true;
   try {
-    await ref.read(supportRepositoryProvider).createSupportTicket(
+    await ref
+        .read(supportRepositoryProvider)
+        .createSupportTicket(
           topic: 'Profile / account support',
           message: cleanMessage,
         );
@@ -967,54 +972,61 @@ class _ProfileSupportSheet extends StatelessWidget {
             borderRadius: const BorderRadius.vertical(
               top: Radius.circular(AppRadius.sheet),
             ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Contact OMC support',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Describe the profile, login or account issue.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: controller,
-                    minLines: 4,
-                    maxLines: 7,
-                    textInputAction: TextInputAction.newline,
-                    decoration: const InputDecoration(
-                      labelText: 'How can OMC help?',
-                      hintText:
-                          'Example: I need help with my profile, login, or account.',
-                      alignLabelWithHint: true,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+              ),
+              child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Contact OMC support',
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: () {
-                      final text = controller.text.trim();
-                      if (text.length < 10) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Please enter at least 10 characters.',
+                    const SizedBox(height: 6),
+                    Text(
+                      'Describe the profile, login or account issue.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: controller,
+                      minLines: 4,
+                      maxLines: 7,
+                      textInputAction: TextInputAction.newline,
+                      decoration: const InputDecoration(
+                        labelText: 'How can OMC help?',
+                        hintText:
+                            'Example: I need help with my profile, login, or account.',
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () {
+                        final text = controller.text.trim();
+                        if (text.length < 10) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Please enter at least 10 characters.',
+                              ),
                             ),
-                          ),
-                        );
-                        return;
-                      }
-                      Navigator.of(context).pop(text);
-                    },
-                    icon: const Icon(Icons.send_rounded),
-                    label: const Text('Submit support request'),
-                  ),
-                ],
+                          );
+                          return;
+                        }
+                        Navigator.of(context).pop(text);
+                      },
+                      icon: const Icon(Icons.send_rounded),
+                      label: const Text('Submit support request'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1025,9 +1037,7 @@ class _ProfileSupportSheet extends StatelessWidget {
 }
 
 void _showPendingSnack(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(message)),
-  );
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }
 
 String? _safeProfileImageUrl(String? value) {

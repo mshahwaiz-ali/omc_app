@@ -78,9 +78,9 @@ class _PaymentsList extends StatelessWidget {
           reviewCount: reviewCount,
         ),
         const SizedBox(height: 20),
-        const Semantics(
+        Semantics(
           header: true,
-          child: Text(
+          child: const Text(
             'Payment records',
             style: TextStyle(
               color: AppTheme.textPrimary,
@@ -166,9 +166,9 @@ class _PaymentsHeader extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Semantics(
+                  Semantics(
                     header: true,
-                    child: Text(
+                    child: const Text(
                       'Payments',
                       style: TextStyle(
                         color: AppTheme.textPrimary,
@@ -364,7 +364,8 @@ class _PaymentCard extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            if (payment.dueDateLabel != null || payment.paidDateLabel != null) ...[
+            if (payment.dueDateLabel != null ||
+                payment.paidDateLabel != null) ...[
               const SizedBox(height: 6),
               Text(
                 payment.dueDateLabel != null
@@ -423,7 +424,10 @@ class _PaymentCard extends StatelessWidget {
 ({Color color, IconData icon}) _paymentVisual(PaymentStatus status) {
   switch (status) {
     case PaymentStatus.pending:
-      return (color: AppTheme.warning, icon: Icons.account_balance_wallet_outlined);
+      return (
+        color: AppTheme.warning,
+        icon: Icons.account_balance_wallet_outlined,
+      );
     case PaymentStatus.rejected:
     case PaymentStatus.overdue:
       return (color: AppTheme.danger, icon: Icons.error_outline_rounded);
@@ -489,8 +493,8 @@ class _EmptyPaymentsView extends StatelessWidget {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
-      children: const [
-        _EmptyPaymentsHeader(),
+      children: [
+        const _EmptyPaymentsHeader(),
         SizedBox(height: 18),
         PremiumCard(
           padding: EdgeInsets.all(22),
@@ -511,7 +515,7 @@ class _EmptyPaymentsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Semantics(

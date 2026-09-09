@@ -38,17 +38,27 @@ class _HomeFeaturedCarouselState extends State<HomeFeaturedCarousel> {
     if (widget.banners.isEmpty) return const SizedBox.shrink();
 
     final textScale = MediaQuery.textScalerOf(context).scale(1);
-    final height = textScale >= 1.8
-        ? 408.0
-        : textScale >= 1.4
-        ? 338.0
-        : 254.0;
     final indicatorDuration = AppMotion.durationFor(context, AppMotion.quick);
+
+    if (textScale >= 1.5) {
+      return Column(
+        children: [
+          for (var index = 0; index < widget.banners.length; index++) ...[
+            _FeaturedBannerCard(
+              banner: widget.banners[index],
+              onTap: () => widget.onBannerTap(widget.banners[index]),
+            ),
+            if (index != widget.banners.length - 1)
+              const SizedBox(height: AppSpacing.sm),
+          ],
+        ],
+      );
+    }
 
     return Column(
       children: [
         SizedBox(
-          height: height,
+          height: 254,
           child: PageView.builder(
             controller: _controller,
             itemCount: widget.banners.length,
@@ -57,9 +67,7 @@ class _HomeFeaturedCarouselState extends State<HomeFeaturedCarousel> {
               final banner = widget.banners[index];
               return Padding(
                 padding: EdgeInsets.only(
-                  right: index == widget.banners.length - 1
-                      ? 0
-                      : AppSpacing.xs,
+                  right: index == widget.banners.length - 1 ? 0 : AppSpacing.xs,
                 ),
                 child: _FeaturedBannerCard(
                   banner: banner,
@@ -88,9 +96,9 @@ class _HomeFeaturedCarouselState extends State<HomeFeaturedCarousel> {
                     decoration: BoxDecoration(
                       color: index == _page
                           ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest,
+                          : Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(AppRadius.pill),
                     ),
                   ),
@@ -120,30 +128,92 @@ class _FeaturedBannerCard extends StatelessWidget {
         ? 'Learn more'
         : banner.action.label.trim();
     final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final largeText = textScale >= 1.5;
 
-    return Semantics(
-      button: hasAction,
-      label: banner.title,
-      hint: hasAction ? actionLabel : null,
-      child: Material(
-        color: const Color(0xFF111827),
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: hasAction ? onTap : null,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          child: Stack(
+    final image = banner.imageUrl != null
+        ? Image.network(
+            banner.imageUrl!,
+            width: double.infinity,
+            height: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) =>
+                const _BannerImageFallback(),
+          )
+        : const _BannerImageFallback();
+
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (banner.badge.trim().isNotEmpty) ...[
+          _BannerBadge(label: banner.badge.trim()),
+          const SizedBox(height: AppSpacing.sm),
+        ],
+        Text(
+          banner.title,
+          softWrap: true,
+          style: theme.textTheme.headlineSmall?.copyWith(
+            color: Colors.white,
+            height: 1.15,
+          ),
+        ),
+        if (banner.subtitle.trim().isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            banner.subtitle.trim(),
+            maxLines: largeText ? null : 3,
+            overflow: largeText ? TextOverflow.visible : TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withValues(alpha: 0.88),
+            ),
+          ),
+        ],
+        if (hasAction) ...[
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            constraints: const BoxConstraints(
+              minHeight: AppTouchTarget.minimum,
+            ),
+            alignment: Alignment.centerLeft,
+            child: Wrap(
+              spacing: AppSpacing.xs,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  actionLabel,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_forward_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+
+    final cardBody = largeText
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(height: 160, child: image),
+              Container(
+                color: const Color(0xFF111827),
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: content,
+              ),
+            ],
+          )
+        : Stack(
             fit: StackFit.expand,
             children: [
-              if (banner.imageUrl != null)
-                Image.network(
-                  banner.imageUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const _BannerImageFallback(),
-                )
-              else
-                const _BannerImageFallback(),
+              image,
               DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -162,71 +232,26 @@ class _FeaturedBannerCard extends StatelessWidget {
                 child: Align(
                   alignment: Alignment.bottomLeft,
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: textScale >= 1.5 ? double.infinity : 520,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (banner.badge.trim().isNotEmpty) ...[
-                          _BannerBadge(label: banner.badge.trim()),
-                          const SizedBox(height: AppSpacing.sm),
-                        ],
-                        Text(
-                          banner.title,
-                          maxLines: textScale >= 1.6 ? 5 : 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            color: Colors.white,
-                            height: 1.15,
-                          ),
-                        ),
-                        if (banner.subtitle.trim().isNotEmpty) ...[
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            banner.subtitle.trim(),
-                            maxLines: textScale >= 1.6 ? 6 : 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.88),
-                            ),
-                          ),
-                        ],
-                        if (hasAction) ...[
-                          const SizedBox(height: AppSpacing.md),
-                          Container(
-                            constraints: const BoxConstraints(
-                              minHeight: AppTouchTarget.minimum,
-                            ),
-                            alignment: Alignment.centerLeft,
-                            child: Wrap(
-                              spacing: AppSpacing.xs,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                Text(
-                                  actionLabel,
-                                  style: theme.textTheme.labelLarge?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.arrow_forward_rounded,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: content,
                   ),
                 ),
               ),
             ],
-          ),
+          );
+
+    return Semantics(
+      button: hasAction,
+      label: banner.title,
+      hint: hasAction ? actionLabel : null,
+      child: Material(
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: hasAction ? onTap : null,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          child: cardBody,
         ),
       ),
     );
@@ -274,11 +299,7 @@ class _BannerImageFallback extends StatelessWidget {
         alignment: Alignment.centerRight,
         child: Padding(
           padding: EdgeInsets.all(AppSpacing.xl),
-          child: Icon(
-            Icons.campaign_outlined,
-            color: Colors.white54,
-            size: 64,
-          ),
+          child: Icon(Icons.campaign_outlined, color: Colors.white54, size: 64),
         ),
       ),
     );

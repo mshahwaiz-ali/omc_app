@@ -49,7 +49,7 @@ class PaymentActionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Semantics(
+          Semantics(
             header: true,
             child: Text(
               'Next payment step',
@@ -142,7 +142,7 @@ class PaymentActionCard extends StatelessWidget {
             ],
           ],
           const Divider(height: 30),
-          const Semantics(
+          Semantics(
             header: true,
             child: Text(
               'Payment evidence',

@@ -172,7 +172,7 @@ class _NotificationDetailBodyState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Semantics(
+              Semantics(
                 header: true,
                 child: Text(
                   'Alert information',
@@ -207,7 +207,7 @@ class _NotificationDetailBodyState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Semantics(
+              Semantics(
                 header: true,
                 child: Text(
                   'Related action',
@@ -539,11 +539,7 @@ class _DetailRow extends StatelessWidget {
           if (stack) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                labelWidget,
-                const SizedBox(height: 4),
-                valueWidget,
-              ],
+              children: [labelWidget, const SizedBox(height: 4), valueWidget],
             );
           }
           return Row(

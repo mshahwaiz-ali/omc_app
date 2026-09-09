@@ -24,40 +24,66 @@ class OmcIdentityHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final stack = constraints.maxWidth < 360 || textScale >= 1.5;
+
+        final identity = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _greeting(),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppTheme.textCaption,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            Semantics(
+              header: true,
+              child: Text(
+                displayName,
+                softWrap: true,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        );
+
+        final actions = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _NotificationButton(
+              unreadNotifications: unreadNotifications,
+              onTap: onNotifications,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            _Avatar(avatarUrl: avatarUrl, name: displayName, onTap: onAvatar),
+          ],
+        );
+
+        if (stack) {
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                _greeting(),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppTheme.textCaption,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              Semantics(
-                header: true,
-                child: Text(
-                  displayName,
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-              ),
+              identity,
+              const SizedBox(height: AppSpacing.sm),
+              actions,
             ],
-          ),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        _NotificationButton(
-          unreadNotifications: unreadNotifications,
-          onTap: onNotifications,
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        _Avatar(avatarUrl: avatarUrl, name: displayName, onTap: onAvatar),
-      ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: identity),
+            const SizedBox(width: AppSpacing.xs),
+            actions,
+          ],
+        );
+      },
     );
   }
 

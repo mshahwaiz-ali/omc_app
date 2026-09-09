@@ -21,31 +21,44 @@ class HomeContentRail extends StatelessWidget {
     if (items.isEmpty) return const SizedBox.shrink();
 
     final textScale = MediaQuery.textScalerOf(context).scale(1);
-    final railHeight = textScale >= 1.8
-        ? 348.0
-        : textScale >= 1.4
-        ? 292.0
-        : 226.0;
     final cardWidth = textScale >= 1.5 ? 330.0 : 304.0;
 
-    return SizedBox(
-      height: railHeight,
-      child: ListView.separated(
+    if (textScale >= 1.5) {
+      return Padding(
         padding: padding,
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: items.length,
-        separatorBuilder: (context, index) =>
-            const SizedBox(width: AppSpacing.sm),
-        itemBuilder: (context, index) {
-          return SizedBox(
-            width: cardWidth,
-            child: _HomeContentCardView(
-              item: items[index],
-              onTap: () => onTap(items[index]),
+        child: Column(
+          children: [
+            for (var index = 0; index < items.length; index++) ...[
+              _HomeContentCardView(
+                item: items[index],
+                onTap: () => onTap(items[index]),
+              ),
+              if (index != items.length - 1)
+                const SizedBox(height: AppSpacing.sm),
+            ],
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: padding,
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var index = 0; index < items.length; index++) ...[
+            SizedBox(
+              width: cardWidth,
+              child: _HomeContentCardView(
+                item: items[index],
+                onTap: () => onTap(items[index]),
+              ),
             ),
-          );
-        },
+            if (index != items.length - 1) const SizedBox(width: AppSpacing.sm),
+          ],
+        ],
       ),
     );
   }
@@ -99,26 +112,24 @@ class _HomeContentCardView extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text(
           item.title,
-          maxLines: textScale >= 1.6 ? 4 : 3,
-          overflow: TextOverflow.ellipsis,
+          softWrap: true,
           style: theme.textTheme.titleMedium?.copyWith(
             color: AppTheme.textPrimary,
           ),
         ),
         if (item.summary.trim().isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xs),
-          Expanded(
-            child: Text(
-              item.summary.trim(),
-              maxLines: textScale >= 1.6 ? 5 : 3,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+          Text(
+            item.summary.trim(),
+            maxLines: textScale >= 1.5 ? null : 3,
+            overflow: textScale >= 1.5
+                ? TextOverflow.visible
+                : TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: AppTheme.textSecondary,
             ),
           ),
-        ] else
-          const Spacer(),
+        ],
         const SizedBox(height: AppSpacing.xs),
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -127,8 +138,10 @@ class _HomeContentCardView extends StatelessWidget {
               Expanded(
                 child: Text(
                   secondary,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  maxLines: textScale >= 1.5 ? null : 2,
+                  overflow: textScale >= 1.5
+                      ? TextOverflow.visible
+                      : TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: AppTheme.textSecondary,
                   ),
@@ -167,15 +180,15 @@ class _HomeContentCardView extends StatelessWidget {
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      SizedBox(height: 96, child: image),
+                      SizedBox(height: 112, child: image),
                       const SizedBox(height: AppSpacing.sm),
-                      Expanded(child: content),
+                      content,
                     ],
                   )
                 : Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(width: 86, child: image),
+                      SizedBox(width: 86, height: 96, child: image),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(child: content),
                     ],

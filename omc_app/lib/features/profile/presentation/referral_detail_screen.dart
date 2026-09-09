@@ -67,8 +67,8 @@ class _ReferralDetailScreenState extends ConsumerState<ReferralDetailScreen> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final inset = AppLayout.pageInsetFor(constraints.maxWidth);
-            final horizontal = constraints.maxWidth >
-                    AppLayout.generalMaxWidth + inset * 2
+            final horizontal =
+                constraints.maxWidth > AppLayout.generalMaxWidth + inset * 2
                 ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
                 : inset;
             return ListView(
@@ -115,10 +115,7 @@ class _ReferralDetailScreenState extends ConsumerState<ReferralDetailScreen> {
             : null,
       ),
       const SizedBox(height: AppSpacing.xl),
-      Text(
-        'Service activity',
-        style: Theme.of(context).textTheme.titleLarge,
-      ),
+      Text('Service activity', style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(height: AppSpacing.sm),
       if (detail.services.isEmpty && detail.requests.isEmpty)
         const EmptyState(
@@ -140,8 +137,7 @@ class _ReferralDetailScreenState extends ConsumerState<ReferralDetailScreen> {
           ],
         ],
         if (detail.requests.isNotEmpty) ...[
-          if (detail.services.isNotEmpty)
-            const SizedBox(height: AppSpacing.xl),
+          if (detail.services.isNotEmpty) const SizedBox(height: AppSpacing.xl),
           Text(
             'Request history',
             style: Theme.of(context).textTheme.titleMedium,
@@ -169,7 +165,7 @@ class _CustomerAccessCard extends StatelessWidget {
     required this.onStartService,
   });
 
-  final ReferralCustomer customer;
+  final ReferralDetailCustomer customer;
   final VoidCallback? onStartService;
 
   @override
@@ -227,9 +223,9 @@ class _CustomerAccessCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           Text(
             'Customer account',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: AppSpacing.xs),
           Wrap(
@@ -257,9 +253,7 @@ class _CustomerAccessCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: consentBackground,
               borderRadius: BorderRadius.circular(AppRadius.control),
-              border: Border.all(
-                color: consentColor.withValues(alpha: 0.24),
-              ),
+              border: Border.all(color: consentColor.withValues(alpha: 0.24)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,18 +274,18 @@ class _CustomerAccessCard extends StatelessWidget {
                         customer.consentGranted
                             ? 'Assistance consent granted'
                             : 'Assistance consent not granted',
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: consentColor,
-                        ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.labelMedium?.copyWith(color: consentColor),
                       ),
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
                         customer.consentGranted
                             ? 'You can start an assisted service for this referral.'
                             : 'Assisted service creation remains unavailable without referral assistance consent.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: consentColor,
-                        ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.copyWith(color: consentColor),
                       ),
                     ],
                   ),
@@ -383,9 +377,9 @@ class _RequestCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             source,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
         ],
       ),

@@ -70,10 +70,8 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                 await ref.read(pageProvider.future);
               },
               child: resultAsync.when(
-                data: (page) => _buildDirectory(
-                  page.items,
-                  nextStart: page.nextStart,
-                ),
+                data: (page) =>
+                    _buildDirectory(page.items, nextStart: page.nextStart),
                 loading: () => _CustomersLoadingView(
                   searchController: _searchController,
                   onSearch: _search,
@@ -96,9 +94,9 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
     List<CustomerItem> customers, {
     required int? nextStart,
   }) {
-    final visibleCustomers = customers.where(_matchesSelectedFilter).toList(
-      growable: false,
-    );
+    final visibleCustomers = customers
+        .where(_matchesSelectedFilter)
+        .toList(growable: false);
     final activeCount = customers
         .where((item) => item.status == CustomerStatus.active)
         .length;
@@ -127,13 +125,15 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: CustomerFilter.values.map((filter) {
-            return ChoiceChip(
-              label: Text(filter.label),
-              selected: filter == _selectedFilter,
-              onSelected: (_) => setState(() => _selectedFilter = filter),
-            );
-          }).toList(growable: false),
+          children: CustomerFilter.values
+              .map((filter) {
+                return ChoiceChip(
+                  label: Text(filter.label),
+                  selected: filter == _selectedFilter,
+                  onSelected: (_) => setState(() => _selectedFilter = filter),
+                );
+              })
+              .toList(growable: false),
         ),
         const SizedBox(height: 16),
         _PageSummary(
@@ -180,12 +180,11 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
           pageNumber: _start ~/ 50 + 1,
           canGoPrevious: _start > 0,
           canGoNext: nextStart != null,
-          onPrevious: () => setState(
-            () => _start = _start >= 50 ? _start - 50 : 0,
-          ),
+          onPrevious: () =>
+              setState(() => _start = _start >= 50 ? _start - 50 : 0),
           onNext: nextStart == null
               ? null
-              : () => setState(() => _start = nextStart!),
+              : () => setState(() => _start = nextStart),
         ),
       ],
     );
@@ -323,10 +322,7 @@ class _SummaryValue extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            '$value',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text('$value', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 2),
           Text(label, style: Theme.of(context).textTheme.bodySmall),
         ],
@@ -403,11 +399,7 @@ class _CustomerRow extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      contact.$1,
-                      color: AppTheme.textSecondary,
-                      size: 20,
-                    ),
+                    Icon(contact.$1, color: AppTheme.textSecondary, size: 20),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(

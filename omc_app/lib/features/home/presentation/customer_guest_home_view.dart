@@ -81,9 +81,9 @@ class CustomerGuestHomeView extends StatelessWidget {
           isActionAllowed(a) ? 1 : 0,
         );
         if (allowed != 0) return allowed;
-        final priority = _publicActionPriority(a).compareTo(
-          _publicActionPriority(b),
-        );
+        final priority = _publicActionPriority(
+          a,
+        ).compareTo(_publicActionPriority(b));
         if (priority != 0) return priority;
         return a.sortOrder.compareTo(b.sortOrder);
       });
@@ -118,10 +118,7 @@ class CustomerGuestHomeView extends StatelessWidget {
               ),
               if (loadMessage != null) ...[
                 const SizedBox(height: 12),
-                _LoadNotice(
-                  message: loadMessage!,
-                  onRetry: onRetryHomeLoad,
-                ),
+                _LoadNotice(message: loadMessage!, onRetry: onRetryHomeLoad),
               ],
               const SizedBox(height: 20),
               const _HomeSectionHeader(
@@ -296,11 +293,7 @@ class _GuestIdentityHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            _GuestAvatar(
-              name: name,
-              avatarUrl: avatarUrl,
-              onTap: onAvatar,
-            ),
+            _GuestAvatar(name: name, avatarUrl: avatarUrl, onTap: onAvatar),
           ],
         );
 
@@ -486,7 +479,7 @@ class _LoadNotice extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          TextButton(onPressed: onRetry, child: const Text('Retry')),
+          TextButton(onPressed: onRetry, child: const Text('Try again')),
         ],
       ),
     );
@@ -549,10 +542,13 @@ class _PublicServiceSearch extends StatelessWidget {
       optionsBuilder: (value) {
         final query = value.text.trim().toLowerCase();
         if (query.isEmpty) return const Iterable<ServiceItem>.empty();
-        return services.where((service) {
-          final searchable = '${service.title} ${service.category}'.toLowerCase();
-          return searchable.contains(query);
-        }).take(6);
+        return services
+            .where((service) {
+              final searchable = '${service.title} ${service.category}'
+                  .toLowerCase();
+              return searchable.contains(query);
+            })
+            .take(6);
       },
       onSelected: (service) => onOpenResult(service.id),
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
@@ -642,86 +638,94 @@ class _PublicActionsGrid extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns =
-            constraints.maxWidth < 330 ||
-                MediaQuery.textScalerOf(context).scale(1) >= 1.6
-            ? 1
-            : 2;
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: actions.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            mainAxisExtent: 88,
-          ),
-          itemBuilder: (context, index) {
-            final action = actions[index];
-            final allowed = isAllowed(action);
-            return PremiumCard(
-              padding: EdgeInsets.zero,
-              child: InkWell(
-                onTap: () => allowed ? onAction(action) : onLocked(action),
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      OmcIconBadge(
-                        icon: _quickActionIcon(action.iconKey),
-                        color: allowed
-                            ? _quickActionColor(action.iconKey)
-                            : AppTheme.textSecondary,
-                        size: 42,
-                        iconSize: 21,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              action.title,
-                              maxLines: 2,
-                              style: const TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: 15,
-                                height: 1.25,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            if (action.subtitle.trim().isNotEmpty) ...[
-                              const SizedBox(height: 3),
-                              Text(
-                                action.subtitle,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: AppTheme.textSecondary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final singleColumn = constraints.maxWidth < 330 || textScale >= 1.5;
+        final tileWidth = singleColumn
+            ? constraints.maxWidth
+            : (constraints.maxWidth - 10) / 2;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final action in actions)
+              Builder(
+                builder: (context) {
+                  final allowed = isAllowed(action);
+                  return SizedBox(
+                    width: tileWidth,
+                    child: PremiumCard(
+                      padding: EdgeInsets.zero,
+                      child: InkWell(
+                        onTap: () =>
+                            allowed ? onAction(action) : onLocked(action),
+                        borderRadius: BorderRadius.circular(16),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 72),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                OmcIconBadge(
+                                  icon: _quickActionIcon(action.iconKey),
+                                  color: allowed
+                                      ? _quickActionColor(action.iconKey)
+                                      : AppTheme.textSecondary,
+                                  size: 42,
+                                  iconSize: 21,
                                 ),
-                              ),
-                            ],
-                          ],
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        action.title,
+                                        softWrap: true,
+                                        style: const TextStyle(
+                                          color: AppTheme.textPrimary,
+                                          fontSize: 15,
+                                          height: 1.25,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      if (action.subtitle
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          action.subtitle,
+                                          softWrap: true,
+                                          style: const TextStyle(
+                                            color: AppTheme.textSecondary,
+                                            fontSize: 13,
+                                            height: 1.35,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Icon(
+                                  allowed
+                                      ? Icons.chevron_right_rounded
+                                      : Icons.lock_outline_rounded,
+                                  color: AppTheme.textSecondary,
+                                  size: 20,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                      Icon(
-                        allowed
-                            ? Icons.chevron_right_rounded
-                            : Icons.lock_outline_rounded,
-                        color: AppTheme.textSecondary,
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               ),
-            );
-          },
+          ],
         );
       },
     );
@@ -773,7 +777,10 @@ class _AccountCta extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            FilledButton(onPressed: onSignUp, child: const Text('Create account')),
+            FilledButton(
+              onPressed: onSignUp,
+              child: const Text('Create account'),
+            ),
             const SizedBox(height: 8),
             TextButton(onPressed: onSignIn, child: const Text('Sign in')),
           ],
@@ -847,7 +854,7 @@ Color _quickActionColor(String key) {
   if (value.contains('calculator') || value.contains('tax')) {
     return OmcPremium.tax;
   }
-  if (value.contains('knowledge')) return OmcPremium.knowledge;
+  if (value.contains('knowledge')) return AppTheme.textSecondary;
   if (value.contains('document')) return OmcPremium.documents;
   if (value.contains('payment')) return OmcPremium.payments;
   if (value.contains('support')) return OmcPremium.system;

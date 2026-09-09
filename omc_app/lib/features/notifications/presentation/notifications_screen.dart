@@ -6,7 +6,6 @@ import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_state.dart';
-import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../home/data/home_dashboard_repository.dart';
 import '../data/notification_item.dart';
@@ -33,6 +32,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final asyncNotifications = ref.watch(notificationPageProvider);
+    final unreadCountAsync = ref.watch(unreadNotificationsProvider);
     return Scaffold(
       key: OmcWidgetKeys.notificationsScreen,
       body: SafeArea(
@@ -50,6 +50,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                   .where((item) => !_hiddenIds.contains(item.id))
                   .toList();
               final loadedUnread = visible.where((item) => !item.isRead).length;
+              final authoritativeUnread = unreadCountAsync.asData?.value;
 
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(
@@ -58,8 +59,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
                 children: [
                   _Header(
-                    unreadCount: loadedUnread,
-                    onReadAll: loadedUnread > 0 && !_markingAllRead
+                    unreadCount: authoritativeUnread,
+                    unreadCountUnavailable: unreadCountAsync.hasError,
+                    onReadAll:
+                        (authoritativeUnread ?? loadedUnread) > 0 &&
+                            !_markingAllRead
                         ? _markAllAsRead
                         : null,
                     markingAllRead: _markingAllRead,
@@ -204,7 +208,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: const Text('Notification cleared.'),
-          action: SnackBarAction(label: 'Undo', onPressed: () => _restore(item)),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () => _restore(item),
+          ),
         ),
       );
       return true;
@@ -245,11 +252,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 class _Header extends StatelessWidget {
   const _Header({
     required this.unreadCount,
+    required this.unreadCountUnavailable,
     required this.onReadAll,
     required this.markingAllRead,
   });
 
-  final int unreadCount;
+  final int? unreadCount;
+  final bool unreadCountUnavailable;
   final VoidCallback? onReadAll;
   final bool markingAllRead;
 
@@ -263,7 +272,7 @@ class _Header extends StatelessWidget {
         final identity = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Semantics(
+            Semantics(
               header: true,
               child: Text(
                 'Alerts',
@@ -277,7 +286,11 @@ class _Header extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              unreadCount == 0
+              unreadCountUnavailable
+                  ? 'Unread count unavailable'
+                  : unreadCount == null
+                  ? 'Unread count is updating'
+                  : unreadCount == 0
                   ? 'You are all caught up'
                   : '$unreadCount unread ${unreadCount == 1 ? 'update' : 'updates'}',
               style: const TextStyle(
@@ -305,7 +318,10 @@ class _Header extends StatelessWidget {
         if (stack) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [identity, if (action != null) ...[const SizedBox(height: 8), action]],
+            children: [
+              identity,
+              if (action != null) ...[const SizedBox(height: 8), action],
+            ],
           );
         }
 
@@ -552,7 +568,11 @@ class _EmptyState extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       child: const Column(
         children: [
-          Icon(Icons.notifications_none_rounded, color: AppTheme.textMuted, size: 40),
+          Icon(
+            Icons.notifications_none_rounded,
+            color: AppTheme.textMuted,
+            size: 40,
+          ),
           SizedBox(height: 12),
           Text(
             "You're all caught up",
@@ -592,7 +612,12 @@ class _ErrorView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
       children: [
-        const _Header(unreadCount: 0, onReadAll: null, markingAllRead: false),
+        const _Header(
+          unreadCount: null,
+          unreadCountUnavailable: true,
+          onReadAll: null,
+          markingAllRead: false,
+        ),
         const SizedBox(height: 20),
         AppErrorState.fromError(
           error: error,
@@ -615,7 +640,12 @@ class _LoadingView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
       children: [
-        const _Header(unreadCount: 0, onReadAll: null, markingAllRead: false),
+        const _Header(
+          unreadCount: null,
+          unreadCountUnavailable: false,
+          onReadAll: null,
+          markingAllRead: false,
+        ),
         const SizedBox(height: 18),
         for (var index = 0; index < 4; index++) ...[
           PremiumCard(

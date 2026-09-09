@@ -1,21 +1,13 @@
-import 'dart:ui' show FontFeature;
-
 import 'package:flutter/material.dart';
 
 import 'design_tokens.dart';
 
 extension OmcSemanticTextStyles on TextTheme {
-  TextStyle get reading => const TextStyle(
-    fontSize: 17,
-    fontWeight: FontWeight.w400,
-    height: 1.60,
-  );
+  TextStyle get reading =>
+      const TextStyle(fontSize: 17, fontWeight: FontWeight.w400, height: 1.60);
 
-  TextStyle get readingTitle => const TextStyle(
-    fontSize: 28,
-    fontWeight: FontWeight.w700,
-    height: 1.20,
-  );
+  TextStyle get readingTitle =>
+      const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, height: 1.20);
 
   TextStyle get amount => const TextStyle(
     fontSize: 28,
@@ -394,7 +386,9 @@ class AppTheme {
 
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(AppTouchTarget.primaryButtonHeight),
+          minimumSize: const Size.fromHeight(
+            AppTouchTarget.primaryButtonHeight,
+          ),
           backgroundColor: primary,
           foregroundColor: Colors.white,
           disabledBackgroundColor: const Color(0xFFE2E8F0),
@@ -415,7 +409,9 @@ class AppTheme {
 
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          minimumSize: const Size.fromHeight(AppTouchTarget.primaryButtonHeight),
+          minimumSize: const Size.fromHeight(
+            AppTouchTarget.primaryButtonHeight,
+          ),
           backgroundColor: primary,
           foregroundColor: Colors.white,
           disabledBackgroundColor: const Color(0xFFE2E8F0),

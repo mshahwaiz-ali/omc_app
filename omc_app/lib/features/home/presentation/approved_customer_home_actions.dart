@@ -192,71 +192,75 @@ class _QuickActions extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(1);
-        final columns = constraints.maxWidth < 330 || textScale >= 1.6 ? 1 : 2;
-        final mainAxisExtent = textScale >= 1.4 ? 92.0 : 82.0;
+        final singleColumn = constraints.maxWidth < 330 || textScale >= 1.5;
+        final tileWidth = singleColumn
+            ? constraints.maxWidth
+            : (constraints.maxWidth - 10) / 2;
 
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: actions.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            mainAxisExtent: mainAxisExtent,
-          ),
-          itemBuilder: (context, index) {
-            final action = actions[index];
-            return Semantics(
-              button: true,
-              label: action.label,
-              excludeSemantics: true,
-              child: Material(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                child: InkWell(
-                  onTap: action.onTap,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final action in actions)
+              SizedBox(
+                width: tileWidth,
+                child: Semantics(
+                  button: true,
+                  label: action.label,
+                  excludeSemantics: true,
+                  child: Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    child: InkWell(
+                      onTap: action.onTap,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.border),
-                    ),
-                    child: Row(
-                      children: [
-                        OmcIconBadge(
-                          icon: action.icon,
-                          color: action.accent,
-                          size: 42,
-                          iconSize: 21,
-                          radius: 12,
+                      child: Container(
+                        constraints: const BoxConstraints(minHeight: 72),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 14,
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            action.label,
-                            maxLines: 2,
-                            style: const TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 15,
-                              height: 1.25,
-                              fontWeight: FontWeight.w600,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppTheme.border),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            OmcIconBadge(
+                              icon: action.icon,
+                              color: action.accent,
+                              size: 42,
+                              iconSize: 21,
+                              radius: 12,
                             ),
-                          ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                action.label,
+                                softWrap: true,
+                                style: const TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 15,
+                                  height: 1.25,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              color: AppTheme.textSecondary,
+                              size: 20,
+                            ),
+                          ],
                         ),
-                        const Icon(
-                          Icons.chevron_right_rounded,
-                          color: AppTheme.textSecondary,
-                          size: 20,
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            );
-          },
+          ],
         );
       },
     );

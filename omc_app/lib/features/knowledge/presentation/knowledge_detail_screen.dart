@@ -216,8 +216,7 @@ class _ArticleMetaRow extends StatelessWidget {
       _typeLabel(article.type),
       if (article.publishedAtLabel?.trim().isNotEmpty == true)
         article.publishedAtLabel!.trim(),
-      if (article.category?.trim().isNotEmpty == true)
-        article.category!.trim(),
+      if (article.category?.trim().isNotEmpty == true) article.category!.trim(),
       if (article.author?.trim().isNotEmpty == true) article.author!.trim(),
     ];
 
@@ -265,11 +264,13 @@ class _KnowledgeDetailLoadingView extends StatelessWidget {
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.fromLTRB(inset, 12, inset, 28),
-          children: const [
+          children: [
             Align(
               alignment: Alignment.topCenter,
               child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: AppLayout.readingMaxWidth),
+                constraints: BoxConstraints(
+                  maxWidth: AppLayout.readingMaxWidth,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [

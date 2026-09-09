@@ -125,10 +125,7 @@ class _DetailLoadingView extends StatelessWidget {
 }
 
 class _DocumentHeroCard extends StatelessWidget {
-  const _DocumentHeroCard({
-    required this.document,
-    this.customerName,
-  });
+  const _DocumentHeroCard({required this.document, this.customerName});
 
   final DocumentItem document;
   final String? customerName;
@@ -300,9 +297,9 @@ class _DocumentInfoCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Semantics(
+          Semantics(
             header: true,
-            child: Text(
+            child: const Text(
               'Document information',
               style: TextStyle(
                 color: AppTheme.textPrimary,
@@ -373,11 +370,7 @@ class _DocumentInfoRow extends StatelessWidget {
           if (stack) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                labelText,
-                const SizedBox(height: 4),
-                valueText,
-              ],
+              children: [labelText, const SizedBox(height: 4), valueText],
             );
           }
 
@@ -425,10 +418,7 @@ IconData _documentStatusIcon(DocumentStatus status) {
 }
 
 class _DocumentDetailBody extends ConsumerStatefulWidget {
-  const _DocumentDetailBody({
-    required this.document,
-    this.customerName,
-  });
+  const _DocumentDetailBody({required this.document, this.customerName});
 
   final DocumentItem document;
   final String? customerName;
