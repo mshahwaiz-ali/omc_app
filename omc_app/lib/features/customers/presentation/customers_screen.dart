@@ -180,10 +180,12 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
           pageNumber: _start ~/ 50 + 1,
           canGoPrevious: _start > 0,
           canGoNext: nextStart != null,
-          onPrevious: () => setState(() => _start = (_start - 50).clamp(0, _start)),
+          onPrevious: () => setState(
+            () => _start = _start >= 50 ? _start - 50 : 0,
+          ),
           onNext: nextStart == null
               ? null
-              : () => setState(() => _start = nextStart),
+              : () => setState(() => _start = nextStart!),
         ),
       ],
     );
@@ -393,7 +395,10 @@ class _CustomerRow extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                _CustomerStatusBadge(status: customer.status, label: customer.statusLabel),
+                _CustomerStatusBadge(
+                  status: customer.status,
+                  label: customer.statusLabel,
+                ),
                 const SizedBox(height: 12),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
