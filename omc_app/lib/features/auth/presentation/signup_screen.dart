@@ -875,60 +875,71 @@ class _PendingRegistrationSuccessScreenState
           ? 'Your customer account is created only after you verify your email and set a password.'
           : 'Verify your email and set a password to submit your staff access application for OMC review.',
       child: PremiumCard(
-        padding: const EdgeInsets.all(22),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Icon(Icons.outgoing_mail, color: Color(0xFF2563EB), size: 44),
-            const SizedBox(height: 18),
-            Text(
-              widget.isCustomer
-                  ? 'Open the verification link sent to ${widget.email}. The link expires in 30 minutes.'
-                  : 'Open the verification link sent to ${widget.email}. After verification, OMC reviews the staff application separately; staff permissions are not enabled automatically. The link expires in 30 minutes.',
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 14,
-                height: 1.45,
-                fontWeight: FontWeight.w700,
+        padding: const EdgeInsets.all(20),
+        child: Semantics(
+          container: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Icon(
+                Icons.outgoing_mail,
+                color: AppTheme.info,
+                size: 40,
               ),
-            ),
-            if (_message != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 18),
               Text(
-                _message!,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12.5,
-                  height: 1.4,
-                  fontWeight: FontWeight.w700,
+                'Verification email requested',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.isCustomer
+                    ? 'Open the verification link sent to ${widget.email}. The link expires in 30 minutes. Your account is not created until you verify the email and set a password.'
+                    : 'Open the verification link sent to ${widget.email}. After verification and password setup, your staff access application is submitted for separate OMC review. The link expires in 30 minutes.',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 16),
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  _cooldownSeconds > 0
+                      ? 'Another verification email can be requested in $_cooldownLabel.'
+                      : 'You can request another verification email now.',
+                  style: Theme.of(context).textTheme.labelMedium,
                 ),
               ),
-            ],
-            const SizedBox(height: 22),
-            AppButton(
-              label: 'Go to Login',
-              icon: Icons.login_rounded,
-              onPressed: () => context.go('/login'),
-            ),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: _resending || _cooldownSeconds > 0 ? null : _resend,
-              icon: _resending
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.refresh_rounded),
-              label: Text(
-                _resending
-                    ? 'Sending...'
-                    : _cooldownSeconds > 0
-                    ? 'Resend available in $_cooldownLabel'
-                    : 'Resend verification email',
+              if (_message != null) ...[
+                const SizedBox(height: 12),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    _message!,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              OutlinedButton.icon(
+                onPressed: _resending || _cooldownSeconds > 0 ? null : _resend,
+                icon: _resending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh_rounded),
+                label: Text(
+                  _resending ? 'Sending verification email...' : 'Resend verification email',
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+              AppButton(
+                label: 'Go to login',
+                icon: Icons.login_rounded,
+                onPressed: () => context.go('/login'),
+              ),
+            ],
+          ),
         ),
       ),
     );
