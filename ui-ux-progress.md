@@ -17,7 +17,7 @@ No E001–E146 surface is removed by this consolidation.
 ## Current authority
 
 - Baseline main SHA: `bd2c0d2c704b5ceb9ec7fae00cbf2e3746c94f9b`
-- Latest Phase 4 implementation code head: `5321c3e0465e5e7c8ea5f408ed38142a87e1fb84`
+- Latest Phase 4 implementation code head: `19aa7be3ddd04c52d130ade98d540f755f17e1b9`
 - Blueprint source-audit parent: `b42ed754fdb58dcd672497ba2e2e612658e1b882`
 - Backend: out of scope unless a genuine blocking defect is proven.
 - Functional/navigation/provider/payload authority: frozen per `ui-ux.md` J1/J2 and lifecycle clarification.
@@ -28,9 +28,9 @@ No E001–E146 surface is removed by this consolidation.
 |---|---|---|
 | 1 — Design System V2 + shared primitives | **SOURCE COMPLETE** — runtime validation pending | Shared design foundation and primitive migration |
 | 2 — Shell/navigation/global UI | **SOURCE COMPLETE** — runtime validation pending | E042, E043, E062–E067, E090 plus shared shell/header work |
-| 3 — Customer journey + operations | **SOURCE COMPLETE** — runtime validation pending | **E001–E025** |
-| 4 — Customer tools + account/auth | **IN PROGRESS** | **E026–E037 source-complete**; continue with E038 |
-| 5 — Internal/staff + final QA closure | PENDING | — |
+| 3 — Customer journey + operations | **SOURCE COMPLETE** — runtime validation pending | **E001–E025** plus their routed customer/document/payment/support presentation owners |
+| 4 — Customer tools + account/auth | **SOURCE COMPLETE** — runtime validation pending | **E026–E041** plus applicable nested/modal/native tickets audited below |
+| 5 — Internal/staff + final QA closure | PENDING | Starts with E044; final analyze/test/device/accessibility closure also remains here |
 
 ## Phase 1 source batches
 
@@ -63,7 +63,7 @@ No E001–E146 surface is removed by this consolidation.
 - **E007 + E008 Request Draft + Assisted Customer** — `c79f01ea840b4e798ca11c8d6088e62b324bfbd7`.
 - **E009 My Services / Requests** — `1c533efa00b22aff1ad595331fbbea99fc810194`.
 - **E010 Canonical Customer Request Detail** — `f9ec8afa866f59829423a06a973a661e09f52805`.
-- **E011 Assisted / Operational Request Detail** — `f0614a538c0a58e177af2e36d84150ddfaaace37`. New isolated operations-first owner behind the existing dispatcher; legacy 2,000+ line file remains untouched. Same cancel, upload, document review, reassign, ERP retry and discount-review repository calls/guards remain. Backend lifecycle/next-action evidence leads; payment preparation is distinct from an available payment record; document rejection remarks are visible; historical requests remain read-only.
+- **E011 Assisted / Operational Request Detail** — `f0614a538c0a58e177af2e36d84150ddfaaace37`. Existing cancel, upload, document review, reassign, ERP retry and discount-review repository calls/guards remain authoritative.
 
 ### Documents
 
@@ -75,14 +75,14 @@ No E001–E146 surface is removed by this consolidation.
 ### Payments
 
 - **E016 Payments list** — `92d49206…`. Exact backend status-to-action mapping retained; no unsafe local sum across formatted/currency values.
-- **E017 Payment detail + review** — `2903c628…`. Exact receipt upload/progress/cancellation, authenticated invoice/proof, `Paid` / `Rejected` review payloads and URL whitelist retained. Static payment timeline removed; receipt submission is explicitly unverified until review.
+- **E017 Payment detail + review** — `2903c628…`. Exact receipt upload/progress/cancellation, authenticated invoice/proof, `Paid` / `Rejected` review payloads and URL whitelist retained. Receipt submission remains explicitly unverified until review.
 
 ### Tax + knowledge
 
-- **E018 Tax calculator** — `7a9b52ec386ddc5784c4e784bde9a6df46d22f0c`. Same server calculation payload and service-start mutation; tax year → income → filer/refine → calculation → primary annual result → expandable details → CTA. Display currency comes from active backend tax-year config.
+- **E018 Tax calculator** — `7a9b52ec386ddc5784c4e784bde9a6df46d22f0c`. Same server calculation payload and service-start mutation; display currency comes from active backend tax-year config.
 - **E019 Tax estimate history** — `11a8e505f65f5e242ccf0f69b00c1cdf2b1ad84d`. Same history source and case-insensitive filters; filters collapsed; source-empty distinct from filter-empty.
 - **E020 Knowledge & news** — `4331bc80a9ac1ce6d59acb7a4237ae70c0e52135`. Featured headline + latest feed in backend order; no invented search/category API.
-- **E021 Knowledge article** — `8ca0da7abd36e041cec4e4f5e37c3d4ddfa4e44b`. Full headline, 17/1.6 plain reading body, summary fallback, existing `http/https` external-link validation.
+- **E021 Knowledge article** — `8ca0da7abd36e041cec4e4f5e37c3d4ddfa4e44b`. Full headline, 17/1.6 plain reading body, summary fallback and existing `http/https` external-link validation retained.
 
 ### Alerts + support
 
@@ -91,61 +91,84 @@ No E001–E146 surface is removed by this consolidation.
 - **E024 Support hub** — `599f36a6…`. Staff queue first; approved customer tickets before create; public direct channels first; duplicate-ticket prevention, paging, assign-to-me and WhatsApp ready-message unchanged.
 - **E025 Support conversation** — `e5ce61d4…`. 4-second refresh/read acknowledgement, reply/status calls, attachment constraints and retry cache unchanged.
 
-## Phase 4 customer tools / account source completion so far
+## Phase 4 — customer tools / account / auth source completion
 
 ### E026 Expense Tracker
 
 - V2 presentation created in `d8219848e990362c896c6bbd3866be50df2c2935`; routed in `457a320ebab9b7d6c3a108feaefc5031189c8a63`.
-- Existing controller/repository remains authoritative. Session-epoch protections, local/cloud storage mode, bulk sync, cloud `start/month` paging, 100-row continuation, pending-local preservation, export cancellation, JSON import validation, archive/clear behavior, receipt extensions and transaction payload fields remain unchanged.
-- Presentation now prioritizes balance/income/expenses → Add transaction → period/category filters → ledger rows → optional summaries → local/cloud status, with data tools in the existing header menu.
+- Existing controller/repository remains authoritative. Session epoch, local/cloud storage mode, bulk sync, cloud paging, pending-local preservation, export cancellation, JSON import validation, archive/clear behavior, receipt picker and transaction payload remain unchanged.
 
 ### E027 Monthly Budget
 
 - V2 presentation created in `68aa7b146b7fd0fdc9f51190076867bcc82a49ec`; routed in `0ed4d633998987e6774923223822750480a8c2fc`.
-- Exact month/category/`limit_amount`/threshold/active payload and local-vs-cloud save authority are retained, along with the same budget/spending providers and invalidations.
-- Budget rows now show Spent, Limit, Remaining/Over by, warning threshold and explicit Within budget / Near warning threshold / Over budget text. Progress remains visually clamped while actual over-budget amount stays visible.
+- Exact month/category/`limit_amount`/threshold/active payload and local-vs-cloud save authority are retained. >100% overspend remains explicit while progress display clamps safely.
 
 ### E028 Profile
 
 - V2 presentation created in `d427354476e8a22d202f7fe9f4d4af10e90472fb`; routed in `117eefad2dffadb65ddfb186c5f52837e957663e`.
-- Gallery selection remains `1200×1200`, quality `88`; upload remains `uploadProfileImage(filePath, fileName)` with profile refresh. Support remains topic `Profile / account support` through `createSupportTicket`.
-- Hierarchy is identity/photo → account state → personal/contact → business/tax or internal access → Manage profile → support. Verified identity values remain display-only on Profile.
+- Gallery remains 1200×1200 / quality 88; exact `uploadProfileImage(filePath, fileName)` plus profile refresh retained. Verified identity values remain display-only on Profile.
 
 ### E029 Profile details editor
 
 - V2 presentation created in `f4b88ecf81005ad162f8a15cdc9ce8de61c2c4cf`; routed in `fef551a364f30de59e3434e3f2a02e4018b60c00`.
-- Existing payload builders are retained: full name; changed-only phone/WhatsApp/address; changed-only internal education/experience/remarks; protected CNIC/NTN/company single-field payloads.
-- Backend `ProfileEditMode` policy remains the authority for Add / Update once / Locked / Unavailable. CNIC 13-digit, NTN 7–9 digit and company-name validation are retained, along with the one-time confirmation and `DirtyFormController` behavior.
-- `Env.workAddressMapsEnabled` continues hiding the legacy address editor for non-internal users when the maps workflow owns that field.
+- Existing payload builders, changed-only rules, `ProfileEditMode`, CNIC/NTN/company validation, one-time protected-field confirmation and `DirtyFormController` remain authoritative.
 
 ### E030 Settings
 
-- V2 presentation created in `da8579e98df3db2992f0237d6436a38f6c261fc5`; routed together with E029 in `fef551a364f30de59e3434e3f2a02e4018b60c00`.
-- Hierarchy is Profile → Security → Notifications → Legal → About/version → Account actions. “Profile preferences” is renamed **Profile** while retaining `/profile/edit`. The static “Account sync” explanatory row is removed.
-- Notification preference save/retry authority is unchanged; Push preference switch still renders only when `pushProviderOperational`. `PushDeviceSettingsTile` remains the Android device permission/registration owner.
-- Biometric disable/enroll, current-password verification, secure enrollment invalidations, legal `http/https` launcher + backend-text fallback, deletion support request and logout/session clearing remain the same functional flows.
+- V2 presentation created in `da8579e98df3db2992f0237d6436a38f6c261fc5`; routed with E029 in `fef551a364f30de59e3434e3f2a02e4018b60c00`.
+- Profile → Security → Notifications → Legal → About → Account actions hierarchy implemented. Push account preference remains separate from Android device permission/registration. Deletion remains a support request and logout remains real session logout.
 
-### E031–E037 Auth/account entry
+### E031–E041 Auth/account entry
 
-- **E031 Change password** — `defe4fc13d85480c7a0e90bcb66284b0ae5f7c10`. Presentation polished only; current/new/confirm validation, `changePassword(...)`, biometric clearing, logout and `/login` transition remain unchanged.
-- **E032 Splash / startup** — `f175f259149a51f7d77cc3e75780150cdae957e4`. `checkSession()`, onboarding preference routing, retry behavior and no-minimum-delay startup contract preserved.
-- **E033 Onboarding** — `ae1be130c12abbfdf28038f1562c9965649f147c`. Backend slide order/source, fallbacks, completion persistence, retry and `/login` behavior preserved; explicit Page X of Y and reduced-motion presentation added.
-- **E034 Login** — `c2fe41d25037d204d85fbf14bda4399370ea2b8d`. Identifier/password, biometric account selection, guest startup, pending/home redirects, activation/forgot/signup/help routes and normalized failure authority unchanged.
-- **E035 Signup flow** — presentation commit `d5e9f1d54f32e26a1c7f463efdd00984ed62caf5`; source parity rechecked before closure. Four-step constructor/callback mapping is intact; `roles = ['Customer']` remains authoritative; username normalization/availability, referral validation/consent, exact signup payload, cooldown clamp/resend and `DirtyFormController` remain unchanged. `SignupBottomActions` stacks for narrow/large-text layouts.
-- **E036 Forgot password** — `d0454bb7a06a44f5fec7e4c2b045f7d041ac0b89`. Presentation hierarchy now follows identifier → send reset link → neutral check-email result → login. Exact `requestPasswordReset(identifier: _identifierController.text.trim())` call and identifier validation remain unchanged; failure stays inline and success copy remains anti-enumeration-safe.
-- **E037 Reset password** — `5321c3e0465e5e7c8ea5f408ed38142a87e1fb84`. `/reset-password` still receives the query token and `/app/reset-password` still preserves query parameters. Exact `resetPassword(token, newPassword, confirmPassword)` repository call and password validation remain unchanged. Missing tokens never show the form; authoritative backend `status == 'invalid_or_expired'` now replaces the form with the new-link recovery state, while validation/network failures keep entered form state. Completed state still returns to login.
+- **E031 Change password** — `defe4fc13d85480c7a0e90bcb66284b0ae5f7c10`. Validation, `changePassword(...)`, biometric clearing, logout and `/login` transition unchanged.
+- **E032 Splash / startup** — `f175f259149a51f7d77cc3e75780150cdae957e4`. `checkSession()`, onboarding preference routing, retry and no-minimum-delay contract preserved.
+- **E033 Onboarding** — `ae1be130c12abbfdf28038f1562c9965649f147c`. Backend slides/order/fallback, completion persistence, retry and `/login` preserved.
+- **E034 Login** — `c2fe41d25037d204d85fbf14bda4399370ea2b8d`. Identifier/password, biometric stored-account selection, guest startup, pending/home redirects and public recovery/help routes unchanged.
+- **E035 Signup flow** — `d5e9f1d54f32e26a1c7f463efdd00984ed62caf5`; constructor/callback/form-key/payload parity rechecked. `roles = ['Customer']`, username/referral/cooldown/DirtyForm authority unchanged.
+- **E036 Forgot password** — `d0454bb7a06a44f5fec7e4c2b045f7d041ac0b89`. Exact `requestPasswordReset(identifier: trim)` and neutral anti-enumeration behavior retained.
+- **E037 Reset password** — `5321c3e0465e5e7c8ea5f408ed38142a87e1fb84`. Query token aliases and exact reset payload retained; only authoritative `invalid_or_expired` closes the form.
+- **E038 Activate existing account** — `d1215605dc12279aaab8f9169896d4a07c0e4e7a`. Exact registered-email request retained; neutral check-email state; no automatic login.
+- **E039 Complete customer activation** — `b4f6ecd0ac2d9991efb2bb169e5b7b7b3ac2102d`. Exact activation token/password call retained. Backend `activated`, `invalid_or_expired` and `review_required` outcomes now render distinct account-access states; no service/payment wording drift.
+- **E040 Email verification / account completion** — `bd6882de012f8e5739d1af98d3081afd686f67f8`. Read-only token inspection → password only for `awaiting_password` → completion → resulting account state preserved. Retry is only for transient inspection failure, never invalid token bypass.
+- **E041 Under review** — `2ae6e666d2d2f7ba8ab627ea61231d35f3f6951a`. `checkSession()` remains approval authority; pending stays, unauthenticated returns to login, authenticated non-pending goes home. No ETA or local approval.
+
+## Phase 4 nested / modal / native E-ticket closure
+
+- **E068 / E069 / E071 Signup substeps** — current shared signup widgets re-read against `signup_screen.dart`; role authority, onboarding mode, field validators, final terms/security behavior and callbacks remain unchanged.
+- **E070 Referral/preferences** — `4cc167dedb6c733733a2d2aa79445afeeab7f302`. Restored approved referral → verification → acquisition-source presentation order without changing referral/source callbacks or validation.
+- **E072 Pending registration success** — `85801ea98c9c62ad91eba0c2e5cd052353d23417`. Same resend timer, backend cooldown clamp and `resendVerification(email)`; readable status → cooldown → resend → login hierarchy.
+- **E081 Tax result/breakdown** — source parity re-read. Currency, tax year, breakdown/comparison/guidance and all amounts remain backend/config-derived; no local tax recalculation introduced.
+- **E082 Advanced tax inputs** — source parity re-read. Current advanced fields are optional backend-configured inputs and have no hidden frontend validators; only non-empty selected values are sent. Therefore there is no existing collapsed-field validation failure to auto-expand, and no new validation was invented.
+- **E086 Expense cloud history/pending** — cloud paging and pending-local preservation remain separate; cloud failure does not erase local pending entries.
+- **E091–E093 Login biometric/help/review support** — existing enrolled-account selection, configured help contacts and under-review support/session authority retained; no login or approval authority moved into presentation.
+- **E106 Profile support request** — `42424c502d5907a2266e67c978a46f0311b6c2ff` + follow-up `3ea92575aeffc2dd93aa1ce35fd7bc1264379286`. Exact topic/message support payload retained. Failed submitted message is retained for retry; ordinary sheet cancel does not create/overwrite a draft. Legacy source confirms Contact Support does not opt into profile-snapshot inclusion.
+- **E107–E109 Profile edit/confirmation/locked identity** — V2 owner re-read: existing payload builders, Add/Update/Locked policy, confirmation-before-save and non-editable locked state retained.
+- **E110–E113 Settings sheets** — biometric password verification/enrollment, deletion-request support flow, logout and validated external-policy/fallback-text behavior remain authoritative and readable.
+- **E115–E126 Expense/Budget tools** — data-tools gating, transaction sheet, cancellable account export, import validation, archive, local clear, filters, edit/archive actions, picker/date bounds, budget month actions and exact save payload re-read against routed V2 owners.
+- **E118 Backup JSON** — `d32ca19b1bee2148fcdde00764b9651c2294978b`. Selectable backup JSON now uses required monospace 14px presentation; export generation and dialog behavior unchanged.
+- **E141 Push-open failure recovery** — `19aa7be3ddd04c52d130ade98d540f755f17e1b9`. Shared overlay now reflows actions at narrow/large text. Owner/binding/ready checks, terminal consume semantics, transient retained Retry and Dismiss clear behavior are unchanged.
+- **E142 Android device notification state** — `ede2a1c22ee6704d2ff024beca3d82423a880c65`. Device permission, registration and account preference are visually distinct; exact enable/sync identity guard retained; no delivery promise.
+- **E143 Platform notification interaction** — native source re-read. Permission is requested only from explicit Enable, blocked permission opens Android settings, binding guards and foreground notification content remain unchanged.
+- **E145 Profile photo picker/upload** — `42424c502d5907a2266e67c978a46f0311b6c2ff`. Added avatar-adjacent persistent busy state while preserving Gallery source, 1200×1200 / quality 88, exact upload mutation, refresh, cancel and existing-image-on-failure behavior.
+
+### Tickets intentionally outside Phase 4
+
+- **E140** is the internal/staff discount-review dialog and belongs to Phase 5.
+- **E144** document file selection/validation and **E146** customer document external opening belong to the already-routed document/customer-operation family and remain subject to final Phase 5 regression/runtime closure rather than being reclassified into Phase 4.
+- E042/E043 remain Phase 2 source-complete and were not redone.
 
 ## Source-level parity checks performed
 
-- GitHub `main` rechecked before meaningful editing batches; all source changes remained on `main`, no feature branch was created.
-- Critical repository calls, provider invalidations, capability gates, route parameters and payload strings were re-read after high-risk customer/document/payment/support/E011 and Phase 4 account changes.
-- E011 operational rewrite was staged separately, checked against actual `AuthCapabilities`, `AdminCaseOptions`, `DocumentPickResult`, shared header/state/status constructors, then switched through the small dispatcher atomically.
-- E026/E027 use isolated V2 presentations while legacy screens remain untouched; public providers/controllers/storage semantics are reused rather than reimplemented as backend state.
-- E029/E030 were staged first and routed together only after their edit/security contracts were mapped.
-- E035 was closed only after re-reading `signup_steps.dart` and `signup_screen.dart` on the current main and verifying shared widget constructors, callbacks, validators, form keys, payload fields, username/referral behavior, cooldown and dirty-form authority.
-- E036 was re-read after commit; its repository call, identifier validation and neutral success/failure semantics remain unchanged.
-- E037 was checked against the actual router, repository and backend reset contract. Only backend `invalid_or_expired` is treated as an invalid-link presentation state; thrown password-validation/network failures do not bypass or discard the form.
-- No backend, API schema, provider authority, payment-first lifecycle or ERPNext core file was intentionally changed by these UI batches.
+- GitHub `main` was rechecked before meaningful editing batches; all source changes remained on `main`, no feature branch or PR was created.
+- Critical repository calls, provider invalidations, capability gates, route parameters and payload strings were re-read after high-risk customer/document/payment/support/auth/account changes.
+- E035 was closed only after re-reading `signup_steps.dart` and `signup_screen.dart` and verifying constructors, callbacks, validators, form keys, payload fields, username/referral behavior, cooldown and dirty-form authority.
+- E037/E039/E040 were checked against actual router/repository/backend token-status contracts before presentation states were changed.
+- E070/E072 follow-ups changed presentation only; signup payload/controller authority stayed in `signup_screen.dart`.
+- E106 was compared with the legacy Profile support owner; actual Contact Support uses topic/message and does not enable profile-snapshot inclusion. Cancellation parity was restored in the follow-up commit.
+- E115–E126 were checked against active routed V2 owners before E118 was changed; only the backup JSON typography changed.
+- E141 commit diff confirms intent lookup, `consumeOpen`, owner/binding/cancel checks and retry scheduling logic were untouched.
+- E142/E143 were checked together so device registration presentation did not alter native permission behavior.
+- No backend, API schema, provider authority, payment-first lifecycle, ERP authority or ERPNext core file was intentionally changed by Phase 4.
 
 ## Validation not yet available in this environment
 
@@ -153,13 +176,14 @@ No E001–E146 surface is removed by this consolidation.
 - `flutter analyze`: **NOT RUN**.
 - Flutter tests: **NOT RUN**.
 - 320–1024px / text scale 1.0–2.0 rendered matrix: **NOT RUN**.
-- Android/iOS native picker, biometric and notification device flows: **NOT RUN**.
+- Android/iOS native picker, biometric, push and notification device flows: **NOT RUN**.
 
-Source-complete does not mean runtime-validated. Phase 5 must close the final analyze/test/device matrix before the redesign can be called production-validated.
+**SOURCE COMPLETE does not mean production-validated.** Phase 5 must close analyze/tests, the 320–1024px and 1.0–2.0 text-scale matrix, device/native flows, accessibility and final cross-feature regression before the redesign is called production-validated.
 
 ## Exact next batch
 
-1. Continue with **E038 Activate existing account** in exact `ui-ux.md` order.
-2. Preserve the registered-email request payload, existing validation, neutral check-email response and login action.
-3. Do not introduce automatic login or reinterpret account activation as service/payment activation.
-4. Continue updating this ledger only after code commits are authoritative on `main`.
+1. Start **Phase 5 — Internal/Staff + final QA closure** with **E044** in exact `ui-ux.md` order.
+2. Re-read E044 and its current `main` presentation owner before editing; identify capability/provider/repository/payload authority first.
+3. Continue internal/staff E-tickets in blueprint order; do not reuse customer-role assumptions or broaden permissions.
+4. During final Phase 5 regression, explicitly re-check previously source-complete shared/native document tickets such as E144/E146 and all runtime-only acceptance criteria.
+5. Keep runtime/analyze/test claims pending until they actually run.
