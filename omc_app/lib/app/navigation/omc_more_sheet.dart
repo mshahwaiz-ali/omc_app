@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/config/api_config.dart';
 import '../../core/diagnostics/omc_widget_keys.dart';
-import '../../core/widgets/omc_premium.dart';
 import '../../features/app_config/data/mobile_app_config.dart';
 import '../../features/auth/application/auth_state.dart';
+import '../design_tokens.dart';
 import '../theme.dart';
 import 'omc_navigation_ia.dart';
 
@@ -83,11 +83,7 @@ Future<bool> showOmcMoreSheet({
     useSafeArea: true,
     isScrollControlled: true,
     showDragHandle: true,
-    backgroundColor: Colors.white,
     barrierColor: Colors.black.withValues(alpha: 0.28),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
     builder: (sheetContext) => _MoreSheetContent(
       groups: groups,
       capabilities: capabilities,
@@ -134,17 +130,29 @@ class _MoreSheetContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+
     return ConstrainedBox(
       key: OmcWidgetKeys.moreScreen,
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.90,
       ),
       child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(18, 2, 18, bottomInset + 24),
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          0,
+          AppSpacing.lg,
+          AppSpacing.md + bottomInset,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Semantics(
+              header: true,
+              child: Text('More', style: theme.textTheme.titleLarge),
+            ),
+            const SizedBox(height: AppSpacing.md),
             _MoreHeader(
               displayName: displayName,
               companyName: companyName,
@@ -155,17 +163,18 @@ class _MoreSheetContent extends StatelessWidget {
             if (capabilities.isGuest ||
                 capabilities.isPending ||
                 capabilities.isRejected) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.sm),
               _AccessStatusNote(capabilities: capabilities),
             ],
-            const SizedBox(height: 18),
+            const SizedBox(height: AppSpacing.xl),
             for (var index = 0; index < groups.length; index++) ...[
               _NavigationGroup(
                 group: groups[index],
                 unreadNotifications: unreadNotifications,
                 callbackFor: callbackFor,
               ),
-              if (index != groups.length - 1) const SizedBox(height: 18),
+              if (index != groups.length - 1)
+                const SizedBox(height: AppSpacing.xl),
             ],
           ],
         ),
@@ -187,27 +196,26 @@ class _NavigationGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
           child: Text(
             group.title,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.2,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.xs),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppTheme.border),
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
           ),
           child: Column(
             children: [
@@ -220,7 +228,7 @@ class _NavigationGroup extends StatelessWidget {
                   ).pop(callbackFor(group.items[index].id)),
                 ),
                 if (index != group.items.length - 1)
-                  const Divider(height: 1, indent: 58),
+                  const Divider(height: 1, indent: 68),
               ],
             ],
           ),
@@ -243,57 +251,80 @@ class _NavigationRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final destructive = item.id == OmcNavigationActionId.logout;
-    final color = destructive
-        ? OmcPremium.danger
-        : OmcPremium.moduleColor(item.label);
     final badge = item.id == OmcNavigationActionId.alerts
         ? unreadNotifications
         : 0;
+    final semanticLabel = badge > 0
+        ? '${item.label}, $badge unread notifications'
+        : item.label;
+    final iconInk = destructive
+        ? AppTheme.danger
+        : theme.colorScheme.onSurfaceVariant;
+    final iconBackground = destructive
+        ? AppTheme.dangerSoft
+        : theme.colorScheme.surfaceContainerHighest;
 
-    return Material(
-      key: OmcWidgetKeys.moreAction(item.id.name),
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(_iconFor(item.id), color: color, size: 19),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Text(
-                  item.label,
-                  style: TextStyle(
-                    color: destructive
-                        ? OmcPremium.danger
-                        : AppTheme.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      excludeSemantics: true,
+      child: Material(
+        key: OmcWidgetKeys.moreAction(item.id.name),
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 56),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                ExcludeSemantics(
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: iconBackground,
+                      borderRadius: BorderRadius.circular(AppRadius.control),
+                    ),
+                    child: Icon(_iconFor(item.id), color: iconInk, size: 24),
                   ),
                 ),
-              ),
-              if (badge > 0)
-                _Badge(count: badge)
-              else
-                Icon(
-                  destructive
-                      ? Icons.logout_rounded
-                      : Icons.chevron_right_rounded,
-                  color: destructive ? OmcPremium.danger : AppTheme.textMuted,
-                  size: 20,
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    item.label,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: destructive
+                          ? AppTheme.danger
+                          : AppTheme.textPrimary,
+                    ),
+                  ),
                 ),
-            ],
+                const SizedBox(width: AppSpacing.xs),
+                if (badge > 0)
+                  _Badge(
+                    count: badge,
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                  )
+                else
+                  Icon(
+                    destructive
+                        ? Icons.logout_rounded
+                        : Icons.chevron_right_rounded,
+                    color: destructive
+                        ? AppTheme.danger
+                        : theme.colorScheme.onSurfaceVariant,
+                    size: 24,
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -349,6 +380,7 @@ class _MoreHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final cleanName = _clean(displayName) ?? 'OMC';
     final company = _clean(companyName);
     final status = _clean(customerStatus);
@@ -361,30 +393,34 @@ class _MoreHeader extends StatelessWidget {
         : '${ApiConfig.baseUrl}${cleanAvatarUrl.startsWith('/') ? '' : '/'}$cleanAvatarUrl';
 
     return Material(
-      color: OmcPremium.canvas,
-      borderRadius: BorderRadius.circular(20),
+      color: theme.colorScheme.surface,
+      borderRadius: BorderRadius.circular(AppRadius.card),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.card),
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppTheme.border),
-            boxShadow: OmcPremium.softShadow,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 23,
-                backgroundColor: AppTheme.primarySoft,
+              Container(
+                width: AppTouchTarget.minimum,
+                height: AppTouchTarget.minimum,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
                 child: ClipOval(
                   child: resolvedAvatarUrl == null
                       ? _MoreAvatarFallback(name: cleanName)
                       : Image.network(
                           resolvedAvatarUrl,
-                          width: 46,
-                          height: 46,
+                          width: AppTouchTarget.minimum,
+                          height: AppTouchTarget.minimum,
                           fit: BoxFit.cover,
                           webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
                           errorBuilder: (_, _, _) =>
@@ -392,40 +428,30 @@ class _MoreHeader extends StatelessWidget {
                         ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      cleanName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
+                    Text(cleanName, style: theme.textTheme.titleMedium),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
                       subtitle.isEmpty ? 'Profile and app shortcuts' : subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
               ),
-              if (onTap != null)
-                const Icon(
+              if (onTap != null) ...[
+                const SizedBox(width: AppSpacing.xs),
+                Icon(
                   Icons.chevron_right_rounded,
-                  color: AppTheme.textSecondary,
+                  color: theme.colorScheme.onSurfaceVariant,
+                  size: 24,
                 ),
+              ],
             ],
           ),
         ),
@@ -441,14 +467,14 @@ class _MoreAvatarFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return SizedBox.square(
-      dimension: 46,
+      dimension: AppTouchTarget.minimum,
       child: Center(
         child: Text(
           _initials(name),
-          style: const TextStyle(
-            color: AppTheme.primary,
-            fontWeight: FontWeight.w900,
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: theme.colorScheme.onPrimaryContainer,
           ),
         ),
       ),
@@ -463,93 +489,111 @@ class _AccessStatusNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (icon, title, message) = switch (capabilities.accessState) {
-      AccountAccessState.guest => (
-        Icons.explore_outlined,
-        'Guest mode',
-        'Public tools are available. Sign in for protected OMC services.',
-      ),
-      AccountAccessState.pending => (
-        Icons.hourglass_top_rounded,
-        'Account under review',
-        'Public tools remain available while OMC reviews your access.',
-      ),
-      AccountAccessState.rejected => (
-        Icons.block_rounded,
-        'Approval required',
-        'Protected services are unavailable. Contact OMC support if needed.',
-      ),
-      _ => (
-        Icons.verified_user_outlined,
-        'Approved access',
-        'Protected OMC services are enabled.',
-      ),
-    };
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: AppTheme.primary, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  message,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 11.5,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+    final theme = Theme.of(context);
+    final (icon, title, message, tone, background) =
+        switch (capabilities.accessState) {
+          AccountAccessState.guest => (
+            Icons.info_outline_rounded,
+            'Guest mode',
+            'Public tools are available. Sign in for protected OMC services.',
+            AppTheme.info,
+            AppTheme.infoSoft,
           ),
-        ],
+          AccountAccessState.pending => (
+            Icons.hourglass_top_rounded,
+            'Account under review',
+            'Public tools remain available while OMC reviews your access.',
+            AppTheme.warning,
+            AppTheme.warningSoft,
+          ),
+          AccountAccessState.rejected => (
+            Icons.error_outline_rounded,
+            'Approval required',
+            'Protected services are unavailable. Contact OMC support if needed.',
+            AppTheme.danger,
+            AppTheme.dangerSoft,
+          ),
+          _ => (
+            Icons.verified_outlined,
+            'Approved access',
+            'Protected OMC services are enabled.',
+            AppTheme.success,
+            AppTheme.successSoft,
+          ),
+        };
+
+    return Semantics(
+      container: true,
+      label: '$title. $message',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          border: Border.all(color: tone.withValues(alpha: 0.20)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: tone, size: 24),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(color: tone),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    message,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge({required this.count});
+  const _Badge({
+    required this.count,
+    required this.backgroundColor,
+    required this.foregroundColor,
+  });
 
   final int count;
+  final Color backgroundColor;
+  final Color foregroundColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 24),
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: AppSpacing.xxs,
+      ),
       decoration: BoxDecoration(
-        color: AppTheme.primarySoft,
-        borderRadius: BorderRadius.circular(999),
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Text(
         count > 99 ? '99+' : '$count',
         textAlign: TextAlign.center,
-        style: const TextStyle(
-          color: AppTheme.primary,
-          fontSize: 10,
-          fontWeight: FontWeight.w900,
+        style: TextStyle(
+          color: foregroundColor,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          height: 1.2,
         ),
       ),
     );

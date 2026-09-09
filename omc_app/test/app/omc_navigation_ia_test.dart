@@ -38,6 +38,39 @@ void main() {
     },
   );
 
+  test('approved customer More keeps tax and knowledge first-level', () {
+    const customer = AuthCapabilities(
+      accessState: AccountAccessState.approved,
+      canViewDocuments: true,
+      canViewPayments: true,
+      canViewCustomerNotifications: true,
+      canUseTaxCalculator: true,
+      canCreateSupportTicket: true,
+    );
+
+    final groups = buildOmcMoreNavigation(
+      capabilities: customer,
+      features: features,
+      isGuest: false,
+    );
+
+    expect(
+      groups.map((group) => group.title).toList(),
+      ['My OMC', 'Tax & knowledge', 'Tools & support', 'Account'],
+    );
+    final taxKnowledge = groups.singleWhere(
+      (group) => group.title == 'Tax & knowledge',
+    );
+    expect(
+      taxKnowledge.items.map((item) => item.label),
+      containsAllInOrder(['Tax', 'Knowledge']),
+    );
+    expect(
+      groups.first.items.map((item) => item.label),
+      contains('Alerts'),
+    );
+  });
+
   test(
     'finance More exposes finance work without unrelated management areas',
     () {

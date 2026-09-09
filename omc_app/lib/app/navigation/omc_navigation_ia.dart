@@ -67,7 +67,8 @@ List<OmcNavigationGroup> buildOmcMoreNavigation({
 
   final groups = <OmcNavigationGroup>[];
   final omc = <OmcNavigationItem>[];
-  final tools = <OmcNavigationItem>[];
+  final taxKnowledge = <OmcNavigationItem>[];
+  final toolsSupport = <OmcNavigationItem>[];
   final account = <OmcNavigationItem>[];
 
   // Home, Services and Requests already live in the persistent bottom nav.
@@ -91,26 +92,31 @@ List<OmcNavigationGroup> buildOmcMoreNavigation({
     }
   }
 
+  // Tax and knowledge are mandatory high-value destinations when available,
+  // so they remain a first-level group rather than being buried among tools.
   if (capabilities.canUseTaxCalculator) {
-    tools.add(const OmcNavigationItem(OmcNavigationActionId.tax, 'Tax'));
+    taxKnowledge.add(
+      const OmcNavigationItem(OmcNavigationActionId.tax, 'Tax'),
+    );
   }
+  if (features.knowledgeEnabled) {
+    taxKnowledge.add(
+      const OmcNavigationItem(OmcNavigationActionId.knowledge, 'Knowledge'),
+    );
+  }
+
   if (features.expenseTrackerEnabled) {
-    tools.add(
+    toolsSupport.add(
       const OmcNavigationItem(OmcNavigationActionId.expense, 'Expense'),
     );
     if (capabilities.isApproved) {
-      tools.add(
+      toolsSupport.add(
         const OmcNavigationItem(OmcNavigationActionId.budget, 'Budget'),
       );
     }
   }
-  if (features.knowledgeEnabled) {
-    tools.add(
-      const OmcNavigationItem(OmcNavigationActionId.knowledge, 'Knowledge'),
-    );
-  }
   if (features.supportEnabled) {
-    tools.add(
+    toolsSupport.add(
       const OmcNavigationItem(OmcNavigationActionId.support, 'Support'),
     );
   }
@@ -131,7 +137,12 @@ List<OmcNavigationGroup> buildOmcMoreNavigation({
   );
 
   if (omc.isNotEmpty) groups.add(OmcNavigationGroup('My OMC', omc));
-  if (tools.isNotEmpty) groups.add(OmcNavigationGroup('Tools & help', tools));
+  if (taxKnowledge.isNotEmpty) {
+    groups.add(OmcNavigationGroup('Tax & knowledge', taxKnowledge));
+  }
+  if (toolsSupport.isNotEmpty) {
+    groups.add(OmcNavigationGroup('Tools & support', toolsSupport));
+  }
   if (account.isNotEmpty) groups.add(OmcNavigationGroup('Account', account));
   return groups;
 }
