@@ -495,8 +495,8 @@ class InternalServiceCaseWorkspaceScreen extends ConsumerWidget {
           AppBackHeader(
             title: 'Case Details',
             subtitle: caseId,
-            actionIcon: Icons.launch_rounded,
-            actionTooltip: 'Open full case',
+            actionIcon: Icons.list_alt_rounded,
+            actionTooltip: 'Back to case queue',
             onAction: () => context.go(_fullCaseRoute),
           ),
           Expanded(
@@ -533,36 +533,18 @@ class InternalServiceCaseWorkspaceScreen extends ConsumerWidget {
                   if (serviceCase == null) {
                     return _CaseDetailsState(
                       icon: Icons.search_off_rounded,
-                      title: 'Case not found in queue',
+                      title: 'Case not available in this queue',
                       message:
-                          'This case is not available in the current operations '
-                          'queue. Open the full case to review its available '
-                          'details and actions.',
-                      actionLabel: 'Open full case',
-                      actionIcon: Icons.launch_rounded,
+                          'This case is not present in the currently loaded internal queue. '
+                          'That does not mean the backend record does not exist. Return to '
+                          'the scoped case queue to continue.',
+                      actionLabel: 'Back to case queue',
+                      actionIcon: Icons.list_alt_rounded,
                       onAction: () => context.go(_fullCaseRoute),
                     );
                   }
 
-                  return ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: _kOpsPadding,
-                    children: [
-                      _ServiceWorkspaceHeader(serviceCase: serviceCase),
-                      const SizedBox(height: 12),
-                      _NextCaseAction(serviceCase: serviceCase),
-                      const SizedBox(height: 12),
-                      _WorkspaceOverview(serviceCase: serviceCase),
-                      const SizedBox(height: 12),
-                      _StatusProgressBlock(serviceCase: serviceCase),
-                      const SizedBox(height: 12),
-                      _DocumentsBlock(serviceCase: serviceCase),
-                      const SizedBox(height: 12),
-                      _PaymentsBlock(serviceCase: serviceCase),
-                      const SizedBox(height: 12),
-                      _ActivityTimelineBlock(serviceCase: serviceCase),
-                    ],
-                  );
+                  return _InternalCaseWorkspaceV2(serviceCase: serviceCase);
                 },
               ),
             ),
@@ -4262,6 +4244,719 @@ class _PaymentPagerV2 extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _InternalCaseWorkspaceV2 extends StatelessWidget {
+  const _InternalCaseWorkspaceV2({required this.serviceCase});
+
+  final InternalServiceCase serviceCase;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inset = constraints.maxWidth < 360
+            ? 16.0
+            : constraints.maxWidth >= 600
+            ? 24.0
+            : 20.0;
+        final horizontal = constraints.maxWidth > 888
+            ? (constraints.maxWidth - 840) / 2
+            : inset;
+        return ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(horizontal, 12, horizontal, 164),
+          children: [
+            _CaseIdentityV2(serviceCase: serviceCase),
+            const SizedBox(height: 16),
+            _CaseNextActionV2(serviceCase: serviceCase),
+            const SizedBox(height: 24),
+            _CaseEvidenceV2(serviceCase: serviceCase),
+            const SizedBox(height: 24),
+            _CaseOverviewV2(serviceCase: serviceCase),
+            const SizedBox(height: 12),
+            _CaseProgressV2(serviceCase: serviceCase),
+            const SizedBox(height: 24),
+            _CaseTimelineV2(serviceCase: serviceCase),
+            const SizedBox(height: 24),
+            _CaseOperationsV2(serviceCase: serviceCase),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _CaseIdentityV2 extends StatelessWidget {
+  const _CaseIdentityV2({required this.serviceCase});
+
+  final InternalServiceCase serviceCase;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = _workspaceStatusColors(serviceCase.status);
+    final priority = _displayValue(serviceCase.priority);
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            serviceCase.displayCustomer,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            serviceCase.displayService,
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: colors.background,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: colors.foreground.withValues(alpha: 0.22),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.flag_outlined,
+                  size: 20,
+                  color: colors.foreground,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _displayValue(serviceCase.status),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: colors.foreground,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 16,
+            runSpacing: 10,
+            children: [
+              _CaseIdentityMetaV2(label: 'Priority', value: priority),
+              _CaseIdentityMetaV2(
+                label: 'Last updated',
+                value: _displayValue(serviceCase.updatedAt),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Case reference',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 2),
+          SelectableText(
+            serviceCase.id,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CaseIdentityMetaV2 extends StatelessWidget {
+  const _CaseIdentityMetaV2({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 120),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(value, style: Theme.of(context).textTheme.bodyMedium),
+        ],
+      ),
+    );
+  }
+}
+
+class _CaseNextActionV2 extends StatelessWidget {
+  const _CaseNextActionV2({required this.serviceCase});
+
+  final InternalServiceCase serviceCase;
+
+  @override
+  Widget build(BuildContext context) {
+    final completed = serviceCase.status.trim().toLowerCase() == 'completed';
+    final nextAction = completed
+        ? 'This service request has been completed. No further action is required.'
+        : serviceCase.nextStep?.trim().isNotEmpty == true
+        ? serviceCase.nextStep!.trim()
+        : _caseNextAction(serviceCase);
+    final color = completed ? AppTheme.success : AppTheme.info;
+    final background = completed ? AppTheme.successSoft : AppTheme.infoSoft;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            completed
+                ? Icons.check_circle_outline_rounded
+                : Icons.next_plan_outlined,
+            color: color,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  completed ? 'Service completed' : 'Next case action',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: color,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(nextAction, style: Theme.of(context).textTheme.bodyLarge),
+                const SizedBox(height: 6),
+                Text(
+                  completed
+                      ? 'Review the evidence and activity below for the completed record.'
+                      : 'This guidance is derived from the existing queue record; it does not create a new workflow state.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CaseEvidenceV2 extends StatelessWidget {
+  const _CaseEvidenceV2({required this.serviceCase});
+
+  final InternalServiceCase serviceCase;
+
+  @override
+  Widget build(BuildContext context) {
+    final received =
+        serviceCase.uploadedDocuments + serviceCase.approvedDocuments;
+    final total = received + serviceCase.pendingDocuments;
+    final progress = total == 0 ? 0.0 : (received / total).clamp(0.0, 1.0);
+    final metrics = [
+      _CaseEvidenceMetricV2(
+        label: 'Received',
+        value: received,
+        icon: Icons.download_done_outlined,
+      ),
+      _CaseEvidenceMetricV2(
+        label: 'Approved',
+        value: serviceCase.approvedDocuments,
+        icon: Icons.check_circle_outline_rounded,
+      ),
+      _CaseEvidenceMetricV2(
+        label: 'Missing',
+        value: serviceCase.pendingDocuments,
+        icon: Icons.upload_file_outlined,
+      ),
+      if (serviceCase.rejectedDocuments > 0)
+        _CaseEvidenceMetricV2(
+          label: 'Rejected',
+          value: serviceCase.rejectedDocuments,
+          icon: Icons.error_outline_rounded,
+          color: AppTheme.danger,
+        ),
+    ];
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Document evidence', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 4),
+          Text(
+            serviceCase.documentSummaryLabel.trim().isNotEmpty &&
+                    serviceCase.documentSummaryLabel != '-'
+                ? serviceCase.documentSummaryLabel
+                : 'Document counts from the current case queue record.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final scale = MediaQuery.textScalerOf(context).scale(1);
+              final single = constraints.maxWidth < 320 || scale >= 1.5;
+              final width = single
+                  ? constraints.maxWidth
+                  : (constraints.maxWidth - 10) / 2;
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: metrics
+                    .map(
+                      (metric) => SizedBox(
+                        width: width,
+                        child: _CaseEvidenceMetricViewV2(metric: metric),
+                      ),
+                    )
+                    .toList(growable: false),
+              );
+            },
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 7,
+              backgroundColor: AppTheme.border,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            total == 0
+                ? 'No document requirements are available in this summary.'
+                : '$received of $total documents received',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => context.go(
+                '/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}',
+              ),
+              icon: const Icon(Icons.folder_open_outlined),
+              label: const Text('Open case documents'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CaseEvidenceMetricV2 {
+  const _CaseEvidenceMetricV2({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.color = AppTheme.textSecondary,
+  });
+
+  final String label;
+  final int value;
+  final IconData icon;
+  final Color color;
+}
+
+class _CaseEvidenceMetricViewV2 extends StatelessWidget {
+  const _CaseEvidenceMetricViewV2({required this.metric});
+
+  final _CaseEvidenceMetricV2 metric;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 68),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.cardSoft,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Row(
+        children: [
+          Icon(metric.icon, color: metric.color, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${metric.value}',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: metric.color == AppTheme.textSecondary
+                        ? AppTheme.textPrimary
+                        : metric.color,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(metric.label, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CaseOverviewV2 extends StatelessWidget {
+  const _CaseOverviewV2({required this.serviceCase});
+
+  final InternalServiceCase serviceCase;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      _CaseOverviewValueV2(
+        label: 'Customer',
+        value: serviceCase.displayCustomer,
+        icon: Icons.person_outline_rounded,
+      ),
+      _CaseOverviewValueV2(
+        label: 'Current status',
+        value: _displayValue(serviceCase.status),
+        icon: Icons.flag_outlined,
+      ),
+      _CaseOverviewValueV2(
+        label: 'Priority',
+        value: _displayValue(serviceCase.priority),
+        icon: Icons.priority_high_rounded,
+      ),
+      _CaseOverviewValueV2(
+        label: 'Last updated',
+        value: _displayValue(serviceCase.updatedAt),
+        icon: Icons.update_rounded,
+      ),
+    ];
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Case overview', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final scale = MediaQuery.textScalerOf(context).scale(1);
+              final single = constraints.maxWidth < 480 || scale >= 1.5;
+              final width = single
+                  ? constraints.maxWidth
+                  : (constraints.maxWidth - 10) / 2;
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: items
+                    .map(
+                      (item) => SizedBox(
+                        width: width,
+                        child: _CaseOverviewValueViewV2(item: item),
+                      ),
+                    )
+                    .toList(growable: false),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CaseOverviewValueV2 {
+  const _CaseOverviewValueV2({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+}
+
+class _CaseOverviewValueViewV2 extends StatelessWidget {
+  const _CaseOverviewValueViewV2({required this.item});
+
+  final _CaseOverviewValueV2 item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 72),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.cardSoft,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(item.icon, size: 20, color: AppTheme.textSecondary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(item.value, style: Theme.of(context).textTheme.bodyMedium),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CaseProgressV2 extends StatelessWidget {
+  const _CaseProgressV2({required this.serviceCase});
+
+  final InternalServiceCase serviceCase;
+
+  @override
+  Widget build(BuildContext context) {
+    const labels = ['Open', 'Documents', 'Payment', 'Processing', 'Review', 'Completed'];
+    final state = _progressState(serviceCase);
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Service progress', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            _progressHeading(serviceCase),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          for (var index = 0; index < labels.length; index++) ...[
+            _CaseProgressRowV2(
+              label: state.isCancelled && index == state.index
+                  ? 'Closed'
+                  : labels[index],
+              completed: !state.isCancelled && index < state.index,
+              current: index == state.index,
+              cancelled: state.isCancelled && index == state.index,
+            ),
+            if (index != labels.length - 1) const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CaseProgressRowV2 extends StatelessWidget {
+  const _CaseProgressRowV2({
+    required this.label,
+    required this.completed,
+    required this.current,
+    required this.cancelled,
+  });
+
+  final String label;
+  final bool completed;
+  final bool current;
+  final bool cancelled;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = cancelled
+        ? AppTheme.processing
+        : completed
+        ? AppTheme.success
+        : current
+        ? AppTheme.info
+        : AppTheme.textSecondary;
+    final stateLabel = cancelled
+        ? 'Closed'
+        : completed
+        ? 'Completed'
+        : current
+        ? 'Current'
+        : 'Upcoming';
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          cancelled
+              ? Icons.cancel_outlined
+              : completed
+              ? Icons.check_circle_outline_rounded
+              : current
+              ? Icons.radio_button_checked_rounded
+              : Icons.radio_button_unchecked_rounded,
+          color: color,
+          size: 20,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          stateLabel,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color),
+        ),
+      ],
+    );
+  }
+}
+
+class _CaseTimelineV2 extends StatelessWidget {
+  const _CaseTimelineV2({required this.serviceCase});
+
+  final InternalServiceCase serviceCase;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Case activity', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 14),
+          _CaseTimelineRowV2(
+            icon: Icons.add_circle_outline_rounded,
+            label: 'Case created',
+            value: _displayValue(serviceCase.createdAt),
+          ),
+          const Divider(height: 24),
+          _CaseTimelineRowV2(
+            icon: Icons.update_rounded,
+            label: 'Last updated',
+            value: _displayValue(serviceCase.updatedAt),
+          ),
+          const Divider(height: 24),
+          _CaseTimelineRowV2(
+            icon: Icons.flag_outlined,
+            label: 'Current workflow state',
+            value: _displayValue(serviceCase.status),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CaseTimelineRowV2 extends StatelessWidget {
+  const _CaseTimelineRowV2({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: AppTheme.textSecondary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CaseOperationsV2 extends StatelessWidget {
+  const _CaseOperationsV2({required this.serviceCase});
+
+  final InternalServiceCase serviceCase;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Operations', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 6),
+          Text(
+            'Review invoices, receipts and payment status in the existing scoped payment workspace. Payment records are not loaded into this case summary.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => context.push('/internal-workspace/payments'),
+              icon: const Icon(Icons.payments_outlined),
+              label: const Text('Open payment operations'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
