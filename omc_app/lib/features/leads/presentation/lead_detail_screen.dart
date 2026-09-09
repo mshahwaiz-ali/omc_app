@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/design_tokens.dart';
+import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
-import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/app_back_header.dart';
+import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/premium_empty_state.dart';
 import '../../crm/presentation/widgets/crm_detail_widgets.dart';
 import '../data/leads_repository.dart';
 import '../domain/lead_item.dart';
@@ -18,24 +21,23 @@ class LeadDetailScreen extends ConsumerWidget {
     final leadAsync = ref.watch(leadDetailProvider(leadId));
 
     return Scaffold(
-      appBar: const AppBackHeader(title: 'Lead Details'),
+      backgroundColor: AppTheme.background,
+      appBar: const AppBackHeader(title: 'Lead details'),
       body: leadAsync.when(
         data: (lead) {
           if (lead == null) {
-            return PremiumEmptyState(
+            return const PremiumEmptyState(
               icon: Icons.trending_up_rounded,
               title: 'Lead detail unavailable',
-              message:
-                  'Timeline, notes and conversion actions will appear here when lead details are available.',
+              message: 'This lead record is not available in your current scope.',
             );
           }
-
           return _LeadDetailBody(lead: lead);
         },
         loading: () => const CrmDetailLoadingView(
           icon: Icons.trending_up_rounded,
           title: 'Loading lead',
-          message: 'Fetching contact, timeline and conversion context.',
+          message: 'Fetching the current lead record.',
         ),
         error: (error, _) => PremiumEmptyState(
           icon: Icons.trending_up_rounded,
@@ -64,95 +66,133 @@ class _LeadDetailBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusLabel = _leadStatusLabel(lead.status);
-    final leadRows = <CrmInfoRow>[CrmInfoRow(label: 'Lead ID', value: lead.id)];
+    final contactRows = <CrmInfoRow>[
+      CrmInfoRow(label: 'Email', value: _valueOrNotAdded(lead.email)),
+      CrmInfoRow(label: 'Phone', value: _valueOrNotAdded(lead.phone)),
+      CrmInfoRow(
+        label: 'Service interest',
+        value: _valueOrNotAdded(lead.serviceInterest),
+      ),
+      CrmInfoRow(label: 'Source', value: _valueOrNotAdded(lead.source)),
+    ];
+    final recordRows = <CrmInfoRow>[
+      CrmInfoRow(label: 'Lead ID', value: lead.id),
+      CrmInfoRow(
+        label: 'Assigned to',
+        value: _valueOrNotAdded(lead.assignedTo),
+      ),
+      CrmInfoRow(
+        label: 'Customer profile',
+        value: _valueOrNotAdded(lead.customerProfile),
+      ),
+      CrmInfoRow(
+        label: 'Converted customer',
+        value: _valueOrNotAdded(lead.convertedCustomerProfile),
+      ),
+      CrmInfoRow(
+        label: 'Created',
+        value: _valueOrNotAdded(lead.createdAtLabel),
+      ),
+      CrmInfoRow(
+        label: 'Updated',
+        value: _valueOrNotAdded(lead.updatedAtLabel),
+      ),
+    ];
 
-    if (lead.serviceInterest != null) {
-      leadRows.add(
-        CrmInfoRow(label: 'Service interest', value: lead.serviceInterest!),
-      );
-    }
-    if (lead.assignedTo != null) {
-      leadRows.add(CrmInfoRow(label: 'Assigned to', value: lead.assignedTo!));
-    }
-    if (lead.customerProfile != null) {
-      leadRows.add(
-        CrmInfoRow(label: 'Customer profile', value: lead.customerProfile!),
-      );
-    }
-    if (lead.convertedCustomerProfile != null) {
-      leadRows.add(
-        CrmInfoRow(
-          label: 'Converted customer',
-          value: lead.convertedCustomerProfile!,
-        ),
-      );
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        CrmDetailHeaderCard(
-          icon: Icons.trending_up_rounded,
-          title: lead.title,
-          subtitle: lead.customerName,
-          statusLabel: statusLabel,
-        ),
-        const SizedBox(height: 16),
-        CrmDetailInfoCard(
-          title: 'Contact',
-          rows: [
-            CrmInfoRow(label: 'Email', value: lead.email ?? '-'),
-            CrmInfoRow(label: 'Phone', value: lead.phone ?? '-'),
-            CrmInfoRow(label: 'Source', value: lead.source ?? '-'),
-            CrmInfoRow(label: 'Created', value: lead.createdAtLabel ?? '-'),
-            CrmInfoRow(label: 'Updated', value: lead.updatedAtLabel ?? '-'),
-          ],
-        ),
-        const SizedBox(height: 16),
-        CrmDetailInfoCard(title: 'Lead record', rows: leadRows),
-        const SizedBox(height: 16),
-        const CrmActivityTimelineCard(
-          title: 'Activity timeline',
-          emptyMessage:
-              'No timeline activity yet. Calls, notes, follow-ups and conversion events will appear here when activity is available.',
-        ),
-        const SizedBox(height: 16),
-        CrmDetailInfoCard(
-          title: 'Next actions',
-          rows: [
-            CrmInfoRow(
-              label: 'Follow-up',
-              value: lead.assignedTo == null
-                  ? 'No owner assigned yet'
-                  : 'Assigned to ${lead.assignedTo}',
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inset = AppLayout.pageInsetFor(constraints.maxWidth);
+        final horizontal = constraints.maxWidth >
+                AppLayout.generalMaxWidth + inset * 2
+            ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
+            : inset;
+        return ListView(
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(horizontal, 16, horizontal, 40),
+          children: [
+            CrmDetailHeaderCard(
+              icon: Icons.trending_up_rounded,
+              title: lead.title,
+              subtitle: lead.customerName,
+              statusLabel: _leadStatusLabel(lead.status),
             ),
-            CrmInfoRow(
-              label: 'Conversion',
-              value: lead.convertedCustomerProfile ?? 'Not converted yet',
+            const SizedBox(height: AppSpacing.lg),
+            CrmDetailInfoCard(
+              title: 'Contact & service interest',
+              rows: contactRows,
             ),
+            const SizedBox(height: AppSpacing.lg),
+            CrmDetailInfoCard(
+              title: 'Assignment & conversion record',
+              rows: recordRows,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            const _ActivityAvailability(),
           ],
-        ),
-        const SizedBox(height: 8),
-        CrmDetailMetaFooter(label: 'Lead ID', value: lead.id),
-      ],
+        );
+      },
     );
   }
+}
 
-  String _leadStatusLabel(LeadStatus status) {
-    switch (status) {
-      case LeadStatus.newLead:
-        return 'New';
-      case LeadStatus.contacted:
-        return 'Contacted';
-      case LeadStatus.qualified:
-        return 'Qualified';
-      case LeadStatus.converted:
-        return 'Converted';
-      case LeadStatus.lost:
-        return 'Lost';
-      case LeadStatus.unknown:
-        return 'Unknown';
-    }
+class _ActivityAvailability extends StatelessWidget {
+  const _ActivityAvailability();
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.history_rounded,
+            size: 22,
+            color: AppTheme.textSecondary,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Activity',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  'Detailed lead activity is not available in this mobile detail view. No follow-up or conversion action is available here.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _valueOrNotAdded(String? value) {
+  final text = value?.trim() ?? '';
+  return text.isEmpty || text == '-' ? 'Not added' : text;
+}
+
+String _leadStatusLabel(LeadStatus status) {
+  switch (status) {
+    case LeadStatus.newLead:
+      return 'New';
+    case LeadStatus.contacted:
+      return 'Contacted';
+    case LeadStatus.qualified:
+      return 'Qualified';
+    case LeadStatus.converted:
+      return 'Converted';
+    case LeadStatus.lost:
+      return 'Lost';
+    case LeadStatus.unknown:
+      return 'Unknown';
   }
 }
