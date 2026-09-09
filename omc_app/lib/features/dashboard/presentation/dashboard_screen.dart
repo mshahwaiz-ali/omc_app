@@ -3,8 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/widgets/app_skeleton.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
+import '../../home/application/home_action_access.dart';
 import '../../home/data/home_dashboard_repository.dart';
 import '../../internal_workspace/domain/internal_service_case.dart';
 import '../../internal_workspace/domain/internal_workspace_summary.dart';
@@ -17,206 +21,160 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final summaryAsync = ref.watch(homeDashboardSummaryProvider);
     final authState = ref.watch(authControllerProvider);
+    final capabilities = authState.capabilities;
     final isInternal =
-        authState.capabilities.canAccessInternalWorkspace ||
-        authState.capabilities.isInternal ||
+        capabilities.canAccessInternalWorkspace ||
+        capabilities.isInternal ||
         authState.canAccessInternalWorkspace;
 
+    Future<void> refresh() async {
+      ref.invalidate(homeDashboardSummaryProvider);
+      if (isInternal) {
+        ref.invalidate(internalWorkspaceSummaryProvider);
+        ref.invalidate(internalServiceCasesProvider);
+      }
+      try {
+        await ref.read(homeDashboardSummaryProvider.future);
+      } catch (_) {
+        // The dashboard error state remains authoritative after refresh failure.
+      }
+    }
+
     return Scaffold(
+      backgroundColor: AppTheme.background,
       body: SafeArea(
         bottom: false,
-        child: RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(homeDashboardSummaryProvider);
-            if (isInternal) {
-              ref.invalidate(internalWorkspaceSummaryProvider);
-              ref.invalidate(internalServiceCasesProvider);
-            }
-            await ref.read(homeDashboardSummaryProvider.future);
-          },
+        child: RefreshIndicator.adaptive(
+          onRefresh: refresh,
           child: summaryAsync.when(
             loading: () => const _DashboardLoadingView(),
-            error: (_, _) => _buildBody(
-              ref,
-              isInternal,
-              const HomeDashboardSummary.empty(
-                fallbackMessage: 'Dashboard data could not be loaded.',
-              ),
+            error: (_, _) => _DashboardUnavailable(
+              isInternal: isInternal,
+              onRetry: refresh,
             ),
-            data: (summary) => _buildBody(ref, isInternal, summary),
+            data: (summary) {
+              if (!isInternal) {
+                return _CustomerDashboardBody(
+                  summary: summary,
+                  capabilities: capabilities,
+                );
+              }
+
+              return _InternalDashboardBody(
+                customerSummary: summary,
+                workspaceAsync: ref.watch(internalWorkspaceSummaryProvider),
+                queueAsync: ref.watch(internalServiceCasesProvider),
+                capabilities: capabilities,
+              );
+            },
           ),
         ),
       ),
     );
   }
-
-  Widget _buildBody(
-    WidgetRef ref,
-    bool isInternal,
-    HomeDashboardSummary summary,
-  ) {
-    if (!isInternal) return _CustomerDashboardBody(summary: summary);
-
-    final workspaceSummary = ref
-        .watch(internalWorkspaceSummaryProvider)
-        .maybeWhen(
-          data: (value) => value,
-          orElse: InternalWorkspaceSummary.empty,
-        );
-    final queue = ref
-        .watch(internalServiceCasesProvider)
-        .maybeWhen(
-          data: (value) => value,
-          orElse: () => const InternalServiceCaseQueue(
-            cases: [],
-            summary: {},
-            canReviewDocuments: false,
-            canUpdateStatus: false,
-          ),
-        );
-
-    return _InternalDashboardBody(
-      customerSummary: summary,
-      workspaceSummary: workspaceSummary,
-      queue: queue,
-    );
-  }
 }
 
 class _CustomerDashboardBody extends StatelessWidget {
-  const _CustomerDashboardBody({required this.summary});
+  const _CustomerDashboardBody({
+    required this.summary,
+    required this.capabilities,
+  });
 
   final HomeDashboardSummary summary;
+  final AuthCapabilities capabilities;
 
   @override
   Widget build(BuildContext context) {
-    final nextAction = _CustomerNextAction.fromSummary(summary);
-    final attentionRows = _customerAttentionRows(summary);
+    final nextAction = _DashboardAction.customer(summary);
+    final services = summary.serviceSnapshots.take(3).toList(growable: false);
 
     return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
       children: [
-        _CompactHeader(
-          title: _greeting(),
-          subtitle: 'Your OMC workspace',
-          icon: Icons.dashboard_customize_outlined,
-          chips: [
-            '${summary.activeCases} active services',
-            '${_customerActionCount(summary)} action needed',
-          ],
+        const _DashboardHeader(
+          eyebrow: 'Dashboard',
+          title: 'Your OMC overview',
+          subtitle: 'Next action first, supporting account status second.',
+          icon: Icons.dashboard_outlined,
         ),
+        if (summary.fallbackMessage?.trim().isNotEmpty == true) ...[
+          const SizedBox(height: 12),
+          _InlineUnavailable(message: summary.fallbackMessage!.trim()),
+        ],
         const SizedBox(height: 18),
-        _NextActionCard(
-          eyebrow: nextAction.eyebrow,
-          title: nextAction.title,
-          subtitle: nextAction.subtitle,
-          buttonLabel: nextAction.buttonLabel,
-          icon: nextAction.icon,
-          onPressed: () => context.go(nextAction.route),
+        _NextActionCard(action: nextAction),
+        const SizedBox(height: 24),
+        _SectionHeader(
+          title: 'Service requests',
+          subtitle: services.isEmpty
+              ? 'No active service snapshot is currently available.'
+              : 'Latest backend service status from your account.',
+          actionLabel: capabilities.canTrackRequests ? 'View all' : null,
+          onAction: capabilities.canTrackRequests
+              ? () => context.go('/my-services')
+              : null,
         ),
-        const SizedBox(height: 18),
-        _DashboardSection(
-          title: 'My services snapshot',
-          subtitle: 'Latest service movement from your OMC account.',
-          child: Column(
-            children: [
-              _ServiceSnapshotTile(
-                title: summary.activeCases > 0
-                    ? 'Active service workspace'
-                    : 'No active services yet',
-                status: summary.activeCases > 0 ? 'In progress' : 'Ready',
-                meta: summary.activeCases > 0
-                    ? '${summary.activeCases} open · ${summary.completedCases} completed'
-                    : 'Start a service when you are ready.',
-                progressLabel: summary.pendingDocuments > 0
-                    ? 'Documents need attention'
-                    : 'Workspace is clear',
-                progressValue: summary.activeCases > 0
-                    ? (summary.pendingDocuments > 0 ? 0.55 : 0.82)
-                    : 0,
-                trailingLabel: summary.activeCases > 0 ? 'Open' : 'Browse',
-                onTap: () => context.go(
-                  summary.activeCases > 0 ? '/my-services' : '/services',
-                ),
-              ),
-            ],
+        const SizedBox(height: 10),
+        if (services.isEmpty)
+          _EmptyPanel(
+            icon: Icons.work_outline_rounded,
+            title: 'No service request to show',
+            message: capabilities.canCreateServiceRequest
+                ? 'Browse the catalogue when you are ready to start a service.'
+                : 'No active service snapshot is currently available.',
+            actionLabel:
+                capabilities.canCreateServiceRequest ? 'Browse services' : null,
+            onAction: capabilities.canCreateServiceRequest
+                ? () => context.go('/services')
+                : null,
+          )
+        else
+          PremiumCard(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Column(
+              children: [
+                for (var index = 0; index < services.length; index++) ...[
+                  _CustomerServiceRow(
+                    service: services[index],
+                    canOpen: capabilities.canTrackRequests,
+                  ),
+                  if (index != services.length - 1) const Divider(height: 1),
+                ],
+              ],
+            ),
           ),
+        const SizedBox(height: 24),
+        const _SectionHeader(
+          title: 'Account summary',
+          subtitle: 'Authoritative backend counts without invented progress.',
         ),
-        const SizedBox(height: 18),
-        Row(
-          children: [
-            Expanded(
-              child: _MiniSummaryCard(
-                title: 'Documents',
-                value: summary.pendingDocuments.toString(),
-                subtitle: summary.pendingDocuments == 0
-                    ? 'No missing documents'
-                    : 'missing / pending',
-                icon: Icons.folder_copy_outlined,
-                onTap: () => context.go('/documents'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _MiniSummaryCard(
-                title: 'Payments',
-                value: summary.paymentsDue.toString(),
-                subtitle: summary.paymentsDue == 0
-                    ? 'No payment due'
-                    : 'pending / due',
-                icon: Icons.account_balance_wallet_outlined,
-                onTap: () => context.go('/payments'),
-              ),
-            ),
-          ],
+        const SizedBox(height: 10),
+        _CustomerSummaryCard(
+          summary: summary,
+          capabilities: capabilities,
         ),
-        if (attentionRows.isNotEmpty) ...[
-          const SizedBox(height: 18),
-          _AttentionCard(title: 'Needs your attention', rows: attentionRows),
-        ],
-        const SizedBox(height: 18),
-        _RecentActivitySection(
+        const SizedBox(height: 24),
+        const _SectionHeader(
+          title: 'Recent activity',
+          subtitle: 'Latest activity exposed by the dashboard backend.',
+        ),
+        const SizedBox(height: 10),
+        _ActivityCard(
           activities: summary.recentActivity,
-          emptyTitle: 'No recent activity yet.',
-          emptySubtitle:
-              'Your updates will appear here once services start moving.',
+          onOpen: capabilities.canTrackRequests
+              ? () => context.go('/my-services')
+              : null,
         ),
-        const SizedBox(height: 18),
-        _QuickActionsCard(
-          title: 'Quick actions',
-          actions: [
-            _ShortcutAction(
-              label: 'Start service',
-              icon: Icons.add_business_outlined,
-              route: '/services',
-            ),
-            _ShortcutAction(
-              label: 'Upload document',
-              icon: Icons.upload_file_outlined,
-              route: '/documents',
-            ),
-            _ShortcutAction(
-              label: 'View payments',
-              icon: Icons.receipt_long_outlined,
-              route: '/payments',
-            ),
-            _ShortcutAction(
-              label: 'Support',
-              icon: Icons.support_agent_outlined,
-              route: '/support',
-            ),
-            _ShortcutAction(
-              label: 'Tax calculator',
-              icon: Icons.calculate_outlined,
-              route: '/tax-calculator',
-            ),
-          ],
+        const SizedBox(height: 24),
+        const _SectionHeader(
+          title: 'Useful links',
+          subtitle: 'The same working destinations retained from Dashboard.',
         ),
-        if (summary.fallbackMessage != null) ...[
-          const SizedBox(height: 18),
-          _FallbackCard(message: summary.fallbackMessage!),
-        ],
+        const SizedBox(height: 10),
+        _CustomerLinks(capabilities: capabilities),
       ],
     );
   }
@@ -225,417 +183,260 @@ class _CustomerDashboardBody extends StatelessWidget {
 class _InternalDashboardBody extends StatelessWidget {
   const _InternalDashboardBody({
     required this.customerSummary,
-    required this.workspaceSummary,
-    required this.queue,
+    required this.workspaceAsync,
+    required this.queueAsync,
+    required this.capabilities,
   });
 
   final HomeDashboardSummary customerSummary;
-  final InternalWorkspaceSummary workspaceSummary;
-  final InternalServiceCaseQueue queue;
+  final AsyncValue<InternalWorkspaceSummary> workspaceAsync;
+  final AsyncValue<InternalServiceCaseQueue> queueAsync;
+  final AuthCapabilities capabilities;
 
   @override
   Widget build(BuildContext context) {
-    final visibleCases = queue.cases.take(3).toList(growable: false);
-    final documentsWaiting = queue.cases.fold<int>(
-      0,
-      (total, item) => total + item.uploadedDocuments,
+    final workspace = workspaceAsync.maybeWhen(
+      data: (value) => value,
+      orElse: () => null,
     );
-    final actionRows = _internalAttentionRows(
-      workspaceSummary,
-      customerSummary,
-      queue,
-      documentsWaiting,
+    final queue = queueAsync.maybeWhen(
+      data: (value) => value,
+      orElse: () => null,
+    );
+    final action = _DashboardAction.internal(
+      workspace: workspace,
+      queue: queue,
     );
 
     return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
       children: [
-        _CompactHeader(
-          title: 'Operations Dashboard',
-          subtitle: 'Today’s work across customers, services and payments.',
+        const _DashboardHeader(
+          eyebrow: 'Operations dashboard',
+          title: 'Team overview',
+          subtitle: 'Priority queue work before supporting totals.',
           icon: Icons.admin_panel_settings_outlined,
-          chips: [
-            '${workspaceSummary.activeCustomers} active customers',
-            '${queue.cases.length} service cases',
-          ],
         ),
-        const SizedBox(height: 18),
-        _NextActionCard(
-          eyebrow: 'Next team action',
-          title: documentsWaiting > 0
-              ? '$documentsWaiting service documents need review'
-              : workspaceSummary.pendingPayments > 0
-              ? '${workspaceSummary.pendingPayments} payments need review'
-              : queue.cases.isNotEmpty
-              ? '${queue.cases.length} service cases need follow-up'
-              : 'Operations queue is clear',
-          subtitle: documentsWaiting > 0
-              ? 'Open the review queue and clear uploaded customer documents.'
-              : workspaceSummary.pendingPayments > 0
-              ? 'Payment receipts are waiting for internal verification.'
-              : queue.cases.isNotEmpty
-              ? 'Review latest service movement and customer status.'
-              : 'No urgent internal action is visible right now.',
-          buttonLabel: documentsWaiting > 0
-              ? 'Open review queue'
-              : workspaceSummary.pendingPayments > 0
-              ? 'Review payments'
-              : 'Open workspace',
-          icon: Icons.bolt_outlined,
-          onPressed: () => context.go(
-            documentsWaiting > 0
-                ? '/internal-workspace/documents'
-                : workspaceSummary.pendingPayments > 0
-                ? '/internal-workspace/payments'
-                : '/internal-workspace',
-          ),
-        ),
-        const SizedBox(height: 18),
-        _MetricStrip(
-          metrics: [
-            _MetricData(
-              title: 'Doc review',
-              value: documentsWaiting.toString(),
-              icon: Icons.fact_check_outlined,
-            ),
-            _MetricData(
-              title: 'Payments',
-              value: workspaceSummary.pendingPayments.toString(),
-              icon: Icons.payments_outlined,
-            ),
-            _MetricData(
-              title: 'Services',
-              value: customerSummary.activeCases.toString(),
-              icon: Icons.pending_actions_outlined,
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        _DashboardSection(
-          title: 'Today action queue',
-          subtitle: 'Highest-priority customer work for the team.',
-          child: visibleCases.isEmpty
-              ? const _EmptyState(
-                  icon: Icons.check_circle_outline,
-                  title: 'No service cases in queue',
-                  subtitle: 'New customer work will appear here.',
-                )
-              : Column(
-                  children: [
-                    for (final serviceCase in visibleCases) ...[
-                      _InternalQueueTile(serviceCase: serviceCase),
-                      if (serviceCase != visibleCases.last)
-                        const SizedBox(height: 12),
-                    ],
-                  ],
-                ),
-        ),
-        const SizedBox(height: 18),
-        _AttentionCard(title: 'Needs team attention', rows: actionRows),
-        const SizedBox(height: 18),
-        _QuickActionsCard(
-          title: 'Internal work areas',
-          actions: [
-            _ShortcutAction(
-              label: 'Service queue',
-              icon: Icons.list_alt_outlined,
-              route: '/internal-workspace/service-cases',
-            ),
-            _ShortcutAction(
-              label: 'Document review',
-              icon: Icons.folder_special_outlined,
-              route: '/internal-workspace/documents',
-            ),
-            _ShortcutAction(
-              label: 'Payment review',
-              icon: Icons.receipt_long_outlined,
-              route: '/internal-workspace/payments',
-            ),
-            _ShortcutAction(
-              label: 'Customers',
-              icon: Icons.people_alt_outlined,
-              route: '/internal-workspace/customers',
-            ),
-            _ShortcutAction(
-              label: 'Leads',
-              icon: Icons.leaderboard_outlined,
-              route: '/leads',
-            ),
-            _ShortcutAction(
-              label: 'Tasks',
-              icon: Icons.task_alt_outlined,
-              route: '/tasks',
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        _DashboardSection(
-          title: 'Customer workspace summary',
-          subtitle: 'Customer-side health visible to internal team only.',
-          child: Column(
-            children: [
-              _StatusBreakdownRow(
-                data: _StatusRowData(
-                  label: 'Open customer services',
-                  value: customerSummary.activeCases,
-                  icon: Icons.pending_actions_rounded,
-                ),
-                maxValue: _safeMax([
-                  customerSummary.activeCases,
-                  customerSummary.pendingDocuments,
-                  customerSummary.paymentsDue,
-                  customerSummary.unreadNotifications,
-                ]),
-              ),
-              const SizedBox(height: 12),
-              _StatusBreakdownRow(
-                data: _StatusRowData(
-                  label: 'Customer documents pending',
-                  value: customerSummary.pendingDocuments,
-                  icon: Icons.folder_copy_outlined,
-                ),
-                maxValue: _safeMax([
-                  customerSummary.activeCases,
-                  customerSummary.pendingDocuments,
-                  customerSummary.paymentsDue,
-                  customerSummary.unreadNotifications,
-                ]),
-              ),
-              const SizedBox(height: 12),
-              _StatusBreakdownRow(
-                data: _StatusRowData(
-                  label: 'Customer payments due',
-                  value: customerSummary.paymentsDue,
-                  icon: Icons.account_balance_wallet_outlined,
-                ),
-                maxValue: _safeMax([
-                  customerSummary.activeCases,
-                  customerSummary.pendingDocuments,
-                  customerSummary.paymentsDue,
-                  customerSummary.unreadNotifications,
-                ]),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-        _RecentActivitySection(
-          activities: customerSummary.recentActivity,
-          emptyTitle: 'No internal activity timeline yet.',
-          emptySubtitle:
-              'Document uploads, payments and support updates will appear here once exposed by backend.',
-        ),
-        if (customerSummary.fallbackMessage != null) ...[
-          const SizedBox(height: 18),
-          _FallbackCard(message: customerSummary.fallbackMessage!),
+        if (customerSummary.fallbackMessage?.trim().isNotEmpty == true) ...[
+          const SizedBox(height: 12),
+          _InlineUnavailable(message: customerSummary.fallbackMessage!.trim()),
         ],
+        const SizedBox(height: 18),
+        _NextActionCard(action: action),
+        const SizedBox(height: 24),
+        _SectionHeader(
+          title: 'Service queue',
+          subtitle: queueAsync.hasError
+              ? 'The service queue could not be refreshed.'
+              : 'Highest-priority customer work from the internal queue.',
+          actionLabel: 'View all',
+          onAction: () => context.go('/internal-workspace/service-cases'),
+        ),
+        const SizedBox(height: 10),
+        if (queueAsync.hasError)
+          const _InlineUnavailable(
+            message:
+                'Service queue unavailable. Existing dashboard totals are not being substituted for queue data.',
+          )
+        else if (queue == null)
+          const AppSkeleton(height: 126, radius: 16)
+        else if (queue.cases.isEmpty)
+          const _EmptyPanel(
+            icon: Icons.check_circle_outline_rounded,
+            title: 'No service cases in queue',
+            message: 'New customer work will appear here when available.',
+          )
+        else
+          PremiumCard(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Column(
+              children: [
+                for (var index = 0;
+                    index < queue.cases.take(3).length;
+                    index++) ...[
+                  _InternalCaseRow(serviceCase: queue.cases[index]),
+                  if (index != queue.cases.take(3).length - 1)
+                    const Divider(height: 1),
+                ],
+              ],
+            ),
+          ),
+        const SizedBox(height: 24),
+        const _SectionHeader(
+          title: 'Operations summary',
+          subtitle:
+              'Workspace totals remain visibly unavailable while their provider is loading or failed.',
+        ),
+        const SizedBox(height: 10),
+        if (workspaceAsync.hasError)
+          const _InlineUnavailable(
+            message:
+                'Operations summary unavailable. No zero-value fallback is being shown as live data.',
+          )
+        else if (workspace == null)
+          const AppSkeleton(height: 194, radius: 16)
+        else
+          _InternalSummaryCard(
+            summary: workspace,
+            capabilities: capabilities,
+          ),
+        const SizedBox(height: 24),
+        const _SectionHeader(
+          title: 'Recent activity',
+          subtitle: 'Latest internal-facing dashboard activity.',
+        ),
+        const SizedBox(height: 10),
+        _ActivityCard(
+          activities: customerSummary.recentActivity,
+          onOpen: () => context.go('/internal-workspace'),
+        ),
+        const SizedBox(height: 24),
+        const _SectionHeader(
+          title: 'Internal work areas',
+          subtitle: 'Existing Dashboard destinations, capability filtered.',
+        ),
+        const SizedBox(height: 10),
+        _InternalLinks(capabilities: capabilities),
       ],
     );
   }
 }
 
-class _CompactHeader extends StatelessWidget {
-  const _CompactHeader({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.chips,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final List<String> chips;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(18),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.075),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Icon(icon, color: AppTheme.primary, size: 24),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 21,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12.5,
-                    height: 1.35,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [for (final chip in chips) _SoftPill(label: chip)],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NextActionCard extends StatelessWidget {
-  const _NextActionCard({
+class _DashboardHeader extends StatelessWidget {
+  const _DashboardHeader({
     required this.eyebrow,
     required this.title,
     required this.subtitle,
-    required this.buttonLabel,
     required this.icon,
-    required this.onPressed,
   });
 
   final String eyebrow;
   final String title;
   final String subtitle;
-  final String buttonLabel;
   final IconData icon;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(19),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.085),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, color: AppTheme.primary, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                eyebrow,
-                style: const TextStyle(
-                  color: AppTheme.primary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.2,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          Text(
-            title,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.35,
-              height: 1.12,
-            ),
-          ),
-          const SizedBox(height: 7),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-              height: 1.45,
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: onPressed,
-              icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-              label: Text(buttonLabel),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricStrip extends StatelessWidget {
-  const _MetricStrip({required this.metrics});
-
-  final List<_MetricData> metrics;
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final metric in metrics) ...[
-          Expanded(child: _MetricCard(data: metric)),
-          if (metric != metrics.last) const SizedBox(width: 10),
-        ],
+        OmcIconBadge(
+          icon: icon,
+          color: AppTheme.textSecondary,
+          size: 48,
+          iconSize: 24,
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                eyebrow,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 26,
+                    height: 1.2,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 15,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.data});
+class _NextActionCard extends StatelessWidget {
+  const _NextActionCard({required this.action});
 
-  final _MetricData data;
+  final _DashboardAction action;
 
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(20),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(data.icon, color: AppTheme.primary, size: 21),
-          const SizedBox(height: 13),
-          Text(
-            data.value,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 23,
-              fontWeight: FontWeight.w900,
-              height: 1,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              OmcIconBadge(
+                icon: action.icon,
+                color: action.color,
+                size: 44,
+                iconSize: 22,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      action.eyebrow,
+                      style: TextStyle(
+                        color: action.color,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      action.title,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 21,
+                        height: 1.25,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (action.subtitle.trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        action.subtitle,
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 15,
+                          height: 1.45,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            data.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: () => context.go(action.route),
+            icon: const Icon(Icons.arrow_forward_rounded),
+            label: Text(action.buttonLabel),
           ),
         ],
       ),
@@ -643,177 +444,87 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
-class _MetricData {
-  const _MetricData({
-    required this.title,
-    required this.value,
-    required this.icon,
+class _CustomerServiceRow extends StatelessWidget {
+  const _CustomerServiceRow({
+    required this.service,
+    required this.canOpen,
   });
 
-  final String title;
-  final String value;
-  final IconData icon;
-}
-
-class _MiniSummaryCard extends StatelessWidget {
-  const _MiniSummaryCard({
-    required this.title,
-    required this.value,
-    required this.subtitle,
-    required this.icon,
-    required this.onTap,
-  });
-
-  final String title;
-  final String value;
-  final String subtitle;
-  final IconData icon;
-  final VoidCallback onTap;
+  final HomeDashboardServiceSnapshot service;
+  final bool canOpen;
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: SizedBox(
-          height: 118,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: AppTheme.primary, size: 23),
-              const Spacer(),
-              Text(
-                value,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  height: 1,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+    final title = service.title.trim().isEmpty
+        ? 'OMC service request'
+        : service.title.trim();
+    final route = service.id.trim().isEmpty
+        ? '/my-services'
+        : '/my-services/${Uri.encodeComponent(service.id.trim())}';
 
-class _ServiceSnapshotTile extends StatelessWidget {
-  const _ServiceSnapshotTile({
-    required this.title,
-    required this.status,
-    required this.meta,
-    required this.progressLabel,
-    required this.progressValue,
-    required this.trailingLabel,
-    required this.onTap,
-  });
-
-  final String title;
-  final String status;
-  final String meta;
-  final String progressLabel;
-  final double progressValue;
-  final String trailingLabel;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppTheme.cardSoft.withValues(alpha: 0.55),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppTheme.border),
-        ),
-        child: Column(
+      onTap: canOpen ? () => context.push(route) : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
+            OmcIconBadge(
+              icon: service.actionRequired
+                  ? Icons.priority_high_rounded
+                  : Icons.work_outline_rounded,
+              color: service.actionRequired ? AppTheme.warning : AppTheme.info,
+              size: 42,
+              iconSize: 21,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
                     title,
                     style: const TextStyle(
                       color: AppTheme.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-                _SoftPill(label: status),
-              ],
-            ),
-            const SizedBox(height: 7),
-            Text(
-              meta,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(
-                value: progressValue,
-                minHeight: 7,
-                backgroundColor: AppTheme.primary.withValues(alpha: 0.06),
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                  AppTheme.primary,
-                ),
-              ),
-            ),
-            const SizedBox(height: 9),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    progressLabel,
+                  const SizedBox(height: 4),
+                  Text(
+                    '${service.stageLabel} · ${service.statusLabel}',
                     style: const TextStyle(
                       color: AppTheme.textSecondary,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      height: 1.4,
                     ),
                   ),
-                ),
-                Text(
-                  trailingLabel,
-                  style: const TextStyle(
-                    color: AppTheme.primary,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
+                  if (!service.isTerminal && !service.isCompleted) ...[
+                    const SizedBox(height: 8),
+                    Semantics(
+                      label:
+                          '${(service.progress * 100).round().clamp(0, 100)} percent complete',
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                          minHeight: 6,
+                          value: service.progress.clamp(0, 1).toDouble(),
+                          backgroundColor: AppTheme.processingSoft,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
+            if (canOpen) ...[
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.textSecondary,
+              ),
+            ],
           ],
         ),
       ),
@@ -821,42 +532,41 @@ class _ServiceSnapshotTile extends StatelessWidget {
   }
 }
 
-class _InternalQueueTile extends StatelessWidget {
-  const _InternalQueueTile({required this.serviceCase});
+class _InternalCaseRow extends StatelessWidget {
+  const _InternalCaseRow({required this.serviceCase});
 
   final InternalServiceCase serviceCase;
 
   @override
   Widget build(BuildContext context) {
-    final documentLabel = serviceCase.documentSummaryLabel != '-'
-        ? serviceCase.documentSummaryLabel
-        : '${serviceCase.pendingDocuments + serviceCase.uploadedDocuments} documents need review';
+    final route =
+        '/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}';
+    final stage = serviceCase.currentStage?.trim();
+    final subtitleParts = <String>[
+      serviceCase.displayService,
+      if (stage != null && stage.isNotEmpty) stage,
+      serviceCase.statusLabel,
+    ];
 
     return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: () =>
-          context.go('/internal-workspace/service-cases/${serviceCase.id}'),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppTheme.cardSoft.withValues(alpha: 0.55),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppTheme.border),
-        ),
+      onTap: () => context.push(route),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.075),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: const Icon(
-                Icons.work_outline_rounded,
-                color: AppTheme.primary,
-                size: 21,
-              ),
+            OmcIconBadge(
+              icon: serviceCase.isFinancialHold
+                  ? Icons.account_balance_wallet_outlined
+                  : serviceCase.normalizedLifecycleState == 'activation failed'
+                  ? Icons.sync_problem_rounded
+                  : Icons.assignment_outlined,
+              color: serviceCase.isFinancialHold ||
+                      serviceCase.normalizedLifecycleState == 'activation failed'
+                  ? AppTheme.danger
+                  : AppTheme.info,
+              size: 42,
+              iconSize: 21,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -867,31 +577,35 @@ class _InternalQueueTile extends StatelessWidget {
                     serviceCase.displayCustomer,
                     style: const TextStyle(
                       color: AppTheme.textPrimary,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   Text(
-                    serviceCase.displayService,
+                    subtitleParts.join(' · '),
                     style: const TextStyle(
                       color: AppTheme.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      height: 1.4,
                     ),
                   ),
-                  const SizedBox(height: 5),
-                  Text(
-                    documentLabel,
-                    style: const TextStyle(
-                      color: AppTheme.primary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
+                  if (serviceCase.documentSummaryLabel.trim().isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      serviceCase.documentSummaryLabel.trim(),
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 13,
+                        height: 1.35,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
+            const SizedBox(width: 8),
             const Icon(
               Icons.chevron_right_rounded,
               color: AppTheme.textSecondary,
@@ -903,21 +617,120 @@ class _InternalQueueTile extends StatelessWidget {
   }
 }
 
-class _AttentionCard extends StatelessWidget {
-  const _AttentionCard({required this.title, required this.rows});
+class _CustomerSummaryCard extends StatelessWidget {
+  const _CustomerSummaryCard({
+    required this.summary,
+    required this.capabilities,
+  });
 
-  final String title;
-  final List<_AttentionRow> rows;
+  final HomeDashboardSummary summary;
+  final AuthCapabilities capabilities;
 
   @override
   Widget build(BuildContext context) {
-    return _DashboardSection(
-      title: title,
+    final rows = <_SummaryRowData>[
+      _SummaryRowData(
+        label: 'Active requests',
+        value: summary.activeCases,
+        icon: Icons.assignment_outlined,
+        route: '/my-services',
+        available: capabilities.canTrackRequests,
+      ),
+      _SummaryRowData(
+        label: 'Documents needed',
+        value: summary.pendingDocuments,
+        icon: Icons.folder_copy_outlined,
+        route: '/documents',
+        available: capabilities.canViewDocuments,
+      ),
+      _SummaryRowData(
+        label: 'Payments due',
+        value: summary.paymentsDue,
+        icon: Icons.payments_outlined,
+        route: '/payments',
+        available: capabilities.canViewPayments,
+      ),
+      _SummaryRowData(
+        label: 'Completed requests',
+        value: summary.completedCases,
+        icon: Icons.check_circle_outline_rounded,
+        route: '/my-services',
+        available: capabilities.canTrackRequests,
+      ),
+    ];
+
+    return _SummaryRows(rows: rows);
+  }
+}
+
+class _InternalSummaryCard extends StatelessWidget {
+  const _InternalSummaryCard({
+    required this.summary,
+    required this.capabilities,
+  });
+
+  final InternalWorkspaceSummary summary;
+  final AuthCapabilities capabilities;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <_SummaryRowData>[
+      _SummaryRowData(
+        label: 'Active customers',
+        value: summary.activeCustomers,
+        icon: Icons.people_outline_rounded,
+        route: '/internal-workspace/customers',
+        available: canUseHomeActionCapability(
+          'can_manage_customers',
+          capabilities,
+          allowWithoutRequirement: false,
+        ),
+      ),
+      _SummaryRowData(
+        label: 'My assigned services',
+        value: summary.myAssignedServices,
+        icon: Icons.assignment_ind_outlined,
+        route: '/internal-workspace/service-cases',
+        available: capabilities.canAccessInternalWorkspace,
+      ),
+      _SummaryRowData(
+        label: 'Pending payments',
+        value: summary.pendingPayments,
+        icon: Icons.payments_outlined,
+        route: '/internal-workspace/payments',
+        available: capabilities.canReviewPayments,
+      ),
+      _SummaryRowData(
+        label: 'Pending tasks',
+        value: summary.pendingTasks,
+        icon: Icons.task_alt_outlined,
+        route: '/tasks',
+        available: canUseHomeActionCapability(
+          'can_manage_tasks',
+          capabilities,
+          allowWithoutRequirement: false,
+        ),
+      ),
+    ];
+
+    return _SummaryRows(rows: rows);
+  }
+}
+
+class _SummaryRows extends StatelessWidget {
+  const _SummaryRows({required this.rows});
+
+  final List<_SummaryRowData> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Column(
         children: [
-          for (final row in rows) ...[
-            _AttentionTile(row: row),
-            if (row != rows.last) const SizedBox(height: 12),
+          for (var index = 0; index < rows.length; index++) ...[
+            _SummaryRow(data: rows[index]),
+            if (index != rows.length - 1) const Divider(height: 1),
           ],
         ],
       ),
@@ -925,429 +738,551 @@ class _AttentionCard extends StatelessWidget {
   }
 }
 
-class _AttentionTile extends StatelessWidget {
-  const _AttentionTile({required this.row});
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({required this.data});
 
-  final _AttentionRow row;
+  final _SummaryRowData data;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(row.icon, color: AppTheme.primary, size: 20),
-        const SizedBox(width: 11),
-        Expanded(
-          child: Text(
-            row.label,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              height: 1.3,
+    final child = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Icon(data.icon, size: 20, color: AppTheme.textSecondary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              data.label,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _AttentionRow {
-  const _AttentionRow({required this.label, required this.icon});
-
-  final String label;
-  final IconData icon;
-}
-
-class _QuickActionsCard extends StatelessWidget {
-  const _QuickActionsCard({required this.title, required this.actions});
-
-  final String title;
-  final List<_ShortcutAction> actions;
-
-  @override
-  Widget build(BuildContext context) {
-    return _DashboardSection(
-      title: title,
-      child: Wrap(
-        spacing: 9,
-        runSpacing: 9,
-        children: [
-          for (final action in actions)
-            ActionChip(
-              avatar: Icon(action.icon, color: AppTheme.primary, size: 17),
-              label: Text(action.label),
-              labelStyle: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
-              ),
-              side: const BorderSide(color: AppTheme.border),
-              backgroundColor: AppTheme.cardSoft.withValues(alpha: 0.55),
-              onPressed: () => context.go(action.route),
+          const SizedBox(width: 10),
+          Text(
+            data.available ? '${data.value}' : 'Unavailable',
+            style: TextStyle(
+              color: data.available
+                  ? AppTheme.textPrimary
+                  : AppTheme.textSecondary,
+              fontSize: data.available ? 17 : 13,
+              fontWeight: data.available ? FontWeight.w600 : FontWeight.w500,
             ),
+          ),
+          if (data.available) ...[
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.textSecondary,
+            ),
+          ],
         ],
       ),
     );
+
+    if (!data.available) return child;
+    return InkWell(onTap: () => context.go(data.route), child: child);
   }
 }
 
-class _ShortcutAction {
-  const _ShortcutAction({
-    required this.label,
-    required this.icon,
-    required this.route,
-  });
-
-  final String label;
-  final IconData icon;
-  final String route;
-}
-
-class _RecentActivitySection extends StatelessWidget {
-  const _RecentActivitySection({
-    required this.activities,
-    required this.emptyTitle,
-    required this.emptySubtitle,
-  });
+class _ActivityCard extends StatelessWidget {
+  const _ActivityCard({required this.activities, required this.onOpen});
 
   final List<HomeDashboardActivity> activities;
-  final String emptyTitle;
-  final String emptySubtitle;
+  final VoidCallback? onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final visibleActivities = activities.take(4).toList(growable: false);
+    final visible = activities.take(6).toList(growable: false);
+    if (visible.isEmpty) {
+      return const _EmptyPanel(
+        icon: Icons.history_rounded,
+        title: 'No recent activity',
+        message: 'Backend activity will appear here when available.',
+      );
+    }
 
-    return _DashboardSection(
-      title: 'Recent activity',
-      subtitle: 'Latest updates from services, documents and payments.',
-      child: visibleActivities.isEmpty
-          ? _EmptyState(
-              icon: Icons.timeline_outlined,
-              title: emptyTitle,
-              subtitle: emptySubtitle,
-            )
-          : Column(
-              children: [
-                for (final activity in visibleActivities) ...[
-                  _ActivityRow(activity: activity),
-                  if (activity != visibleActivities.last)
-                    const SizedBox(height: 15),
-                ],
-              ],
-            ),
+    return PremiumCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Column(
+        children: [
+          for (var index = 0; index < visible.length; index++) ...[
+            _ActivityRow(activity: visible[index], onTap: onOpen),
+            if (index != visible.length - 1) const Divider(height: 1),
+          ],
+        ],
+      ),
     );
   }
 }
 
 class _ActivityRow extends StatelessWidget {
-  const _ActivityRow({required this.activity});
+  const _ActivityRow({required this.activity, required this.onTap});
 
   final HomeDashboardActivity activity;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: AppTheme.primary.withValues(alpha: 0.075),
-            borderRadius: BorderRadius.circular(15),
+    final status = activity.status?.trim() ?? '';
+    final time = activity.createdAtLabel?.trim() ?? '';
+
+    final child = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(
+              Icons.history_rounded,
+              size: 20,
+              color: AppTheme.textSecondary,
+            ),
           ),
-          child: const Icon(
-            Icons.timeline_rounded,
-            color: AppTheme.primary,
-            size: 20,
-          ),
-        ),
-        const SizedBox(width: 13),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                activity.title,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w900,
-                  height: 1.18,
-                ),
-              ),
-              if (activity.subtitle.isNotEmpty) ...[
-                const SizedBox(height: 4),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  activity.subtitle,
+                  activity.title.trim().isEmpty
+                      ? 'OMC activity'
+                      : activity.title.trim(),
                   style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
+                    color: AppTheme.textPrimary,
+                    fontSize: 15,
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-              ],
-              if (activity.createdAtLabel != null) ...[
-                const SizedBox(height: 5),
-                Text(
-                  activity.createdAtLabel!,
-                  style: const TextStyle(
-                    color: AppTheme.primary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatusBreakdownRow extends StatelessWidget {
-  const _StatusBreakdownRow({required this.data, required this.maxValue});
-
-  final _StatusRowData data;
-  final int maxValue;
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = maxValue == 0 ? 0.0 : data.value / maxValue;
-
-    return Row(
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: AppTheme.primary.withValues(alpha: 0.075),
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Icon(data.icon, color: AppTheme.primary, size: 20),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      data.label,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
+                if (activity.subtitle.trim().isNotEmpty) ...[
+                  const SizedBox(height: 3),
                   Text(
-                    data.value.toString(),
+                    activity.subtitle.trim(),
                     style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
+                      color: AppTheme.textSecondary,
+                      fontSize: 14,
+                      height: 1.4,
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 7,
-                  backgroundColor: AppTheme.primary.withValues(alpha: 0.065),
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    AppTheme.primary,
+                if (status.isNotEmpty || time.isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      if (status.isNotEmpty)
+                        Text(
+                          status,
+                          style: const TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      if (time.isNotEmpty)
+                        Text(
+                          time,
+                          style: const TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                    ],
                   ),
-                ),
-              ),
-            ],
+                ],
+              ],
+            ),
           ),
-        ),
-      ],
+          if (onTap != null) ...[
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.textSecondary,
+            ),
+          ],
+        ],
+      ),
     );
+
+    if (onTap == null) return child;
+    return InkWell(onTap: onTap, child: child);
   }
 }
 
-class _StatusRowData {
-  const _StatusRowData({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
+class _CustomerLinks extends StatelessWidget {
+  const _CustomerLinks({required this.capabilities});
 
-  final String label;
-  final int value;
-  final IconData icon;
-}
-
-class _DashboardSection extends StatelessWidget {
-  const _DashboardSection({
-    required this.title,
-    required this.child,
-    this.subtitle,
-  });
-
-  final String title;
-  final String? subtitle;
-  final Widget child;
+  final AuthCapabilities capabilities;
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(19),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 19,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.2,
-            ),
+    final links = <_LinkData>[
+      if (capabilities.canCreateServiceRequest)
+        const _LinkData('Start service', Icons.add_business_outlined, '/services'),
+      if (capabilities.canViewDocuments)
+        const _LinkData('Documents', Icons.upload_file_outlined, '/documents'),
+      if (capabilities.canViewPayments)
+        const _LinkData('Payments', Icons.receipt_long_outlined, '/payments'),
+      if (capabilities.canCreateSupportTicket)
+        const _LinkData('Support', Icons.support_agent_outlined, '/support'),
+      if (capabilities.canUseTaxCalculator)
+        const _LinkData('Tax calculator', Icons.calculate_outlined, '/tax-calculator'),
+    ];
+    return _LinkCard(links: links, emptyMessage: 'No extra dashboard links are enabled.');
+  }
+}
+
+class _InternalLinks extends StatelessWidget {
+  const _InternalLinks({required this.capabilities});
+
+  final AuthCapabilities capabilities;
+
+  @override
+  Widget build(BuildContext context) {
+    final links = <_LinkData>[
+      if (capabilities.canAccessInternalWorkspace)
+        const _LinkData(
+          'Service queue',
+          Icons.list_alt_outlined,
+          '/internal-workspace/service-cases',
+        ),
+      if (capabilities.canReviewDocuments)
+        const _LinkData(
+          'Document review',
+          Icons.folder_special_outlined,
+          '/internal-workspace/documents',
+        ),
+      if (capabilities.canReviewPayments)
+        const _LinkData(
+          'Payment review',
+          Icons.receipt_long_outlined,
+          '/internal-workspace/payments',
+        ),
+      if (canUseHomeActionCapability(
+        'can_manage_customers',
+        capabilities,
+        allowWithoutRequirement: false,
+      ))
+        const _LinkData(
+          'Customers',
+          Icons.people_alt_outlined,
+          '/internal-workspace/customers',
+        ),
+      if (canUseHomeActionCapability(
+        'can_manage_leads',
+        capabilities,
+        allowWithoutRequirement: false,
+      ))
+        const _LinkData('Leads', Icons.leaderboard_outlined, '/leads'),
+      if (canUseHomeActionCapability(
+        'can_manage_tasks',
+        capabilities,
+        allowWithoutRequirement: false,
+      ))
+        const _LinkData('Tasks', Icons.task_alt_outlined, '/tasks'),
+    ];
+    return _LinkCard(links: links, emptyMessage: 'No additional work area is enabled for this role.');
+  }
+}
+
+class _LinkCard extends StatelessWidget {
+  const _LinkCard({required this.links, required this.emptyMessage});
+
+  final List<_LinkData> links;
+  final String emptyMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    if (links.isEmpty) {
+      return PremiumCard(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          emptyMessage,
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 15,
+            height: 1.4,
           ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 5),
-            Text(
-              subtitle!,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12,
-                height: 1.35,
-                fontWeight: FontWeight.w600,
+        ),
+      );
+    }
+
+    return PremiumCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Column(
+        children: [
+          for (var index = 0; index < links.length; index++) ...[
+            InkWell(
+              onTap: () => context.go(links[index].route),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Row(
+                  children: [
+                    Icon(
+                      links[index].icon,
+                      size: 20,
+                      color: AppTheme.textSecondary,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        links[index].label,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ],
+                ),
               ),
             ),
+            if (index != links.length - 1) const Divider(height: 1),
           ],
-          const SizedBox(height: 17),
-          child,
         ],
       ),
     );
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.title,
+    this.subtitle,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final String title;
+  final String? subtitle;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stack =
+            constraints.maxWidth < 330 ||
+            MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+        final text = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Semantics(
+              header: true,
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 21,
+                  height: 1.25,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                subtitle!,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 15,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ],
+        );
+
+        if (actionLabel == null || onAction == null) return text;
+        final action = TextButton(onPressed: onAction, child: Text(actionLabel!));
+        if (stack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [text, const SizedBox(height: 6), action],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: text),
+            const SizedBox(width: 12),
+            action,
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _EmptyPanel extends StatelessWidget {
+  const _EmptyPanel({
     required this.icon,
     required this.title,
-    required this.subtitle,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
   });
 
   final IconData icon;
   final String title;
-  final String subtitle;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: AppTheme.primary, size: 24),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w900,
-                ),
+              OmcIconBadge(
+                icon: icon,
+                color: AppTheme.textSecondary,
+                size: 42,
+                iconSize: 21,
               ),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      message,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 15,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SoftPill extends StatelessWidget {
-  const _SoftPill({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppTheme.primary.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.1)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: AppTheme.primary,
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: 14),
+            OutlinedButton(onPressed: onAction, child: Text(actionLabel!)),
+          ],
+        ],
       ),
     );
   }
 }
 
-class _FallbackCard extends StatelessWidget {
-  const _FallbackCard({required this.message});
+class _InlineUnavailable extends StatelessWidget {
+  const _InlineUnavailable({required this.message});
 
   final String message;
 
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(19),
+      padding: const EdgeInsets.all(14),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.075),
-              borderRadius: BorderRadius.circular(17),
-            ),
-            child: const Icon(
-              Icons.info_outline_rounded,
-              color: AppTheme.primary,
-            ),
+          const Icon(
+            Icons.info_outline_rounded,
+            color: AppTheme.warning,
+            size: 20,
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
               style: const TextStyle(
                 color: AppTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontSize: 15,
                 height: 1.4,
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _DashboardUnavailable extends StatelessWidget {
+  const _DashboardUnavailable({
+    required this.isInternal,
+    required this.onRetry,
+  });
+
+  final bool isInternal;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+      children: [
+        _DashboardHeader(
+          eyebrow: isInternal ? 'Operations dashboard' : 'Dashboard',
+          title: 'Dashboard unavailable',
+          subtitle:
+              'Live business counts are hidden until the backend summary can be loaded.',
+          icon: Icons.cloud_off_outlined,
+        ),
+        const SizedBox(height: 18),
+        PremiumCard(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Latest dashboard data could not be loaded.',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'No all-zero fallback is being presented as if it were current account data.',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 15,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Retry dashboard'),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1359,204 +1294,169 @@ class _DashboardLoadingView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
       children: const [
-        PremiumCard(
-          padding: EdgeInsets.all(23),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _LoadingBox(width: 58, height: 58, radius: 22),
-              SizedBox(height: 18),
-              _LoadingBar(widthFactor: 0.58, height: 18),
-              SizedBox(height: 10),
-              _LoadingBar(widthFactor: 0.84),
-              SizedBox(height: 18),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _LoadingPill(width: 92),
-                  _LoadingPill(width: 116),
-                  _LoadingPill(width: 108),
-                ],
-              ),
-            ],
-          ),
-        ),
+        AppSkeleton(height: 82, radius: 16),
         SizedBox(height: 18),
-        PremiumCard(
-          padding: EdgeInsets.all(19),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _LoadingBar(widthFactor: 0.34, height: 12),
-              SizedBox(height: 14),
-              _LoadingBar(widthFactor: 0.78, height: 18),
-              SizedBox(height: 10),
-              _LoadingBar(widthFactor: 0.92),
-              SizedBox(height: 18),
-              _LoadingBar(widthFactor: 1, height: 44),
-            ],
-          ),
-        ),
+        AppSkeleton(height: 190, radius: 16),
         SizedBox(height: 18),
-        Row(
-          children: [
-            Expanded(child: _LoadingMetricCard()),
-            SizedBox(width: 12),
-            Expanded(child: _LoadingMetricCard()),
-          ],
-        ),
+        AppSkeleton(height: 220, radius: 16),
+        SizedBox(height: 18),
+        AppSkeleton(height: 190, radius: 16),
       ],
     );
   }
 }
 
-class _LoadingMetricCard extends StatelessWidget {
-  const _LoadingMetricCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return const PremiumCard(
-      padding: EdgeInsets.all(16),
-      child: SizedBox(
-        height: 96,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _LoadingBox(width: 42, height: 42, radius: 16),
-            Spacer(),
-            _LoadingBar(widthFactor: 0.38, height: 18),
-            SizedBox(height: 8),
-            _LoadingBar(widthFactor: 0.72),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _LoadingBox extends StatelessWidget {
-  const _LoadingBox({
-    required this.width,
-    required this.height,
-    required this.radius,
-  });
-
-  final double width;
-  final double height;
-  final double radius;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: AppTheme.primary.withValues(alpha: 0.045),
-        borderRadius: BorderRadius.circular(radius),
-      ),
-    );
-  }
-}
-
-class _LoadingPill extends StatelessWidget {
-  const _LoadingPill({required this.width});
-
-  final double width;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: 30,
-      decoration: BoxDecoration(
-        color: AppTheme.primary.withValues(alpha: 0.045),
-        borderRadius: BorderRadius.circular(999),
-      ),
-    );
-  }
-}
-
-class _LoadingBar extends StatelessWidget {
-  const _LoadingBar({required this.widthFactor, this.height = 9});
-
-  final double widthFactor;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return FractionallySizedBox(
-      widthFactor: widthFactor,
-      child: Container(
-        height: height,
-        decoration: BoxDecoration(
-          color: AppTheme.primary.withValues(alpha: 0.045),
-          borderRadius: BorderRadius.circular(999),
-        ),
-      ),
-    );
-  }
-}
-
-class _CustomerNextAction {
-  const _CustomerNextAction({
+class _DashboardAction {
+  const _DashboardAction({
     required this.eyebrow,
     required this.title,
     required this.subtitle,
     required this.buttonLabel,
-    required this.icon,
     required this.route,
+    required this.icon,
+    required this.color,
   });
 
-  factory _CustomerNextAction.fromSummary(HomeDashboardSummary summary) {
+  factory _DashboardAction.customer(HomeDashboardSummary summary) {
+    final backend = summary.nextAction;
+    if (backend != null && backend.route.trim().isNotEmpty) {
+      return _DashboardAction(
+        eyebrow: backend.required ? 'Action required' : 'Next action',
+        title: backend.title.trim().isEmpty ? 'Open your service' : backend.title.trim(),
+        subtitle: backend.subtitle.trim(),
+        buttonLabel: backend.buttonLabel.trim().isEmpty
+            ? 'Open'
+            : backend.buttonLabel.trim(),
+        route: _route(backend.route),
+        icon: backend.required
+            ? Icons.priority_high_rounded
+            : Icons.arrow_circle_right_outlined,
+        color: backend.required ? AppTheme.warning : AppTheme.info,
+      );
+    }
+
     if (summary.pendingDocuments > 0) {
-      return _CustomerNextAction(
+      return const _DashboardAction(
         eyebrow: 'Action required',
-        title:
-            'Upload ${summary.pendingDocuments} pending document${summary.pendingDocuments == 1 ? '' : 's'}',
-        subtitle:
-            'Continue your active OMC service by completing the required document checklist.',
-        buttonLabel: 'Upload now',
-        icon: Icons.upload_file_outlined,
+        title: 'Documents need attention',
+        subtitle: 'Open Documents to review the current backend requirements.',
+        buttonLabel: 'Open documents',
         route: '/documents',
+        icon: Icons.folder_copy_outlined,
+        color: AppTheme.warning,
       );
     }
-
     if (summary.paymentsDue > 0) {
-      return _CustomerNextAction(
-        eyebrow: 'Payment pending',
-        title:
-            '${summary.paymentsDue} payment${summary.paymentsDue == 1 ? '' : 's'} need attention',
-        subtitle:
-            'Review dues or uploaded receipts so your service can keep moving.',
-        buttonLabel: 'View payment',
-        icon: Icons.account_balance_wallet_outlined,
+      return const _DashboardAction(
+        eyebrow: 'Action required',
+        title: 'Payment action is due',
+        subtitle: 'Open Payments to continue the current payment step.',
+        buttonLabel: 'Open payments',
         route: '/payments',
+        icon: Icons.payments_outlined,
+        color: AppTheme.warning,
       );
     }
-
     if (summary.activeCases > 0) {
-      return const _CustomerNextAction(
-        eyebrow: 'Track progress',
-        title: 'Your active services are in progress',
-        subtitle:
-            'Open your service workspace to review status, documents and updates.',
-        buttonLabel: 'Track services',
-        icon: Icons.pending_actions_outlined,
+      return const _DashboardAction(
+        eyebrow: 'Next action',
+        title: 'Review your active service requests',
+        subtitle: 'Open My requests for the latest service status and next steps.',
+        buttonLabel: 'View requests',
         route: '/my-services',
+        icon: Icons.assignment_outlined,
+        color: AppTheme.info,
+      );
+    }
+    return const _DashboardAction(
+      eyebrow: 'Next action',
+      title: 'Explore OMC services',
+      subtitle: 'Browse the service catalogue when you are ready to begin.',
+      buttonLabel: 'Browse services',
+      route: '/services',
+      icon: Icons.add_business_outlined,
+      color: AppTheme.info,
+    );
+  }
+
+  factory _DashboardAction.internal({
+    required InternalWorkspaceSummary? workspace,
+    required InternalServiceCaseQueue? queue,
+  }) {
+    if (queue != null) {
+      for (final serviceCase in queue.cases) {
+        if (serviceCase.isFinancialHold ||
+            serviceCase.normalizedLifecycleState == 'activation failed') {
+          final title = serviceCase.isFinancialHold
+              ? 'Financial hold needs review'
+              : 'Activation failure needs recovery';
+          return _DashboardAction(
+            eyebrow: 'Priority work',
+            title: title,
+            subtitle:
+                '${serviceCase.displayCustomer} · ${serviceCase.displayService}',
+            buttonLabel: 'Open service case',
+            route:
+                '/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}',
+            icon: serviceCase.isFinancialHold
+                ? Icons.account_balance_wallet_outlined
+                : Icons.sync_problem_rounded,
+            color: AppTheme.danger,
+          );
+        }
+      }
+    }
+
+    if (workspace != null && workspace.pendingPayments > 0) {
+      return _DashboardAction(
+        eyebrow: 'Next team action',
+        title:
+            '${workspace.pendingPayments} payment${workspace.pendingPayments == 1 ? '' : 's'} pending review',
+        subtitle: 'Open the payment review queue for backend verification.',
+        buttonLabel: 'Review payments',
+        route: '/internal-workspace/payments',
+        icon: Icons.payments_outlined,
+        color: AppTheme.warning,
       );
     }
 
-    return const _CustomerNextAction(
-      eyebrow: 'All caught up',
-      title: 'No action needed right now',
+    if (queue != null && queue.cases.isNotEmpty) {
+      return _DashboardAction(
+        eyebrow: 'Next team action',
+        title:
+            '${queue.cases.length} service case${queue.cases.length == 1 ? '' : 's'} in queue',
+        subtitle: 'Review current customer service movement in the workspace.',
+        buttonLabel: 'Open service queue',
+        route: '/internal-workspace/service-cases',
+        icon: Icons.list_alt_outlined,
+        color: AppTheme.info,
+      );
+    }
+
+    if (workspace != null && workspace.pendingTasks > 0) {
+      return _DashboardAction(
+        eyebrow: 'Next team action',
+        title:
+            '${workspace.pendingTasks} task${workspace.pendingTasks == 1 ? '' : 's'} pending',
+        subtitle: 'Open Tasks to review the current assigned work.',
+        buttonLabel: 'Open tasks',
+        route: '/tasks',
+        icon: Icons.task_alt_outlined,
+        color: AppTheme.info,
+      );
+    }
+
+    return const _DashboardAction(
+      eyebrow: 'Operations',
+      title: 'Open the internal workspace',
       subtitle:
-          'Your OMC workspace is clear. You can browse services or use the tax calculator.',
-      buttonLabel: 'Browse services',
-      icon: Icons.verified_outlined,
-      route: '/services',
+          'Use the workspace for the latest capability-scoped operational queues.',
+      buttonLabel: 'Open workspace',
+      route: '/internal-workspace',
+      icon: Icons.dashboard_outlined,
+      color: AppTheme.info,
     );
   }
 
@@ -1564,130 +1464,37 @@ class _CustomerNextAction {
   final String title;
   final String subtitle;
   final String buttonLabel;
+  final String route;
+  final IconData icon;
+  final Color color;
+
+  static String _route(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return '/dashboard';
+    return trimmed.startsWith('/') ? trimmed : '/$trimmed';
+  }
+}
+
+class _SummaryRowData {
+  const _SummaryRowData({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.route,
+    required this.available,
+  });
+
+  final String label;
+  final int value;
   final IconData icon;
   final String route;
+  final bool available;
 }
 
-List<_AttentionRow> _customerAttentionRows(HomeDashboardSummary summary) {
-  final rows = <_AttentionRow>[];
+class _LinkData {
+  const _LinkData(this.label, this.icon, this.route);
 
-  if (summary.pendingDocuments > 0) {
-    rows.add(
-      _AttentionRow(
-        label:
-            '${summary.pendingDocuments} document${summary.pendingDocuments == 1 ? '' : 's'} missing or waiting',
-        icon: Icons.folder_copy_outlined,
-      ),
-    );
-  }
-  if (summary.paymentsDue > 0) {
-    rows.add(
-      _AttentionRow(
-        label:
-            '${summary.paymentsDue} payment${summary.paymentsDue == 1 ? '' : 's'} pending',
-        icon: Icons.account_balance_wallet_outlined,
-      ),
-    );
-  }
-  if (summary.unreadNotifications > 0) {
-    rows.add(
-      _AttentionRow(
-        label:
-            '${summary.unreadNotifications} unread notification${summary.unreadNotifications == 1 ? '' : 's'}',
-        icon: Icons.notifications_none_rounded,
-      ),
-    );
-  }
-  if (rows.isEmpty) {
-    rows.add(
-      const _AttentionRow(
-        label: 'Nothing urgent right now. Your workspace is clear.',
-        icon: Icons.check_circle_outline,
-      ),
-    );
-  }
-
-  return rows;
-}
-
-List<_AttentionRow> _internalAttentionRows(
-  InternalWorkspaceSummary workspaceSummary,
-  HomeDashboardSummary customerSummary,
-  InternalServiceCaseQueue queue,
-  int documentsWaiting,
-) {
-  final rows = <_AttentionRow>[];
-
-  if (documentsWaiting > 0) {
-    rows.add(
-      _AttentionRow(
-        label: '$documentsWaiting documents waiting for review',
-        icon: Icons.fact_check_outlined,
-      ),
-    );
-  }
-  if (workspaceSummary.pendingPayments > 0) {
-    rows.add(
-      _AttentionRow(
-        label: '${workspaceSummary.pendingPayments} payments waiting approval',
-        icon: Icons.payments_outlined,
-      ),
-    );
-  }
-  if (queue.cases.isNotEmpty) {
-    rows.add(
-      _AttentionRow(
-        label:
-            '${queue.cases.length} active service cases need team visibility',
-        icon: Icons.pending_actions_outlined,
-      ),
-    );
-  }
-  if (workspaceSummary.openLeads > 0) {
-    rows.add(
-      _AttentionRow(
-        label: '${workspaceSummary.openLeads} open leads need follow-up',
-        icon: Icons.leaderboard_outlined,
-      ),
-    );
-  }
-  if (customerSummary.unreadNotifications > 0) {
-    rows.add(
-      _AttentionRow(
-        label:
-            '${customerSummary.unreadNotifications} customer notifications visible',
-        icon: Icons.notifications_none_rounded,
-      ),
-    );
-  }
-  if (rows.isEmpty) {
-    rows.add(
-      const _AttentionRow(
-        label: 'No urgent internal queue item right now.',
-        icon: Icons.check_circle_outline,
-      ),
-    );
-  }
-
-  return rows;
-}
-
-int _customerActionCount(HomeDashboardSummary summary) {
-  return summary.pendingDocuments +
-      summary.paymentsDue +
-      summary.unreadNotifications;
-}
-
-int _safeMax(List<int> values) {
-  final maxValue = values.fold<int>(0, (previous, value) {
-    return value > previous ? value : previous;
-  });
-  return maxValue == 0 ? 1 : maxValue;
-}
-
-String _greeting() {
-  final hour = DateTime.now().hour;
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
+  final String label;
+  final IconData icon;
+  final String route;
 }
