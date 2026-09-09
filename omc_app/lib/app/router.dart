@@ -41,7 +41,7 @@ import '../features/payments/presentation/payment_detail_screen.dart';
 import '../features/payments/presentation/payments_screen.dart';
 import '../features/profile/presentation/my_referrals_screen.dart';
 import '../features/profile/presentation/referral_detail_screen.dart';
-import '../features/profile/presentation/edit_profile_screen.dart';
+import '../features/profile/presentation/edit_profile_v2_screen.dart';
 import '../features/profile/presentation/profile_v2_screen.dart';
 import '../features/service_catalogue/presentation/service_catalogue_screen.dart';
 import '../features/service_catalogue/presentation/service_detail_screen.dart';
@@ -49,7 +49,7 @@ import '../features/service_requests/presentation/my_services_screen.dart';
 import '../features/service_requests/presentation/service_case_detail_screen.dart';
 import '../features/service_requests/presentation/service_request_draft_screen.dart';
 import '../features/settings/presentation/change_password_screen.dart';
-import '../features/settings/presentation/settings_screen.dart';
+import '../features/settings/presentation/settings_v2_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import '../features/support/presentation/support_screen.dart';
 import '../features/support/presentation/support_ticket_detail_screen.dart';
@@ -516,8 +516,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile/edit',
         name: 'edit-profile',
-        builder: (context, state) =>
-            _withShell(ShellNavScaffold.moreIndex, const EditProfileScreen()),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const EditProfileV2Screen(),
+        ),
       ),
       GoRoute(
         path: '/my-referrals',
@@ -593,8 +595,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings',
         name: 'settings',
-        builder: (context, state) =>
-            _withShell(ShellNavScaffold.moreIndex, const SettingsScreen()),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const SettingsV2Screen(),
+        ),
       ),
       GoRoute(
         path: '/change-password',
