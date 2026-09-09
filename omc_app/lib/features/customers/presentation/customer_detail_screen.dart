@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/resilience/app_failure.dart';
@@ -21,31 +22,35 @@ class CustomerDetailScreen extends ConsumerWidget {
     final customerAsync = ref.watch(customerDetailProvider(customerId));
 
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: const AppBackHeader(title: 'Customer details'),
-      body: customerAsync.when(
-        data: (customer) {
-          if (customer == null) {
-            return const PremiumEmptyState(
-              icon: Icons.person_search_rounded,
-              title: 'Customer detail unavailable',
-              message:
-                  'Customer information will appear here when the profile becomes available.',
-            );
-          }
+      body: SafeArea(
+        top: false,
+        child: customerAsync.when(
+          data: (customer) {
+            if (customer == null) {
+              return const PremiumEmptyState(
+                icon: Icons.person_search_rounded,
+                title: 'Customer detail unavailable',
+                message:
+                    'This scoped customer record is not available in the current directory view.',
+              );
+            }
 
-          return _CustomerDetailBody(customer: customer);
-        },
-        loading: () => const CrmDetailLoadingView(
-          icon: Icons.person_rounded,
-          title: 'Loading customer',
-          message: 'Fetching customer profile and account details.',
-        ),
-        error: (error, _) => PremiumEmptyState(
-          icon: Icons.person_search_rounded,
-          title: 'Customer detail unavailable',
-          message: _backendErrorMessage(error),
-          actionLabel: 'Retry',
-          onAction: () => ref.invalidate(customerDetailProvider(customerId)),
+            return _CustomerDetailBody(customer: customer);
+          },
+          loading: () => const CrmDetailLoadingView(
+            icon: Icons.person_rounded,
+            title: 'Loading customer',
+            message: 'Fetching customer profile and account details.',
+          ),
+          error: (error, _) => PremiumEmptyState(
+            icon: Icons.person_search_rounded,
+            title: 'Customer detail unavailable',
+            message: _backendErrorMessage(error),
+            actionLabel: 'Retry',
+            onAction: () => ref.invalidate(customerDetailProvider(customerId)),
+          ),
         ),
       ),
     );
@@ -68,364 +73,239 @@ class _CustomerDetailBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final contactRows = <_DetailRowData>[
-      if (_hasValue(customer.email))
-        _DetailRowData(
-          icon: Icons.mail_outline_rounded,
-          label: 'Email address',
-          value: customer.email!,
-        ),
-      if (_hasValue(customer.phone))
-        _DetailRowData(
-          icon: Icons.call_outlined,
-          label: 'Phone number',
-          value: customer.phone!,
-        ),
-      if (_hasValue(customer.companyName))
-        _DetailRowData(
-          icon: Icons.business_outlined,
-          label: 'Company',
-          value: customer.companyName!,
-        ),
-      if (_hasValue(customer.city))
-        _DetailRowData(
-          icon: Icons.location_on_outlined,
-          label: 'City',
-          value: customer.city!,
-        ),
-      if (_hasValue(customer.cnic))
-        _DetailRowData(
-          icon: Icons.badge_outlined,
-          label: 'CNIC',
-          value: customer.cnic!,
-        ),
-      if (_hasValue(customer.ntn))
-        _DetailRowData(
-          icon: Icons.receipt_long_outlined,
-          label: 'NTN',
-          value: customer.ntn!,
-        ),
-    ];
-
     return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
       children: [
-        _CustomerIdentityCard(customer: customer),
-        const SizedBox(height: 14),
-        _CustomerOverviewCard(customer: customer),
-        if (contactRows.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          _CustomerDetailsCard(
-            title: 'Contact and identity',
-            subtitle: 'Primary customer contact and identification details.',
-            rows: contactRows,
-          ),
-        ],
-        const SizedBox(height: 14),
+        _IdentityAndStatusCard(customer: customer),
+        const SizedBox(height: 24),
+        const _SectionHeading(
+          title: 'Contact & tax identity',
+          supporting:
+              'Customer contact and identification fields from the scoped profile.',
+        ),
+        const SizedBox(height: 10),
+        _CustomerDetailsCard(
+          rows: [
+            _DetailRowData(
+              icon: Icons.mail_outline_rounded,
+              label: 'Email address',
+              value: _addedValue(customer.email),
+            ),
+            _DetailRowData(
+              icon: Icons.call_outlined,
+              label: 'Phone number',
+              value: _addedValue(customer.phone),
+            ),
+            _DetailRowData(
+              icon: Icons.business_outlined,
+              label: 'Company',
+              value: _addedValue(customer.companyName),
+            ),
+            _DetailRowData(
+              icon: Icons.location_on_outlined,
+              label: 'City',
+              value: _addedValue(customer.city),
+            ),
+            _DetailRowData(
+              icon: Icons.badge_outlined,
+              label: 'CNIC',
+              value: _addedValue(customer.cnic),
+            ),
+            _DetailRowData(
+              icon: Icons.receipt_long_outlined,
+              label: 'NTN',
+              value: _addedValue(customer.ntn),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        const _SectionHeading(
+          title: 'Activity',
+          supporting: 'Recorded profile activity and customer age.',
+        ),
+        const SizedBox(height: 10),
         _ActivityCard(customer: customer),
-        const SizedBox(height: 14),
+        const SizedBox(height: 18),
         _TechnicalDetailsCard(customer: customer),
       ],
     );
   }
-
-  bool _hasValue(String? value) {
-    final text = value?.trim() ?? '';
-    return text.isNotEmpty && text != '-';
-  }
 }
 
-class _CustomerIdentityCard extends StatelessWidget {
-  const _CustomerIdentityCard({required this.customer});
+class _IdentityAndStatusCard extends StatelessWidget {
+  const _IdentityAndStatusCard({required this.customer});
 
   final CustomerItem customer;
 
   @override
   Widget build(BuildContext context) {
-    final statusStyle = _CustomerStatusStyle.fromStatus(customer.status);
-    final subtitle = _identitySubtitle(customer);
-    final initials = _initials(customer.name);
+    final identitySupporting = <String>[
+      if (_hasValue(customer.companyName)) customer.companyName!.trim(),
+      if (_hasValue(customer.city)) customer.city!.trim(),
+    ];
+    final approval = _cleanValue(customer.approvalStatus);
+    final accountState = customer.isActive == null
+        ? null
+        : customer.isActive!
+        ? 'Active'
+        : 'Inactive';
 
     return PremiumCard(
-      padding: EdgeInsets.zero,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(26),
-        child: Stack(
-          children: [
-            Positioned(
-              right: -22,
-              top: -30,
-              child: Container(
-                width: 130,
-                height: 130,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.primary.withValues(alpha: 0.035),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(18),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  _CustomerProfileAvatar(
-                    name: customer.name,
-                    initials: initials,
-                    imageUrl: customer.avatarUrl,
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          customer.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 20,
-                            height: 1.15,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          subtitle,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 13,
-                            height: 1.35,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stack =
+                  constraints.maxWidth < 340 ||
+                  MediaQuery.textScalerOf(context).scale(1) > 1.35;
+              final identity = Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      customer.name,
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  _StatusPill(label: customer.statusLabel, style: statusStyle),
-                ],
-              ),
+                    const SizedBox(height: 5),
+                    Text(
+                      identitySupporting.isEmpty
+                          ? 'Customer profile'
+                          : identitySupporting.join(' · '),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              );
+              final avatar = _CustomerProfileAvatar(
+                name: customer.name,
+                imageUrl: customer.avatarUrl,
+              );
+
+              if (stack) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    avatar,
+                    const SizedBox(height: 16),
+                    Row(children: [identity]),
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [avatar, const SizedBox(width: 16), identity],
+              );
+            },
+          ),
+          const SizedBox(height: 18),
+          const Divider(height: 1),
+          const SizedBox(height: 16),
+          Text('Account status', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 10),
+          _CustomerStatusBadge(
+            status: customer.status,
+            label: customer.statusLabel,
+          ),
+          if (approval != null || accountState != null) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 18,
+              runSpacing: 12,
+              children: [
+                if (approval != null)
+                  _StatusFact(label: 'Approval', value: approval),
+                if (accountState != null)
+                  _StatusFact(label: 'Account', value: accountState),
+              ],
             ),
           ],
-        ),
+        ],
       ),
     );
-  }
-
-  String _identitySubtitle(CustomerItem customer) {
-    final values = <String>[
-      if (_valid(customer.companyName)) customer.companyName!.trim(),
-      if (_valid(customer.city)) customer.city!.trim(),
-    ];
-
-    if (values.isEmpty) return 'Customer profile';
-    return values.join(' • ');
-  }
-
-  bool _valid(String? value) {
-    final text = value?.trim() ?? '';
-    return text.isNotEmpty && text != '-';
-  }
-
-  String _initials(String name) {
-    final words = name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((word) => word.isNotEmpty && word != '-')
-        .toList();
-
-    if (words.isEmpty) return 'CU';
-    if (words.length == 1) {
-      final word = words.first;
-      return word.substring(0, word.length >= 2 ? 2 : 1).toUpperCase();
-    }
-
-    return '${words.first[0]}${words.last[0]}'.toUpperCase();
   }
 }
 
 class _CustomerProfileAvatar extends StatelessWidget {
-  const _CustomerProfileAvatar({
-    required this.name,
-    required this.initials,
-    this.imageUrl,
-  });
+  const _CustomerProfileAvatar({required this.name, this.imageUrl});
 
   final String name;
-  final String initials;
   final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
     final resolvedImageUrl = ApiConfig.resolveFileUrl(imageUrl);
+    final initials = _initials(name);
 
-    return Container(
-      width: 58,
-      height: 58,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: AppTheme.primary.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.10)),
+    return Semantics(
+      label: resolvedImageUrl == null
+          ? 'Profile photo placeholder for $name'
+          : 'Profile photo for $name',
+      child: Container(
+        width: 64,
+        height: 64,
+        clipBehavior: Clip.antiAlias,
+        decoration: const BoxDecoration(
+          color: AppTheme.processingSoft,
+          shape: BoxShape.circle,
+        ),
+        child: resolvedImageUrl == null
+            ? _AvatarInitials(initials: initials)
+            : Image.network(
+                resolvedImageUrl,
+                width: 64,
+                height: 64,
+                fit: BoxFit.cover,
+                semanticLabel: '$name profile picture',
+                errorBuilder: (_, _, _) => _AvatarInitials(initials: initials),
+              ),
       ),
-      child: resolvedImageUrl == null
-          ? _fallback()
-          : Image.network(
-              resolvedImageUrl,
-              width: 58,
-              height: 58,
-              fit: BoxFit.cover,
-              semanticLabel: '$name profile picture',
-              errorBuilder: (_, _, _) => _fallback(),
-            ),
     );
   }
+}
 
-  Widget _fallback() {
+class _AvatarInitials extends StatelessWidget {
+  const _AvatarInitials({required this.initials});
+
+  final String initials;
+
+  @override
+  Widget build(BuildContext context) {
     return Center(
       child: Text(
         initials,
         style: const TextStyle(
-          color: AppTheme.primary,
+          color: AppTheme.textPrimary,
           fontSize: 18,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0.4,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
   }
 }
 
-class _CustomerOverviewCard extends StatelessWidget {
-  const _CustomerOverviewCard({required this.customer});
-
-  final CustomerItem customer;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _SectionHeading(
-            title: 'Overview',
-            subtitle: 'Current customer and account status.',
-          ),
-          const SizedBox(height: 17),
-          Row(
-            children: [
-              Expanded(
-                child: _OverviewTile(
-                  label: 'Approval',
-                  value: _cleanValue(
-                    customer.approvalStatus,
-                    fallback: customer.statusLabel,
-                  ),
-                  icon: Icons.verified_user_outlined,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _OverviewTile(
-                  label: 'Account',
-                  value: customer.isActive == null
-                      ? customer.statusLabel
-                      : customer.isActive!
-                      ? 'Active'
-                      : 'Inactive',
-                  icon: Icons.account_circle_outlined,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _OverviewTile(
-                  label: 'Last activity',
-                  value: _cleanValue(
-                    customer.lastActivityLabel,
-                    fallback: 'Not available',
-                  ),
-                  icon: Icons.schedule_rounded,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _OverviewTile(
-                  label: 'Customer since',
-                  value: _cleanValue(
-                    customer.createdAtLabel,
-                    fallback: 'Not available',
-                  ),
-                  icon: Icons.calendar_today_outlined,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _cleanValue(String? value, {required String fallback}) {
-    final text = value?.trim() ?? '';
-    return text.isEmpty || text == '-' ? fallback : text;
-  }
-}
-
-class _OverviewTile extends StatelessWidget {
-  const _OverviewTile({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
+class _StatusFact extends StatelessWidget {
+  const _StatusFact({required this.label, required this.value});
 
   final String label;
   final String value;
-  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 105),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.background,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.045)),
-      ),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 120),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 19, color: AppTheme.primary.withValues(alpha: 0.85)),
-          const SizedBox(height: 11),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 13,
-              height: 1.25,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 3),
+          Text(value, style: Theme.of(context).textTheme.bodyLarge),
         ],
       ),
     );
@@ -433,29 +313,19 @@ class _OverviewTile extends StatelessWidget {
 }
 
 class _CustomerDetailsCard extends StatelessWidget {
-  const _CustomerDetailsCard({
-    required this.title,
-    required this.subtitle,
-    required this.rows,
-  });
+  const _CustomerDetailsCard({required this.rows});
 
-  final String title;
-  final String subtitle;
   final List<_DetailRowData> rows;
 
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.zero,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeading(title: title, subtitle: subtitle),
-          const SizedBox(height: 8),
           for (var index = 0; index < rows.length; index++) ...[
             _DetailRow(data: rows[index]),
-            if (index != rows.length - 1)
-              Divider(height: 1, color: Colors.black.withValues(alpha: 0.055)),
+            if (index != rows.length - 1) const Divider(height: 1),
           ],
         ],
       ),
@@ -483,41 +353,29 @@ class _DetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 13),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 38,
-            height: 38,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.065),
-              borderRadius: BorderRadius.circular(13),
+              color: AppTheme.cardSoft,
+              borderRadius: BorderRadius.circular(AppRadius.control),
             ),
-            child: Icon(data.icon, size: 19, color: AppTheme.primary),
+            child: Icon(data.icon, size: 20, color: AppTheme.textSecondary),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  data.label,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                Text(data.label, style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: 4),
                 SelectableText(
                   data.value,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 13,
-                    height: 1.35,
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
               ],
             ),
@@ -535,76 +393,63 @@ class _ActivityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lastActivity = _cleanValue(customer.lastActivityLabel);
+    final customerSince = _cleanValue(customer.createdAtLabel);
+
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.zero,
       child: Column(
+        children: [
+          _ActivityRow(
+            icon: Icons.schedule_rounded,
+            label: 'Last activity',
+            value: lastActivity ?? 'Not available',
+          ),
+          const Divider(height: 1),
+          _ActivityRow(
+            icon: Icons.calendar_today_outlined,
+            label: 'Customer since',
+            value: customerSince ?? 'Not available',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityRow extends StatelessWidget {
+  const _ActivityRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeading(
-            title: 'Recent activity',
-            subtitle:
-                'Services, document reviews and payment updates will appear here.',
-          ),
-          const SizedBox(height: 18),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
-            decoration: BoxDecoration(
-              color: AppTheme.background,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.black.withValues(alpha: 0.045)),
-            ),
+          Icon(icon, size: 20, color: AppTheme.textSecondary),
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withValues(alpha: 0.07),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.history_rounded,
-                    size: 23,
-                    color: AppTheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'No customer activity yet',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  _activityMessage(customer),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    height: 1.4,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                Text(label, style: Theme.of(context).textTheme.bodySmall),
+                const SizedBox(height: 3),
+                Text(value, style: Theme.of(context).textTheme.bodyLarge),
               ],
             ),
           ),
         ],
       ),
     );
-  }
-
-  String _activityMessage(CustomerItem customer) {
-    final activity = customer.lastActivityLabel?.trim() ?? '';
-    if (activity.isNotEmpty && activity != '-') {
-      return 'Latest profile activity: $activity';
-    }
-
-    return 'Linked customer events will be shown here when activity data becomes available.';
   }
 }
 
@@ -617,79 +462,60 @@ class _TechnicalDetailsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final rows = <_TechnicalRowData>[
       _TechnicalRowData(label: 'Customer ID', value: customer.id),
-      if (_valid(customer.linkedErpnextCustomer))
+      if (_hasValue(customer.linkedErpnextCustomer))
         _TechnicalRowData(
           label: 'ERPNext customer',
-          value: customer.linkedErpnextCustomer!,
+          value: customer.linkedErpnextCustomer!.trim(),
         ),
-      if (_valid(customer.approvalStatus))
+      if (_hasValue(customer.approvalStatus))
         _TechnicalRowData(
           label: 'Approval status',
-          value: customer.approvalStatus!,
+          value: customer.approvalStatus!.trim(),
         ),
       if (customer.isActive != null)
         _TechnicalRowData(
           label: 'Active flag',
           value: customer.isActive! ? 'Yes' : 'No',
         ),
-      if (_valid(customer.createdAtLabel))
-        _TechnicalRowData(label: 'Created', value: customer.createdAtLabel!),
-      if (_valid(customer.updatedAtLabel))
-        _TechnicalRowData(label: 'Updated', value: customer.updatedAtLabel!),
+      if (_hasValue(customer.createdAtLabel))
+        _TechnicalRowData(
+          label: 'Created',
+          value: customer.createdAtLabel!.trim(),
+        ),
+      if (_hasValue(customer.updatedAtLabel))
+        _TechnicalRowData(
+          label: 'Updated',
+          value: customer.updatedAtLabel!.trim(),
+        ),
     ];
 
     return PremiumCard(
       padding: EdgeInsets.zero,
       child: Theme(
-        data: Theme.of(context).copyWith(
-          dividerColor: Colors.transparent,
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-        ),
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
-          childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-          iconColor: AppTheme.primary,
-          collapsedIconColor: AppTheme.textSecondary,
-          title: const Text(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          title: Text(
             'Technical details',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
-            ),
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-          subtitle: const Padding(
-            padding: EdgeInsets.only(top: 3),
-            child: Text(
-              'Backend and account metadata',
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+          subtitle: Text(
+            'Backend and account metadata',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: AppTheme.background,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: Colors.black.withValues(alpha: 0.045),
-                ),
+            Material(
+              color: AppTheme.cardSoft,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.control),
               ),
+              clipBehavior: Clip.antiAlias,
               child: Column(
                 children: [
                   for (var index = 0; index < rows.length; index++) ...[
                     _TechnicalRow(data: rows[index]),
-                    if (index != rows.length - 1)
-                      Divider(
-                        height: 1,
-                        indent: 14,
-                        endIndent: 14,
-                        color: Colors.black.withValues(alpha: 0.05),
-                      ),
+                    if (index != rows.length - 1) const Divider(height: 1),
                   ],
                 ],
               ),
@@ -698,11 +524,6 @@ class _TechnicalDetailsCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  bool _valid(String? value) {
-    final text = value?.trim() ?? '';
-    return text.isNotEmpty && text != '-';
   }
 }
 
@@ -720,34 +541,45 @@ class _TechnicalRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final stack =
+        MediaQuery.sizeOf(context).width < 360 ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.3;
+
+    if (stack) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(data.label, style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 5),
+            SelectableText(
+              data.value,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 112,
+            width: 132,
             child: Text(
               data.label,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 11,
-                height: 1.35,
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: SelectableText(
               data.value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 12,
-                height: 1.35,
-                fontWeight: FontWeight.w800,
-              ),
+              textAlign: TextAlign.end,
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
           ),
         ],
@@ -757,101 +589,141 @@ class _TechnicalRow extends StatelessWidget {
 }
 
 class _SectionHeading extends StatelessWidget {
-  const _SectionHeading({required this.title, required this.subtitle});
+  const _SectionHeading({required this.title, required this.supporting});
 
   final String title;
-  final String subtitle;
+  final String supporting;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 17,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
+        Text(title, style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 4),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 12,
-            height: 1.35,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        Text(supporting, style: Theme.of(context).textTheme.bodyMedium),
       ],
     );
   }
 }
 
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, required this.style});
+class _CustomerStatusBadge extends StatelessWidget {
+  const _CustomerStatusBadge({required this.status, required this.label});
 
+  final CustomerStatus status;
   final String label;
-  final _CustomerStatusStyle style;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 108),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: style.background,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: style.border),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: style.foreground,
-          fontSize: 10,
-          fontWeight: FontWeight.w900,
+    final presentation = _statusPresentation(status);
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: presentation.background,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(presentation.icon, size: 16, color: presentation.foreground),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: presentation.foreground,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _CustomerStatusStyle {
-  const _CustomerStatusStyle({
+class _StatusPresentation {
+  const _StatusPresentation({
     required this.foreground,
     required this.background,
-    required this.border,
+    required this.icon,
   });
-
-  factory _CustomerStatusStyle.fromStatus(CustomerStatus status) {
-    switch (status) {
-      case CustomerStatus.active:
-        return _CustomerStatusStyle.semantic(const Color(0xFF16794B));
-      case CustomerStatus.pending:
-        return _CustomerStatusStyle.semantic(const Color(0xFFB26A00));
-      case CustomerStatus.prospect:
-        return _CustomerStatusStyle.semantic(const Color(0xFF2563A9));
-      case CustomerStatus.blocked:
-        return _CustomerStatusStyle.semantic(const Color(0xFFB42318));
-      case CustomerStatus.inactive:
-      case CustomerStatus.unknown:
-        return _CustomerStatusStyle.semantic(const Color(0xFF667085));
-    }
-  }
-
-  factory _CustomerStatusStyle.semantic(Color color) {
-    return _CustomerStatusStyle(
-      foreground: color,
-      background: color.withValues(alpha: 0.08),
-      border: color.withValues(alpha: 0.15),
-    );
-  }
 
   final Color foreground;
   final Color background;
-  final Color border;
+  final IconData icon;
+}
+
+_StatusPresentation _statusPresentation(CustomerStatus status) {
+  switch (status) {
+    case CustomerStatus.active:
+      return const _StatusPresentation(
+        foreground: AppTheme.success,
+        background: AppTheme.successSoft,
+        icon: Icons.check_circle_outline_rounded,
+      );
+    case CustomerStatus.pending:
+      return const _StatusPresentation(
+        foreground: AppTheme.warning,
+        background: AppTheme.warningSoft,
+        icon: Icons.schedule_rounded,
+      );
+    case CustomerStatus.prospect:
+      return const _StatusPresentation(
+        foreground: AppTheme.info,
+        background: AppTheme.infoSoft,
+        icon: Icons.person_search_outlined,
+      );
+    case CustomerStatus.blocked:
+      return const _StatusPresentation(
+        foreground: AppTheme.danger,
+        background: AppTheme.dangerSoft,
+        icon: Icons.block_rounded,
+      );
+    case CustomerStatus.inactive:
+      return const _StatusPresentation(
+        foreground: AppTheme.textSecondary,
+        background: AppTheme.processingSoft,
+        icon: Icons.pause_circle_outline_rounded,
+      );
+    case CustomerStatus.unknown:
+      return const _StatusPresentation(
+        foreground: AppTheme.textSecondary,
+        background: AppTheme.processingSoft,
+        icon: Icons.help_outline_rounded,
+      );
+  }
+}
+
+bool _hasValue(String? value) {
+  final text = value?.trim() ?? '';
+  return text.isNotEmpty && text != '-';
+}
+
+String? _cleanValue(String? value) {
+  final text = value?.trim() ?? '';
+  return text.isEmpty || text == '-' ? null : text;
+}
+
+String _addedValue(String? value) {
+  return _cleanValue(value) ?? 'Not added';
+}
+
+String _initials(String name) {
+  final words = name
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((word) => word.isNotEmpty && word != '-')
+      .toList();
+
+  if (words.isEmpty) return 'CU';
+  if (words.length == 1) {
+    return words.first.substring(0, 1).toUpperCase();
+  }
+  return '${words.first[0]}${words.last[0]}'.toUpperCase();
 }
