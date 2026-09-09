@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
-import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/finance_commission_repository.dart';
 
@@ -31,7 +31,6 @@ class _FinanceCommissionsScreenState
 
   final _searchController = TextEditingController();
   final _items = <FinanceCommissionAllocation>[];
-
   String _status = '';
   String _evidenceStatus = '';
   bool _loading = true;
@@ -113,15 +112,13 @@ class _FinanceCommissionsScreenState
     try {
       await action();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(success)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(success)));
       await _load(refresh: true);
     } on ApiError catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -183,6 +180,7 @@ class _FinanceCommissionsScreenState
     final input = await showModalBottomSheet<_SettlementInput>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       showDragHandle: true,
       builder: (context) => const _SettlementSheet(),
     );
@@ -232,24 +230,26 @@ class _FinanceCommissionsScreenState
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('Reject commission'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('A rejection reason is required for the audit trail.'),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                minLines: 2,
-                maxLines: 5,
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  labelText: 'Reason',
-                  alignLabelWithHint: true,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('A rejection reason is required for the audit trail.'),
+                const SizedBox(height: AppSpacing.sm),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  minLines: 3,
+                  maxLines: 6,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Reason',
+                    alignLabelWithHint: true,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -259,8 +259,7 @@ class _FinanceCommissionsScreenState
             FilledButton(
               onPressed: controller.text.trim().isEmpty
                   ? null
-                  : () =>
-                        Navigator.of(dialogContext).pop(controller.text.trim()),
+                  : () => Navigator.of(dialogContext).pop(controller.text.trim()),
               child: const Text('Reject'),
             ),
           ],
@@ -274,131 +273,162 @@ class _FinanceCommissionsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: OmcPremium.canvas,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(title: const Text('Commission operations')),
       body: RefreshIndicator.adaptive(
         onRefresh: () => _load(refresh: true),
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 120),
-          children: [
-            const _FinanceHeader(),
-            const SizedBox(height: 14),
-            TextField(
-              controller: _searchController,
-              textInputAction: TextInputAction.search,
-              onSubmitted: (_) => _load(refresh: true),
-              decoration: InputDecoration(
-                hintText: 'Search beneficiary, customer, request or component',
-                prefixIcon: const Icon(Icons.search_rounded),
-                suffixIcon: IconButton(
-                  tooltip: 'Search',
-                  onPressed: () => _load(refresh: true),
-                  icon: const Icon(Icons.arrow_forward_rounded),
-                ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final inset = AppLayout.pageInsetFor(constraints.maxWidth);
+            final horizontal = constraints.maxWidth >
+                    AppLayout.generalMaxWidth + inset * 2
+                ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
+                : inset;
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
               ),
-            ),
-            const SizedBox(height: 12),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (final status in _statuses) ...[
-                    ChoiceChip(
-                      label: Text(status.isEmpty ? 'All' : status),
-                      selected: _status == status,
-                      onSelected: (_) {
-                        setState(() => _status = status);
-                        _load(refresh: true);
-                      },
+              padding: EdgeInsets.fromLTRB(horizontal, 14, horizontal, 100),
+              children: [
+                const _FinanceHeader(),
+                const SizedBox(height: AppSpacing.xl),
+                TextField(
+                  controller: _searchController,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) => _load(refresh: true),
+                  decoration: InputDecoration(
+                    labelText: 'Search commission queue',
+                    hintText: 'Beneficiary, customer, request or component',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: IconButton(
+                      tooltip: 'Search',
+                      onPressed: () => _load(refresh: true),
+                      icon: const Icon(Icons.arrow_forward_rounded),
                     ),
-                    const SizedBox(width: 7),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: [
+                      for (final status in _statuses) ...[
+                        ChoiceChip(
+                          label: Text(status.isEmpty ? 'All' : status),
+                          selected: _status == status,
+                          onSelected: (_) {
+                            setState(() => _status = status);
+                            _load(refresh: true);
+                          },
+                        ),
+                        if (status != _statuses.last)
+                          const SizedBox(width: AppSpacing.xs),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                DropdownButtonFormField<String>(
+                  initialValue: _evidenceStatus,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Accounting evidence',
+                    prefixIcon: Icon(Icons.verified_outlined),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: '', child: Text('All evidence states')),
+                    DropdownMenuItem(
+                      value: 'Matched',
+                      child: Text('Accounting ready'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Review Required',
+                      child: Text('Needs reconciliation review'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Missing',
+                      child: Text('Evidence missing'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Quarantined',
+                      child: Text('Reconciliation blocked'),
+                    ),
+                    DropdownMenuItem(value: 'Reversed', child: Text('Reversed')),
                   ],
+                  onChanged: (value) {
+                    setState(() => _evidenceStatus = value ?? '');
+                    _load(refresh: true);
+                  },
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                Text(
+                  'Allocation queue',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  _hasMore
+                      ? '${_items.length} allocations loaded · more available'
+                      : '${_items.length} allocations loaded',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                if (_error != null)
+                  _QueueMessage(
+                    icon: Icons.cloud_off_rounded,
+                    message: _error!,
+                    actionLabel: 'Retry',
+                    onAction: () => _load(refresh: true),
+                  ),
+                if (_loading)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 48),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_items.isEmpty && _error == null)
+                  const _QueueMessage(
+                    icon: Icons.inbox_outlined,
+                    message: 'No commission allocations match this queue.',
+                  )
+                else
+                  for (var index = 0; index < _items.length; index++) ...[
+                    _CommissionOperationCard(
+                      allocation: _items[index],
+                      busy: _mutatingId == _items[index].id,
+                      onApprove: () => _approve(_items[index]),
+                      onReject: () => _reject(_items[index]),
+                      onMarkPayable: () => _markPayable(_items[index]),
+                      onMarkPaid: () => _markPaid(_items[index]),
+                    ),
+                    if (index != _items.length - 1)
+                      const SizedBox(height: AppSpacing.sm),
+                  ],
+                if (!_loading && _hasMore) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _loadingMore ? null : () => _load(),
+                      icon: _loadingMore
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.expand_more_rounded),
+                      label: Text(
+                        _loadingMore
+                            ? 'Loading allocations'
+                            : 'Load more allocations',
+                      ),
+                    ),
+                  ),
                 ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              initialValue: _evidenceStatus,
-              decoration: const InputDecoration(
-                labelText: 'Accounting evidence',
-                prefixIcon: Icon(Icons.verified_outlined),
-              ),
-              items: const [
-                DropdownMenuItem(value: '', child: Text('All evidence states')),
-                DropdownMenuItem(
-                  value: 'Matched',
-                  child: Text('Accounting ready'),
-                ),
-                DropdownMenuItem(
-                  value: 'Review Required',
-                  child: Text('Needs reconciliation review'),
-                ),
-                DropdownMenuItem(
-                  value: 'Missing',
-                  child: Text('Evidence missing'),
-                ),
-                DropdownMenuItem(
-                  value: 'Quarantined',
-                  child: Text('Reconciliation blocked'),
-                ),
-                DropdownMenuItem(value: 'Reversed', child: Text('Reversed')),
               ],
-              onChanged: (value) {
-                setState(() => _evidenceStatus = value ?? '');
-                _load(refresh: true);
-              },
-            ),
-            const SizedBox(height: 16),
-            if (_error != null)
-              _QueueMessage(
-                icon: Icons.cloud_off_rounded,
-                message: _error!,
-                actionLabel: 'Retry',
-                onAction: () => _load(refresh: true),
-              ),
-            if (_loading)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 48),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_items.isEmpty && _error == null)
-              const _QueueMessage(
-                icon: Icons.inbox_outlined,
-                message: 'No commission allocations match this queue.',
-              )
-            else
-              for (final item in _items) ...[
-                _CommissionOperationCard(
-                  allocation: item,
-                  busy: _mutatingId == item.id,
-                  onApprove: () => _approve(item),
-                  onReject: () => _reject(item),
-                  onMarkPayable: () => _markPayable(item),
-                  onMarkPaid: () => _markPaid(item),
-                ),
-                const SizedBox(height: 10),
-              ],
-            if (!_loading && _hasMore) ...[
-              const SizedBox(height: 4),
-              OutlinedButton.icon(
-                onPressed: _loadingMore ? null : () => _load(),
-                icon: _loadingMore
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.expand_more_rounded),
-                label: Text(
-                  _loadingMore
-                      ? 'Loading allocations'
-                      : 'Load more allocations',
-                ),
-              ),
-            ],
-          ],
+            );
+          },
         ),
       ),
     );
@@ -410,26 +440,20 @@ class _FinanceHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const PremiumCard(
+    return PremiumCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Commission lifecycle',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 19,
-              fontWeight: FontWeight.w900,
-            ),
+            style: Theme.of(context).textTheme.titleLarge,
           ),
-          SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xs),
           Text(
-            'Review commission allocations, make approved items payable, and record external settlement evidence. Accounting and ERP records remain authoritative.',
-            style: TextStyle(
+            'Review allocations, make approved items payable, and record external settlement evidence. Accounting and ERP records remain authoritative.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: AppTheme.textSecondary,
-              fontSize: 12.5,
-              height: 1.45,
-              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -459,10 +483,10 @@ class _CommissionOperationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final statusColor = _statusColor(allocation.status);
     final evidenceColor = allocation.accountingReady
-        ? OmcPremium.success
+        ? AppTheme.success
         : allocation.evidenceStatus == 'Reversed'
-        ? OmcPremium.system
-        : OmcPremium.tasks;
+        ? AppTheme.processing
+        : AppTheme.warning;
     final title = allocation.serviceTitle.isNotEmpty
         ? allocation.serviceTitle
         : allocation.component.isNotEmpty
@@ -471,75 +495,106 @@ class _CommissionOperationCard extends StatelessWidget {
     final beneficiary = allocation.beneficiary.isNotEmpty
         ? allocation.beneficiary
         : allocation.beneficiaryUser;
+    final actions = <Widget>[
+      if (allocation.canApprove)
+        FilledButton.icon(
+          onPressed: busy ? null : onApprove,
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Approve'),
+        ),
+      if (allocation.canReject)
+        OutlinedButton.icon(
+          onPressed: busy ? null : onReject,
+          icon: const Icon(Icons.close_rounded),
+          label: const Text('Reject'),
+        ),
+      if (allocation.canMarkPayable)
+        FilledButton.tonalIcon(
+          onPressed: busy ? null : onMarkPayable,
+          icon: const Icon(Icons.payments_outlined),
+          label: const Text('Mark payable'),
+        ),
+      if (allocation.canMarkPaid)
+        FilledButton.icon(
+          onPressed: busy ? null : onMarkPaid,
+          icon: const Icon(Icons.verified_rounded),
+          label: const Text('Record paid'),
+        ),
+    ];
 
     return PremiumCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      beneficiary.isEmpty ? allocation.id : beneficiary,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                _money(allocation.currency, allocation.commissionAmount),
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
+          Text(
+            _money(allocation.currency, allocation.commissionAmount),
+            style: Theme.of(context).textTheme.amountSecondary,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            beneficiary.isEmpty ? allocation.id : beneficiary,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
           Wrap(
-            spacing: 7,
-            runSpacing: 7,
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
             children: [
-              _Pill(
+              _StateBadge(
                 label: allocation.status.isEmpty
                     ? 'Calculated'
                     : allocation.status,
                 color: statusColor,
               ),
-              _Pill(
+              _StateBadge(
                 label: _evidenceLabel(allocation.evidenceStatus),
                 color: evidenceColor,
               ),
-              if (allocation.commissionPercent > 0)
-                _Pill(
-                  label: '${allocation.commissionPercent.toStringAsFixed(2)}%',
-                  color: OmcPremium.system,
-                ),
             ],
           ),
-          const SizedBox(height: 12),
+          if (!allocation.accountingReady &&
+              (allocation.status == 'Calculated' ||
+                  allocation.status == 'Held' ||
+                  allocation.status == 'Approved' ||
+                  allocation.status == 'Payable')) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const _InlineNotice(
+              icon: Icons.account_balance_outlined,
+              message:
+                  'Accounting evidence needs reconciliation before this allocation can move forward.',
+            ),
+          ],
+          if (actions.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'Permitted next transition',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: actions,
+            ),
+          ],
+          if (busy) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const LinearProgressIndicator(minHeight: 2),
+          ],
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Divider(height: 1),
+          ),
+          Text('Record details', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: AppSpacing.sm),
           _MetaLine(
             label: 'Customer',
             value: allocation.customerName.isEmpty
@@ -556,6 +611,11 @@ class _CommissionOperationCard extends StatelessWidget {
             label: 'Basis',
             value: _money(allocation.currency, allocation.basisAmount),
           ),
+          if (allocation.commissionPercent > 0)
+            _MetaLine(
+              label: 'Frozen rate',
+              value: '${allocation.commissionPercent.toStringAsFixed(2)}%',
+            ),
           if (allocation.earnedOn.isNotEmpty)
             _MetaLine(label: 'Earned on', value: allocation.earnedOn),
           if (allocation.settlementReference.isNotEmpty)
@@ -573,55 +633,6 @@ class _CommissionOperationCard extends StatelessWidget {
               icon: Icons.history_rounded,
               message: 'Reversed: ${allocation.reversalReason}',
             ),
-          if (!allocation.accountingReady &&
-              (allocation.status == 'Calculated' ||
-                  allocation.status == 'Held' ||
-                  allocation.status == 'Approved' ||
-                  allocation.status == 'Payable')) ...[
-            const SizedBox(height: 10),
-            const _InlineNotice(
-              icon: Icons.account_balance_outlined,
-              message:
-                  'Accounting evidence needs reconciliation before this allocation can move forward.',
-            ),
-          ],
-          if (allocation.allowedActions.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (allocation.canApprove)
-                  FilledButton.icon(
-                    onPressed: busy ? null : onApprove,
-                    icon: const Icon(Icons.check_rounded, size: 17),
-                    label: const Text('Approve'),
-                  ),
-                if (allocation.canReject)
-                  OutlinedButton.icon(
-                    onPressed: busy ? null : onReject,
-                    icon: const Icon(Icons.close_rounded, size: 17),
-                    label: const Text('Reject'),
-                  ),
-                if (allocation.canMarkPayable)
-                  FilledButton.tonalIcon(
-                    onPressed: busy ? null : onMarkPayable,
-                    icon: const Icon(Icons.payments_outlined, size: 17),
-                    label: const Text('Mark payable'),
-                  ),
-                if (allocation.canMarkPaid)
-                  FilledButton.icon(
-                    onPressed: busy ? null : onMarkPaid,
-                    icon: const Icon(Icons.verified_rounded, size: 17),
-                    label: const Text('Record paid'),
-                  ),
-              ],
-            ),
-          ],
-          if (busy) ...[
-            const SizedBox(height: 12),
-            const LinearProgressIndicator(minHeight: 2),
-          ],
         ],
       ),
     );
@@ -630,6 +641,7 @@ class _CommissionOperationCard extends StatelessWidget {
 
 class _SettlementInput {
   const _SettlementInput({required this.reference, this.settledOn});
+
   final String reference;
   final String? settledOn;
 }
@@ -654,67 +666,63 @@ class _SettlementSheetState extends State<_SettlementSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + bottomInset),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Record external settlement',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-              ),
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        0,
+        AppSpacing.lg,
+        AppSpacing.lg + bottomInset,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Record external settlement',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'OMC records the external accounting/payment reference here. This action does not create a Journal Entry.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppTheme.textSecondary,
             ),
-            const SizedBox(height: 6),
-            const Text(
-              'OMC records the external accounting/payment reference here. This action does not create a Journal Entry.',
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12.5,
-                height: 1.4,
-                fontWeight: FontWeight.w600,
-              ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            controller: _referenceController,
+            autofocus: true,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              labelText: 'Settlement reference',
+              hintText: 'Bank transfer, payment voucher or accounting ref',
+              prefixIcon: Icon(Icons.receipt_long_outlined),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _referenceController,
-              autofocus: true,
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: 'Settlement reference',
-                hintText: 'Bank transfer, payment voucher or accounting ref',
-                prefixIcon: Icon(Icons.receipt_long_outlined),
-              ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          OutlinedButton.icon(
+            onPressed: () async {
+              final selected = await showDatePicker(
+                context: context,
+                initialDate: _date ?? DateTime.now(),
+                firstDate: DateTime(2020),
+                lastDate: DateTime.now().add(const Duration(days: 30)),
+              );
+              if (selected != null) setState(() => _date = selected);
+            },
+            icon: const Icon(Icons.event_outlined),
+            label: Text(
+              _date == null
+                  ? 'Settlement date: backend default'
+                  : 'Settlement date: ${DateFormat('dd MMM yyyy').format(_date!)}',
             ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () async {
-                final selected = await showDatePicker(
-                  context: context,
-                  initialDate: _date ?? DateTime.now(),
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime.now().add(const Duration(days: 30)),
-                );
-                if (selected != null) setState(() => _date = selected);
-              },
-              icon: const Icon(Icons.event_outlined),
-              label: Text(
-                _date == null
-                    ? 'Settlement date: backend default'
-                    : 'Settlement date: ${DateFormat('dd MMM yyyy').format(_date!)}',
-              ),
-            ),
-            const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _referenceController.text.trim().isEmpty
-                    ? null
-                    : () => Navigator.of(context).pop(
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _referenceController.text.trim().isEmpty
+                  ? null
+                  : () => Navigator.of(context).pop(
                         _SettlementInput(
                           reference: _referenceController.text.trim(),
                           settledOn: _date == null
@@ -722,11 +730,10 @@ class _SettlementSheetState extends State<_SettlementSheet> {
                               : DateFormat('yyyy-MM-dd').format(_date!),
                         ),
                       ),
-                child: const Text('Record commission paid'),
-              ),
+              child: const Text('Record commission paid'),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -748,22 +755,20 @@ class _QueueMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         children: [
-          Icon(icon, size: 34, color: AppTheme.textSecondary),
-          const SizedBox(height: 10),
+          Icon(icon, size: 32, color: AppTheme.textSecondary),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: AppTheme.textSecondary,
-              fontSize: 13,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
             ),
           ),
           if (actionLabel != null && onAction != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
             OutlinedButton(onPressed: onAction, child: Text(actionLabel!)),
           ],
         ],
@@ -774,71 +779,81 @@ class _QueueMessage extends StatelessWidget {
 
 class _MetaLine extends StatelessWidget {
   const _MetaLine({required this.label, required this.value});
+
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 7),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stack = constraints.maxWidth < 420 || textScale >= 1.5;
+        final labelWidget = Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
           ),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 11.5,
-                fontWeight: FontWeight.w800,
-              ),
+        );
+        final valueWidget = SelectableText(
+          value,
+          style: Theme.of(context).textTheme.bodyMedium,
+        );
+        if (stack) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                labelWidget,
+                const SizedBox(height: AppSpacing.xxs),
+                valueWidget,
+              ],
             ),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: 130, child: labelWidget),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: valueWidget),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
 
 class _InlineNotice extends StatelessWidget {
   const _InlineNotice({required this.icon, required this.message});
+
   final IconData icon;
   final String message;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.all(11),
+      margin: const EdgeInsets.only(top: AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FA),
-        borderRadius: BorderRadius.circular(13),
+        color: AppTheme.cardSoft,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: AppTheme.border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: AppTheme.textSecondary),
-          const SizedBox(width: 8),
+          Icon(icon, size: 20, color: AppTheme.textSecondary),
+          const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppTheme.textSecondary,
-                fontSize: 11.5,
-                height: 1.4,
-                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -848,27 +863,27 @@ class _InlineNotice extends StatelessWidget {
   }
 }
 
-class _Pill extends StatelessWidget {
-  const _Pill({required this.label, required this.color});
+class _StateBadge extends StatelessWidget {
+  const _StateBadge({required this.label, required this.color});
+
   final String label;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.14)),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: color.withValues(alpha: 0.20)),
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w900,
-        ),
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(color: color),
       ),
     );
   }
@@ -877,18 +892,18 @@ class _Pill extends StatelessWidget {
 Color _statusColor(String status) {
   switch (status.trim().toLowerCase()) {
     case 'paid':
-      return OmcPremium.success;
+      return AppTheme.success;
     case 'payable':
-      return OmcPremium.payments;
+      return AppTheme.info;
     case 'approved':
-      return OmcPremium.track;
+      return AppTheme.info;
     case 'rejected':
     case 'reversed':
-      return OmcPremium.danger;
+      return AppTheme.danger;
     case 'held':
-      return OmcPremium.tasks;
+      return AppTheme.warning;
     default:
-      return AppTheme.primary;
+      return AppTheme.processing;
   }
 }
 
