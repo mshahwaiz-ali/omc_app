@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../app/mutation_invalidation.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/config/api_config.dart';
-import '../../../core/resilience/app_failure.dart';
-import '../../../core/widgets/app_state.dart';
-import '../../../core/network/api_error.dart';
+import '../../../app/mutation_invalidation.dart';
 import '../../../app/theme.dart';
-import '../../../core/widgets/premium_card.dart';
+import '../../../core/config/api_config.dart';
+import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
+import '../../../core/widgets/app_state.dart';
+import '../../../core/widgets/premium_card.dart';
 import '../application/document_attachment_controller.dart';
 import '../data/document_item.dart';
 import '../data/documents_repository.dart';
@@ -32,16 +32,23 @@ class DocumentDetailScreen extends ConsumerWidget {
     final documentAsync = assisted
         ? ref.watch(assistedDocumentDetailProvider(documentId))
         : ref.watch(documentDetailProvider(documentId));
+    final assistedCustomer = customerName?.trim();
 
     return Scaffold(
-      appBar: const AppBackHeader(title: 'Document Details'),
+      appBar: AppBackHeader(
+        title: 'Document details',
+        subtitle:
+            assisted && assistedCustomer != null && assistedCustomer.isNotEmpty
+            ? assistedCustomer
+            : null,
+      ),
       body: documentAsync.when(
         data: (document) {
           if (document == null) {
             return const Padding(
               padding: EdgeInsets.all(20),
               child: AppEmptyState(
-                icon: Icons.description_rounded,
+                icon: Icons.description_outlined,
                 title: 'Document unavailable',
                 message:
                     'This document may have been removed or is no longer available.',
@@ -49,13 +56,12 @@ class DocumentDetailScreen extends ConsumerWidget {
             );
           }
 
-          return _DocumentDetailBody(document: document);
+          return _DocumentDetailBody(
+            document: document,
+            customerName: assisted ? assistedCustomer : null,
+          );
         },
-        loading: () => const _DetailLoadingView(
-          icon: Icons.description_rounded,
-          title: 'Loading document',
-          message: 'Fetching file status, remarks and linked service details.',
-        ),
+        loading: () => const _DetailLoadingView(),
         error: (error, _) => Padding(
           padding: const EdgeInsets.all(20),
           child: AppErrorState.fromError(
@@ -74,15 +80,7 @@ class DocumentDetailScreen extends ConsumerWidget {
 }
 
 class _DetailLoadingView extends StatelessWidget {
-  const _DetailLoadingView({
-    required this.icon,
-    required this.title,
-    required this.message,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
+  const _DetailLoadingView();
 
   @override
   Widget build(BuildContext context) {
@@ -90,295 +88,202 @@ class _DetailLoadingView extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       children: [
         PremiumCard(
-          padding: EdgeInsets.zero,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: Stack(
-              children: [
-                Positioned(
-                  right: -30,
-                  top: -34,
-                  child: Icon(
-                    icon,
-                    size: 118,
-                    color: AppTheme.primary.withValues(alpha: 0.045),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(22),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 54,
-                        height: 54,
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary.withValues(alpha: 0.09),
-                          borderRadius: BorderRadius.circular(19),
-                          border: Border.all(
-                            color: AppTheme.primary.withValues(alpha: 0.10),
-                          ),
-                        ),
-                        child: const Center(
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2.4),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: const TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: 20,
-                                height: 1.16,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            const SizedBox(height: 7),
-                            Text(
-                              message,
-                              style: const TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 13,
-                                height: 1.35,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        const PremiumCard(
-          padding: EdgeInsets.all(20),
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _LoadingBar(widthFactor: 0.74),
-              SizedBox(height: 12),
-              _LoadingBar(widthFactor: 0.56),
-              SizedBox(height: 12),
-              _LoadingBar(widthFactor: 0.68),
+              const SizedBox.square(
+                dimension: 48,
+                child: Center(
+                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Loading document',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Fetching file status, remarks and linked service details.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
       ],
-    );
-  }
-}
-
-class _LoadingBar extends StatelessWidget {
-  const _LoadingBar({required this.widthFactor});
-
-  final double widthFactor;
-
-  @override
-  Widget build(BuildContext context) {
-    return FractionallySizedBox(
-      widthFactor: widthFactor,
-      alignment: Alignment.centerLeft,
-      child: Container(
-        height: 12,
-        decoration: BoxDecoration(
-          color: AppTheme.primary.withValues(alpha: 0.07),
-          borderRadius: BorderRadius.circular(999),
-        ),
-      ),
     );
   }
 }
 
 class _DocumentHeroCard extends StatelessWidget {
-  const _DocumentHeroCard({required this.document});
+  const _DocumentHeroCard({
+    required this.document,
+    this.customerName,
+  });
 
   final DocumentItem document;
+  final String? customerName;
 
   @override
   Widget build(BuildContext context) {
     final statusColor = _documentStatusColor(document.status);
+    final subtitle = (document.subtitle ?? document.fileName)?.trim();
+    final rejectionNote = document.status == DocumentStatus.rejected
+        ? document.remarks?.trim()
+        : null;
 
     return PremiumCard(
-      padding: EdgeInsets.zero,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [AppTheme.primary, AppTheme.darkRed],
-          ),
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(17),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: statusColor.withValues(alpha: 0.16),
+                  ),
+                ),
+                child: Icon(
+                  _documentStatusIcon(document.status),
+                  color: statusColor,
+                  size: 24,
+                ),
               ),
-              child: const Icon(
-                Icons.description_rounded,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              document.status.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: statusColor == AppTheme.primary
-                    ? Colors.white70
-                    : Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              document.title,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 25,
-                height: 1.12,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.35,
-              ),
-            ),
-            if ((document.subtitle ?? document.fileName)?.trim().isNotEmpty ??
-                false) ...[
-              const SizedBox(height: 12),
-              Text(
-                document.subtitle ?? document.fileName!,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                  height: 1.4,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Semantics(
+                      label: 'Status: ${document.status.label}',
+                      child: Text(
+                        document.status.label,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 14,
+                          height: 1.25,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        document.title,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 21,
+                          height: 1.2,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
+          ),
+          if (customerName?.isNotEmpty == true) ...[
+            const SizedBox(height: 14),
+            _ContextLine(
+              icon: Icons.person_outline_rounded,
+              text: 'Customer: ${customerName!}',
+            ),
           ],
-        ),
+          if (subtitle != null && subtitle.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 15,
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+          if (rejectionNote != null && rejectionNote.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Correction required',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    rejectionNote,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                      fontSize: 15,
+                      height: 1.4,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
 }
 
-class _DocumentQuickStats extends StatelessWidget {
-  const _DocumentQuickStats({required this.document});
+class _ContextLine extends StatelessWidget {
+  const _ContextLine({required this.icon, required this.text});
 
-  final DocumentItem document;
+  final IconData icon;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Icon(icon, size: 19, color: AppTheme.textSecondary),
+        const SizedBox(width: 8),
         Expanded(
-          child: _DocumentStatTile(
-            icon: _documentStatusIcon(document.status),
-            label: 'Status',
-            value: document.status.label,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _DocumentStatTile(
-            icon: Icons.link_rounded,
-            label: 'File link',
-            value: document.fileUrl == null ? 'No' : 'Yes',
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _DocumentStatTile(
-            icon: Icons.update_rounded,
-            label: 'Updated',
-            value: document.updatedAtLabel ?? '-',
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 14,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
-    );
-  }
-}
-
-class _DocumentStatTile extends StatelessWidget {
-  const _DocumentStatTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.065),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppTheme.primary.withValues(alpha: 0.07),
-              ),
-            ),
-            child: Icon(icon, color: AppTheme.primary, size: 18),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            value.trim().isEmpty ? '-' : value.trim(),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.1,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -391,26 +296,23 @@ class _DocumentInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Document information',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.15,
+          const Semantics(
+            header: true,
+            child: Text(
+              'Document information',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           const SizedBox(height: 14),
           _DocumentInfoRow(label: 'File', value: document.fileName ?? '-'),
-          _DocumentInfoRow(
-            label: 'File link',
-            value: document.fileUrl == null ? '-' : 'Available',
-          ),
           _DocumentInfoRow(
             label: 'Service',
             value: document.serviceReference ?? '-',
@@ -419,7 +321,12 @@ class _DocumentInfoCard extends StatelessWidget {
             label: 'Updated',
             value: document.updatedAtLabel ?? '-',
           ),
-          _DocumentInfoRow(label: 'Remarks', value: document.remarks ?? '-'),
+          if (document.status != DocumentStatus.rejected)
+            _DocumentInfoRow(label: 'Remarks', value: document.remarks ?? '-'),
+          _DocumentInfoRow(
+            label: 'File access',
+            value: document.fileUrl == null ? 'Not available' : 'Available',
+          ),
         ],
       ),
     );
@@ -434,99 +341,55 @@ class _DocumentInfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (value.trim().isEmpty) return const SizedBox.shrink();
+    final cleanValue = value.trim();
+    if (cleanValue.isEmpty) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 86,
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 13,
-                height: 1.35,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.05,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+      padding: const EdgeInsets.only(bottom: 12),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stack =
+              constraints.maxWidth < 330 ||
+              MediaQuery.textScalerOf(context).scale(1) >= 1.4;
 
-class _DocumentTimelinePlaceholder extends StatelessWidget {
-  const _DocumentTimelinePlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppTheme.primary.withValues(alpha: 0.08),
-              ),
+          final labelText = Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
-            child: const Icon(Icons.timeline_rounded, color: AppTheme.primary),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
+          );
+          final valueText = Text(
+            cleanValue,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 15,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          );
+
+          if (stack) {
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Document timeline',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.1,
-                  ),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  'Uploads, review updates, approvals and rejection notes will appear here when activity data is available.',
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 13,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                labelText,
+                const SizedBox(height: 4),
+                valueText,
               ],
-            ),
-          ),
-        ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: 96, child: labelText),
+              const SizedBox(width: 12),
+              Expanded(child: valueText),
+            ],
+          );
+        },
       ),
     );
   }
@@ -535,14 +398,14 @@ class _DocumentTimelinePlaceholder extends StatelessWidget {
 Color _documentStatusColor(DocumentStatus status) {
   switch (status) {
     case DocumentStatus.approved:
-      return const Color(0xFF18864B);
+      return AppTheme.success;
     case DocumentStatus.rejected:
     case DocumentStatus.missing:
-      return const Color(0xFFC62828);
+      return AppTheme.danger;
     case DocumentStatus.pendingReview:
-      return const Color(0xFFB25E00);
+      return AppTheme.warning;
     case DocumentStatus.uploaded:
-      return AppTheme.primary;
+      return AppTheme.info;
   }
 }
 
@@ -557,14 +420,18 @@ IconData _documentStatusIcon(DocumentStatus status) {
     case DocumentStatus.pendingReview:
       return Icons.hourglass_top_rounded;
     case DocumentStatus.uploaded:
-      return Icons.description_rounded;
+      return Icons.description_outlined;
   }
 }
 
 class _DocumentDetailBody extends ConsumerStatefulWidget {
-  const _DocumentDetailBody({required this.document});
+  const _DocumentDetailBody({
+    required this.document,
+    this.customerName,
+  });
 
   final DocumentItem document;
+  final String? customerName;
 
   @override
   ConsumerState<_DocumentDetailBody> createState() =>
@@ -581,16 +448,14 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
     final theme = Theme.of(context);
 
     return ListView(
-      padding: const EdgeInsets.all(20),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
       children: [
-        _DocumentHeroCard(document: document),
-        const SizedBox(height: 16),
-        _DocumentQuickStats(document: document),
-        const SizedBox(height: 16),
-        _DocumentInfoCard(document: document),
-        const SizedBox(height: 16),
-        const _DocumentTimelinePlaceholder(),
-        const SizedBox(height: 18),
+        _DocumentHeroCard(
+          document: document,
+          customerName: widget.customerName,
+        ),
+        const SizedBox(height: 12),
         DocumentActionCard(
           document: document,
           onPreview: () => _openDocumentUrl(
@@ -609,17 +474,13 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
           ),
         ),
         const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text(
-            'Document ID: ${document.id}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.05,
-            ),
+        _DocumentInfoCard(document: document),
+        const SizedBox(height: 14),
+        SelectableText(
+          'Document ID: ${document.id}',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],

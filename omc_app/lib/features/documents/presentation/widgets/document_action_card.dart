@@ -25,200 +25,134 @@ class DocumentActionCard extends StatelessWidget {
     final canPreview = document.previewUrl != null || document.fileUrl != null;
     final canDownload =
         document.downloadUrl != null || document.fileUrl != null;
+    final requiresAction = document.requiresAction;
 
     return PremiumCard(
       padding: const EdgeInsets.all(18),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: AppTheme.primary.withValues(alpha: 0.08),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.task_alt_rounded,
-                  color: AppTheme.primary,
-                  size: 20,
-                ),
+          Semantics(
+            header: true,
+            child: Text(
+              requiresAction ? 'Action required' : 'File actions',
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 17,
+                height: 1.2,
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Document actions',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.15,
-                      ),
-                    ),
-                    SizedBox(height: 3),
-                    Text(
-                      'Preview, upload or download the latest file.',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            requiresAction
+                ? 'Upload the requested document before continuing with this service.'
+                : 'Preview, download, or replace the latest submitted file.',
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 15,
+              height: 1.4,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 16),
-          _ActionTile(
-            icon: Icons.visibility_outlined,
-            title: 'Preview document',
-            subtitle: canPreview
-                ? 'Open the uploaded file preview.'
-                : 'Preview will be available after upload.',
-            enabled: canPreview,
-            onTap: onPreview,
-          ),
-          const SizedBox(height: 10),
-          _ActionTile(
-            icon: isUploading
-                ? Icons.hourglass_top_rounded
-                : Icons.upload_file_rounded,
-            title: isUploading
-                ? 'Uploading document'
-                : document.requiresAction
-                ? 'Upload document'
-                : 'Replace document',
-            subtitle: isUploading
-                ? 'Please wait while the file is uploaded.'
-                : 'Attach a new file for upload.',
-            enabled: !isUploading,
-            onTap: onUpload,
-          ),
-          const SizedBox(height: 10),
-          _ActionTile(
-            icon: Icons.download_rounded,
-            title: 'Download document',
-            subtitle: canDownload
-                ? 'Download the latest submitted file.'
-                : 'Download will be available after upload.',
-            enabled: canDownload,
-            onTap: onDownload,
-          ),
+          if (requiresAction) ...[
+            FilledButton.icon(
+              onPressed: isUploading ? null : onUpload,
+              icon: isUploading
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.upload_file_rounded),
+              label: Text(
+                isUploading ? 'Uploading document' : 'Upload document',
+              ),
+            ),
+            if (canPreview) ...[
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: onPreview,
+                icon: const Icon(Icons.visibility_outlined),
+                label: const Text('Preview current file'),
+              ),
+            ],
+          ] else ...[
+            if (canPreview)
+              FilledButton.icon(
+                onPressed: onPreview,
+                icon: const Icon(Icons.visibility_outlined),
+                label: const Text('Preview document'),
+              )
+            else
+              const _UnavailableAction(
+                icon: Icons.visibility_off_outlined,
+                label: 'Preview will be available after a file is uploaded.',
+              ),
+            if (canDownload) ...[
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: onDownload,
+                icon: const Icon(Icons.download_rounded),
+                label: const Text('Download document'),
+              ),
+            ],
+            const SizedBox(height: 10),
+            TextButton.icon(
+              onPressed: isUploading ? null : onUpload,
+              icon: isUploading
+                  ? const SizedBox.square(
+                      dimension: 17,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.upload_file_rounded),
+              label: Text(
+                isUploading ? 'Uploading document' : 'Replace document',
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.enabled = true,
-  });
+class _UnavailableAction extends StatelessWidget {
+  const _UnavailableAction({required this.icon, required this.label});
 
   final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback? onTap;
-  final bool enabled;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    final color = enabled ? AppTheme.primary : AppTheme.textSecondary;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: enabled ? onTap : null,
-      child: Ink(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: enabled
-              ? AppTheme.primary.withValues(alpha: 0.035)
-              : Colors.black.withValues(alpha: 0.025),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: enabled
-                ? AppTheme.primary.withValues(alpha: 0.07)
-                : Colors.black.withValues(alpha: 0.05),
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppTheme.textSecondary, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 14,
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: color.withValues(alpha: 0.10)),
-              ),
-              child: Icon(icon, color: color, size: 21),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: enabled
-                          ? AppTheme.textPrimary
-                          : AppTheme.textSecondary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.1,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.chevron_right_rounded,
-                color: enabled ? AppTheme.primary : AppTheme.textSecondary,
-                size: 20,
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
