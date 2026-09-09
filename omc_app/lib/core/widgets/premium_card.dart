@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../app/design_tokens.dart';
+import '../../app/theme.dart';
 
 class PremiumCard extends StatelessWidget {
   const PremiumCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(18),
+    this.padding = const EdgeInsets.all(AppSpacing.lg),
     this.margin,
     this.onTap,
     this.semanticLabel,
@@ -29,17 +30,12 @@ class PremiumCard extends StatelessWidget {
     Widget card = Container(
       margin: margin,
       decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
         borderRadius: borderRadius,
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.shadow.withValues(alpha: 0.035),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        border: Border.all(color: AppTheme.border),
       ),
       child: Material(
-        color: theme.colorScheme.surface,
+        color: Colors.transparent,
         borderRadius: borderRadius,
         child: onTap == null
             ? content
@@ -49,10 +45,10 @@ class PremiumCard extends StatelessWidget {
 
     if (onTap != null && semanticLabel != null) {
       card = Semantics(
+        container: true,
         button: true,
         label: semanticLabel,
         hint: semanticHint,
-        excludeSemantics: true,
         child: card,
       );
     }

@@ -21,11 +21,12 @@ class DataFreshnessBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final resolvedMessage = _messageWithTimestamp();
     return LayoutBuilder(
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(1);
-        final stackAction = constraints.maxWidth < 380 || textScale > 1.3;
+        final stackAction = constraints.maxWidth < 380 || textScale >= 1.3;
 
         final information = Semantics(
           container: true,
@@ -36,34 +37,31 @@ class DataFreshnessBanner extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Padding(
-                padding: EdgeInsets.only(top: 1),
+                padding: EdgeInsets.only(top: 2),
                 child: Icon(
                   Icons.cloud_off_outlined,
-                  size: 19,
-                  color: Color(0xFFB25E00),
+                  size: 20,
+                  color: AppTheme.warning,
                 ),
               ),
-              const SizedBox(width: 9),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      softWrap: true,
+                      style: theme.textTheme.titleMedium?.copyWith(
                         color: AppTheme.textPrimary,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
                       resolvedMessage,
-                      style: const TextStyle(
+                      softWrap: true,
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: AppTheme.textSecondary,
-                        fontSize: 11.5,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -79,11 +77,11 @@ class DataFreshnessBanner extends StatelessWidget {
                 onPressed: retrying ? null : onRetry,
                 icon: retrying
                     ? const SizedBox(
-                        width: 16,
-                        height: 16,
+                        width: 18,
+                        height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.refresh_rounded, size: 18),
+                    : const Icon(Icons.refresh_rounded, size: 20),
                 label: Text(retrying ? 'Retrying' : 'Retry'),
               );
 
@@ -91,11 +89,13 @@ class DataFreshnessBanner extends StatelessWidget {
           color: Colors.transparent,
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(13, 11, 10, 11),
+            padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF7ED),
-              borderRadius: BorderRadius.circular(AppRadius.small + 2),
-              border: Border.all(color: const Color(0xFFF5C98B)),
+              color: AppTheme.warningSoft,
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              border: Border.all(
+                color: AppTheme.warning.withValues(alpha: 0.24),
+              ),
             ),
             child: stackAction
                 ? Column(
@@ -103,7 +103,7 @@ class DataFreshnessBanner extends StatelessWidget {
                     children: [
                       information,
                       if (retry != null) ...[
-                        const SizedBox(height: AppSpacing.xxs),
+                        const SizedBox(height: AppSpacing.xs),
                         Align(alignment: Alignment.centerRight, child: retry),
                       ],
                     ],
