@@ -66,6 +66,7 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                 physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics(),
                 ),
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.fromLTRB(20, 10, 20, 148),
                 children: [
                   _TrackHeader(
@@ -77,10 +78,11 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                       }
                     },
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 20),
                   _SearchAndFilterRow(
                     controller: _searchController,
                     query: _query,
+                    hasActiveFilter: _selectedFilter != _ServiceCaseFilter.all,
                     onChanged: (value) =>
                         setState(() => _query = value.trim().toLowerCase()),
                     onFilterTap: () => _openFilterSheet(context, counts),
@@ -92,35 +94,13 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                     onSelected: (filter) =>
                         setState(() => _selectedFilter = filter),
                   ),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${sorted.length} ${sorted.length == 1 ? 'request' : 'requests'}',
-                          style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                      ),
-                      TextButton.icon(
-                        onPressed: () => _openSortSheet(context),
-                        iconAlignment: IconAlignment.end,
-                        icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                        label: Text(_sortOption.label),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppTheme.textSecondary,
-                          textStyle: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 22),
+                  _ResultsHeader(
+                    count: sorted.length,
+                    sortLabel: _sortOption.label,
+                    onSort: () => _openSortSheet(context),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   if (sorted.isEmpty)
                     _FilterEmptyState(
                       filter: _selectedFilter,
@@ -132,7 +112,7 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                         serviceCase: sorted[i],
                         capabilities: capabilities,
                       ),
-                      if (i != sorted.length - 1) const SizedBox(height: 16),
+                      if (i != sorted.length - 1) const SizedBox(height: 12),
                     ],
                 ],
               ),
@@ -202,55 +182,59 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
       showDragHandle: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) {
+        final theme = Theme.of(sheetContext);
         return ConstrainedBox(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.82,
           ),
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
-              18,
+              20,
               0,
-              18,
+              20,
               20 + MediaQuery.viewInsetsOf(sheetContext).bottom,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Sort services',
-                  style: TextStyle(
+                Text(
+                  'Sort requests',
+                  style: theme.textTheme.titleLarge?.copyWith(
                     color: AppTheme.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Choose how the current filtered results are ordered.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: AppTheme.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 10),
-                for (final option in _SortOption.values) ...[
+                for (final option in _SortOption.values)
                   ListTile(
+                    minTileHeight: 56,
                     contentPadding: EdgeInsets.zero,
                     title: Text(
                       option.label,
-                      style: const TextStyle(
+                      style: theme.textTheme.bodyLarge?.copyWith(
                         color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     trailing: _sortOption == option
-                        ? const Icon(
-                            Icons.check_rounded,
-                            color: OmcPremium.track,
-                          )
+                        ? const Icon(Icons.check_rounded)
                         : null,
                     onTap: () {
                       setState(() => _sortOption = option);
                       Navigator.of(sheetContext).pop();
                     },
                   ),
-                ],
               ],
             ),
           ),
@@ -267,63 +251,65 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
       showDragHandle: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) {
+        final theme = Theme.of(sheetContext);
         return ConstrainedBox(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.82,
           ),
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
-              18,
+              20,
               0,
-              18,
+              20,
               20 + MediaQuery.viewInsetsOf(sheetContext).bottom,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Filter services',
-                  style: TextStyle(
+                Text(
+                  'Filter requests',
+                  style: theme.textTheme.titleLarge?.copyWith(
                     color: AppTheme.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Show requests by their current service state.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: AppTheme.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 10),
-                for (final filter in _ServiceCaseFilter.values) ...[
+                for (final filter in _ServiceCaseFilter.values)
                   ListTile(
+                    minTileHeight: 64,
                     contentPadding: EdgeInsets.zero,
                     title: Text(
                       filter.label,
-                      style: const TextStyle(
+                      style: theme.textTheme.bodyLarge?.copyWith(
                         color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    subtitle: Text(
-                      '${counts.valueFor(filter)} service(s)',
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
+                    subtitle: Text(
+                      '${counts.valueFor(filter)} request${counts.valueFor(filter) == 1 ? '' : 's'}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
                     trailing: _selectedFilter == filter
-                        ? const Icon(
-                            Icons.check_rounded,
-                            color: OmcPremium.track,
-                          )
+                        ? const Icon(Icons.check_rounded)
                         : null,
                     onTap: () {
                       setState(() => _selectedFilter = filter);
                       Navigator.of(sheetContext).pop();
                     },
                   ),
-                ],
                 const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
@@ -368,54 +354,33 @@ class _TrackHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Material(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            onTap: onBack,
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: AppTheme.textPrimary.withValues(alpha: 0.08),
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.arrow_back_rounded,
-                color: AppTheme.textPrimary,
-                size: 24,
-              ),
-            ),
-          ),
+        IconButton.outlined(
+          tooltip: 'Back',
+          onPressed: onBack,
+          icon: const Icon(Icons.arrow_back_rounded),
         ),
-        const SizedBox(width: 14),
-        const Expanded(
+        const SizedBox(width: 12),
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'My Services',
-                style: TextStyle(
+                'My requests',
+                style: theme.textTheme.headlineMedium?.copyWith(
                   color: AppTheme.textPrimary,
-                  fontSize: 27,
-                  height: 1.05,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              SizedBox(height: 5),
+              const SizedBox(height: 5),
               Text(
-                'Track requests, documents and payments',
-                style: TextStyle(
+                'Track service status, required documents and payment progress.',
+                style: theme.textTheme.bodyMedium?.copyWith(
                   color: AppTheme.textSecondary,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
+                  height: 1.4,
                 ),
               ),
             ],
@@ -430,84 +395,50 @@ class _SearchAndFilterRow extends StatelessWidget {
   const _SearchAndFilterRow({
     required this.controller,
     required this.query,
+    required this.hasActiveFilter,
     required this.onChanged,
     required this.onFilterTap,
   });
 
   final TextEditingController controller;
   final String query;
+  final bool hasActiveFilter;
   final ValueChanged<String> onChanged;
   final VoidCallback onFilterTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.only(left: 13),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE1E4EA)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.search_rounded, size: 20, color: Color(0xFF6D7179)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              textInputAction: TextInputAction.search,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: 'Search service or request ID',
+        prefixIcon: const Icon(Icons.search_rounded),
+        suffixIcon: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (query.isNotEmpty)
+              IconButton(
+                tooltip: 'Clear search',
+                onPressed: () {
+                  controller.clear();
+                  onChanged('');
+                },
+                icon: const Icon(Icons.close_rounded),
               ),
-              decoration: InputDecoration(
-                hintText: 'Search service or request ID',
-                hintStyle: const TextStyle(
-                  color: Color(0xFF8A8E96),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                filled: false,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                suffixIcon: query.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'Clear search',
-                        onPressed: () {
-                          controller.clear();
-                          onChanged('');
-                        },
-                        icon: const Icon(Icons.close_rounded, size: 18),
-                      ),
+            IconButton(
+              tooltip: hasActiveFilter ? 'Filter requests, active' : 'Filter requests',
+              onPressed: onFilterTap,
+              icon: Badge(
+                isLabelVisible: hasActiveFilter,
+                smallSize: 7,
+                child: const Icon(Icons.tune_rounded),
               ),
             ),
-          ),
-          const SizedBox(width: 6),
-          Material(
-            color: const Color(0xFFF2F3F6),
-            borderRadius: BorderRadius.circular(13),
-            child: InkWell(
-              onTap: onFilterTap,
-              borderRadius: BorderRadius.circular(13),
-              child: const SizedBox(
-                width: 48,
-                height: 48,
-                child: Icon(
-                  Icons.tune_rounded,
-                  size: 21,
-                  color: Color(0xFF555961),
-                ),
-              ),
-            ),
-          ),
-        ],
+            const SizedBox(width: 4),
+          ],
+        ),
       ),
     );
   }
@@ -532,6 +463,7 @@ class _FilterRow extends StatelessWidget {
       _ServiceCaseFilter.open,
       _ServiceCaseFilter.completed,
     ];
+    final theme = Theme.of(context);
 
     return SizedBox(
       height: 48,
@@ -550,31 +482,32 @@ class _FilterRow extends StatelessWidget {
 
           return Material(
             color: selected
-                ? AppTheme.primary.withValues(alpha: 0.10)
+                ? AppTheme.primary.withValues(alpha: 0.08)
                 : Colors.white,
-            borderRadius: BorderRadius.circular(11),
+            borderRadius: BorderRadius.circular(12),
             child: InkWell(
               onTap: () => onSelected(filter),
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: BorderRadius.circular(12),
               child: Container(
+                constraints: const BoxConstraints(minHeight: 48),
                 alignment: Alignment.center,
-                padding: const EdgeInsets.symmetric(horizontal: 13),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(11),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: selected
-                        ? AppTheme.primary.withValues(alpha: 0.32)
-                        : const Color(0xFFE1E4E9),
+                        ? AppTheme.primary.withValues(alpha: 0.28)
+                        : AppTheme.border,
                   ),
                 ),
                 child: Text(
                   '$label  $count',
-                  style: TextStyle(
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: selected
-                        ? AppTheme.primary
-                        : const Color(0xFF686D76),
-                    fontSize: 11,
-                    fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                        ? AppTheme.textPrimary
+                        : AppTheme.textSecondary,
+                    fontSize: 14,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                   ),
                 ),
               ),
@@ -582,6 +515,43 @@ class _FilterRow extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _ResultsHeader extends StatelessWidget {
+  const _ResultsHeader({
+    required this.count,
+    required this.sortLabel,
+    required this.onSort,
+  });
+
+  final int count;
+  final String sortLabel;
+  final VoidCallback onSort;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Text(
+            '$count ${count == 1 ? 'request' : 'requests'}',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        TextButton.icon(
+          onPressed: onSort,
+          iconAlignment: IconAlignment.end,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded),
+          label: Text(sortLabel),
+        ),
+      ],
     );
   }
 }
@@ -602,8 +572,7 @@ class _ServiceCard extends StatelessWidget {
     final reference = serviceCase.reference?.trim();
     final nextStep = serviceCase.nextStep?.trim();
     final missingCount =
-        serviceCase.missingDocumentsCount ??
-        serviceCase.missingDocuments.length;
+        serviceCase.missingDocumentsCount ?? serviceCase.missingDocuments.length;
     final needsUpload =
         state.needsAction &&
         capabilities.canUploadDocuments &&
@@ -624,221 +593,302 @@ class _ServiceCard extends StatelessWidget {
           : null,
     ).toString();
 
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+    return PremiumCard(
+      padding: EdgeInsets.zero,
       child: InkWell(
         onTap: () => context.push(route),
         borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 14, 12, 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE3E6EB)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 340 ||
+                  MediaQuery.textScalerOf(context).scale(1) >= 1.45;
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F3F6),
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: Icon(
-                      _serviceIcon(serviceCase, state),
-                      color: const Color(0xFF555B64),
-                      size: 19,
-                    ),
+                  _ServiceCardHeader(
+                    serviceCase: serviceCase,
+                    palette: palette,
+                    reference: reference,
+                    stacked: stacked,
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          serviceCase.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 14,
-                            height: 1.15,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        if (reference?.isNotEmpty == true) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            reference!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ],
+                  const SizedBox(height: 14),
+                  if (!state.isClosed && nextStep?.isNotEmpty == true)
+                    _NextStepPanel(
+                      label: nextStep!,
+                      needsAction: state.needsAction,
+                    )
+                  else
+                    _RequestSummaryPanel(
+                      label: state.isClosed
+                          ? 'Request closed'
+                          : missingCount > 0
+                          ? '$missingCount document${missingCount == 1 ? '' : 's'} missing'
+                          : serviceCase.documentSummaryLabel,
+                      progressPercent: state.isClosed ? null : progressPercent,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  _StatusPill(label: palette.label, color: palette.color),
-                ],
-              ),
-              const SizedBox(height: 11),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 9,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF7F8FA),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE9EBEF)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      state.isClosed
-                          ? Icons.check_circle_outline_rounded
-                          : Icons.description_outlined,
-                      color: const Color(0xFF646A73),
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        state.isClosed
-                            ? 'Request closed'
-                            : missingCount > 0
-                            ? '$missingCount document${missingCount == 1 ? '' : 's'} missing'
-                            : serviceCase.documentSummaryLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    if (!state.isClosed) ...[
-                      const SizedBox(width: 8),
-                      Text(
-                        '$progressPercent%',
-                        style: TextStyle(
-                          color: palette.color,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (!state.isClosed && nextStep?.isNotEmpty == true) ...[
-                const SizedBox(height: 10),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 27,
-                      height: 27,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF0F2F5),
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                      child: const Icon(
-                        Icons.arrow_forward_rounded,
-                        size: 15,
-                        color: Color(0xFF555A63),
-                      ),
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text.rich(
-                          TextSpan(
-                            children: [
-                              const TextSpan(
-                                text: 'Next: ',
-                                style: TextStyle(
-                                  color: AppTheme.textPrimary,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              TextSpan(text: nextStep),
-                            ],
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 11.5,
-                            height: 1.35,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.schedule_rounded,
-                    size: 15,
-                    color: AppTheme.textSecondary,
-                  ),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: Text(
-                      state.isClosed
-                          ? 'Closed ${serviceCase.updatedAtLabel}'
-                          : 'Updated ${serviceCase.updatedAtLabel}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: () => context.push(route),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppTheme.textPrimary,
-                      minimumSize: const Size(0, 48),
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                    child: Text(
-                      needsUpload ? 'Upload documents' : 'View details',
-                      style: TextStyle(
-                        color: needsUpload
-                            ? AppTheme.primary
-                            : AppTheme.textPrimary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+                  const SizedBox(height: 14),
+                  _ServiceCardFooter(
+                    dateLabel: state.isClosed
+                        ? 'Closed ${serviceCase.updatedAtLabel}'
+                        : 'Updated ${serviceCase.updatedAtLabel}',
+                    actionLabel: needsUpload ? 'Upload documents' : 'View details',
+                    emphasizeAction: needsUpload,
+                    stacked: stacked,
+                    onAction: () => context.push(route),
                   ),
                 ],
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ServiceCardHeader extends StatelessWidget {
+  const _ServiceCardHeader({
+    required this.serviceCase,
+    required this.palette,
+    required this.reference,
+    required this.stacked,
+  });
+
+  final ServiceCase serviceCase;
+  final _Palette palette;
+  final String? reference;
+  final bool stacked;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final identity = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OmcIconBadge(
+          icon: _serviceIcon(serviceCase, _stateFor(serviceCase)),
+          color: AppTheme.textSecondary,
+          size: 44,
+          iconSize: 21,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                serviceCase.title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  height: 1.3,
+                ),
+              ),
+              if (reference?.isNotEmpty == true) ...[
+                const SizedBox(height: 4),
+                Text(
+                  reference!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final status = OmcStatusBadge(
+      label: palette.label,
+      color: palette.color,
+      icon: palette.icon,
+    );
+
+    if (stacked) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [identity, const SizedBox(height: 12), status],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: identity),
+        const SizedBox(width: 12),
+        status,
+      ],
+    );
+  }
+}
+
+class _NextStepPanel extends StatelessWidget {
+  const _NextStepPanel({required this.label, required this.needsAction});
+
+  final String label;
+  final bool needsAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: needsAction
+            ? theme.colorScheme.tertiaryContainer.withValues(alpha: 0.24)
+            : theme.colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: needsAction
+              ? theme.colorScheme.tertiary.withValues(alpha: 0.22)
+              : AppTheme.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            needsAction ? 'Action needed' : 'Next step',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RequestSummaryPanel extends StatelessWidget {
+  const _RequestSummaryPanel({required this.label, this.progressPercent});
+
+  final String label;
+  final int? progressPercent;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.description_outlined,
+            color: AppTheme.textSecondary,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+          ),
+          if (progressPercent != null) ...[
+            const SizedBox(width: 10),
+            Text(
+              '$progressPercent%',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ServiceCardFooter extends StatelessWidget {
+  const _ServiceCardFooter({
+    required this.dateLabel,
+    required this.actionLabel,
+    required this.emphasizeAction,
+    required this.stacked,
+    required this.onAction,
+  });
+
+  final String dateLabel;
+  final String actionLabel;
+  final bool emphasizeAction;
+  final bool stacked;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final date = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(
+          Icons.schedule_rounded,
+          size: 17,
+          color: AppTheme.textSecondary,
+        ),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            dateLabel,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    final action = TextButton.icon(
+      onPressed: onAction,
+      iconAlignment: IconAlignment.end,
+      icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+      label: Text(actionLabel),
+      style: TextButton.styleFrom(
+        foregroundColor:
+            emphasizeAction ? AppTheme.primary : AppTheme.textPrimary,
+      ),
+    );
+
+    if (stacked) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [date, const SizedBox(height: 8), action],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(child: date),
+        const SizedBox(width: 8),
+        action,
+      ],
     );
   }
 }
@@ -860,32 +910,6 @@ IconData _serviceIcon(ServiceCase serviceCase, _ServiceCaseState state) {
   return Icons.work_outline_rounded;
 }
 
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 11.5,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
 class _LoadingState extends StatelessWidget {
   const _LoadingState();
 
@@ -899,28 +923,28 @@ class _LoadingState extends StatelessWidget {
       ),
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
       children: [
-        _LoadingBlock(width: 150, height: 18, radius: 999, color: color),
-        const SizedBox(height: 8),
-        _LoadingBlock(width: 210, height: 34, radius: 14, color: color),
-        const SizedBox(height: 22),
+        _LoadingBlock(width: 170, height: 30, radius: 10, color: color),
+        const SizedBox(height: 10),
+        _LoadingBlock(width: 260, height: 18, radius: 9, color: color),
+        const SizedBox(height: 24),
         _LoadingBlock(
           width: double.infinity,
-          height: 176,
-          radius: 24,
+          height: 56,
+          radius: 14,
           color: color,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         _LoadingBlock(
           width: double.infinity,
-          height: 46,
+          height: 190,
           radius: 16,
           color: color,
         ),
         const SizedBox(height: 12),
         _LoadingBlock(
           width: double.infinity,
-          height: 120,
-          radius: 22,
+          height: 190,
+          radius: 16,
           color: color,
         ),
       ],
@@ -1004,46 +1028,45 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: PremiumCard(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.assignment_turned_in_outlined,
-                size: 42,
-                color: OmcPremium.services,
+              const OmcIconBadge(
+                icon: Icons.assignment_turned_in_outlined,
+                color: AppTheme.textSecondary,
+                size: 52,
+                iconSize: 25,
               ),
-              const SizedBox(height: 12),
-              const Text(
+              const SizedBox(height: 16),
+              Text(
                 'No service requests yet',
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: theme.textTheme.titleLarge?.copyWith(
                   color: AppTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Start a guided request from the catalogue. Tracking appears here after submission.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: theme.textTheme.bodyMedium?.copyWith(
                   color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
+                  height: 1.4,
                 ),
               ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: onStartRequest,
-                child: const Text(
-                  'Start a request',
-                  textAlign: TextAlign.center,
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: onStartRequest,
+                  child: const Text('Start a request'),
                 ),
               ),
             ],
@@ -1062,34 +1085,29 @@ class _FilterEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'No matching services',
-            style: TextStyle(
+          Text(
+            'No matching requests',
+            style: theme.textTheme.titleMedium?.copyWith(
               color: AppTheme.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             'Nothing matched the ${filter.label.toLowerCase()} filter or search term.',
-            style: const TextStyle(
+            style: theme.textTheme.bodyMedium?.copyWith(
               color: AppTheme.textSecondary,
-              fontSize: 13,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
+              height: 1.4,
             ),
           ),
           const SizedBox(height: 14),
-          FilledButton.tonal(
-            onPressed: onClear,
-            child: const Text('Clear filters'),
-          ),
+          OutlinedButton(onPressed: onClear, child: const Text('Clear filters')),
         ],
       ),
     );
@@ -1292,21 +1310,21 @@ _Palette _paletteFor(_ServiceCaseState state) {
   if (state.isCancelled) {
     return const _Palette(
       label: 'Cancelled',
-      color: Color(0xFFEF4444),
-      icon: Icons.cancel_rounded,
+      color: Color(0xFFB42318),
+      icon: Icons.cancel_outlined,
     );
   }
   if (state.isClosed) {
     return const _Palette(
       label: 'Completed',
-      color: Color(0xFF16A34A),
-      icon: Icons.check_circle_rounded,
+      color: Color(0xFF16803C),
+      icon: Icons.check_circle_outline_rounded,
     );
   }
   if (state.isOverdue) {
     return const _Palette(
       label: 'Overdue',
-      color: Color(0xFFD97706),
+      color: Color(0xFFA15C00),
       icon: Icons.schedule_rounded,
     );
   }
@@ -1320,21 +1338,21 @@ _Palette _paletteFor(_ServiceCaseState state) {
   if (state.needsAction) {
     return const _Palette(
       label: 'Action needed',
-      color: Color(0xFFF59E0B),
+      color: Color(0xFFA15C00),
       icon: Icons.priority_high_rounded,
     );
   }
   if (state.isInReview) {
     return const _Palette(
-      label: 'In Review',
-      color: Color(0xFF14B8A6),
+      label: 'In review',
+      color: Color(0xFF0F766E),
       icon: Icons.fact_check_outlined,
     );
   }
   if (state.isInProgress) {
     return const _Palette(
-      label: 'In Progress',
-      color: Color(0xFF2563EB),
+      label: 'In progress',
+      color: Color(0xFF315A9E),
       icon: Icons.sync_rounded,
     );
   }
