@@ -26,7 +26,7 @@ import '../features/dashboard/presentation/dashboard_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/documents/presentation/document_detail_screen.dart';
 import '../features/expense_tracker/presentation/expense_budget_screen.dart';
-import '../features/expense_tracker/presentation/expense_tracker_screen.dart';
+import '../features/expense_tracker/presentation/expense_tracker_v2_screen.dart';
 import '../features/internal_workspace/presentation/internal_operations_center_screen.dart';
 import '../features/internal_workspace/presentation/internal_service_cases_screen.dart';
 import '../features/internal_workspace/presentation/internal_workspace_screen.dart';
@@ -569,7 +569,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'expense-tracker',
         builder: (context, state) => _withShell(
           ShellNavScaffold.moreIndex,
-          const ExpenseTrackerScreen(),
+          const ExpenseTrackerV2Screen(),
         ),
       ),
       GoRoute(
