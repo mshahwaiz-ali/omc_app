@@ -4,7 +4,7 @@ Execution ledger for `ui-ux.md`. GitHub `main` is authoritative.
 
 ## Five-phase execution map
 
-The approved blueprint scope is retained in full, but the original implementation phases are consolidated into exactly five delivery phases:
+The approved blueprint scope is retained in full and executed in exactly five delivery phases:
 
 1. **Design System V2 + shared primitives** — original Phase 1.
 2. **App shell, navigation and global UI** — original Phase 2.
@@ -17,91 +17,99 @@ No E001–E146 surface is removed by this consolidation.
 ## Current authority
 
 - Baseline main SHA: `bd2c0d2c704b5ceb9ec7fae00cbf2e3746c94f9b`
-- Current implementation head being assembled: `40db6ff4c0aa365cbd92f235c0e4bdc47078946d`
+- Latest Phase 3 implementation code head: `f0614a538c0a58e177af2e36d84150ddfaaace37`
 - Blueprint source-audit parent: `b42ed754fdb58dcd672497ba2e2e612658e1b882`
 - Backend: out of scope unless a genuine blocking defect is proven.
 - Functional/navigation/provider/payload authority: frozen per `ui-ux.md` J1/J2 and lifecycle clarification.
 
 ## Phase status
 
-| Phase | Status | Completed E IDs / groups |
+| Phase | Status | Completed scope |
 |---|---|---|
-| 1 — Design System V2 + shared primitives | COMPLETE — source implementation; Flutter runtime validation pending | Shared foundation complete; no E ticket marked complete solely from theme/component work |
-| 2 — Shell/navigation/global UI | COMPLETE — source implementation; Flutter/runtime/U validation pending | E042, E043, E062, E063, E064, E065, E066, E067 and E090 source-complete; runtime/device acceptance still pending |
-| 3 — Customer journey + operations | IN PROGRESS | E005–E010, E013–E014 source-complete; E011 remains open due giant-file atomic-edit boundary; continuing documents/payments |
-| 4 — Customer tools + account/auth | PENDING | — |
+| 1 — Design System V2 + shared primitives | **SOURCE COMPLETE** — runtime validation pending | Shared design foundation and primitive migration |
+| 2 — Shell/navigation/global UI | **SOURCE COMPLETE** — runtime validation pending | E042, E043, E062–E067, E090 plus shared shell/header work |
+| 3 — Customer journey + operations | **SOURCE COMPLETE** — runtime validation pending | **E001–E025** |
+| 4 — Customer tools + account/auth | **IN PROGRESS NEXT** | — |
 | 5 — Internal/staff + final QA closure | PENDING | — |
 
-## Completed Phase 1 batches
+## Phase 1 source batches
 
-### Foundation — `5285f62b3f69c9e882d2fe0e49ad274d6700fd7c`
-Implemented C1–C5/C7 foundation: semantic typography, spacing/radius/touch targets, neutral + semantic colors, preserved runtime accent with derived `accentInk`/`accentFocus`, calmer surfaces, readable forms/actions, stable loading labels, and large-text component contracts.
+- `5285f62b3f69c9e882d2fe0e49ad274d6700fd7c` — semantic typography, spacing/radius/touch targets, semantic colors, runtime accent contrast roles, form/button contracts.
+- `09e582082b9fa526fd2fe0e49ad274d6700fd7c` is not authoritative; the actual second shared batch is `09e582082b9fa526fd2fe6321dc7cf2ca37c90f4` — neutral cards, wrapping info chips, freshness presentation.
+- `262b07d69786d5a5bbd826862815bc69cb547399` — long-name reflow, 48px identity controls, adaptive legacy list cards and focused source tests.
 
-### Shared surfaces — `09e582082b9fa526fd2fe6321dc7cf2ca37c90f4`
-Implemented neutral bordered cards, wrapping info chips, and readable stale-data/retry presentation while preserving source/timestamp/retry authority.
+## Phase 2 source batches
 
-### Shared closure — `262b07d69786d5a5bbd826862815bc69cb547399`
-Implemented long-name reflow, 48px identity controls, adaptive legacy list cards and focused 320px/2x source tests.
+- `c3b5ac36084a6e42ed3b8023ffa632adbd6e6d35` — bottom navigation and adaptive Quick Actions.
+- `a0e13620a64235e596ca56cb7734044e0f08920f` + `f157e0246bf49bac95c2502781f46a183a67457d` — More hierarchy and route-access presentation.
+- `50c377b87adfbe0a436e2049522f9eb167471079` — E042 device lock semantics/input blocking.
+- `71a4216e0d8df245e2bd2e295370d00011174f64` — E043/E090 readiness/update states.
+- `f76831d6af7abd557d9652458e71fed5710ef44d` — route recovery.
+- `715137d58151d5fa66ee603365bc87cf18732429` — adaptive shared back/page header.
 
-## Completed Phase 2 batches
+## Phase 3 — E001–E025 source completion
 
-### Shell actions — `c3b5ac36084a6e42ed3b8023ffa632adbd6e6d35`
-Implemented content-driven bottom navigation with 12px labels and adaptive Quick Actions while preserving capability order and callbacks.
+### Home + dashboard
 
-### More navigation — `a0e13620a64235e596ca56cb7734044e0f08920f` + `f157e0246bf49bac95c2502781f46a183a67457d`
-Implemented customer More hierarchy with Tax calculator, Knowledge & news, Tools & help and neutral rows while retaining capability predicates.
+- **E001 Approved customer Home** — `7ec4b1f11ab0395d546958c9c48239a9d59d25fc`. Current service and required next action lead; summary counts are working links; content failures remain independent.
+- **E002 Guest / pending / rejected Home** — `91a3d1337eaeee31acee02a563e9c6d1464fd2cc`. One persona-specific access note, public search/tools/content, concise account CTA; locked callbacks preserved.
+- **E003 Internal Home** — `8b8b55ede3bbe65112a6f37869b93cb6e069442d`. Financial hold / activation failure outrank review queues, totals and activity; real capability contract retained.
+- **E004 Dashboard variants** — `62a64288e266d996fdf24f95a721c6d9b9f2164a`. Direct route retained; next action → list → secondary summary → activity; failed providers no longer render invented live-looking zeros.
 
-### Device lock presentation — `50c377b87adfbe0a436e2049522f9eb167471079`
-E042 source-complete. Router remains mounted while lock blocks pointer/focus/semantics/animations.
+### Catalogue + service request journey
 
-### Readiness/update presentation — `71a4216e0d8df245e2bd2e295370d00011174f64`
-E043/E090 source-complete. Retry, maintenance/update policy, dismissal and saved-form behavior unchanged.
+- **E005 Service Catalogue** — `426ab8cf5d5893ae28aecb9402a07ebe95248fad`.
+- **E006 Service Detail** — `2ad6114ce65e6a56c29a0f94084b821ae7bec52d`.
+- **E007 + E008 Request Draft + Assisted Customer** — `c79f01ea840b4e798ca11c8d6088e62b324bfbd7`.
+- **E009 My Services / Requests** — `1c533efa00b22aff1ad595331fbbea99fc810194`.
+- **E010 Canonical Customer Request Detail** — `f9ec8afa866f59829423a06a973a661e09f52805`.
+- **E011 Assisted / Operational Request Detail** — `f0614a538c0a58e177af2e36d84150ddfaaace37`. New isolated operations-first owner behind the existing dispatcher; legacy 2,000+ line file remains untouched. Same cancel, upload, document review, reassign, ERP retry and discount-review repository calls/guards remain. Backend lifecycle/next-action evidence leads; payment preparation is distinct from an available payment record; document rejection remarks are visible; historical requests remain read-only.
 
-### Global recovery — `f76831d6af7abd557d9652458e71fed5710ef44d` + `f157e0246bf49bac95c2502781f46a183a67457d`
-E066/E067 source-complete. Safe route recovery and Stay/Discard dirty-form contract preserved.
+### Documents
 
-### Adaptive shared page header — `715137d58151d5fa66ee603365bc87cf18732429`
-Header title/supporting text wraps and preferred size adapts to native text scaling while preserving navigation authority.
+- **E012 Documents list** — `5738915d…`. Same first-page providers, assisted scope, load-more call/dedupe/filter/sort/detail route; readable rows and wrapped filters.
+- **E013 Document detail** — final source replay retained in main. Document identity/status → primary file action → details; static timeline placeholder removed; upload and validated external-link policies unchanged.
+- **E014 Document preview** — `4801a5f2239072f11acea7cf085165ee36d7eee5`. Supplied PDF/image bytes remain local; full filename, zoom guidance, semantics and safe unsupported/corrupt recovery added.
+- **E015 Reviewer workspace** — `a64e3c08…`. Same `canReviewDocuments`, `Approved` / `Rejected`, mandatory rejection remarks, authenticated preview bytes and paging authority.
 
-## Phase 3 completed customer journey batches
+### Payments
 
-### E005 Service Catalogue — `426ab8cf5d5893ae28aecb9402a07ebe95248fad`
-Responsive 2-column/list presentation, readable search/filter controls and assisted context; query/category/page provider authority unchanged.
+- **E016 Payments list** — `92d49206…`. Exact backend status-to-action mapping retained; no unsafe local sum across formatted/currency values.
+- **E017 Payment detail + review** — `2903c628…`. Exact receipt upload/progress/cancellation, authenticated invoice/proof, `Paid` / `Rejected` review payloads and URL whitelist retained. Static payment timeline removed; receipt submission is explicitly unverified until review.
 
-### E006 Service Detail — `2ad6114ce65e6a56c29a0f94084b821ae7bec52d`
-Service-first hierarchy with readable price/time/requirements/process/support and one dominant Start action; duplicate-active-request handling and role routing unchanged.
+### Tax + knowledge
 
-### E007 + E008 Request Draft + Assisted Customer — `c79f01ea840b4e798ca11c8d6088e62b324bfbd7`
-One-form architecture retained. Exact `ServiceRequestPayload`, `attachments: const []`, assisted-customer fields, discount validation, MutationIntent/idempotency, dirty-form retention and submit navigation remain unchanged.
+- **E018 Tax calculator** — `7a9b52ec386ddc5784c4e784bde9a6df46d22f0c`. Same server calculation payload and service-start mutation; tax year → income → filer/refine → calculation → primary annual result → expandable details → CTA. Display currency comes from active backend tax-year config.
+- **E019 Tax estimate history** — `11a8e505f65f5e242ccf0f69b00c1cdf2b1ad84d`. Same history source and case-insensitive filters; filters collapsed; source-empty distinct from filter-empty.
+- **E020 Knowledge & news** — `4331bc80a9ac1ce6d59acb7a4237ae70c0e52135`. Featured headline + latest feed in backend order; no invented search/category API.
+- **E021 Knowledge article** — `8ca0da7abd36e041cec4e4f5e37c3d4ddfa4e44b`. Full headline, 17/1.6 plain reading body, summary fallback, existing `http/https` external-link validation.
 
-### E009 My Services / Requests — `1c533efa00b22aff1ad595331fbbea99fc810194`
-Readable request cards prioritize service → status → next step → date/reference/action. Search corpus, filters, sorting, state derivation and assisted route parameters unchanged.
+### Alerts + support
 
-### E010 Canonical Customer Request Detail — `f9ec8afa866f59829423a06a973a661e09f52805`
-Backend-authoritative next action now leads lifecycle. Required-document upload call/identity, payment routing and cancellation invalidations remain unchanged.
+- **E022 Alerts feed** — source-complete, including visible non-swipe Clear action in `60187f95c7af39383c4e3d3e4107c41f911d55d8`. Paging/read/dismiss/restore/Undo authority unchanged.
+- **E023 Alert detail** — `ca98d5ce…`. Auto-read, typed routing and safe URL policy preserved.
+- **E024 Support hub** — `599f36a6…`. Staff queue first; approved customer tickets before create; public direct channels first; duplicate-ticket prevention, paging, assign-to-me and WhatsApp ready-message unchanged.
+- **E025 Support conversation** — `e5ce61d4…`. 4-second refresh/read acknowledgement, reply/status calls, attachment constraints and retry cache unchanged.
 
-### E011 Assisted / Operational Request Detail — OPEN
-The current fallback implementation is a 2,000+ line operational screen containing customer evidence plus privileged mutation owners. The connected GitHub editor supports full-file replacement rather than line patching; to avoid truncating or accidentally altering capability/historical/admin mutation rules, E011 has not been falsely marked complete. It will be migrated only at an atomic safe boundary.
+## Source-level parity checks performed
 
-### E014 Document Preview — `4801a5f2239072f11acea7cf085165ee36d7eee5`
-Full file identity, zoom/pan guidance, viewer semantics and unsupported/corrupt recovery added. `PdfViewer.data(bytes, sourceName: fileName)`, local image bytes and no-unsafe-URL-fallback behavior preserved.
+- GitHub `main` rechecked before meaningful editing batches; all ref updates were fast-forward, no force push.
+- Critical repository calls, provider invalidations, capability gates, route parameters and payload strings were re-read after high-risk customer/document/payment/support/E011 changes.
+- E011 operational rewrite was staged separately, checked against actual `AuthCapabilities`, `AdminCaseOptions`, `DocumentPickResult`, shared header/state/status constructors, then switched through the small dispatcher atomically.
+- No backend, API schema, provider authority, payment-first lifecycle or ERPNext core file was intentionally changed by Phase 3 UI work.
 
-### E013 Document Detail — `40db6ff4c0aa365cbd92f235c0e4bdc47078946d`
-Reordered to document identity/status → primary file action → details. Removed the static `_DocumentTimelinePlaceholder`; removed decorative gradient/three-equal-stat competition; assisted customer context now appears when provided. Exact document providers, attachment picker, `uploadDocumentAttachments`, `invalidateDocumentMutation`, and validated `http/https` external-link policy are preserved.
+## Validation not yet available in this environment
 
-## Validation actually run
-
-- GitHub `main` rechecked before editing batches; no unexpected concurrent source change was present.
-- Changed source and representative callers were re-read after commits where available.
-- Local Flutter/Dart: **NOT RUN — Flutter toolchain unavailable in this execution environment.**
+- Local Flutter/Dart: **NOT RUN — Flutter/Dart toolchain unavailable in this execution environment.**
 - `flutter analyze`: **NOT RUN**.
 - Flutter tests: **NOT RUN**.
-- 320–1024 / 1.0–2.0 rendered matrix: **NOT RUN**.
-- Biometric hardware/device flow: **NOT RUN**.
+- 320–1024px / text scale 1.0–2.0 rendered matrix: **NOT RUN**.
+- Android/iOS native picker, biometric and notification device flows: **NOT RUN**.
+
+Source-complete does not mean runtime-validated. Phase 5 must close the final analyze/test/device matrix before the redesign can be called production-validated.
 
 ## Exact next batch
 
-1. Fast-forward the E013 replay commit on top of the latest ledger head without force-push.
-2. Continue E012 Documents list and E015 review workspace where edit boundaries are safe.
-3. Move into E016–E017 Payments list/detail with exact status-to-action and review payload parity.
-4. Return to E011 only through a safe atomic migration boundary; do not weaken historical/capability/admin mutation safeguards.
+1. Start **Phase 4 — Customer tools + Profile/Settings/Auth** from the E-ticket order in `ui-ux.md`.
+2. Preserve all provider/mutation/security authority; keep Profile and Settings terminology/IA decisions from D/G.
+3. Continue updating this ledger only after code commits are authoritative on `main`.
