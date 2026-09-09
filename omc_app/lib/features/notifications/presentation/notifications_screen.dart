@@ -60,13 +60,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                   _Header(
                     unreadCount: loadedUnread,
                     onReadAll: loadedUnread > 0 && !_markingAllRead
-                        ? () => _markAllAsRead()
+                        ? _markAllAsRead
                         : null,
                     markingAllRead: _markingAllRead,
                   ),
                   const SizedBox(height: 18),
                   if (visible.isEmpty)
-                    const _EmptyState(unreadOnly: false)
+                    const _EmptyState()
                   else
                     _NotificationList(
                       items: visible,
@@ -204,10 +204,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: const Text('Notification cleared.'),
-          action: SnackBarAction(
-            label: 'Undo',
-            onPressed: () => _restore(item),
-          ),
+          action: SnackBarAction(label: 'Undo', onPressed: () => _restore(item)),
         ),
       );
       return true;
@@ -308,13 +305,7 @@ class _Header extends StatelessWidget {
         if (stack) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              identity,
-              if (action != null) ...[
-                const SizedBox(height: 8),
-                action,
-              ],
-            ],
+            children: [identity, if (action != null) ...[const SizedBox(height: 8), action]],
           );
         }
 
@@ -322,10 +313,7 @@ class _Header extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(child: identity),
-            if (action != null) ...[
-              const SizedBox(width: 12),
-              action,
-            ],
+            if (action != null) ...[const SizedBox(width: 12), action],
           ],
         );
       },
@@ -380,6 +368,7 @@ class _NotificationList extends StatelessWidget {
             child: _NotificationRow(
               item: items[i],
               onTap: () => onOpen(items[i]),
+              onClear: () => onDismiss(items[i]),
             ),
           ),
           if (i != items.length - 1) const SizedBox(height: 10),
@@ -390,10 +379,15 @@ class _NotificationList extends StatelessWidget {
 }
 
 class _NotificationRow extends StatelessWidget {
-  const _NotificationRow({required this.item, required this.onTap});
+  const _NotificationRow({
+    required this.item,
+    required this.onTap,
+    required this.onClear,
+  });
 
   final NotificationItem item;
   final VoidCallback onTap;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -409,7 +403,7 @@ class _NotificationRow extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -504,14 +498,25 @@ class _NotificationRow extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 6),
-                const Padding(
-                  padding: EdgeInsets.only(top: 10),
-                  child: Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppTheme.textSecondary,
-                    size: 22,
-                  ),
+                const SizedBox(width: 4),
+                PopupMenuButton<String>(
+                  tooltip: 'Alert actions',
+                  icon: const Icon(Icons.more_vert_rounded),
+                  onSelected: (value) {
+                    if (value == 'clear') onClear();
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem<String>(
+                      value: 'clear',
+                      child: Row(
+                        children: [
+                          Icon(Icons.clear_rounded),
+                          SizedBox(width: 10),
+                          Text('Clear alert'),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -539,38 +544,30 @@ IconData _typeIcon(AppNotificationType type) => switch (type) {
 };
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.unreadOnly});
-
-  final bool unreadOnly;
+  const _EmptyState();
 
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
       padding: const EdgeInsets.all(24),
-      child: Column(
+      child: const Column(
         children: [
-          const Icon(
-            Icons.notifications_none_rounded,
-            color: AppTheme.textMuted,
-            size: 40,
-          ),
-          const SizedBox(height: 12),
+          Icon(Icons.notifications_none_rounded, color: AppTheme.textMuted, size: 40),
+          SizedBox(height: 12),
           Text(
-            unreadOnly ? 'No unread alerts' : "You're all caught up",
+            "You're all caught up",
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 17,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 7),
+          SizedBox(height: 7),
           Text(
-            unreadOnly
-                ? 'New unread updates will appear here.'
-                : 'Service, document, payment and account updates will appear here.',
+            'Service, document, payment and account updates will appear here.',
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 15,
               height: 1.45,
@@ -595,11 +592,7 @@ class _ErrorView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
       children: [
-        const _Header(
-          unreadCount: 0,
-          onReadAll: null,
-          markingAllRead: false,
-        ),
+        const _Header(unreadCount: 0, onReadAll: null, markingAllRead: false),
         const SizedBox(height: 20),
         AppErrorState.fromError(
           error: error,
@@ -622,11 +615,7 @@ class _LoadingView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
       children: [
-        const _Header(
-          unreadCount: 0,
-          onReadAll: null,
-          markingAllRead: false,
-        ),
+        const _Header(unreadCount: 0, onReadAll: null, markingAllRead: false),
         const SizedBox(height: 18),
         for (var index = 0; index < 4; index++) ...[
           PremiumCard(
