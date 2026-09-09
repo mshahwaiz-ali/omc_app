@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -83,7 +84,7 @@ class _ActivateExistingAccountScreenState
     return AuthEntryScaffold(
       title: _submitted ? 'Check your email' : 'Activate existing account',
       subtitle: _submitted
-          ? 'Use the secure activation link sent to your registered email.'
+          ? 'If an eligible imported OMC customer account matches this email, activation instructions will be sent shortly.'
           : 'Already an OMC customer? Enter the email registered with OMC to activate app access.',
       leading: IconButton(
         tooltip: 'Back to login',
@@ -91,30 +92,59 @@ class _ActivateExistingAccountScreenState
         icon: const Icon(Icons.arrow_back_rounded),
       ),
       child: PremiumCard(
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.all(20),
         child: _submitted
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Icon(Icons.mark_email_unread_outlined, size: 44),
-                  const SizedBox(height: 18),
-                  Text(
-                    _message ??
-                        'If an eligible imported OMC customer account matches this email, activation instructions will be sent shortly.',
-                  ),
-                  const SizedBox(height: 22),
-                  AppButton(
-                    label: 'Back to Login',
-                    icon: Icons.login_rounded,
-                    onPressed: () => context.go('/login'),
-                  ),
-                ],
+            ? Semantics(
+                container: true,
+                liveRegion: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Icon(
+                      Icons.mark_email_unread_outlined,
+                      color: AppTheme.info,
+                      size: 40,
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Activation request received',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _message ??
+                          'If an eligible imported OMC customer account matches this email, activation instructions will be sent shortly.',
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Opening an activation link is still required before app access is created. This screen does not sign you in automatically.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 24),
+                    AppButton(
+                      label: 'Back to login',
+                      icon: Icons.login_rounded,
+                      onPressed: () => context.go('/login'),
+                    ),
+                  ],
+                ),
               )
             : Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    Text(
+                      'Registered email',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Use the email already attached to your existing OMC customer record.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 16),
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -140,9 +170,9 @@ class _ActivateExistingAccountScreenState
                       const SizedBox(height: 14),
                       AuthErrorBanner(message: _message!),
                     ],
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 22),
                     AppButton(
-                      label: 'Send Activation Link',
+                      label: 'Send activation link',
                       icon: Icons.outgoing_mail,
                       isLoading: _submitting,
                       onPressed: _submitting ? null : _submit,
