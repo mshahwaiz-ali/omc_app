@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../auth/application/auth_controller.dart';
@@ -142,127 +143,181 @@ class _DeviceLockGateState extends ConsumerState<DeviceLockGate> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Never remove the Router/Navigator subtree during auth,
-        // biometric, dialog, or logout state transitions.
-        widget.child,
+        // Keep the Router/Navigator subtree mounted, while a visible lock must
+        // also remove its content from pointer, keyboard and semantics access.
+        ExcludeFocus(
+          excluding: mustLock,
+          child: ExcludeSemantics(
+            excluding: mustLock,
+            child: IgnorePointer(
+              ignoring: mustLock,
+              child: TickerMode(enabled: !mustLock, child: widget.child),
+            ),
+          ),
+        ),
 
         if (mustLock)
           Positioned.fill(
-            child: Material(
-              key: OmcWidgetKeys.deviceLockScreen,
-              color: const Color(0xFFF8FAFC),
-              child: SafeArea(
-                child: Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 420),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 92,
-                            height: 92,
-                            decoration: BoxDecoration(
-                              color: AppTheme.primary.withValues(alpha: 0.09),
-                              borderRadius: BorderRadius.circular(28),
-                            ),
-                            child: Icon(
-                              isFace
-                                  ? Icons.face_retouching_natural_rounded
-                                  : Icons.fingerprint_rounded,
-                              size: 48,
-                              color: AppTheme.primary,
-                            ),
+            child: _DeviceLockPanel(
+              activeIdentity: activeIdentity,
+              actionLabel: actionLabel,
+              isFace: isFace,
+              authenticating: _authenticating,
+              failureMessage: _failureMessage,
+              onUnlock: _unlock,
+              onUseAnotherAccount: _useAnotherAccount,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _DeviceLockPanel extends StatelessWidget {
+  const _DeviceLockPanel({
+    required this.activeIdentity,
+    required this.actionLabel,
+    required this.isFace,
+    required this.authenticating,
+    required this.failureMessage,
+    required this.onUnlock,
+    required this.onUseAnotherAccount,
+  });
+
+  final String activeIdentity;
+  final String actionLabel;
+  final bool isFace;
+  final bool authenticating;
+  final String? failureMessage;
+  final VoidCallback onUnlock;
+  final VoidCallback onUseAnotherAccount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      key: OmcWidgetKeys.deviceLockScreen,
+      color: theme.scaffoldBackgroundColor,
+      child: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl,
+              vertical: AppSpacing.xxl,
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: AppLayout.formMaxWidth),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ExcludeSemantics(
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(AppRadius.card),
+                      ),
+                      child: Icon(
+                        isFace
+                            ? Icons.face_retouching_natural_rounded
+                            : Icons.fingerprint_rounded,
+                        size: 40,
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      'Unlock OMC House',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Unlock $activeIdentity to continue.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  if (failureMessage != null) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    Semantics(
+                      liveRegion: true,
+                      label: failureMessage!,
+                      excludeSemantics: true,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: AppTheme.warningSoft,
+                          borderRadius: BorderRadius.circular(AppRadius.card),
+                          border: Border.all(
+                            color: AppTheme.warning.withValues(alpha: 0.20),
                           ),
-                          const SizedBox(height: 24),
-                          const Text(
-                            'Unlock OMC House',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 27,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.4,
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.warning_amber_rounded,
+                              color: AppTheme.warning,
+                              size: 24,
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Unlock $activeIdentity to continue.',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 14,
-                              height: 1.45,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          if (_failureMessage != null) ...[
-                            const SizedBox(height: 18),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFF7ED),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: const Color(0xFFFED7AA),
-                                ),
-                              ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
                               child: Text(
-                                _failureMessage!,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Color(0xFF9A3412),
-                                  fontWeight: FontWeight.w700,
-                                  height: 1.35,
+                                failureMessage!,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: AppTheme.textSecondary,
                                 ),
                               ),
                             ),
                           ],
-                          const SizedBox(height: 24),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.icon(
-                              onPressed: _authenticating ? null : _unlock,
-                              icon: _authenticating
-                                  ? const SizedBox(
-                                      width: 19,
-                                      height: 19,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.2,
-                                      ),
-                                    )
-                                  : Icon(
-                                      isFace
-                                          ? Icons
-                                                .face_retouching_natural_rounded
-                                          : Icons.fingerprint_rounded,
-                                    ),
-                              label: Text(
-                                _failureMessage != null
-                                    ? 'Try again'
-                                    : actionLabel,
-                              ),
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.xl),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: authenticating ? null : onUnlock,
+                      icon: authenticating
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Icon(
+                              isFace
+                                  ? Icons.face_retouching_natural_rounded
+                                  : Icons.fingerprint_rounded,
                             ),
-                          ),
-                          const SizedBox(height: 10),
-                          TextButton(
-                            key: OmcWidgetKeys.deviceLockUseAnotherAccount,
-                            onPressed: _authenticating
-                                ? null
-                                : _useAnotherAccount,
-                            child: const Text('Use another account'),
-                          ),
-                        ],
+                      label: Text(
+                        failureMessage != null ? 'Try again' : actionLabel,
                       ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: AppSpacing.xs),
+                  TextButton(
+                    key: OmcWidgetKeys.deviceLockUseAnotherAccount,
+                    onPressed: authenticating ? null : onUseAnotherAccount,
+                    child: const Text('Use another account'),
+                  ),
+                ],
               ),
             ),
           ),
-      ],
+        ),
+      ),
     );
   }
 }
