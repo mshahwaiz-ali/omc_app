@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/design_tokens.dart';
 import '../../app/route_failure_recovery.dart';
 import '../../app/theme.dart';
 import '../diagnostics/omc_widget_keys.dart';
@@ -20,53 +21,58 @@ class RouteFailureScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       key: OmcWidgetKeys.routeFailure,
-      backgroundColor: const Color(0xFFFBFCFE),
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl,
+              vertical: AppSpacing.xxl,
+            ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
+              constraints: const BoxConstraints(maxWidth: AppLayout.formMaxWidth),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: const Icon(
-                      Icons.link_off_rounded,
-                      color: AppTheme.primary,
-                      size: 34,
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  const Text(
-                    'Page unavailable',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
+                  ExcludeSemantics(
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(AppRadius.card),
+                      ),
+                      child: Icon(
+                        Icons.link_off_rounded,
+                        color: theme.colorScheme.onPrimaryContainer,
+                        size: 40,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  const Text(
+                  const SizedBox(height: AppSpacing.xl),
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      'Page unavailable',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
                     'This link is invalid, expired, or no longer available.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: theme.textTheme.bodyLarge?.copyWith(
                       color: AppTheme.textSecondary,
-                      fontSize: 14,
-                      height: 1.45,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppSpacing.xl),
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
@@ -81,7 +87,7 @@ class RouteFailureScreen extends StatelessWidget {
                     ),
                   ),
                   if (onGoBack != null) ...[
-                    const SizedBox(height: 10),
+                    const SizedBox(height: AppSpacing.sm),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
