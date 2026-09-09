@@ -139,7 +139,7 @@ class _EmailVerificationScreenState
         _completing = false;
         _activated = activated;
         _tokenValid = !activated && status == 'awaiting_password';
-        _canRetry = !activated && !_tokenValid;
+        _canRetry = false;
         _message = data['message']?.toString().trim().isNotEmpty == true
             ? data['message'].toString().trim()
             : activated
@@ -190,42 +190,84 @@ class _EmailVerificationScreenState
         ? 'Your OMC account is ready for sign in.'
         : _tokenValid
         ? 'Your email is verified. Complete account setup securely.'
-        : 'We are checking the security link from your email.';
+        : _loading
+        ? 'Checking the security link from your email.'
+        : _canRetry
+        ? 'The verification link could not be checked right now.'
+        : 'This verification link is not available for account completion.';
 
     return AuthEntryScaffold(
       title: title,
       subtitle: subtitle,
       child: PremiumCard(
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (_loading)
-              const Center(child: CircularProgressIndicator())
+              Semantics(
+                liveRegion: true,
+                label: 'Checking verification link',
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              )
             else ...[
-              Icon(
-                _activated
-                    ? Icons.verified_user_outlined
-                    : _tokenValid
-                    ? Icons.mark_email_read_outlined
-                    : Icons.link_off_rounded,
-                size: 44,
-                color: _activated || _tokenValid
-                    ? const Color(0xFF15803D)
-                    : AppTheme.textSecondary,
-              ),
-              const SizedBox(height: 18),
-              Text(
-                _message,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 14,
-                  height: 1.45,
-                  fontWeight: FontWeight.w700,
+              Semantics(
+                container: true,
+                liveRegion: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Icon(
+                      _activated
+                          ? Icons.verified_user_outlined
+                          : _tokenValid
+                          ? Icons.mark_email_read_outlined
+                          : _canRetry
+                          ? Icons.cloud_off_outlined
+                          : Icons.link_off_rounded,
+                      size: 40,
+                      color: _activated
+                          ? AppTheme.success
+                          : _tokenValid
+                          ? AppTheme.info
+                          : _canRetry
+                          ? AppTheme.warning
+                          : AppTheme.danger,
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      _activated
+                          ? 'Account creation complete'
+                          : _tokenValid
+                          ? 'Email verification complete'
+                          : _canRetry
+                          ? 'Verification check unavailable'
+                          : 'Verification link unavailable',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _message,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                  ],
                 ),
               ),
               if (_tokenValid && !_activated) ...[
-                const SizedBox(height: 22),
+                const SizedBox(height: 24),
+                Text(
+                  'Create your password',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Use 8–128 characters and enter the same password in both fields.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 16),
                 Form(
                   key: _formKey,
                   child: Column(
@@ -240,6 +282,9 @@ class _EmailVerificationScreenState
                           labelText: 'New password',
                           prefixIcon: const Icon(Icons.lock_outline_rounded),
                           suffixIcon: IconButton(
+                            tooltip: _obscurePassword
+                                ? 'Show password'
+                                : 'Hide password',
                             onPressed: () => setState(
                               () => _obscurePassword = !_obscurePassword,
                             ),
@@ -251,7 +296,7 @@ class _EmailVerificationScreenState
                           ),
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
                       TextFormField(
                         controller: _confirmPasswordController,
                         obscureText: _obscureConfirmPassword,
@@ -263,6 +308,9 @@ class _EmailVerificationScreenState
                           labelText: 'Confirm password',
                           prefixIcon: const Icon(Icons.lock_reset_rounded),
                           suffixIcon: IconButton(
+                            tooltip: _obscureConfirmPassword
+                                ? 'Show password'
+                                : 'Hide password',
                             onPressed: () => setState(
                               () => _obscureConfirmPassword =
                                   !_obscureConfirmPassword,
@@ -278,17 +326,18 @@ class _EmailVerificationScreenState
                     ],
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 22),
                 AppButton(
-                  label: _completing ? 'Creating account...' : 'Create Account',
+                  label: 'Create account',
                   icon: Icons.person_add_alt_1_rounded,
+                  isLoading: _completing,
                   onPressed: _completing ? null : _completeRegistration,
                 ),
               ],
-              const SizedBox(height: 22),
+              const SizedBox(height: 24),
               if (_canRetry) ...[
                 AppButton(
-                  label: 'Try Again',
+                  label: 'Try again',
                   icon: Icons.refresh_rounded,
                   onPressed: _inspectToken,
                 ),
@@ -297,7 +346,7 @@ class _EmailVerificationScreenState
               OutlinedButton.icon(
                 onPressed: () => context.go('/login'),
                 icon: const Icon(Icons.login_rounded),
-                label: Text(_activated ? 'Continue to Login' : 'Back to Login'),
+                label: Text(_activated ? 'Continue to login' : 'Back to login'),
               ),
             ],
           ],
