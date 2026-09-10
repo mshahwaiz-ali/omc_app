@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/widgets/omc_logo.dart';
@@ -45,34 +46,54 @@ class AuthEntryScaffold extends StatelessWidget {
           top: true,
           bottom: true,
           maintainBottomViewPadding: true,
-          child: Center(
-            child: SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 480),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (leading != null) ...[
-                      Align(alignment: Alignment.centerLeft, child: leading),
-                      const SizedBox(height: 8),
-                    ],
-                    AuthEntryHeader(
-                      title: title,
-                      subtitle: subtitle,
-                      compact: compactBrand,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final pageInset = AppLayout.pageInsetFor(constraints.maxWidth);
+              return Center(
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: EdgeInsets.fromLTRB(
+                    pageInset,
+                    AppSpacing.md,
+                    pageInset,
+                    AppSpacing.xl,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: AppLayout.formMaxWidth,
                     ),
-                    SizedBox(height: compactBrand ? 24 : 30),
-                    child,
-                    if (footer != null) ...[
-                      const SizedBox(height: 20),
-                      footer!,
-                    ],
-                  ],
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (leading != null) ...[
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: leading,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                        ],
+                        AuthEntryHeader(
+                          title: title,
+                          subtitle: subtitle,
+                          compact: compactBrand,
+                        ),
+                        SizedBox(
+                          height: compactBrand
+                              ? AppSpacing.xl
+                              : AppSpacing.xxl,
+                        ),
+                        child,
+                        if (footer != null) ...[
+                          const SizedBox(height: AppSpacing.lg),
+                          footer!,
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),
@@ -94,48 +115,35 @@ class AuthEntryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: compact ? 74 : 92,
-          height: compact ? 74 : 92,
+          width: compact ? 72 : 88,
+          height: compact ? 72 : 88,
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(compact ? 22 : 26),
-            border: Border.all(color: const Color(0xFFE8EDF5)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x100F172A),
-                blurRadius: 26,
-                offset: Offset(0, 13),
-              ),
-            ],
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: AppTheme.border),
           ),
-          padding: EdgeInsets.all(compact ? 11 : 13),
-          child: OmcLogo.symbol(size: compact ? 52 : 66, borderRadius: 0),
+          padding: EdgeInsets.all(compact ? AppSpacing.sm : AppSpacing.md),
+          child: OmcLogo.symbol(size: compact ? 48 : 56, borderRadius: 0),
         ),
-        SizedBox(height: compact ? 20 : 24),
+        SizedBox(height: compact ? AppSpacing.md : AppSpacing.lg),
         Text(
           title,
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: theme.textTheme.headlineMedium?.copyWith(
             color: AppTheme.textPrimary,
-            fontSize: compact ? 28 : 31,
-            height: 1.08,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.6,
           ),
         ),
-        const SizedBox(height: 9),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           subtitle,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: theme.textTheme.bodyLarge?.copyWith(
             color: AppTheme.textSecondary,
-            fontSize: 14.5,
-            height: 1.45,
-            fontWeight: FontWeight.w600,
           ),
         ),
       ],
@@ -150,35 +158,42 @@ class AuthErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      key: key ?? OmcWidgetKeys.loginError,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF1F2),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFCDD5)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.error_outline_rounded,
-            color: AppTheme.primary,
-            size: 20,
+    final theme = Theme.of(context);
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label: message,
+      child: Container(
+        key: key ?? OmcWidgetKeys.loginError,
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.errorContainer,
+          borderRadius: BorderRadius.circular(AppRadius.control),
+          border: Border.all(
+            color: theme.colorScheme.error.withValues(alpha: 0.24),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: Color(0xFF9F1239),
-                fontSize: 13,
-                height: 1.35,
-                fontWeight: FontWeight.w800,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              color: theme.colorScheme.error,
+              size: 20,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                message,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.error,
+                  fontWeight: FontWeight.w500,
+                  height: 1.4,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
