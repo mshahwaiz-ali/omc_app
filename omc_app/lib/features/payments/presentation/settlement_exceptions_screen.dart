@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
+import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/finance_reconciliation_repository.dart';
@@ -180,6 +181,7 @@ class _SettlementExceptionsScreenState
     FinanceReconciliationDecision decision,
   ) async {
     final noteController = TextEditingController();
+    final noteFormKey = GlobalKey<FormState>();
     final decisionLabel = decision == FinanceReconciliationDecision.resolve
         ? 'Resolve review'
         : 'Ignore exception';
@@ -188,27 +190,36 @@ class _SettlementExceptionsScreenState
       builder: (dialogContext) => AlertDialog(
         title: Text(decisionLabel),
         content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                decision == FinanceReconciliationDecision.resolve
-                    ? 'Confirm the accounting evidence was corrected or independently verified before recording this review as resolved. This does not repair or settle the payment.'
-                    : 'Use Ignore only for an intentional exception that should remain documented. This does not make accounting changes.',
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              TextField(
-                controller: noteController,
-                autofocus: true,
-                minLines: 3,
-                maxLines: 6,
-                decoration: const InputDecoration(
-                  labelText: 'Finance review note',
-                  hintText: 'Required: what was verified and where',
+          child: Form(
+            key: noteFormKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  decision == FinanceReconciliationDecision.resolve
+                      ? 'Confirm the accounting evidence was corrected or independently verified before recording this review as resolved. This does not repair or settle the payment.'
+                      : 'Use Ignore only for an intentional exception that should remain documented. This does not make accounting changes.',
                 ),
-              ),
-            ],
+                const SizedBox(height: AppSpacing.sm),
+                AppLabeledField(
+                  label: 'Finance review note',
+                  isRequired: true,
+                  child: TextFormField(
+                    controller: noteController,
+                    autofocus: true,
+                    minLines: 3,
+                    maxLines: 6,
+                    decoration: const InputDecoration(
+                      hintText: 'What was verified and where',
+                    ),
+                    validator: (value) => value?.trim().isEmpty ?? true
+                        ? 'Enter a finance review note.'
+                        : null,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -218,7 +229,7 @@ class _SettlementExceptionsScreenState
           ),
           FilledButton(
             onPressed: () {
-              if (noteController.text.trim().isEmpty) return;
+              if (noteFormKey.currentState?.validate() != true) return;
               Navigator.pop(dialogContext, true);
             },
             child: Text(
@@ -338,22 +349,24 @@ class _Filters extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          DropdownButtonFormField<String>(
-            initialValue: status,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Review status',
-              prefixIcon: Icon(Icons.filter_alt_outlined),
+          AppLabeledField(
+            label: 'Review status',
+            child: DropdownButtonFormField<String>(
+              initialValue: status,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.filter_alt_outlined),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'Open', child: Text('Open')),
+                DropdownMenuItem(value: 'Resolved', child: Text('Resolved')),
+                DropdownMenuItem(value: 'Ignored', child: Text('Ignored')),
+                DropdownMenuItem(value: 'All', child: Text('All')),
+              ],
+              onChanged: (value) {
+                if (value != null) onStatusChanged(value);
+              },
             ),
-            items: const [
-              DropdownMenuItem(value: 'Open', child: Text('Open')),
-              DropdownMenuItem(value: 'Resolved', child: Text('Resolved')),
-              DropdownMenuItem(value: 'Ignored', child: Text('Ignored')),
-              DropdownMenuItem(value: 'All', child: Text('All')),
-            ],
-            onChanged: (value) {
-              if (value != null) onStatusChanged(value);
-            },
           ),
         ],
       ),

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
+import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/finance_commission_repository.dart';
@@ -241,15 +242,16 @@ class _FinanceCommissionsScreenState
                   'A rejection reason is required for the audit trail.',
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  minLines: 3,
-                  maxLines: 6,
-                  onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    labelText: 'Reason',
-                    alignLabelWithHint: true,
+                AppLabeledField(
+                  label: 'Reason',
+                  isRequired: true,
+                  child: TextField(
+                    controller: controller,
+                    autofocus: true,
+                    minLines: 3,
+                    maxLines: 6,
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(),
                   ),
                 ),
               ],
@@ -339,43 +341,45 @@ class _FinanceCommissionsScreenState
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                DropdownButtonFormField<String>(
-                  initialValue: _evidenceStatus,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Accounting evidence',
-                    prefixIcon: Icon(Icons.verified_outlined),
+                AppLabeledField(
+                  label: 'Accounting evidence',
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _evidenceStatus,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.verified_outlined),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: '',
+                        child: Text('All evidence states'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Matched',
+                        child: Text('Accounting ready'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Review Required',
+                        child: Text('Needs reconciliation review'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Missing',
+                        child: Text('Evidence missing'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Quarantined',
+                        child: Text('Reconciliation blocked'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Reversed',
+                        child: Text('Reversed'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setState(() => _evidenceStatus = value ?? '');
+                      _load(refresh: true);
+                    },
                   ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: '',
-                      child: Text('All evidence states'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Matched',
-                      child: Text('Accounting ready'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Review Required',
-                      child: Text('Needs reconciliation review'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Missing',
-                      child: Text('Evidence missing'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Quarantined',
-                      child: Text('Reconciliation blocked'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Reversed',
-                      child: Text('Reversed'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    setState(() => _evidenceStatus = value ?? '');
-                    _load(refresh: true);
-                  },
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 Text(
@@ -704,14 +708,17 @@ class _SettlementSheetState extends State<_SettlementSheet> {
             ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _referenceController,
-            autofocus: true,
-            onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              labelText: 'Settlement reference',
-              hintText: 'Bank transfer, payment voucher or accounting ref',
-              prefixIcon: Icon(Icons.receipt_long_outlined),
+          AppLabeledField(
+            label: 'Settlement reference',
+            isRequired: true,
+            child: TextField(
+              controller: _referenceController,
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                hintText: 'Bank transfer, payment voucher or accounting ref',
+                prefixIcon: Icon(Icons.receipt_long_outlined),
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),

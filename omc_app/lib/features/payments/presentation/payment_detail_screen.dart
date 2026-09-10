@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../app/mutation_invalidation.dart';
 import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
+import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/diagnostics/e2e_network_audit.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
@@ -660,16 +661,18 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
                 ? 'Reject payment proof'
                 : 'Mark payment paid?',
           ),
-          content: TextField(
-            controller: remarksController,
-            autofocus: true,
-            minLines: 2,
-            maxLines: 4,
-            onChanged: (_) => setDialogState(() {}),
-            decoration: InputDecoration(
-              labelText: status == 'Rejected'
-                  ? 'Review remarks (required)'
-                  : 'Review remarks (optional)',
+          content: AppLabeledField(
+            label: status == 'Rejected'
+                ? 'Rejection reason'
+                : 'Review remarks (optional)',
+            isRequired: status == 'Rejected',
+            child: TextField(
+              controller: remarksController,
+              autofocus: true,
+              minLines: 3,
+              maxLines: 4,
+              onChanged: (_) => setDialogState(() {}),
+              decoration: const InputDecoration(),
             ),
           ),
           actions: [

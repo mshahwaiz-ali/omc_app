@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
+import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/commission_repository.dart';
 
@@ -351,35 +352,44 @@ class _CommissionFilters extends StatelessWidget {
           ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
         ),
         children: [
-          DropdownButtonFormField<String>(
-            initialValue: status,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Status'),
-            items: const [
-              DropdownMenuItem(value: '', child: Text('All statuses')),
-              DropdownMenuItem(value: 'Earned', child: Text('Outstanding')),
-              DropdownMenuItem(value: 'Settled', child: Text('Settled')),
-              DropdownMenuItem(value: 'Reversed', child: Text('Reversed')),
-            ],
-            onChanged: (value) => onStatusChanged(value ?? ''),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: periodController,
-            decoration: const InputDecoration(
-              labelText: 'Earned month',
-              hintText: 'YYYY-MM',
+          AppLabeledField(
+            label: 'Status',
+            child: DropdownButtonFormField<String>(
+              initialValue: status,
+              isExpanded: true,
+              decoration: const InputDecoration(),
+              items: const [
+                DropdownMenuItem(value: '', child: Text('All statuses')),
+                DropdownMenuItem(value: 'Earned', child: Text('Outstanding')),
+                DropdownMenuItem(value: 'Settled', child: Text('Settled')),
+                DropdownMenuItem(value: 'Reversed', child: Text('Reversed')),
+              ],
+              onChanged: (value) => onStatusChanged(value ?? ''),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: customerController,
-            decoration: const InputDecoration(labelText: 'Customer profile'),
+          AppLabeledField(
+            label: 'Earned month',
+            child: TextField(
+              controller: periodController,
+              decoration: const InputDecoration(hintText: 'YYYY-MM'),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: serviceController,
-            decoration: const InputDecoration(labelText: 'Service'),
+          AppLabeledField(
+            label: 'Customer profile',
+            child: TextField(
+              controller: customerController,
+              decoration: const InputDecoration(),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppLabeledField(
+            label: 'Service',
+            child: TextField(
+              controller: serviceController,
+              decoration: const InputDecoration(),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           Wrap(
