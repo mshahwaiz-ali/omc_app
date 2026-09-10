@@ -8,6 +8,7 @@ import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
+import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -74,15 +75,14 @@ class _ProfileEditorOverview extends ConsumerWidget {
           const SizedBox(height: 22),
           const _SectionHeading(
             title: 'Personal information',
-            supporting: 'Fields that can be updated directly from your account.',
+            supporting:
+                'Fields that can be updated directly from your account.',
           ),
           const SizedBox(height: 10),
           _EditableSection(
             icon: Icons.person_outline_rounded,
             title: 'Personal',
-            rows: [
-              _ValueRow(label: 'Full name', value: profile.displayName),
-            ],
+            rows: [_ValueRow(label: 'Full name', value: profile.displayName)],
             onEdit: () => _openPersonalSheet(context, ref, profile),
           ),
           const SizedBox(height: 12),
@@ -105,7 +105,9 @@ class _ProfileEditorOverview extends ConsumerWidget {
           ),
           const SizedBox(height: 22),
           _SectionHeading(
-            title: isInternal ? 'Protected account identity' : 'Business & tax identity',
+            title: isInternal
+                ? 'Protected account identity'
+                : 'Business & tax identity',
             supporting: isInternal
                 ? 'Staff identifiers are protected account data.'
                 : 'Each field clearly shows whether it can be added, corrected once, or is locked.',
@@ -127,7 +129,8 @@ class _ProfileEditorOverview extends ConsumerWidget {
             const SizedBox(height: 22),
             const _SectionHeading(
               title: 'Professional information',
-              supporting: 'Qualifications and working profile for this internal account.',
+              supporting:
+                  'Qualifications and working profile for this internal account.',
             ),
             const SizedBox(height: 10),
             _EditableSection(
@@ -177,7 +180,10 @@ class _ProfileIdentitySummary extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(profile.displayName, style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            profile.displayName,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: 4),
           Text(profile.email, style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 10),
@@ -313,7 +319,10 @@ class _ValueRow extends StatelessWidget {
             children: [
               SizedBox(
                 width: 105,
-                child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -565,7 +574,9 @@ Future<void> _openPersonalSheet(
         textCapitalization: TextCapitalization.words,
         validator: (value) {
           final clean = value?.trim() ?? '';
-          if (clean.length < 2) return 'Enter your full name.';
+          if (clean.length < 2) {
+            return 'Enter your full name.';
+          }
           return null;
         },
       ),
@@ -630,11 +641,17 @@ Future<void> _openContactSheet(
       final nextPhone = phone.text.trim();
       final nextWhatsapp = whatsapp.text.trim();
 
-      if (nextPhone != initialPhone) payload['phone'] = nextPhone;
-      if (nextWhatsapp != initialWhatsapp) payload['whatsapp_no'] = nextWhatsapp;
+      if (nextPhone != initialPhone) {
+        payload['phone'] = nextPhone;
+      }
+      if (nextWhatsapp != initialWhatsapp) {
+        payload['whatsapp_no'] = nextWhatsapp;
+      }
       if (address != null) {
         final nextAddress = address.text.trim();
-        if (nextAddress != initialAddress) payload['address'] = nextAddress;
+        if (nextAddress != initialAddress) {
+          payload['address'] = nextAddress;
+        }
       }
       return payload;
     },
@@ -695,9 +712,15 @@ Future<void> _openProfessionalSheet(
       final nextExperience = experience.text.trim();
       final nextRemarks = remarks.text.trim();
 
-      if (nextEducation != initialEducation) payload['education'] = nextEducation;
-      if (nextExperience != initialExperience) payload['experience'] = nextExperience;
-      if (nextRemarks != initialRemarks) payload['remarks'] = nextRemarks;
+      if (nextEducation != initialEducation) {
+        payload['education'] = nextEducation;
+      }
+      if (nextExperience != initialExperience) {
+        payload['experience'] = nextExperience;
+      }
+      if (nextRemarks != initialRemarks) {
+        payload['remarks'] = nextRemarks;
+      }
       return payload;
     },
   );
@@ -720,7 +743,9 @@ Future<void> _openProtectedProfileFieldSheet(
     _ => const ProfileFieldEditPolicy.unavailable(),
   };
 
-  if (!policy.canEdit) return;
+  if (!policy.canEdit) {
+    return;
+  }
 
   final currentValue = switch (fieldName) {
     'cnic' => profile.cnic ?? '',
@@ -744,10 +769,14 @@ Future<void> _openProtectedProfileFieldSheet(
 
   String? validator(String? value) {
     final clean = value?.trim() ?? '';
-    if (clean.isEmpty) return '$label is required.';
+    if (clean.isEmpty) {
+      return '$label is required.';
+    }
     if (fieldName == 'cnic') {
       final digits = clean.replaceAll(RegExp(r'\D'), '');
-      if (digits.length != 13) return 'CNIC must contain exactly 13 digits.';
+      if (digits.length != 13) {
+        return 'CNIC must contain exactly 13 digits.';
+      }
     }
     if (fieldName == 'ntn') {
       final digits = clean.replaceAll(RegExp(r'\D'), '');
@@ -878,7 +907,9 @@ class _ProfileEditSheetState extends State<_ProfileEditSheet> {
           ],
         ),
       );
-      if (confirmed != true || !mounted) return;
+      if (confirmed != true || !mounted) {
+        return;
+      }
     }
 
     _dirtyFormController.beginSubmitting();
@@ -895,7 +926,9 @@ class _ProfileEditSheetState extends State<_ProfileEditSheet> {
       widget.ref.invalidate(profileSummaryProvider);
       await widget.ref.read(profileSummaryProvider.future);
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       _dirtyFormController.submissionSucceeded();
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -908,7 +941,9 @@ class _ProfileEditSheetState extends State<_ProfileEditSheet> {
         ),
       );
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       final failure = AppFailureClassifier.classify(
         error,
         fallbackTitle: 'Profile not updated',
@@ -923,7 +958,9 @@ class _ProfileEditSheetState extends State<_ProfileEditSheet> {
       _dirtyFormController.submissionFailed();
       setState(() => _error = errorMessage);
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
   }
 
@@ -953,17 +990,6 @@ class _ProfileEditSheetState extends State<_ProfileEditSheet> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Center(
-                        child: Container(
-                          width: 42,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: AppTheme.border,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
                       Text(
                         widget.title,
                         style: Theme.of(context).textTheme.headlineSmall,
@@ -981,7 +1007,9 @@ class _ProfileEditSheetState extends State<_ProfileEditSheet> {
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: AppTheme.dangerSoft,
-                            borderRadius: BorderRadius.circular(AppRadius.control),
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.control,
+                            ),
                           ),
                           child: Text(
                             _error!,
@@ -1043,17 +1071,20 @@ class _SheetTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      textCapitalization: textCapitalization,
-      minLines: minLines,
-      maxLines: maxLines,
-      validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        alignLabelWithHint: maxLines > 1,
+    return AppLabeledField(
+      label: label,
+      isRequired: validator != null,
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        textCapitalization: textCapitalization,
+        minLines: minLines,
+        maxLines: maxLines,
+        validator: validator,
+        decoration: InputDecoration(
+          prefixIcon: Icon(icon),
+          alignLabelWithHint: maxLines > 1,
+        ),
       ),
     );
   }
@@ -1171,7 +1202,9 @@ List<Widget> _withSpacing(List<Widget> fields) {
   final result = <Widget>[];
   for (var index = 0; index < fields.length; index++) {
     result.add(fields[index]);
-    if (index != fields.length - 1) result.add(const SizedBox(height: 14));
+    if (index != fields.length - 1) {
+      result.add(const SizedBox(height: 14));
+    }
   }
   return result;
 }
