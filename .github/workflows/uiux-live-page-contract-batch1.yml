@@ -1,4 +1,4 @@
-# diagnostic retry: isolate each live page surface before accepting source
+# verification rerun: formatting-insensitive status contract
 name: One-shot live page contract batch one
 
 on:
