@@ -96,12 +96,9 @@ class CustomerGuestHomeView extends StatelessWidget {
         bottom: false,
         child: RefreshIndicator.adaptive(
           onRefresh: onRefresh,
-          child: ListView(
+          child: OmcPageListView(
+            topPadding: 18,
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl),
             children: [
               _GuestIdentityHeader(
                 displayName: displayName,
@@ -337,7 +334,7 @@ class _GuestAvatar extends StatelessWidget {
       label: 'Account',
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
         child: CircleAvatar(
           radius: 24,
           backgroundColor: AppTheme.primarySoft,

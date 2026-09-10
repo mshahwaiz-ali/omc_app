@@ -50,11 +50,8 @@ class InternalHomeView extends ConsumerWidget {
             ref.invalidate(homeDashboardSummaryProvider);
             ref.invalidate(mobileQuickActionsProvider);
           },
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl),
+          child: OmcPageListView(
+            topPadding: 18,
             children: [
               _InternalHeader(
                 displayName: displayName,
@@ -250,7 +247,7 @@ class _InternalAvatar extends StatelessWidget {
       label: 'Profile',
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
         child: Container(
           width: 48,
           height: 48,
@@ -509,11 +506,12 @@ class _InternalQuickActions extends StatelessWidget {
                                       const SizedBox(height: 3),
                                       Text(
                                         '$count items',
-                                        style: const TextStyle(
-                                          color: AppTheme.textSecondary,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(
+                                              color: AppTheme.textSecondary,
+                                            ),
                                       ),
                                     ],
                                   ],
@@ -645,10 +643,8 @@ class _MetricRow extends StatelessWidget {
                             ? '0 items'
                             : '${metric.value} items'
                       : 'Not available for this role',
-                  style: const TextStyle(
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppTheme.textSecondary,
-                    fontSize: 13,
-                    height: 1.35,
                   ),
                 ),
               ],
@@ -768,11 +764,8 @@ class _ActivityRow extends StatelessWidget {
                         if (status.isNotEmpty)
                           Text(
                             status,
-                            style: const TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: Theme.of(context).textTheme.labelMedium
+                                ?.copyWith(color: AppTheme.textSecondary),
                           ),
                         if (time.isNotEmpty)
                           Text(
@@ -882,7 +875,7 @@ class _HomeLoadNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final stack =

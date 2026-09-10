@@ -69,9 +69,8 @@ class _PaymentsList extends StatelessWidget {
         )
         .length;
 
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
+    return OmcPageListView(
+      topPadding: 16,
       children: [
         _PaymentsHeader(
           paymentCount: sorted.length,
@@ -151,7 +150,7 @@ class _PaymentsHeader extends StatelessWidget {
               height: 48,
               decoration: BoxDecoration(
                 color: AppTheme.info.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.control),
                 border: Border.all(
                   color: AppTheme.info.withValues(alpha: 0.14),
                 ),
@@ -255,7 +254,7 @@ class _PaymentsHeader extends StatelessWidget {
             decoration: BoxDecoration(
               color: (reviewCount > 0 ? AppTheme.warning : AppTheme.success)
                   .withValues(alpha: 0.07),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.control),
             ),
             child: Text(
               reviewCount > 0
@@ -491,9 +490,8 @@ class _EmptyPaymentsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
+    return OmcPageListView(
+      topPadding: 16,
       children: [
         const _EmptyPaymentsHeader(),
         SizedBox(height: 18),
@@ -553,9 +551,8 @@ class _PaymentsErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
+    return OmcPageListView(
+      topPadding: 16,
       children: [
         const _EmptyPaymentsHeader(),
         const SizedBox(height: 18),
@@ -577,9 +574,8 @@ class _PaymentsLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
+    return OmcPageListView(
+      topPadding: 16,
       children: [
         const _EmptyPaymentsHeader(),
         const SizedBox(height: 18),

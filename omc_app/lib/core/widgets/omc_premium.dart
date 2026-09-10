@@ -119,6 +119,53 @@ class OmcPremium {
   }
 }
 
+class OmcPageListView extends StatelessWidget {
+  const OmcPageListView({
+    required this.children,
+    super.key,
+    this.topPadding = AppSpacing.lg,
+    this.bottomPadding = AppSpacing.xl,
+    this.controller,
+    this.keyboardDismissBehavior = ScrollViewKeyboardDismissBehavior.manual,
+    this.physics = const AlwaysScrollableScrollPhysics(
+      parent: BouncingScrollPhysics(),
+    ),
+    this.maxWidth = AppLayout.generalMaxWidth,
+  });
+
+  final List<Widget> children;
+  final double topPadding;
+  final double bottomPadding;
+  final ScrollController? controller;
+  final ScrollViewKeyboardDismissBehavior keyboardDismissBehavior;
+  final ScrollPhysics physics;
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inset = AppLayout.pageInsetFor(constraints.maxWidth);
+        final horizontal = constraints.maxWidth > maxWidth + inset * 2
+            ? (constraints.maxWidth - maxWidth) / 2
+            : inset;
+        return ListView(
+          controller: controller,
+          keyboardDismissBehavior: keyboardDismissBehavior,
+          physics: physics,
+          padding: EdgeInsets.fromLTRB(
+            horizontal,
+            topPadding,
+            horizontal,
+            bottomPadding,
+          ),
+          children: children,
+        );
+      },
+    );
+  }
+}
+
 class OmcSurface extends StatelessWidget {
   const OmcSurface({
     required this.child,

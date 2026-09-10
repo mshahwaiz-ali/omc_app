@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/app_skeleton.dart';
 import '../../../core/widgets/omc_premium.dart';
@@ -48,10 +49,8 @@ class DashboardScreen extends ConsumerWidget {
           onRefresh: refresh,
           child: summaryAsync.when(
             loading: () => const _DashboardLoadingView(),
-            error: (_, _) => _DashboardUnavailable(
-              isInternal: isInternal,
-              onRetry: refresh,
-            ),
+            error: (_, _) =>
+                _DashboardUnavailable(isInternal: isInternal, onRetry: refresh),
             data: (summary) {
               if (!isInternal) {
                 return _CustomerDashboardBody(
@@ -88,11 +87,9 @@ class _CustomerDashboardBody extends StatelessWidget {
     final nextAction = _DashboardAction.customer(summary);
     final services = summary.serviceSnapshots.take(3).toList(growable: false);
 
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+    return OmcPageListView(
+      topPadding: 18,
+      bottomPadding: 32,
       children: [
         const _DashboardHeader(
           eyebrow: 'Dashboard',
@@ -125,8 +122,9 @@ class _CustomerDashboardBody extends StatelessWidget {
             message: capabilities.canCreateServiceRequest
                 ? 'Browse the catalogue when you are ready to start a service.'
                 : 'No active service snapshot is currently available.',
-            actionLabel:
-                capabilities.canCreateServiceRequest ? 'Browse services' : null,
+            actionLabel: capabilities.canCreateServiceRequest
+                ? 'Browse services'
+                : null,
             onAction: capabilities.canCreateServiceRequest
                 ? () => context.go('/services')
                 : null,
@@ -152,10 +150,7 @@ class _CustomerDashboardBody extends StatelessWidget {
           subtitle: 'Authoritative backend counts without invented progress.',
         ),
         const SizedBox(height: 10),
-        _CustomerSummaryCard(
-          summary: summary,
-          capabilities: capabilities,
-        ),
+        _CustomerSummaryCard(summary: summary, capabilities: capabilities),
         const SizedBox(height: 24),
         const _SectionHeader(
           title: 'Recent activity',
@@ -208,11 +203,9 @@ class _InternalDashboardBody extends StatelessWidget {
       queue: queue,
     );
 
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+    return OmcPageListView(
+      topPadding: 18,
+      bottomPadding: 32,
       children: [
         const _DashboardHeader(
           eyebrow: 'Operations dashboard',
@@ -254,9 +247,11 @@ class _InternalDashboardBody extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Column(
               children: [
-                for (var index = 0;
-                    index < queue.cases.take(3).length;
-                    index++) ...[
+                for (
+                  var index = 0;
+                  index < queue.cases.take(3).length;
+                  index++
+                ) ...[
                   _InternalCaseRow(serviceCase: queue.cases[index]),
                   if (index != queue.cases.take(3).length - 1)
                     const Divider(height: 1),
@@ -279,10 +274,7 @@ class _InternalDashboardBody extends StatelessWidget {
         else if (workspace == null)
           const AppSkeleton(height: 194, radius: 16)
         else
-          _InternalSummaryCard(
-            summary: workspace,
-            capabilities: capabilities,
-          ),
+          _InternalSummaryCard(summary: workspace, capabilities: capabilities),
         const SizedBox(height: 24),
         const _SectionHeader(
           title: 'Recent activity',
@@ -445,10 +437,7 @@ class _NextActionCard extends StatelessWidget {
 }
 
 class _CustomerServiceRow extends StatelessWidget {
-  const _CustomerServiceRow({
-    required this.service,
-    required this.canOpen,
-  });
+  const _CustomerServiceRow({required this.service, required this.canOpen});
 
   final HomeDashboardServiceSnapshot service;
   final bool canOpen;
@@ -506,7 +495,7 @@ class _CustomerServiceRow extends StatelessWidget {
                       label:
                           '${(service.progress * 100).round().clamp(0, 100)} percent complete',
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
                         child: LinearProgressIndicator(
                           minHeight: 6,
                           value: service.progress.clamp(0, 1).toDouble(),
@@ -561,8 +550,10 @@ class _InternalCaseRow extends StatelessWidget {
                   : serviceCase.normalizedLifecycleState == 'activation failed'
                   ? Icons.sync_problem_rounded
                   : Icons.assignment_outlined,
-              color: serviceCase.isFinancialHold ||
-                      serviceCase.normalizedLifecycleState == 'activation failed'
+              color:
+                  serviceCase.isFinancialHold ||
+                      serviceCase.normalizedLifecycleState ==
+                          'activation failed'
                   ? AppTheme.danger
                   : AppTheme.info,
               size: 42,
@@ -924,7 +915,11 @@ class _CustomerLinks extends StatelessWidget {
   Widget build(BuildContext context) {
     final links = <_LinkData>[
       if (capabilities.canCreateServiceRequest)
-        const _LinkData('Start service', Icons.add_business_outlined, '/services'),
+        const _LinkData(
+          'Start service',
+          Icons.add_business_outlined,
+          '/services',
+        ),
       if (capabilities.canViewDocuments)
         const _LinkData('Documents', Icons.upload_file_outlined, '/documents'),
       if (capabilities.canViewPayments)
@@ -932,9 +927,16 @@ class _CustomerLinks extends StatelessWidget {
       if (capabilities.canCreateSupportTicket)
         const _LinkData('Support', Icons.support_agent_outlined, '/support'),
       if (capabilities.canUseTaxCalculator)
-        const _LinkData('Tax calculator', Icons.calculate_outlined, '/tax-calculator'),
+        const _LinkData(
+          'Tax calculator',
+          Icons.calculate_outlined,
+          '/tax-calculator',
+        ),
     ];
-    return _LinkCard(links: links, emptyMessage: 'No extra dashboard links are enabled.');
+    return _LinkCard(
+      links: links,
+      emptyMessage: 'No extra dashboard links are enabled.',
+    );
   }
 }
 
@@ -987,7 +989,10 @@ class _InternalLinks extends StatelessWidget {
       ))
         const _LinkData('Tasks', Icons.task_alt_outlined, '/tasks'),
     ];
-    return _LinkCard(links: links, emptyMessage: 'No additional work area is enabled for this role.');
+    return _LinkCard(
+      links: links,
+      emptyMessage: 'No additional work area is enabled for this role.',
+    );
   }
 }
 
@@ -1106,7 +1111,10 @@ class _SectionHeader extends StatelessWidget {
         );
 
         if (actionLabel == null || onAction == null) return text;
-        final action = TextButton(onPressed: onAction, child: Text(actionLabel!));
+        final action = TextButton(
+          onPressed: onAction,
+          child: Text(actionLabel!),
+        );
         if (stack) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1239,9 +1247,9 @@ class _DashboardUnavailable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+    return OmcPageListView(
+      topPadding: 18,
+      bottomPadding: 32,
       children: [
         _DashboardHeader(
           eyebrow: isInternal ? 'Operations dashboard' : 'Dashboard',
@@ -1292,9 +1300,9 @@ class _DashboardLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+    return OmcPageListView(
+      topPadding: 18,
+      bottomPadding: 32,
       children: const [
         AppSkeleton(height: 82, radius: 16),
         SizedBox(height: 18),
@@ -1324,7 +1332,9 @@ class _DashboardAction {
     if (backend != null && backend.route.trim().isNotEmpty) {
       return _DashboardAction(
         eyebrow: backend.required ? 'Action required' : 'Next action',
-        title: backend.title.trim().isEmpty ? 'Open your service' : backend.title.trim(),
+        title: backend.title.trim().isEmpty
+            ? 'Open your service'
+            : backend.title.trim(),
         subtitle: backend.subtitle.trim(),
         buttonLabel: backend.buttonLabel.trim().isEmpty
             ? 'Open'
@@ -1363,7 +1373,8 @@ class _DashboardAction {
       return const _DashboardAction(
         eyebrow: 'Next action',
         title: 'Review your active service requests',
-        subtitle: 'Open My requests for the latest service status and next steps.',
+        subtitle:
+            'Open My requests for the latest service status and next steps.',
         buttonLabel: 'View requests',
         route: '/my-services',
         icon: Icons.assignment_outlined,

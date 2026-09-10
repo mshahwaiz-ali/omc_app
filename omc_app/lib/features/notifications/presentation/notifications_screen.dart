@@ -7,6 +7,7 @@ import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_state.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../home/data/home_dashboard_repository.dart';
 import '../data/notification_item.dart';
@@ -53,11 +54,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               final loadedUnread = visible.where((item) => !item.isRead).length;
               final authoritativeUnread = unreadCountAsync.asData?.value;
 
-              return ListView(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
+              return OmcPageListView(
+                topPadding: 16,
                 children: [
                   _Header(
                     unreadCount: authoritativeUnread,
@@ -363,7 +361,7 @@ class _NotificationList extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 22),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.error,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(AppRadius.card),
               ),
               child: const Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -418,7 +416,7 @@ class _NotificationRow extends StatelessWidget {
         padding: EdgeInsets.zero,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
             child: Row(
@@ -429,7 +427,7 @@ class _NotificationRow extends StatelessWidget {
                   height: 44,
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppRadius.control),
                   ),
                   child: Icon(_typeIcon(item.type), color: color, size: 22),
                 ),
@@ -486,11 +484,9 @@ class _NotificationRow extends StatelessWidget {
                         children: [
                           Text(
                             item.type.label,
-                            style: TextStyle(
-                              color: color,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: Theme.of(
+                              context,
+                            ).textTheme.labelMedium?.copyWith(color: color),
                           ),
                           if (item.reference?.trim().isNotEmpty == true)
                             Text(
@@ -609,9 +605,8 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
+    return OmcPageListView(
+      topPadding: 16,
       children: [
         const _Header(
           unreadCount: null,
@@ -637,9 +632,8 @@ class _LoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
+    return OmcPageListView(
+      topPadding: 16,
       children: [
         const _Header(
           unreadCount: null,
@@ -655,7 +649,7 @@ class _LoadingView extends StatelessWidget {
               height: 76,
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.control),
               ),
             ),
           ),
