@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
@@ -89,7 +90,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         icon: const Icon(Icons.arrow_back_rounded),
       ),
       child: PremiumCard(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: _submitted
             ? Semantics(
                 container: true,
@@ -102,18 +103,18 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       color: AppTheme.info,
                       size: 40,
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: AppSpacing.md),
                     Text(
                       'Reset request received',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       _message ??
                           'If the account is eligible, password reset instructions will be sent shortly.',
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppSpacing.xl),
                     AppButton(
                       label: 'Back to login',
                       icon: Icons.login_rounded,
@@ -131,19 +132,24 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       'Account identifier',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       'Use the identifier you normally use to sign in.',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      'Email, username, mobile or CNIC',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
                     TextFormField(
                       controller: _identifierController,
                       textInputAction: TextInputAction.done,
                       autofillHints: const [AutofillHints.username],
                       onFieldSubmitted: (_) => _submit(),
                       decoration: const InputDecoration(
-                        labelText: 'Email, username, mobile or CNIC',
+                        hintText: 'Enter your account identifier',
                         prefixIcon: Icon(Icons.person_search_outlined),
                       ),
                       validator: (value) {
@@ -154,10 +160,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       },
                     ),
                     if (_message != null) ...[
-                      const SizedBox(height: 14),
+                      const SizedBox(height: AppSpacing.sm),
                       AuthErrorBanner(message: _message!),
                     ],
-                    const SizedBox(height: 22),
+                    const SizedBox(height: AppSpacing.xl),
                     AppButton(
                       label: 'Send reset link',
                       icon: Icons.outgoing_mail,
