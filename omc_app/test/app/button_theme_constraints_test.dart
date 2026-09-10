@@ -12,7 +12,7 @@ void main() {
         theme: AppTheme.lightTheme,
         home: Scaffold(
           body: SizedBox(
-            width: 320,
+            width: 480,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
