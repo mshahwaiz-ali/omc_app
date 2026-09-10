@@ -14,7 +14,7 @@ import '../domain/internal_service_case.dart';
 import '../domain/internal_workspace_summary.dart';
 import 'internal_workspace_providers.dart';
 
-const EdgeInsets _pagePadding = EdgeInsets.fromLTRB(20, 18, 20, 164);
+const EdgeInsets _pagePadding = EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl);
 
 class InternalWorkspaceScreen extends ConsumerWidget {
   const InternalWorkspaceScreen({super.key});
@@ -233,10 +233,7 @@ class _WorkspaceHeader extends StatelessWidget {
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 6),
-            Text(
-              focus.subtitle,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
+            Text(focus.subtitle, style: Theme.of(context).textTheme.bodyLarge),
           ],
         );
         final refresh = IconButton.outlined(
@@ -593,9 +590,9 @@ class _PriorityCaseCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         '${reason.label}${_waitingLabel(item)}',
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: reason.color,
-                        ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.labelMedium?.copyWith(color: reason.color),
                       ),
                     ),
                   ],
@@ -772,7 +769,11 @@ class _WorkQueueRow extends StatelessWidget {
                     color: AppTheme.cardSoft,
                     borderRadius: BorderRadius.circular(AppRadius.control),
                   ),
-                  child: Icon(item.icon, color: AppTheme.textSecondary, size: 20),
+                  child: Icon(
+                    item.icon,
+                    color: AppTheme.textSecondary,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(

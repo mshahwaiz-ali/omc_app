@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
@@ -11,7 +12,7 @@ import '../../payments/data/payments_repository.dart';
 import '../domain/internal_service_case.dart';
 import 'internal_workspace_providers.dart';
 
-const EdgeInsets _kOpsPadding = EdgeInsets.fromLTRB(20, 8, 20, 164);
+const EdgeInsets _kOpsPadding = EdgeInsets.fromLTRB(20, 8, 20, AppSpacing.xl);
 
 enum InternalOperationArea { customers, documents, payments }
 
@@ -3592,7 +3593,12 @@ class _PaymentReviewListView extends StatelessWidget {
         return ListView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(horizontal, 12, horizontal, 164),
+          padding: EdgeInsets.fromLTRB(
+            horizontal,
+            12,
+            horizontal,
+            AppSpacing.xl,
+          ),
           children: children,
         );
       },
@@ -4279,7 +4285,12 @@ class _InternalCaseWorkspaceV2 extends StatelessWidget {
             : inset;
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(horizontal, 12, horizontal, 164),
+          padding: EdgeInsets.fromLTRB(
+            horizontal,
+            12,
+            horizontal,
+            AppSpacing.xl,
+          ),
           children: [
             _CaseIdentityV2(serviceCase: serviceCase),
             const SizedBox(height: 16),

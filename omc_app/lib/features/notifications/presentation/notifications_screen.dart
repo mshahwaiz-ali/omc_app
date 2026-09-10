@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/resilience/app_failure.dart';
@@ -56,7 +57,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics(),
                 ),
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
                 children: [
                   _Header(
                     unreadCount: authoritativeUnread,
@@ -610,7 +611,7 @@ class _ErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
       children: [
         const _Header(
           unreadCount: null,
@@ -638,7 +639,7 @@ class _LoadingView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
       children: [
         const _Header(
           unreadCount: null,

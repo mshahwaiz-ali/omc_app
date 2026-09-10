@@ -121,7 +121,7 @@ class ServiceDetailScreen extends ConsumerWidget {
                           pageInset,
                           AppSpacing.md,
                           pageInset,
-                          122,
+                          AppSpacing.xl,
                         ),
                         children: [
                           Align(
@@ -407,7 +407,8 @@ class _ExistingServiceRequestsSheet extends StatelessWidget {
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: cases.length,
-                separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.xs),
+                separatorBuilder: (_, _) =>
+                    const SizedBox(height: AppSpacing.xs),
                 itemBuilder: (context, index) {
                   final serviceCase = cases[index];
                   final primary = isInternal
@@ -470,10 +471,12 @@ class _ExistingServiceRequestsSheet extends StatelessWidget {
                                     const SizedBox(height: AppSpacing.xxs),
                                     Text(
                                       supporting,
-                                      style: theme.textTheme.bodyMedium?.copyWith(
-                                        color:
-                                            theme.colorScheme.onSurfaceVariant,
-                                      ),
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            color: theme
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                          ),
                                     ),
                                   ],
                                 ),
@@ -525,7 +528,12 @@ class _ServiceDetailLoadingView extends StatelessWidget {
           top: false,
           child: ListView(
             physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, 122),
+            padding: EdgeInsets.fromLTRB(
+              inset,
+              AppSpacing.md,
+              inset,
+              AppSpacing.xl,
+            ),
             children: const [
               AppSkeleton(height: 180, radius: AppRadius.card),
               SizedBox(height: AppSpacing.xxl),
@@ -570,7 +578,11 @@ class _AssistedServiceContext extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.person_search_outlined, color: AppTheme.info, size: 24),
+            const Icon(
+              Icons.person_search_outlined,
+              color: AppTheme.info,
+              size: 24,
+            ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
@@ -985,7 +997,11 @@ class _SupportSection extends StatelessWidget {
           if (stack) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [copy, const SizedBox(height: AppSpacing.sm), action],
+              children: [
+                copy,
+                const SizedBox(height: AppSpacing.sm),
+                action,
+              ],
             );
           }
 

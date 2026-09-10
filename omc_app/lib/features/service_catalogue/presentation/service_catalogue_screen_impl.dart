@@ -134,7 +134,7 @@ class _ServiceCatalogueScreenState
                 pageInset,
                 AppSpacing.md,
                 pageInset,
-                122,
+                AppSpacing.xl,
               ),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               children: [
@@ -178,9 +178,8 @@ class _ServiceCatalogueScreenState
                   onPrevious: () => setState(
                     () => _start = (_start - _pageSize).clamp(0, _start),
                   ),
-                  onNext: () => setState(
-                    () => _start = pageAsync.value!.nextStart!,
-                  ),
+                  onNext: () =>
+                      setState(() => _start = pageAsync.value!.nextStart!),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 if (services.isEmpty &&
@@ -554,7 +553,9 @@ class _ServiceFilterChip extends StatelessWidget {
           onTap: onTap,
           borderRadius: radius,
           child: Container(
-            constraints: const BoxConstraints(minHeight: AppTouchTarget.minimum),
+            constraints: const BoxConstraints(
+              minHeight: AppTouchTarget.minimum,
+            ),
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
               vertical: AppSpacing.xs,
@@ -678,7 +679,10 @@ class _Pager extends StatelessWidget {
             child: Text('Page $page', style: theme.textTheme.bodyMedium),
           ),
         ),
-        TextButton(onPressed: canGoNext ? onNext : null, child: const Text('Next')),
+        TextButton(
+          onPressed: canGoNext ? onNext : null,
+          child: const Text('Next'),
+        ),
       ],
     );
   }
@@ -856,11 +860,7 @@ class _FilterPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _ServiceFilterChip(
-      label: label,
-      selected: selected,
-      onTap: onTap,
-    );
+    return _ServiceFilterChip(label: label, selected: selected, onTap: onTap);
   }
 }
 

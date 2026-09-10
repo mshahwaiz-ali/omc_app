@@ -7,7 +7,7 @@ class _CustomerHomeLoading extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 150),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl),
       children: const [
         _LoadingPanel(height: 70),
         SizedBox(height: 18),

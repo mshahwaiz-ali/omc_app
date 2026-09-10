@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/network/api_error.dart';
@@ -488,7 +489,7 @@ class _ReviewContent extends StatelessWidget {
     return ListView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 132),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl),
       children: [
         PremiumListHeader(
           icon: Icons.fact_check_outlined,
@@ -1217,7 +1218,7 @@ class _ReviewLoadingView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 132),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl),
       children: const [
         PremiumListHeader(
           icon: Icons.fact_check_outlined,

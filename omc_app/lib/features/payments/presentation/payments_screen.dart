@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/widgets/app_state.dart';
@@ -70,7 +71,7 @@ class _PaymentsList extends StatelessWidget {
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
       children: [
         _PaymentsHeader(
           paymentCount: sorted.length,
@@ -492,7 +493,7 @@ class _EmptyPaymentsView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
       children: [
         const _EmptyPaymentsHeader(),
         SizedBox(height: 18),
@@ -554,7 +555,7 @@ class _PaymentsErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
       children: [
         const _EmptyPaymentsHeader(),
         const SizedBox(height: 18),
@@ -578,7 +579,7 @@ class _PaymentsLoadingView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
       children: [
         const _EmptyPaymentsHeader(),
         const SizedBox(height: 18),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/resilience/app_failure.dart';
@@ -220,7 +221,7 @@ class _DocumentsWorkspaceState extends State<_DocumentsWorkspace> {
       physics: const AlwaysScrollableScrollPhysics(
         parent: BouncingScrollPhysics(),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
       children: [
         _Header(
           documents: widget.documents,
@@ -937,7 +938,7 @@ class _DocumentsErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 132),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl),
       children: [
         AppErrorState.fromError(
           error: error,
@@ -959,7 +960,7 @@ class _DocumentsLoadingView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 28, 20, 132),
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, AppSpacing.xl),
       itemBuilder: (context, index) => PremiumCard(
         padding: const EdgeInsets.all(16),
         child: Container(

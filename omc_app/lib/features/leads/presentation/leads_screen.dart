@@ -101,8 +101,7 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
               nextStart: page.nextStart,
               onQueryChanged: _search,
               onClearSearch: _clearSearch,
-              onStatusChanged: (value) =>
-                  setState(() => _statusFilter = value),
+              onStatusChanged: (value) => setState(() => _statusFilter = value),
               onPrevious: _start == 0
                   ? null
                   : () => setState(() => _start -= 50),
@@ -199,7 +198,9 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
               dirtyFormController.beginSubmitting();
               setSheetState(() => saving = true);
               try {
-                await ref.read(leadsRepositoryProvider).createLead(
+                await ref
+                    .read(leadsRepositoryProvider)
+                    .createLead(
                       title: title,
                       customerName: nameController.text,
                       phone: phoneController.text,
@@ -264,9 +265,9 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
                                     children: [
                                       Text(
                                         'Add new lead',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleLarge,
                                       ),
                                       const SizedBox(height: AppSpacing.xxs),
                                       Text(
@@ -455,9 +456,9 @@ class _LeadFormSectionTitle extends StatelessWidget {
         const SizedBox(height: AppSpacing.xxs),
         Text(
           subtitle,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
         ),
       ],
     );
@@ -506,10 +507,7 @@ class _LeadFormField extends StatelessWidget {
           textCapitalization: textCapitalization,
           minLines: minLines,
           maxLines: maxLines,
-          decoration: InputDecoration(
-            hintText: hint,
-            prefixIcon: Icon(icon),
-          ),
+          decoration: InputDecoration(hintText: hint, prefixIcon: Icon(icon)),
         ),
       ],
     );
@@ -525,7 +523,10 @@ String _backendErrorMessage(Object error) {
 }
 
 class _BackendUnavailableState extends StatelessWidget {
-  const _BackendUnavailableState({required this.message, required this.onRetry});
+  const _BackendUnavailableState({
+    required this.message,
+    required this.onRetry,
+  });
 
   final String message;
   final VoidCallback onRetry;
@@ -592,10 +593,7 @@ class _LeadsContent extends StatelessWidget {
           onClear: onClearSearch,
         ),
         const SizedBox(height: AppSpacing.sm),
-        Text(
-          'Stage filter',
-          style: Theme.of(context).textTheme.titleSmall,
-        ),
+        Text('Stage filter', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: AppSpacing.xs),
         _LeadStatusFilters(
           selectedStatus: statusFilter,
@@ -606,9 +604,9 @@ class _LeadsContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text(
           'Stage counts describe this loaded server page only.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
         ),
         const SizedBox(height: AppSpacing.xl),
         _ResultsHeader(
@@ -671,8 +669,8 @@ class _PageList extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final inset = AppLayout.pageInsetFor(constraints.maxWidth);
-        final horizontal = constraints.maxWidth >
-                AppLayout.generalMaxWidth + inset * 2
+        final horizontal =
+            constraints.maxWidth > AppLayout.generalMaxWidth + inset * 2
             ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
             : inset;
         return ListView(
@@ -680,7 +678,12 @@ class _PageList extends StatelessWidget {
           physics: const AlwaysScrollableScrollPhysics(
             parent: BouncingScrollPhysics(),
           ),
-          padding: EdgeInsets.fromLTRB(horizontal, 18, horizontal, 164),
+          padding: EdgeInsets.fromLTRB(
+            horizontal,
+            18,
+            horizontal,
+            AppSpacing.xl,
+          ),
           children: children,
         );
       },
@@ -873,9 +876,9 @@ class _ResultsHeader extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Text(
           '$count shown',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
         ),
       ],
     );
@@ -956,9 +959,9 @@ class _LeadCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           Text(
             'Service interest',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: AppSpacing.xxs),
           Text(
@@ -1051,11 +1054,7 @@ class _AdaptiveDetails extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        row.icon,
-                        size: 20,
-                        color: AppTheme.textSecondary,
-                      ),
+                      Icon(row.icon, size: 20, color: AppTheme.textSecondary),
                       const SizedBox(width: AppSpacing.xs),
                       Expanded(
                         child: Column(
@@ -1063,9 +1062,7 @@ class _AdaptiveDetails extends StatelessWidget {
                           children: [
                             Text(
                               row.label,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
+                              style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(color: AppTheme.textSecondary),
                             ),
                             const SizedBox(height: AppSpacing.xxs),
@@ -1122,9 +1119,9 @@ class _Pager extends StatelessWidget {
             const SizedBox(height: AppSpacing.xxs),
             Text(
               '$visibleCount shown from $pageLoadedCount loaded on this server page.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
             ),
           ],
         );

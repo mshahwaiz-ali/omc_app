@@ -346,8 +346,8 @@ class _QueueListView extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final pageInset = AppLayout.pageInsetFor(constraints.maxWidth);
-        final horizontal = constraints.maxWidth >
-                AppLayout.generalMaxWidth + pageInset * 2
+        final horizontal =
+            constraints.maxWidth > AppLayout.generalMaxWidth + pageInset * 2
             ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
             : pageInset;
 
@@ -356,7 +356,12 @@ class _QueueListView extends StatelessWidget {
           physics: const AlwaysScrollableScrollPhysics(
             parent: BouncingScrollPhysics(),
           ),
-          padding: EdgeInsets.fromLTRB(horizontal, 18, horizontal, 164),
+          padding: EdgeInsets.fromLTRB(
+            horizontal,
+            18,
+            horizontal,
+            AppSpacing.xl,
+          ),
           children: children,
         );
       },
@@ -399,9 +404,9 @@ class _QueueHeader extends StatelessWidget {
             Expanded(
               child: Text(
                 countLabel,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
               ),
             ),
           ],
@@ -677,15 +682,19 @@ class _ResultsHeader extends StatelessWidget {
         final count = Text(
           '$visibleCount shown from $loadedCount loaded',
           textAlign: stack ? TextAlign.start : TextAlign.end,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
         );
 
         if (stack) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [title, const SizedBox(height: AppSpacing.xxs), count],
+            children: [
+              title,
+              const SizedBox(height: AppSpacing.xxs),
+              count,
+            ],
           );
         }
 
@@ -802,9 +811,9 @@ class _ServiceCaseCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           Text(
             'Current operational state',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: AppSpacing.xs),
           _StatusBanner(
@@ -821,10 +830,7 @@ class _ServiceCaseCard extends StatelessWidget {
             padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
             child: Divider(height: 1),
           ),
-          Text(
-            'Case details',
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
+          Text('Case details', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: AppSpacing.sm),
           _CaseMetaGrid(items: metaItems),
         ],
@@ -894,9 +900,9 @@ class _ProgressRow extends StatelessWidget {
       children: [
         Text(
           'Progress $percent%',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
         ),
         const SizedBox(height: AppSpacing.xxs),
         ClipRRect(
@@ -1032,9 +1038,9 @@ class _CaseMetaRow extends StatelessWidget {
             children: [
               Text(
                 item.label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: AppSpacing.xxs),
               Text(
@@ -1111,9 +1117,9 @@ class _CaseFilterSheetState extends State<_CaseFilterSheet> {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Operational and document filters run on the backend before pagination.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: AppSpacing.xl),
               Text(
@@ -1172,14 +1178,8 @@ class _CaseFilterSheetState extends State<_CaseFilterSheet> {
                     child: Text('Needs review'),
                   ),
                   DropdownMenuItem(value: 'pending', child: Text('Pending')),
-                  DropdownMenuItem(
-                    value: 'approved',
-                    child: Text('Approved'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'rejected',
-                    child: Text('Rejected'),
-                  ),
+                  DropdownMenuItem(value: 'approved', child: Text('Approved')),
+                  DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
                 ],
                 onChanged: (value) => setState(
                   () => _documentStatus = value == null || value.isEmpty
@@ -1190,8 +1190,7 @@ class _CaseFilterSheetState extends State<_CaseFilterSheet> {
               const SizedBox(height: AppSpacing.xl),
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final stack =
-                      constraints.maxWidth < 300 || textScale >= 1.5;
+                  final stack = constraints.maxWidth < 300 || textScale >= 1.5;
                   final reset = TextButton(
                     onPressed: () {
                       setState(() {
@@ -1222,13 +1221,7 @@ class _CaseFilterSheetState extends State<_CaseFilterSheet> {
                     );
                   }
 
-                  return Row(
-                    children: [
-                      reset,
-                      const Spacer(),
-                      apply,
-                    ],
-                  );
+                  return Row(children: [reset, const Spacer(), apply]);
                 },
               ),
             ],
@@ -1291,9 +1284,9 @@ class _CasesEmptyState extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
         ],
       ),

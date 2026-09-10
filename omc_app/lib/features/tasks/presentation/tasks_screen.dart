@@ -388,7 +388,7 @@ class _TasksContent extends StatelessWidget {
                 horizontal,
                 tasks.isNotEmpty && hasMore ? AppSpacing.md : 0,
                 horizontal,
-                164,
+                AppSpacing.xl,
               ),
               sliver: SliverToBoxAdapter(
                 child: tasks.isNotEmpty && hasMore
@@ -440,7 +440,12 @@ class _TaskListView extends StatelessWidget {
           physics: const AlwaysScrollableScrollPhysics(
             parent: BouncingScrollPhysics(),
           ),
-          padding: EdgeInsets.fromLTRB(horizontal, 18, horizontal, 164),
+          padding: EdgeInsets.fromLTRB(
+            horizontal,
+            18,
+            horizontal,
+            AppSpacing.xl,
+          ),
           children: children,
         );
       },

@@ -118,7 +118,7 @@ class ApprovedCustomerHomeView extends ConsumerWidget {
             onRefresh: refresh,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 150),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl),
               children: [
                 _HomeHeader(
                   name: profileName,
@@ -236,7 +236,7 @@ class _CustomerHomeContent extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(
         parent: BouncingScrollPhysics(),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 150),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl),
       children: [
         _HomeHeader(
           name: customerName,

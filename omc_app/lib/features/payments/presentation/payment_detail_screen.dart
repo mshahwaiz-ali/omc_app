@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/mutation_invalidation.dart';
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/diagnostics/e2e_network_audit.dart';
@@ -91,7 +92,7 @@ class _DetailLoadingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 132),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, AppSpacing.xl),
       children: [
         PremiumCard(
           padding: const EdgeInsets.all(20),
@@ -575,7 +576,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
 
     return ListView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
       children: [
         _PaymentHeroCard(
           payment: payment,
