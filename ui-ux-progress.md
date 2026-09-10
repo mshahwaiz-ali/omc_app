@@ -20,8 +20,20 @@ No E001–E146 surface was removed by the five-phase consolidation.
 - Blueprint source-audit parent: `b42ed754fdb58dcd672497ba2e2e612658e1b882`
 - Latest Phase 4 implementation code head: `19aa7be3ddd04c52d130ade98d540f755f17e1b9`
 - Latest Phase 5 implementation code head: `1d753fb4bf2ce2218ec2605761f9d89eef70bf8b`
+- Final modal source closure: `d0b1061c74f1f866c4b3f65f37031970be502c43`
+- Final audited source head before this ledger-only closure: `a654605a7e554ffa86d210f5e44ed8367ccdfd2f`
 - Backend: out of scope unless a genuine blocking defect is proven.
 - Functional, navigation, provider, payload, ownership, payment-first lifecycle and ERP authority remain frozen per `ui-ux.md` J1/J2.
+
+## Final closure status
+
+**SOURCE IMPLEMENTATION / SOURCE AUDIT: COMPLETE**
+
+- All E001–E146 are implemented or explicitly accounted for against the current routed/shared owners on the audited source head above.
+- The final exact-current-source audit is **CLEAN**.
+- Source implementation / source audit: **100%**.
+- Runtime / device QA: **PENDING**.
+- Production validation: **NOT YET CLAIMED**.
 
 ## Phase status
 
@@ -45,7 +57,7 @@ No E001–E146 surface was removed by the five-phase consolidation.
 - `a0e13620a64235e596ca56cb7734044e0f08920f` + `f157e0246bf49bac95c2502781f46a183a67457d` — More hierarchy and route-access presentation.
 - `50c377b87adfbe0a436e2049522f9eb167471079` — E042 device-lock semantics and input blocking.
 - `71a4216e0d8df245e2bd2e295370d00011174f64` — E043 / E090 readiness and update states.
-- `f76831d6af7abd557d9652458e71fed5710ef44d` — route recovery.
+- `f76831d6af7abd557d9658e71fed5710ef44d` — route recovery.
 - `715137d58151d5fa66ee603365bc87cf18732429` — adaptive shared back/page header.
 - Final Phase 5 re-audit confirmed E062–E067 already meet the blueprint: branch restoration/reselect, dirty guard, safe route recovery, More dismissal, bottom-nav index bindings, adaptive Quick Actions and unsaved-change confirmation remain unchanged.
 
@@ -61,7 +73,7 @@ No E001–E146 surface was removed by the five-phase consolidation.
 ### Catalogue / service requests
 
 - E005 Service Catalogue — `426ab8cf5d5893ae28aecb9402a07ebe95248fad`
-- E006 Service Detail — `2ad6114ce65e6a56c29a0f94084b821ae7bec52d`
+- E006 Service Detail — `2ad6114ce65e6a42ed3b8023ffa632adbd6e6d35`
 - E007 + E008 Request Draft / Assisted Customer — `c79f01ea840b4e798ca11c8d6088e62b324bfbd7`
 - E009 My Services / Requests — `1c533efa00b22aff1ad595331fbbea99fc810194`
 - E010 Canonical Customer Request Detail — `f9ec8afa866f59829423a06a973a661e09f52805`
@@ -175,6 +187,17 @@ All customer-journey repository calls, assisted/customer ownership scopes, payme
 - E144 Document file selection/validation — source-audited; cancel is non-error, allowed picker types/MIME checks, 10MB limit, duplicate/max-file rules and path-or-bytes attachment shape unchanged.
 - E146 Customer document external opening — source-audited; only valid `http` / `https` or rooted backend-relative paths are resolved, external application mode retained and invalid/unopenable links fail safely.
 
+## Final routed/source closure after E001–E146 accounting
+
+- **Responsive routed-page closure:** the final C2/bounded-root work was closed through `afdb783d8daad717fdfebd1fe43ecda224a4137e`, `e3767b79c98f53d20f6a0f8374e85a5395485d96`, `9a764b8f2bb422f24ab0cc14e73d2761c9b6b247` and `3a6d2bd45d4dd7bfc923bd46a9487f638ae3ad6d`. Live Home/Dashboard/Payments/Notifications and the remaining routed list/detail/form owners use the responsive/bounded page contracts without moving route or business authority.
+- **Semantic typography/status/helper closure:** `cc7475319b2a473d2359e370aecf676cec92709f` closed the remaining C1/C5 role gaps so operational status, guidance, helper and action text are not incorrectly demoted to caption microcopy while true timestamps/metadata remain caption-sized.
+- **Persistent field labels:** live form owners, including the routed Support implementation behind its wrapper, retain persistent labels; search remains the intentional exception. The final exact-source audit reports `persistent labels: OK`.
+- **Modal C4/C6 closure:** `d0b1061c74f1f866c4b3f65f37031970be502c43` closed the final bottom-sheet/dialog edges: canonical sheet skin/shape/handle behavior, non-draggable handle suppression where required, large-text-safe scrolling and semantic status presentation while preserving dirty-form, upload, financial-hold and route authority.
+- **Routed/live-vs-dead classification:** route ownership was checked before modifying search hits. `/internal-workspace/customers` and `/internal-workspace/documents` use their dedicated owners; only the payment area remains live in `InternalOperationsCenterScreen`. Profile/Settings use V2 owners. Support wrappers intentionally render the live files with `legacy` in their filenames. The live guest/pending/rejected and internal Home branches were distinguished from the unreachable old fallback in `home_screen_role_aware.dart`.
+- **Classified prohibited-pattern hits:** the remaining `onPressed: () {}`, `minimumSize: Size.zero` and `MaterialTapTargetSize.shrinkWrap` hits are confined to the old unrouted non-payment Internal Operations branches and were deliberately left untouched. The audit reports `prohibited patterns: classified/OK`.
+- **Final exact-current-source audit:** the one-shot scan on `837950eebf44e6b4be78a17e1a3ba9b91e990170` reported route authority OK, responsive roots OK, shell authority OK, semantic roles OK, modal contracts OK, persistent labels OK, bottom-nav badge OK, and `FINAL EXACT SOURCE AUDIT: CLEAN`. Its temporary workflow/script were then removed in `a654605a7e554ffa86d210f5e44ed8367ccdfd2f`.
+- **Source-batch verification:** the successful corrected final routed batch, final semantic batch and final modal batch each completed focused contracts, relevant regressions, `flutter analyze` and the full Flutter test suite before their source commits landed. The final modal batch specifically finished with `No issues found!` and **587 tests passed**, followed by its stale-main guard.
+
 ## P0 / high-risk parity checks completed
 
 - E046 internal workspace: capability-derived focus, summary/case providers and routes unchanged.
@@ -232,25 +255,32 @@ Every blueprint ticket is now attached to an implementation commit or an explici
 - No placeholder timeline/action was presented as real backend activity or mutation authority.
 - No assisted-customer context was dropped from supported routes/mutations.
 - No destructive action bypasses its existing confirmation/validation contract.
+- Existing route parameters, providers, repository calls, query parameters, payloads, paging, filters, mutations, session/account ownership, idempotency, `MutationIntent` and dirty-form protection remain authoritative.
 
-## Runtime validation status
+## Runtime / device validation status
 
-The source scope is complete, but production validation is **not** complete until the following actually run:
+**RUNTIME / DEVICE VALIDATION: PENDING**
 
-- Local Flutter/Dart toolchain: **NOT RUN in this execution environment**.
-- `flutter analyze`: **NOT RUN**.
-- Flutter tests: **NOT RUN**.
-- 320–1024px / text scale 1.0–2.0 rendered matrix: **NOT RUN**.
-- Android/iOS native picker, biometric, push and notification device flows: **NOT RUN**.
-- Final accessibility/focus/semantics and cross-feature device regression: **NOT RUN**.
+The final source batches have already been checked in the runner with focused source contracts/regressions, `flutter analyze` and full Flutter tests, and the exact-current-source audit is CLEAN. Those checks establish source closure; they do **not** replace local rendered/device validation.
 
-**SOURCE COMPLETE does not mean production-validated.** Do not call the redesign production-validated until all runtime checks above pass.
+Still pending after pulling final `main` locally:
 
-## Exact next batch
+- Local post-pull Flutter toolchain confirmation plus `flutter analyze` / full `flutter test` baseline confirmation.
+- Rendered widths: **320, 360, 390, 430, 768, 1024**.
+- Text scales: **1.0, 1.3, 1.5, 2.0**.
+- No RenderFlex overflow, clipped important text or hidden primary CTA; important names/statuses must wrap correctly and page/card gutters must follow the blueprint.
+- Touch targets, semantics/focus order, keyboard behavior and safe-area behavior.
+- Dialogs, bottom sheets, dirty-form guard and scroll-to-first-invalid behavior.
+- Android/iOS pickers where applicable, biometric flows, notification permission/device state, push-open routing and notification interactions.
+- Profile photo picker/upload, payment proof upload/resubmit, document upload/replace and support ticket/reply attachments.
 
-1. Run `flutter analyze` from the authoritative Flutter project.
-2. Run the Flutter test suite and focused UI/authority regressions.
-3. Execute the 320–1024px / 1.0–2.0 text-scale rendered matrix.
-4. Validate Android/iOS native picker, biometric, push and notification flows on real/supported devices.
-5. Complete accessibility/focus/semantics and final cross-feature regression.
-6. Only after those pass, mark the five-phase UI/UX modernization **production validated**.
+**SOURCE COMPLETE does not mean production-validated.** Do not call the modernization production validated until the runtime/device matrix above passes.
+
+## Exact next batch — local runtime QA
+
+1. Verify the local Flutter root, Git root, remote, `main` branch and clean working tree.
+2. Fetch and fast-forward pull the final GitHub `main`.
+3. Run `flutter pub get`, `git diff --check`, `flutter analyze` and the full `flutter test` suite locally.
+4. Execute the full 320–1024px / 1.0–2.0 text-scale rendered matrix.
+5. Validate focus/semantics/keyboard/safe-area/dialog/sheet/form behavior and all applicable native/device upload, picker, biometric, push and notification flows.
+6. Only after those checks pass, mark the five-phase UI/UX modernization **production validated**.
