@@ -1,0 +1,46 @@
+name: One-shot final exact UIUX closure scan
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/uiux_final_exact_closure_scan.py'
+      - '.github/workflows/uiux-final-exact-closure-scan.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  scan-and-clean:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Capture scan head
+        run: echo "SCAN_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Run exact current-source audit
+        run: python3 .github/scripts/uiux_final_exact_closure_scan.py
+
+      - name: Verify permanent audit tests are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f omc_app/test/app/uiux_final_live_routed_contract_test.dart
+          test -f omc_app/test/app/uiux_final_semantic_roles_contract_test.dart
+          test -f omc_app/test/app/uiux_final_modal_edges_contract_test.dart
+          git diff --check
+
+      - name: Cleanup diagnostic files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          test "$SCAN_HEAD" = "$(git rev-parse origin/main)" || { echo 'main moved; refusing stale scan cleanup'; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/uiux-final-exact-closure-scan.yml .github/scripts/uiux_final_exact_closure_scan.py
+          git commit -m 'chore: complete final exact uiux closure scan'
+          git push origin HEAD:main
