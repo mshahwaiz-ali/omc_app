@@ -1,0 +1,96 @@
+name: One-shot final live routed UIUX closure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/uiux_final_live_routed_closure.py'
+      - '.github/workflows/uiux-final-live-routed-closure.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-verify-land:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Capture authoritative head
+        run: echo "BASE_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Apply final live routed fixes
+        run: python3 .github/scripts/uiux_final_live_routed_closure.py
+
+      - name: Preserve route and business authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "return ServiceRequestDraftScreen(" omc_app/lib/app/router.dart
+          grep -F "PaymentDetailScreen(" omc_app/lib/app/router.dart
+          grep -F "SupportTicketDetailScreen(ticketId: ticketId)" omc_app/lib/app/router.dart
+          grep -F "const InternalWorkspaceScreen()" omc_app/lib/app/router.dart
+          grep -F "const InternalDocumentReviewScreen()" omc_app/lib/app/router.dart
+          grep -F "MutationIntent()" omc_app/lib/features/service_requests/presentation/service_request_draft_screen.dart
+          grep -F "UnsavedChangesGuard" omc_app/lib/features/service_requests/presentation/service_request_draft_screen.dart
+          grep -F "invalidatePaymentMutation" omc_app/lib/features/payments/presentation/payment_detail_screen.dart
+          grep -F "serviceCaseDetailProvider(widget.caseId)" omc_app/lib/features/service_requests/presentation/operational_service_case_detail_screen.dart
+          grep -F "Timer.periodic(_refreshInterval" omc_app/lib/features/support/presentation/support_ticket_detail_legacy_screen.dart
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+
+      - name: Dependencies
+        working-directory: omc_app
+        run: flutter pub get
+
+      - name: Format and diff check
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd omc_app
+          mapfile -t dart_files < <(git diff --name-only -- '*.dart' | sed 's#^omc_app/##')
+          if ((${#dart_files[@]})); then
+            dart format "${dart_files[@]}"
+          fi
+          cd ..
+          git diff --check
+
+      - name: Focused final routed source contract
+        working-directory: omc_app
+        run: flutter test --no-pub test/app/uiux_final_live_routed_contract_test.dart
+
+      - name: Existing accessibility and route regressions
+        working-directory: omc_app
+        run: |
+          flutter test --no-pub test/app/accessibility_design_contract_test.dart
+          flutter test --no-pub test/app/route_access_policy_test.dart
+          flutter test --no-pub test/features/internal_workspace/internal_workspace_focus_test.dart
+          flutter test --no-pub test/features/detail_mutation_resilience/detail_mutation_failure_test.dart
+
+      - name: Analyze
+        working-directory: omc_app
+        run: flutter analyze --no-pub
+
+      - name: Full Flutter tests
+        working-directory: omc_app
+        run: flutter test --no-pub
+
+      - name: Commit verified source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          test "$BASE_HEAD" = "$(git rev-parse origin/main)" || { echo 'main moved; refusing stale source commit'; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/uiux-final-live-routed-closure.yml .github/scripts/uiux_final_live_routed_closure.py
+          git add omc_app
+          git diff --cached --check
+          git commit -m 'fix: close final routed uiux source gaps'
+          git push origin HEAD:main
