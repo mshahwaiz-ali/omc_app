@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -201,7 +202,7 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
     final selectedCustomer = _selectedCustomer;
 
     return PremiumCard(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -211,24 +212,24 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
               'Customer context',
               style: theme.textTheme.titleMedium?.copyWith(
                 color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             'Choose the registered customer this request is being created for. This selection controls the assisted request identity.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: AppTheme.textSecondary,
-              height: 1.45,
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: AppSpacing.lg),
           if (_loading && _modes.isEmpty)
             const _AssistedLoadingState()
           else if (_error != null && _modes.isEmpty)
             _AssistedErrorState(message: _error!, onRetry: _loadModes)
           else ...[
+            Text('Customer mode', style: theme.textTheme.labelLarge),
+            const SizedBox(height: AppSpacing.xs),
             DropdownButtonFormField<String>(
               initialValue: _selectedMode,
               isExpanded: true,
@@ -249,11 +250,13 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
                 _loadItems();
               },
               decoration: const InputDecoration(
-                labelText: 'Customer mode',
+                hintText: 'Choose customer mode',
                 prefixIcon: Icon(Icons.tune_rounded),
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: AppSpacing.md),
+            Text('Search eligible customers', style: theme.textTheme.labelLarge),
+            const SizedBox(height: AppSpacing.xs),
             TextField(
               controller: _searchController,
               textInputAction: TextInputAction.search,
@@ -261,7 +264,6 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
                   ? null
                   : _loadItems(search: _searchController.text),
               decoration: InputDecoration(
-                labelText: 'Search eligible customers',
                 hintText: 'Name, phone, email or customer ID',
                 prefixIcon: const Icon(Icons.manage_search_rounded),
                 suffixIcon: IconButton(
@@ -273,7 +275,9 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
                 ),
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: AppSpacing.md),
+            Text('Select customer', style: theme.textTheme.labelLarge),
+            const SizedBox(height: AppSpacing.xs),
             LayoutBuilder(
               builder: (context, constraints) {
                 return DropdownMenu<AssistedCustomerOption>(
@@ -283,7 +287,6 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
                   enableSearch: true,
                   requestFocusOnTap: true,
                   leadingIcon: const Icon(Icons.person_search_outlined),
-                  label: const Text('Select customer'),
                   hintText: 'Choose from the loaded results',
                   dropdownMenuEntries: _items
                       .map(
@@ -303,9 +306,9 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
               },
             ),
             if (_loading) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.sm),
               const LinearProgressIndicator(minHeight: 3),
-              const SizedBox(height: 6),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 'Loading eligible customers…',
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -314,19 +317,19 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
               ),
             ],
             if (_error != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.sm),
               _AssistedErrorState(
                 message: _error!,
                 onRetry: () => _loadItems(search: _searchController.text),
               ),
             ] else if (!_loading && _items.isEmpty) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.sm),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerLowest,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
                   border: Border.all(color: AppTheme.border),
                 ),
                 child: Text(
@@ -338,20 +341,22 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
               ),
             ],
             if (selectedCustomer != null) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
               _SelectedAssistedCustomer(customer: selectedCustomer),
             ],
             if (_selectedMode == 'Existing Customer' &&
                 selectedCustomer != null) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
+              Text('Consent reference', style: theme.textTheme.labelLarge),
+              const SizedBox(height: AppSpacing.xs),
               TextFormField(
                 controller: _consentController,
                 minLines: 1,
                 maxLines: 3,
                 decoration: const InputDecoration(
-                  labelText: 'Consent reference',
+                  hintText: 'Call, message, visit or written-consent reference',
                   helperText:
-                      'Add the call, message, visit, or written-consent reference authorizing this assisted request.',
+                      'Add the reference authorizing this assisted request.',
                   prefixIcon: Icon(Icons.verified_user_outlined),
                 ),
                 validator: (value) {
@@ -378,61 +383,59 @@ class _SelectedAssistedCustomer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
     return Semantics(
       container: true,
       label: 'Selected customer: ${customer.fullName}',
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppTheme.border),
+          color: accent.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          border: Border.all(color: accent.withValues(alpha: 0.22)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: AppTouchTarget.minimum,
+              height: AppTouchTarget.minimum,
               decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(12),
+                color: accent.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(AppRadius.control),
               ),
               alignment: Alignment.center,
-              child: const Icon(
+              child: Icon(
                 Icons.person_outline_rounded,
-                color: AppTheme.textPrimary,
+                color: accent,
                 size: 21,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Selected customer',
-                    style: theme.textTheme.bodySmall?.copyWith(
+                    style: theme.textTheme.labelMedium?.copyWith(
                       color: AppTheme.textSecondary,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: AppSpacing.xxs),
                   Text(
                     customer.fullName,
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   if (customer.subtitle.trim().isNotEmpty) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
                       customer.subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: AppTheme.textSecondary,
-                        height: 1.35,
                       ),
                     ),
                   ],
@@ -452,7 +455,7 @@ class _AssistedLoadingState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 12),
+      padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Row(
         children: [
           SizedBox(
@@ -460,7 +463,7 @@ class _AssistedLoadingState extends StatelessWidget {
             height: 22,
             child: CircularProgressIndicator(strokeWidth: 2.5),
           ),
-          SizedBox(width: 12),
+          SizedBox(width: AppSpacing.sm),
           Expanded(child: Text('Loading assisted customer options…')),
         ],
       ),
@@ -479,10 +482,10 @@ class _AssistedErrorState extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: theme.colorScheme.errorContainer.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(12),
+        color: theme.colorScheme.errorContainer.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         border: Border.all(
           color: theme.colorScheme.error.withValues(alpha: 0.22),
         ),
@@ -498,19 +501,18 @@ class _AssistedErrorState extends StatelessWidget {
                 color: theme.colorScheme.error,
                 size: 20,
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Text(
                   message,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onErrorContainer,
-                    height: 1.4,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.xs),
           OutlinedButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded),
