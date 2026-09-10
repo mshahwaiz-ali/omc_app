@@ -83,6 +83,7 @@ class _ServiceCatalogueScreenState
       category: _selectedCategory == _allCategory ? '' : _selectedCategory,
     ));
     final pageAsync = ref.watch(pageProvider);
+    final categoriesAsync = ref.watch(serviceCatalogueCategoriesProvider);
     final servicesAsync = pageAsync.whenData((page) => page.items);
     ref.watch(authControllerProvider);
 
@@ -109,14 +110,17 @@ class _ServiceCatalogueScreenState
           ),
         ),
         data: (services) {
-          final categories = <String>[
-            _allCategory,
-            ...{
-              if (_selectedCategory != _allCategory) _selectedCategory,
-              for (final service in services)
-                if (service.category.trim().isNotEmpty) service.category.trim(),
-            }.toList()..sort(),
-          ];
+          final discoveredCategories =
+              categoriesAsync.value ??
+              services
+                  .map((service) => service.category.trim())
+                  .where((category) => category.isNotEmpty);
+          final categorySet = <String>{
+            if (_selectedCategory != _allCategory) _selectedCategory,
+            ...discoveredCategories,
+          };
+          final sortedCategories = categorySet.toList()..sort();
+          final categories = <String>[_allCategory, ...sortedCategories];
           final filteredServices = services;
           final screenWidth = MediaQuery.sizeOf(context).width;
           final pageInset = AppLayout.pageInsetFor(screenWidth);
@@ -124,7 +128,13 @@ class _ServiceCatalogueScreenState
           return RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(pageProvider);
+              ref.invalidate(serviceCatalogueCategoriesProvider);
               await ref.read(pageProvider.future);
+              try {
+                await ref.read(serviceCatalogueCategoriesProvider.future);
+              } catch (_) {
+                // Category discovery is auxiliary. Current-page categories remain usable.
+              }
             },
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(

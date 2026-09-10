@@ -22,6 +22,11 @@ final serviceRequestTemplateProvider = FutureProvider.autoDispose
             .fetchDetail(id, withTemplate: true),
       ];
     });
+final serviceCatalogueCategoriesProvider =
+    FutureProvider.autoDispose<List<String>>((ref) {
+      return ref.watch(serviceCatalogueRepositoryProvider).fetchCategories();
+    });
+
 final serviceCataloguePageProvider = FutureProvider.autoDispose
     .family<
       ServiceCataloguePage,

@@ -34,6 +34,19 @@ void main() {
     },
   );
 
+  test(
+    'category discovery follows continuation beyond the first page',
+    () async {
+      final client = _CatalogueFrappeClient()..paginateCatalogue = true;
+      final repository = ServiceCatalogueRepository(frappeClient: client);
+
+      final categories = await repository.fetchCategories();
+
+      expect(categories, ['Company', 'Tax']);
+      expect(client.catalogueStarts, [0, 50]);
+    },
+  );
+
   test('catalogue stays lightweight and preserves pricing metadata', () async {
     final repository = ServiceCatalogueRepository(
       frappeClient: _CatalogueFrappeClient(),
@@ -54,7 +67,9 @@ void main() {
 
 class _CatalogueFrappeClient extends FrappeClient {
   final calls = <String>[];
+  final catalogueStarts = <int>[];
   bool failTemplate = false;
+  bool paginateCatalogue = false;
   _CatalogueFrappeClient()
     : super(
         DioClient(
@@ -82,6 +97,44 @@ class _CatalogueFrappeClient extends FrappeClient {
     }
     if (method == ApiConfig.serviceCatalogueMethod) {
       expect(queryParameters?['lightweight'], 1);
+      final start = (queryParameters?['start'] as num?)?.toInt() ?? 0;
+      catalogueStarts.add(start);
+      if (paginateCatalogue) {
+        if (start == 0) {
+          return {
+            'message': {
+              'services': List.generate(
+                50,
+                (index) => {
+                  'id': 'tax-service-$index',
+                  'title': 'Tax Service $index',
+                  'category': 'Tax',
+                  'service_version': 7,
+                  'pricing_version': 'server-pricing-hash',
+                },
+              ),
+              'next_start': 50,
+              'has_more': true,
+            },
+          };
+        }
+        expect(start, 50);
+        return {
+          'message': {
+            'services': [
+              {
+                'id': 'company-registration',
+                'title': 'Company Registration',
+                'category': 'Company',
+                'service_version': 3,
+                'pricing_version': 'company-pricing-hash',
+              },
+            ],
+            'next_start': null,
+            'has_more': false,
+          },
+        };
+      }
       return {
         'message': {
           'services': [

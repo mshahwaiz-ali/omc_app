@@ -118,6 +118,34 @@ class ServiceCatalogueRepository {
     }
   }
 
+  Future<List<String>> fetchCategories() async {
+    final categories = <String>{};
+    final visitedStarts = <int>{};
+    var start = 0;
+
+    while (visitedStarts.add(start)) {
+      final page = await fetchPage(start: start);
+      for (final service in page.items) {
+        final category = service.category.trim();
+        if (category.isNotEmpty) categories.add(category);
+      }
+
+      final next = page.nextStart;
+      if (next == null) break;
+      if (next <= start) {
+        throw const ApiError(
+          message:
+              'Service categories could not be loaded from the server right now.',
+          code: 'service_catalogue_invalid_continuation',
+        );
+      }
+      start = next;
+    }
+
+    final result = categories.toList()..sort();
+    return List.unmodifiable(result);
+  }
+
   Future<ServiceItem> fetchDetail(
     String id, {
     bool withTemplate = false,
