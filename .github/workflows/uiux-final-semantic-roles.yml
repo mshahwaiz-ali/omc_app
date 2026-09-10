@@ -1,0 +1,93 @@
+name: One-shot final semantic UIUX roles
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/uiux_final_semantic_roles.py'
+      - '.github/workflows/uiux-final-semantic-roles.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-verify-land:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Capture authoritative head
+        run: echo "BASE_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Apply semantic role fixes
+        run: python3 .github/scripts/uiux_final_semantic_roles.py
+
+      - name: Preserve business and routing authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "onTap: () => onTap(action)" omc_app/lib/features/home/presentation/internal_home_view.dart
+          grep -F "allowed ? onAction(action) : onLocked(action)" omc_app/lib/features/home/presentation/customer_guest_home_view.dart
+          grep -F "confirmDismiss: (_) => onDismiss(items[i])" omc_app/lib/features/notifications/presentation/notifications_screen.dart
+          grep -F "onUploadReceipt" omc_app/lib/features/payments/presentation/widgets/payment_action_card.dart
+          grep -F "onReview!(document, 'Approved')" omc_app/lib/features/service_requests/presentation/operational_service_case_detail_screen.dart
+          grep -F "Timer.periodic(_refreshInterval" omc_app/lib/features/support/presentation/support_ticket_detail_legacy_screen.dart
+          grep -F "onTaxYearChanged" omc_app/lib/features/tax_calculator/presentation/tax_calculator_screen.dart
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+
+      - name: Dependencies
+        working-directory: omc_app
+        run: flutter pub get
+
+      - name: Format and diff check
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd omc_app
+          mapfile -t dart_files < <(git diff --name-only -- '*.dart' | sed 's#^omc_app/##')
+          if ((${#dart_files[@]})); then
+            dart format "${dart_files[@]}"
+          fi
+          cd ..
+          git diff --check
+
+      - name: Focused semantic role contract
+        working-directory: omc_app
+        run: flutter test --no-pub test/app/uiux_final_semantic_roles_contract_test.dart
+
+      - name: Existing Home and accessibility regressions
+        working-directory: omc_app
+        run: |
+          flutter test --no-pub test/app/accessibility_design_contract_test.dart
+          flutter test --no-pub test/features/home/approved_home_uiux_contract_test.dart
+          flutter test --no-pub test/features/notifications/internal_notification_contract_test.dart
+          flutter test --no-pub test/features/detail_mutation_resilience/detail_mutation_failure_test.dart
+
+      - name: Analyze
+        working-directory: omc_app
+        run: flutter analyze --no-pub
+
+      - name: Full Flutter tests
+        working-directory: omc_app
+        run: flutter test --no-pub
+
+      - name: Commit verified source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          test "$BASE_HEAD" = "$(git rev-parse origin/main)" || { echo 'main moved; refusing stale source commit'; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/uiux-final-semantic-roles.yml .github/scripts/uiux_final_semantic_roles.py
+          git add omc_app
+          git diff --cached --check
+          git commit -m 'fix: close final uiux semantic role gaps'
+          git push origin HEAD:main
