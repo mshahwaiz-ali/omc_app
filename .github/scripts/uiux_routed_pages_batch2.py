@@ -218,7 +218,6 @@ text = replace_count(
     1,
     'documents loading root',
 )
-# Class-local icon replacements avoid touching functional/action glyphs.
 filtered_start = text.index('class _FilteredEmptyView')
 empty_start = text.index('class _EmptyDocumentsView', filtered_start)
 error_start = text.index('class _DocumentsErrorView', empty_start)
@@ -249,8 +248,8 @@ text = replace_count(
 )
 text = replace_count(
     text,
-    '''          error: (error, _) => Padding(\n            padding: const EdgeInsets.all(20),\n            child: AppErrorState.fromError(''',
-    '''          error: (error, _) => OmcPagePadding(\n            topPadding: 20,\n            bottomPadding: 20,\n            child: AppErrorState.fromError(''',
+    '''        error: (error, _) => Padding(\n          padding: const EdgeInsets.all(20),\n          child: AppErrorState.fromError(''',
+    '''        error: (error, _) => OmcPagePadding(\n          topPadding: 20,\n          bottomPadding: 20,\n          child: AppErrorState.fromError(''',
     1,
     'document detail error root',
 )
