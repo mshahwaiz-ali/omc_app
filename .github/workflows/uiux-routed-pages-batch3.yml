@@ -1,0 +1,133 @@
+name: One-shot routed page conformance batch three
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/uiux-routed-pages-batch3.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-verify-land:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply confirmed routed fixes
+        run: python3 .github/scripts/uiux_routed_pages_batch3.py
+
+      - name: Preserve routing and business authority
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def require(token, source, label):
+              if token not in source:
+                  raise SystemExit(f'missing preserved contract: {label} -> {token}')
+
+          router = Path('omc_app/lib/app/router.dart').read_text()
+          tracker = Path('omc_app/lib/features/expense_tracker/presentation/expense_tracker_v2_screen.dart').read_text()
+          budget = Path('omc_app/lib/features/expense_tracker/presentation/expense_budget_v2_screen.dart').read_text()
+          onboarding = Path('omc_app/lib/features/onboarding/presentation/onboarding_screen.dart').read_text()
+          review = Path('omc_app/lib/features/auth/presentation/under_review_screen.dart').read_text()
+          knowledge = Path('omc_app/lib/features/knowledge/presentation/knowledge_detail_screen.dart').read_text()
+          tax = Path('omc_app/lib/features/tax_calculator/presentation/tax_calculator_screen.dart').read_text()
+          case = Path('omc_app/lib/features/service_requests/presentation/customer_service_case_detail_screen.dart').read_text()
+          dispatcher = Path('omc_app/lib/features/service_requests/presentation/service_case_detail_screen.dart').read_text()
+
+          for token, label in [
+              ('const ExpenseTrackerV2Screen()', 'expense tracker route'),
+              ('const ExpenseBudgetV2Screen()', 'expense budget route'),
+              ('const OnboardingScreen()', 'onboarding route'),
+              ('const UnderReviewScreen()', 'under review route'),
+              ('KnowledgeDetailScreen(articleId: articleId)', 'knowledge detail route'),
+              ('const TaxCalculatorScreen()', 'tax calculator route'),
+          ]:
+              require(token, router, label)
+
+          require('expenseTransactionsProvider.notifier', tracker, 'expense transaction controller')
+          require('expenseCloudPageProvider', tracker, 'expense cloud paging')
+          require('expenseTrackerStorageModeProvider.notifier', tracker, 'expense storage authority')
+          require('DirtyFormController', tracker, 'expense dirty-form guard')
+          require('expenseBudgetsProvider', budget, 'budget provider')
+          require('localExpenseBudgetsProvider', budget, 'local budget provider')
+          require('DirtyFormController', budget, 'budget dirty-form guard')
+          require('setHasCompletedOnboarding(true)', onboarding, 'onboarding completion authority')
+          require('authControllerProvider.notifier', review, 'review session authority')
+          require('knowledgeArticleDetailProvider(articleId)', knowledge, 'knowledge detail provider')
+          require('taxCalculationRepositoryProvider', tax, 'tax repository')
+          require('return CustomerServiceCaseDetailScreen(caseId: caseId)', dispatcher, 'customer case dispatch')
+          require('customerServiceCaseDetailProvider(widget.caseId)', case, 'customer case detail provider')
+          require('.cancelRequest(', case, 'customer case cancel mutation')
+          PY
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+
+      - name: Dependencies
+        working-directory: omc_app
+        run: flutter pub get
+
+      - name: Format and diff check
+        shell: bash
+        run: |
+          dart format \
+            omc_app/lib/features/expense_tracker/presentation/expense_tracker_v2_screen.dart \
+            omc_app/lib/features/expense_tracker/presentation/expense_budget_v2_screen.dart \
+            omc_app/lib/features/onboarding/presentation/onboarding_screen.dart \
+            omc_app/lib/features/auth/presentation/under_review_screen.dart \
+            omc_app/lib/features/knowledge/presentation/knowledge_detail_screen.dart \
+            omc_app/lib/features/tax_calculator/presentation/tax_calculator_screen.dart \
+            omc_app/lib/features/service_requests/presentation/customer_service_case_detail_screen.dart \
+            omc_app/lib/features/service_requests/presentation/customer_service_case_detail_support.dart \
+            omc_app/test/app/uiux_routed_pages_batch3_test.dart
+          git diff --check
+
+      - name: Focused routed page contract
+        working-directory: omc_app
+        run: flutter test --no-pub test/app/uiux_routed_pages_batch3_test.dart
+
+      - name: Existing route authority regression
+        working-directory: omc_app
+        run: flutter test --no-pub test/app/route_access_policy_test.dart
+
+      - name: Analyze
+        working-directory: omc_app
+        run: flutter analyze --no-pub
+
+      - name: Full Flutter tests
+        working-directory: omc_app
+        run: flutter test --no-pub
+
+      - name: Commit verified source
+        shell: bash
+        run: |
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || { echo 'main moved; refusing stale push'; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            omc_app/lib/features/expense_tracker/presentation/expense_tracker_v2_screen.dart \
+            omc_app/lib/features/expense_tracker/presentation/expense_budget_v2_screen.dart \
+            omc_app/lib/features/onboarding/presentation/onboarding_screen.dart \
+            omc_app/lib/features/auth/presentation/under_review_screen.dart \
+            omc_app/lib/features/knowledge/presentation/knowledge_detail_screen.dart \
+            omc_app/lib/features/tax_calculator/presentation/tax_calculator_screen.dart \
+            omc_app/lib/features/service_requests/presentation/customer_service_case_detail_screen.dart \
+            omc_app/lib/features/service_requests/presentation/customer_service_case_detail_support.dart \
+            omc_app/test/app/uiux_routed_pages_batch3_test.dart
+          git rm \
+            .github/workflows/uiux-routed-pages-batch3.yml \
+            .github/scripts/uiux_routed_pages_batch3.py
+          git diff --cached --check
+          git commit -m 'fix: close remaining routed page contracts'
+          git push origin HEAD:main
