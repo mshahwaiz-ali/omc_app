@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/design_tokens.dart';
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
@@ -33,6 +34,7 @@ class SettingsV2Screen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final preferencesAsync = ref.watch(settingsPreferencesProvider);
     final authState = ref.watch(authControllerProvider);
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
     final profileSummary = ref.watch(profileSummaryProvider);
     final mobileConfig =
         ref.watch(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
@@ -50,8 +52,7 @@ class SettingsV2Screen extends ConsumerWidget {
     final accountStatus = profile?.status ?? authState.customerStatus;
     final approvalStatus = profile?.approvalStatus ?? authState.approvalStatus;
     final isInternal =
-        authState.capabilities.isInternal ||
-        authState.canAccessInternalWorkspace;
+        capabilities.isInternal || capabilities.canAccessInternalWorkspace;
 
     return Scaffold(
       key: OmcWidgetKeys.settingsScreen,

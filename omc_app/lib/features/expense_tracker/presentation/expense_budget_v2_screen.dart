@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/design_tokens.dart';
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/forms/dirty_form_controller.dart';
@@ -46,8 +47,7 @@ class _ExpenseBudgetV2ScreenState extends ConsumerState<ExpenseBudgetV2Screen> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authControllerProvider);
-    final capabilities = authState.capabilities;
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
     final isInternal =
         capabilities.isInternal || capabilities.canAccessInternalWorkspace;
     final canManageBudgets = capabilities.isApproved || isInternal;
@@ -215,7 +215,7 @@ class _ExpenseBudgetV2ScreenState extends ConsumerState<ExpenseBudgetV2Screen> {
     ExpenseBudgetItem? budget,
   }) async {
     final authState = ref.read(authControllerProvider);
-    final capabilities = authState.capabilities;
+    final capabilities = ref.read(effectiveCapabilitiesProvider);
     final useLocalBudgetStore =
         capabilities.isInternal || capabilities.canAccessInternalWorkspace;
     final categoryController = TextEditingController(

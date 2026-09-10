@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/design_tokens.dart';
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/app_skeleton.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
-import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../home/application/home_action_access.dart';
 import '../../home/data/home_dashboard_repository.dart';
@@ -21,12 +21,9 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final summaryAsync = ref.watch(homeDashboardSummaryProvider);
-    final authState = ref.watch(authControllerProvider);
-    final capabilities = authState.capabilities;
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
     final isInternal =
-        capabilities.canAccessInternalWorkspace ||
-        capabilities.isInternal ||
-        authState.canAccessInternalWorkspace;
+        capabilities.canAccessInternalWorkspace || capabilities.isInternal;
 
     Future<void> refresh() async {
       ref.invalidate(homeDashboardSummaryProvider);

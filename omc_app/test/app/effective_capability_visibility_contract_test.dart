@@ -7,6 +7,18 @@ import 'package:go_router/go_router.dart';
 import 'package:omc_app/app/providers/effective_capabilities_provider.dart';
 import 'package:omc_app/app/theme.dart';
 import 'package:omc_app/features/auth/application/auth_state.dart';
+import 'package:omc_app/features/dashboard/presentation/dashboard_screen.dart';
+import 'package:omc_app/features/expense_tracker/domain/expense_transaction.dart';
+import 'package:omc_app/features/expense_tracker/presentation/expense_budget_screen.dart'
+    show
+        ExpenseBudgetItem,
+        localExpenseBudgetEntriesProvider,
+        localExpenseBudgetsProvider;
+import 'package:omc_app/features/expense_tracker/presentation/expense_budget_v2_screen.dart';
+import 'package:omc_app/features/home/data/home_dashboard_repository.dart';
+import 'package:omc_app/features/internal_workspace/domain/internal_service_case.dart';
+import 'package:omc_app/features/internal_workspace/domain/internal_workspace_summary.dart';
+import 'package:omc_app/features/internal_workspace/presentation/internal_workspace_providers.dart';
 import 'package:omc_app/features/service_catalogue/application/service_catalogue_controller.dart';
 import 'package:omc_app/features/service_catalogue/data/service_item.dart';
 import 'package:omc_app/features/service_catalogue/presentation/service_detail_screen.dart';
@@ -23,6 +35,9 @@ const _authorityFiles = <String>[
   'lib/features/support/presentation/support_screen_legacy.dart',
   'lib/features/support/presentation/support_ticket_detail_legacy_screen.dart',
   'lib/features/service_requests/presentation/operational_service_case_detail_screen.dart',
+  'lib/features/dashboard/presentation/dashboard_screen.dart',
+  'lib/features/expense_tracker/presentation/expense_budget_v2_screen.dart',
+  'lib/features/settings/presentation/settings_v2_screen.dart',
 ];
 
 final _rawProviderCapabilities = RegExp(
@@ -195,4 +210,109 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('dashboard uses effective authority to select internal mode', (
+    tester,
+  ) async {
+    _setView(tester);
+
+    final router = GoRouter(
+      initialLocation: '/dashboard',
+      routes: [
+        GoRoute(
+          path: '/dashboard',
+          builder: (context, state) => const DashboardScreen(),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          effectiveCapabilitiesProvider.overrideWithValue(
+            const AuthCapabilities(
+              accessState: AccountAccessState.internal,
+              canAccessInternalWorkspace: true,
+            ),
+          ),
+          homeDashboardSummaryProvider.overrideWith(
+            (ref) async => const HomeDashboardSummary.empty(),
+          ),
+          internalWorkspaceSummaryProvider.overrideWith(
+            (ref) async => InternalWorkspaceSummary.empty(),
+          ),
+          internalServiceCasesProvider.overrideWith(
+            (ref) async => const InternalServiceCaseQueue(
+              cases: [],
+              summary: {},
+              canReviewDocuments: false,
+              canUpdateStatus: false,
+            ),
+          ),
+        ],
+        child: MaterialApp.router(
+          theme: AppTheme.lightTheme,
+          routerConfig: router,
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Team overview'), findsOneWidget);
+    expect(find.text('Your OMC overview'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('budget uses effective internal authority for local storage mode', (
+    tester,
+  ) async {
+    _setView(tester);
+
+    final router = GoRouter(
+      initialLocation: '/expense-budget',
+      routes: [
+        GoRoute(
+          path: '/expense-budget',
+          builder: (context, state) => const ExpenseBudgetV2Screen(),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          effectiveCapabilitiesProvider.overrideWithValue(
+            const AuthCapabilities(
+              accessState: AccountAccessState.internal,
+              canAccessInternalWorkspace: true,
+            ),
+          ),
+          localExpenseBudgetsProvider.overrideWith(
+            (ref) async => const <ExpenseBudgetItem>[],
+          ),
+          localExpenseBudgetEntriesProvider.overrideWith(
+            (ref) async => const <ExpenseTransaction>[],
+          ),
+        ],
+        child: MaterialApp.router(
+          theme: AppTheme.lightTheme,
+          routerConfig: router,
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Internal account budgets are stored on this device and use your local expense entries.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Approved access required'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }
