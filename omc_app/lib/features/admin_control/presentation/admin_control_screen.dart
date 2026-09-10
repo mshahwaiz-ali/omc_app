@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/design_tokens.dart';
 import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
+import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -206,21 +207,25 @@ class AdminControlScreen extends ConsumerWidget {
                         'This does not create a login. The person must already have an enabled staff login in the core OMC system; this grants OMC app access to that same identity.',
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  TextField(
-                    controller: name,
-                    decoration: const InputDecoration(
-                      labelText: 'Existing staff full name',
+                  AppLabeledField(
+                    label: 'Existing staff full name',
+                    isRequired: true,
+                    child: TextField(
+                      controller: name,
+                      decoration: const InputDecoration(),
+                      onChanged: (_) => setDialogState(() {}),
                     ),
-                    onChanged: (_) => setDialogState(() {}),
                   ),
                   const SizedBox(height: AppSpacing.sm),
-                  TextField(
-                    controller: email,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Existing staff login email',
+                  AppLabeledField(
+                    label: 'Existing staff login email',
+                    isRequired: true,
+                    child: TextField(
+                      controller: email,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(),
+                      onChanged: (_) => setDialogState(() {}),
                     ),
-                    onChanged: (_) => setDialogState(() {}),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
@@ -876,18 +881,21 @@ class _BusinessSettingsCard extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
-                  TextField(
-                    controller: controller,
-                    autofocus: true,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                  AppLabeledField(
+                    label: 'Value',
+                    isRequired: true,
+                    child: TextField(
+                      controller: controller,
+                      autofocus: true,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: InputDecoration(
+                        prefixText: unit == '%' ? null : '$unit ',
+                        suffixText: unit == '%' ? '%' : null,
+                      ),
+                      onChanged: (_) => setDialogState(() {}),
                     ),
-                    decoration: InputDecoration(
-                      labelText: 'Value',
-                      prefixText: unit == '%' ? null : '$unit ',
-                      suffixText: unit == '%' ? '%' : null,
-                    ),
-                    onChanged: (_) => setDialogState(() {}),
                   ),
                 ],
               ),

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
+import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/resilience/app_failure.dart';
@@ -245,16 +246,19 @@ class _InternalDocumentReviewScreenState
           child: AlertDialog(
             scrollable: true,
             title: const Text('Reject document'),
-            content: TextField(
-              controller: controller,
-              autofocus: true,
-              minLines: 3,
-              maxLines: 5,
-              onChanged: (_) => setDialogState(() {}),
-              decoration: const InputDecoration(
-                labelText: 'Reason / reupload instruction',
-                hintText:
-                    'Example: CNIC image is unclear. Please upload again.',
+            content: AppLabeledField(
+              label: 'Reason / reupload instruction',
+              isRequired: true,
+              child: TextField(
+                controller: controller,
+                autofocus: true,
+                minLines: 3,
+                maxLines: 5,
+                onChanged: (_) => setDialogState(() {}),
+                decoration: const InputDecoration(
+                  hintText:
+                      'Example: CNIC image is unclear. Please upload again.',
+                ),
               ),
             ),
             actions: [
@@ -695,52 +699,56 @@ class _AdvancedFilterPanel extends StatelessWidget {
           style: const TextStyle(fontSize: 14),
         ),
         children: [
-          DropdownButtonFormField<String>(
-            initialValue: selectedCustomerProfile ?? '',
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Customer',
-              prefixIcon: Icon(Icons.person_search_rounded),
-            ),
-            items: [
-              const DropdownMenuItem<String>(
-                value: '',
-                child: Text('All customers'),
+          AppLabeledField(
+            label: 'Customer',
+            child: DropdownButtonFormField<String>(
+              initialValue: selectedCustomerProfile ?? '',
+              isExpanded: true,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.person_search_rounded),
               ),
-              for (final option in customerOptions)
-                DropdownMenuItem<String>(
-                  value: option.profile,
-                  child: Text(
-                    [
-                      option.label,
-                      if (option.email?.trim().isNotEmpty == true)
-                        option.email!.trim(),
-                    ].join(' · '),
-                  ),
+              items: [
+                const DropdownMenuItem<String>(
+                  value: '',
+                  child: Text('All customers'),
                 ),
-            ],
-            onChanged: (value) => onCustomerSelected(
-              value == null || value.isEmpty ? null : value,
+                for (final option in customerOptions)
+                  DropdownMenuItem<String>(
+                    value: option.profile,
+                    child: Text(
+                      [
+                        option.label,
+                        if (option.email?.trim().isNotEmpty == true)
+                          option.email!.trim(),
+                      ].join(' · '),
+                    ),
+                  ),
+              ],
+              onChanged: (value) => onCustomerSelected(
+                value == null || value.isEmpty ? null : value,
+              ),
             ),
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: selectedDocumentType ?? '',
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Document type',
-              prefixIcon: Icon(Icons.category_outlined),
-            ),
-            items: [
-              const DropdownMenuItem<String>(
-                value: '',
-                child: Text('All document types'),
+          AppLabeledField(
+            label: 'Document type',
+            child: DropdownButtonFormField<String>(
+              initialValue: selectedDocumentType ?? '',
+              isExpanded: true,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.category_outlined),
               ),
-              for (final option in documentTypeOptions)
-                DropdownMenuItem<String>(value: option, child: Text(option)),
-            ],
-            onChanged: (value) => onDocumentTypeSelected(
-              value == null || value.isEmpty ? null : value,
+              items: [
+                const DropdownMenuItem<String>(
+                  value: '',
+                  child: Text('All document types'),
+                ),
+                for (final option in documentTypeOptions)
+                  DropdownMenuItem<String>(value: option, child: Text(option)),
+              ],
+              onChanged: (value) => onDocumentTypeSelected(
+                value == null || value.isEmpty ? null : value,
+              ),
             ),
           ),
         ],
@@ -866,22 +874,24 @@ class _ServiceContextCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          DropdownButtonFormField<String>(
-            initialValue: selectedGroup.reference,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Service request',
-              prefixIcon: Icon(Icons.folder_open_rounded),
+          AppLabeledField(
+            label: 'Service request',
+            child: DropdownButtonFormField<String>(
+              initialValue: selectedGroup.reference,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.folder_open_rounded),
+              ),
+              items: groups
+                  .map(
+                    (group) => DropdownMenuItem<String>(
+                      value: group.reference,
+                      child: Text('${group.customerName} · ${group.reference}'),
+                    ),
+                  )
+                  .toList(),
+              onChanged: onSelected,
             ),
-            items: groups
-                .map(
-                  (group) => DropdownMenuItem<String>(
-                    value: group.reference,
-                    child: Text('${group.customerName} · ${group.reference}'),
-                  ),
-                )
-                .toList(),
-            onChanged: onSelected,
           ),
           const SizedBox(height: 16),
           Text(
