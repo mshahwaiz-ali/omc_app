@@ -1,0 +1,93 @@
+name: One-shot live internal operations closure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/uiux-internal-operations-live.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-verify-land:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply live internal operations closure
+        run: python3 .github/scripts/uiux_internal_operations_live.py
+
+      - name: Static scope invariants
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          router = Path('omc_app/lib/app/router.dart').read_text()
+          source = Path('omc_app/lib/features/internal_workspace/presentation/internal_operations_center_screen.dart').read_text()
+          assert "const CustomersScreen()" in router
+          assert "const InternalDocumentReviewScreen()" in router
+          assert "area: InternalOperationArea.payments" in router
+          assert "class _OperationsSearchAndFilters" in source
+          assert "onPressed: () {}" in source, 'dead non-payment branch must not be mechanically edited'
+          assert "class _InternalPaymentCardV2" in source
+          assert "class _InternalCaseWorkspaceV2" in source
+          assert "paymentPageProvider(query)" in source
+          PY
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+
+      - name: Dependencies
+        working-directory: omc_app
+        run: flutter pub get
+
+      - name: Format and diff check
+        shell: bash
+        run: |
+          dart format \
+            omc_app/lib/features/internal_workspace/presentation/internal_operations_center_screen.dart \
+            omc_app/test/features/internal_workspace/internal_operations_uiux_contract_test.dart
+          git diff --check
+
+      - name: Focused internal operations gates
+        working-directory: omc_app
+        shell: bash
+        run: |
+          flutter test --no-pub test/features/internal_workspace/internal_operations_uiux_contract_test.dart
+          flutter test --no-pub test/features/admin_control/admin_operations_contract_test.dart
+          flutter test --no-pub test/app/route_access_policy_test.dart
+          flutter test --no-pub test/app/router_policy_parity_test.dart
+
+      - name: Analyze
+        working-directory: omc_app
+        run: flutter analyze --no-pub
+
+      - name: Full Flutter tests
+        working-directory: omc_app
+        run: flutter test --no-pub
+
+      - name: Commit verified source
+        shell: bash
+        run: |
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || { echo 'main moved; refusing stale push'; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            omc_app/lib/features/internal_workspace/presentation/internal_operations_center_screen.dart \
+            omc_app/test/features/internal_workspace/internal_operations_uiux_contract_test.dart
+          git rm \
+            .github/workflows/uiux-internal-operations-live.yml \
+            .github/scripts/uiux_internal_operations_live.py
+          git diff --cached --check
+          git commit -m 'fix: close live internal operations uiux gaps'
+          git push origin HEAD:main
