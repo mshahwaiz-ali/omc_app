@@ -311,6 +311,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Text(
+                'Email, username, mobile or CNIC',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: AppSpacing.xs),
               TextFormField(
                 key: OmcWidgetKeys.loginIdentifier,
                 controller: _emailController,
@@ -321,7 +326,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   AutofillHints.email,
                 ],
                 decoration: const InputDecoration(
-                  labelText: 'Email, username, mobile or CNIC',
+                  hintText: 'Enter your account identifier',
                   prefixIcon: Icon(Icons.person_outline_rounded),
                 ),
                 validator: (value) {
@@ -331,7 +336,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: AppSpacing.md),
+              Text('Password', style: Theme.of(context).textTheme.labelLarge),
+              const SizedBox(height: AppSpacing.xs),
               TextFormField(
                 key: OmcWidgetKeys.loginPassword,
                 controller: _passwordController,
@@ -340,7 +347,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 autofillHints: const [AutofillHints.password],
                 onFieldSubmitted: (_) => _submit(),
                 decoration: InputDecoration(
-                  labelText: 'Password',
+                  hintText: 'Enter your password',
                   prefixIcon: const Icon(Icons.lock_outline_rounded),
                   suffixIcon: IconButton(
                     tooltip: _obscurePassword ? 'Show password' : 'Hide password',
@@ -376,8 +383,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               if (loginErrorMessage != null &&
                   loginErrorMessage.trim().isNotEmpty) ...[
-                AuthErrorBanner(message: _normalizeLoginError(loginErrorMessage)),
-                const SizedBox(height: 16),
+                AuthErrorBanner(
+                  message: _normalizeLoginError(loginErrorMessage),
+                ),
+                const SizedBox(height: AppSpacing.md),
               ],
               AppButton(
                 key: OmcWidgetKeys.loginSubmit,
@@ -515,11 +524,7 @@ class _SupportContactRow extends StatelessWidget {
               color: AppTheme.infoSoft,
               borderRadius: BorderRadius.circular(AppRadius.control),
             ),
-            child: const Icon(
-              Icons.info_outline_rounded,
-              size: 20,
-              color: AppTheme.info,
-            ),
+            child: Icon(icon, size: 20, color: AppTheme.info),
           ),
           const SizedBox(width: 12),
           Expanded(
