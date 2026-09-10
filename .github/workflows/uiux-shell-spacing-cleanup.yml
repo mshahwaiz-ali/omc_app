@@ -65,7 +65,7 @@ jobs:
               p = Path(path)
               text = p.read_text()
               pattern = re.compile(
-                  rf'EdgeInsets\.fromLTRB\((?P<args>[^)]*?),\s*{old_bottom}\)',
+                  rf'EdgeInsets\.fromLTRB\((?P<args>[^)]*?),\s*{old_bottom}(?P<trailing>,?)\s*\)',
                   re.MULTILINE,
               )
               matches = list(pattern.finditer(text))
@@ -74,7 +74,10 @@ jobs:
                       f'{path}: no fromLTRB padding found with bottom {old_bottom}'
                   )
               text = pattern.sub(
-                  lambda m: f"EdgeInsets.fromLTRB({m.group('args')}, AppSpacing.xl)",
+                  lambda m: (
+                      f"EdgeInsets.fromLTRB({m.group('args')}, AppSpacing.xl"
+                      f"{m.group('trailing')})"
+                  ),
                   text,
               )
               if pattern.search(text):
