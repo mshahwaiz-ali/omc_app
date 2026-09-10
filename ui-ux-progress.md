@@ -57,7 +57,7 @@ No E001–E146 surface was removed by the five-phase consolidation.
 - `a0e13620a64235e596ca56cb7734044e0f08920f` + `f157e0246bf49bac95c2502781f46a183a67457d` — More hierarchy and route-access presentation.
 - `50c377b87adfbe0a436e2049522f9eb167471079` — E042 device-lock semantics and input blocking.
 - `71a4216e0d8df245e2bd2e295370d00011174f64` — E043 / E090 readiness and update states.
-- `f76831d6af7abd557d9658e71fed5710ef44d` — route recovery.
+- `f76831d6af7abd557d9652458e71fed5710ef44d` — route recovery.
 - `715137d58151d5fa66ee603365bc87cf18732429` — adaptive shared back/page header.
 - Final Phase 5 re-audit confirmed E062–E067 already meet the blueprint: branch restoration/reselect, dirty guard, safe route recovery, More dismissal, bottom-nav index bindings, adaptive Quick Actions and unsaved-change confirmation remain unchanged.
 
@@ -73,7 +73,7 @@ No E001–E146 surface was removed by the five-phase consolidation.
 ### Catalogue / service requests
 
 - E005 Service Catalogue — `426ab8cf5d5893ae28aecb9402a07ebe95248fad`
-- E006 Service Detail — `2ad6114ce65e6a42ed3b8023ffa632adbd6e6d35`
+- E006 Service Detail — `2ad6114ce65e6a56c29a0f94084b821ae7bec52d`
 - E007 + E008 Request Draft / Assisted Customer — `c79f01ea840b4e798ca11c8d6088e62b324bfbd7`
 - E009 My Services / Requests — `1c533efa00b22aff1ad595331fbbea99fc810194`
 - E010 Canonical Customer Request Detail — `f9ec8afa866f59829423a06a973a661e09f52805`
