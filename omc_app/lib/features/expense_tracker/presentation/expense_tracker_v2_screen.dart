@@ -15,6 +15,7 @@ import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../auth/application/auth_state.dart';
@@ -408,15 +409,17 @@ class ExpenseTrackerV2Screen extends ConsumerWidget {
           title: const Text('Import backup JSON'),
           content: SizedBox(
             width: AppLayout.formMaxWidth,
-            child: TextField(
-              controller: controller,
-              minLines: 8,
-              maxLines: 12,
-              enabled: !importing,
-              decoration: const InputDecoration(
-                labelText: 'Backup JSON',
-                hintText: 'Paste exported JSON here...',
-                alignLabelWithHint: true,
+            child: AppLabeledField(
+              label: 'Backup JSON',
+              child: TextField(
+                controller: controller,
+                minLines: 8,
+                maxLines: 12,
+                enabled: !importing,
+                decoration: const InputDecoration(
+                  hintText: 'Paste exported JSON here...',
+                  alignLabelWithHint: true,
+                ),
               ),
             ),
           ),
@@ -1932,17 +1935,6 @@ class _TransactionSheetState extends State<_TransactionSheet> {
                   shrinkWrap: true,
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                   children: [
-                    Center(
-                      child: Container(
-                        width: 42,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: AppTheme.border,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
                     Text(
                       widget.transaction == null
                           ? 'Add transaction'
@@ -1975,24 +1967,27 @@ class _TransactionSheetState extends State<_TransactionSheet> {
                       },
                     ),
                     const SizedBox(height: 14),
-                    TextFormField(
-                      controller: _amountController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
+                    AppLabeledField(
+                      label: 'Amount',
+                      isRequired: true,
+                      child: TextFormField(
+                        controller: _amountController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          prefixIcon: Icon(Icons.payments_outlined),
+                        ),
+                        validator: (value) {
+                          final amount = double.tryParse(
+                            value?.replaceAll(',', '').trim() ?? '',
+                          );
+                          if (amount == null || amount <= 0) {
+                            return 'Enter a valid amount.';
+                          }
+                          return null;
+                        },
                       ),
-                      decoration: const InputDecoration(
-                        labelText: 'Amount',
-                        prefixIcon: Icon(Icons.payments_outlined),
-                      ),
-                      validator: (value) {
-                        final amount = double.tryParse(
-                          value?.replaceAll(',', '').trim() ?? '',
-                        );
-                        if (amount == null || amount <= 0) {
-                          return 'Enter a valid amount.';
-                        }
-                        return null;
-                      },
                     ),
                     if (quickCategories.isNotEmpty) ...[
                       const SizedBox(height: 12),
@@ -2017,19 +2012,22 @@ class _TransactionSheetState extends State<_TransactionSheet> {
                       ),
                     ],
                     const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _categoryController,
-                      textInputAction: TextInputAction.next,
-                      decoration: InputDecoration(
-                        labelText: _type == ExpenseTransactionType.income
-                            ? 'Income category'
-                            : 'Expense category',
-                        prefixIcon: const Icon(Icons.category_outlined),
+                    AppLabeledField(
+                      label: _type == ExpenseTransactionType.income
+                          ? 'Income category'
+                          : 'Expense category',
+                      isRequired: true,
+                      child: TextFormField(
+                        controller: _categoryController,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          prefixIcon: Icon(Icons.category_outlined),
+                        ),
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty
+                            ? 'Category is required.'
+                            : null,
                       ),
-                      validator: (value) =>
-                          value == null || value.trim().isEmpty
-                          ? 'Category is required.'
-                          : null,
                     ),
                     const SizedBox(height: 12),
                     Theme(
@@ -2048,73 +2046,78 @@ class _TransactionSheetState extends State<_TransactionSheet> {
                         ),
                         children: [
                           const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            initialValue: _accountController.text.trim().isEmpty
-                                ? 'Cash'
-                                : _accountController.text.trim(),
-                            decoration: const InputDecoration(
-                              labelText: 'Account',
-                              prefixIcon: Icon(
-                                Icons.account_balance_wallet_outlined,
+                          AppLabeledField(
+                            label: 'Account',
+                            child: DropdownButtonFormField<String>(
+                              initialValue:
+                                  _accountController.text.trim().isEmpty
+                                  ? 'Cash'
+                                  : _accountController.text.trim(),
+                              decoration: const InputDecoration(
+                                prefixIcon: Icon(
+                                  Icons.account_balance_wallet_outlined,
+                                ),
                               ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'Cash',
+                                  child: Text('Cash'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Bank',
+                                  child: Text('Bank'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Card',
+                                  child: Text('Card'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Wallet',
+                                  child: Text('Wallet'),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                if (value == null) return;
+                                _markDirty();
+                                _accountController.text = value;
+                              },
                             ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'Cash',
-                                child: Text('Cash'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'Bank',
-                                child: Text('Bank'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'Card',
-                                child: Text('Card'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'Wallet',
-                                child: Text('Wallet'),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              if (value == null) return;
-                              _markDirty();
-                              _accountController.text = value;
-                            },
                           ),
                           const SizedBox(height: 12),
-                          DropdownButtonFormField<String>(
-                            initialValue:
-                                _paymentMethodController.text.trim().isEmpty
-                                ? 'Cash'
-                                : _paymentMethodController.text.trim(),
-                            decoration: const InputDecoration(
-                              labelText: 'Payment method',
-                              prefixIcon: Icon(Icons.credit_card_rounded),
+                          AppLabeledField(
+                            label: 'Payment method',
+                            child: DropdownButtonFormField<String>(
+                              initialValue:
+                                  _paymentMethodController.text.trim().isEmpty
+                                  ? 'Cash'
+                                  : _paymentMethodController.text.trim(),
+                              decoration: const InputDecoration(
+                                prefixIcon: Icon(Icons.credit_card_rounded),
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'Cash',
+                                  child: Text('Cash'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Card',
+                                  child: Text('Card'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Bank Transfer',
+                                  child: Text('Bank Transfer'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Wallet',
+                                  child: Text('Wallet / Digital Wallet'),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                if (value == null) return;
+                                _markDirty();
+                                _paymentMethodController.text = value;
+                              },
                             ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'Cash',
-                                child: Text('Cash'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'Card',
-                                child: Text('Card'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'Bank Transfer',
-                                child: Text('Bank Transfer'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'Wallet',
-                                child: Text('Wallet / Digital Wallet'),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              if (value == null) return;
-                              _markDirty();
-                              _paymentMethodController.text = value;
-                            },
                           ),
                           const SizedBox(height: 12),
                           _DatePickerField(
@@ -2122,21 +2125,25 @@ class _TransactionSheetState extends State<_TransactionSheet> {
                             onTap: _pickDate,
                           ),
                           const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _merchantController,
-                            decoration: const InputDecoration(
-                              labelText: 'Merchant optional',
-                              prefixIcon: Icon(Icons.storefront_outlined),
+                          AppLabeledField(
+                            label: 'Merchant optional',
+                            child: TextFormField(
+                              controller: _merchantController,
+                              decoration: const InputDecoration(
+                                prefixIcon: Icon(Icons.storefront_outlined),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _noteController,
-                            minLines: 2,
-                            maxLines: 4,
-                            decoration: const InputDecoration(
-                              labelText: 'Note optional',
-                              prefixIcon: Icon(Icons.notes_outlined),
+                          AppLabeledField(
+                            label: 'Note optional',
+                            child: TextFormField(
+                              controller: _noteController,
+                              minLines: 2,
+                              maxLines: 4,
+                              decoration: const InputDecoration(
+                                prefixIcon: Icon(Icons.notes_outlined),
+                              ),
                             ),
                           ),
                           if (widget.receiptEnabled) ...[
@@ -2327,17 +2334,19 @@ class _DatePickerField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: InputDecorator(
-        decoration: const InputDecoration(
-          labelText: 'Date',
-          prefixIcon: Icon(Icons.calendar_month_outlined),
-        ),
-        child: Text(
-          DateFormat('dd MMM yyyy').format(date),
-          style: Theme.of(context).textTheme.bodyLarge,
+    return AppLabeledField(
+      label: 'Date',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: InputDecorator(
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.calendar_month_outlined),
+          ),
+          child: Text(
+            DateFormat('dd MMM yyyy').format(date),
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
         ),
       ),
     );

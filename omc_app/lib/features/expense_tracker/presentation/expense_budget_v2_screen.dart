@@ -8,6 +8,7 @@ import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../auth/application/auth_controller.dart';
@@ -264,17 +265,6 @@ class _ExpenseBudgetV2ScreenState extends ConsumerState<ExpenseBudgetV2Screen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Center(
-                          child: Container(
-                            width: 42,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: AppTheme.border,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 18),
                         Text(
                           budget == null
                               ? 'Set monthly budget'
@@ -287,41 +277,48 @@ class _ExpenseBudgetV2ScreenState extends ConsumerState<ExpenseBudgetV2Screen> {
                           style: Theme.of(sheetContext).textTheme.bodyMedium,
                         ),
                         const SizedBox(height: 18),
-                        TextField(
-                          controller: categoryController,
-                          textCapitalization: TextCapitalization.words,
-                          decoration: const InputDecoration(
-                            labelText: 'Category',
-                            hintText: 'Leave blank for overall budget',
-                            prefixIcon: Icon(Icons.category_outlined),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: amountController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: const InputDecoration(
-                            labelText: 'Budget limit',
-                            prefixText: 'PKR ',
-                            prefixIcon: Icon(
-                              Icons.account_balance_wallet_outlined,
+                        AppLabeledField(
+                          label: 'Category',
+                          child: TextField(
+                            controller: categoryController,
+                            textCapitalization: TextCapitalization.words,
+                            decoration: const InputDecoration(
+                              hintText: 'Leave blank for overall budget',
+                              prefixIcon: Icon(Icons.category_outlined),
                             ),
                           ),
                         ),
                         const SizedBox(height: 12),
-                        TextField(
-                          controller: thresholdController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
+                        AppLabeledField(
+                          label: 'Budget limit',
+                          isRequired: true,
+                          child: TextField(
+                            controller: amountController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: const InputDecoration(
+                              prefixText: 'PKR ',
+                              prefixIcon: Icon(
+                                Icons.account_balance_wallet_outlined,
+                              ),
+                            ),
                           ),
-                          decoration: const InputDecoration(
-                            labelText: 'Warning threshold',
-                            suffixText: '%',
-                            prefixIcon: Icon(Icons.warning_amber_rounded),
-                            helperText:
-                                'The saved threshold remains between 1% and 100%.',
+                        ),
+                        const SizedBox(height: 12),
+                        AppLabeledField(
+                          label: 'Warning threshold',
+                          child: TextField(
+                            controller: thresholdController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: const InputDecoration(
+                              suffixText: '%',
+                              prefixIcon: Icon(Icons.warning_amber_rounded),
+                              helperText:
+                                  'The saved threshold remains between 1% and 100%.',
+                            ),
                           ),
                         ),
                         const SizedBox(height: 18),
@@ -332,16 +329,15 @@ class _ExpenseBudgetV2ScreenState extends ConsumerState<ExpenseBudgetV2Screen> {
                             final amount =
                                 double.tryParse(amountController.text.trim()) ??
                                 0;
-                            final threshold = double.tryParse(
+                            final threshold =
+                                double.tryParse(
                                   thresholdController.text.trim(),
                                 ) ??
                                 80;
                             if (amount <= 0) {
                               ScaffoldMessenger.of(sheetContext).showSnackBar(
                                 const SnackBar(
-                                  content: Text(
-                                    'Enter a valid budget amount.',
-                                  ),
+                                  content: Text('Enter a valid budget amount.'),
                                 ),
                               );
                               return;
@@ -621,9 +617,15 @@ class _MonthContext extends StatelessWidget {
           ),
           if (budget != null) ...[
             const SizedBox(height: 14),
-            Text('Overall monthly limit', style: Theme.of(context).textTheme.bodyMedium),
+            Text(
+              'Overall monthly limit',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
             const SizedBox(height: 3),
-            Text(_money(budget.limitAmount), style: Theme.of(context).textTheme.amount),
+            Text(
+              _money(budget.limitAmount),
+              style: Theme.of(context).textTheme.amount,
+            ),
             const SizedBox(height: 12),
             _KeyValue(label: 'Spent', value: _money(spent)),
             _KeyValue(
@@ -696,7 +698,8 @@ class _BudgetCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          category.isEmpty || category.toLowerCase() == 'overall'
+                          category.isEmpty ||
+                                  category.toLowerCase() == 'overall'
                               ? 'Overall budget'
                               : category,
                           style: Theme.of(context).textTheme.titleLarge,
@@ -838,10 +841,11 @@ class _KeyValue extends StatelessWidget {
             child: Text(
               value,
               textAlign: TextAlign.end,
-              style: (strong
-                      ? Theme.of(context).textTheme.titleMedium
-                      : Theme.of(context).textTheme.bodyLarge)
-                  ?.copyWith(fontWeight: strong ? FontWeight.w600 : null),
+              style:
+                  (strong
+                          ? Theme.of(context).textTheme.titleMedium
+                          : Theme.of(context).textTheme.bodyLarge)
+                      ?.copyWith(fontWeight: strong ? FontWeight.w600 : null),
             ),
           ),
         ],
