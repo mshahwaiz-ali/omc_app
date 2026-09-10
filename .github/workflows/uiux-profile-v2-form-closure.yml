@@ -1,0 +1,144 @@
+name: One-shot routed profile V2 form closure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/uiux-profile-v2-form-closure.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-verify-land:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply routed profile form closure
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('omc_app/lib/features/profile/presentation/edit_profile_v2_screen.dart')
+          text = path.read_text()
+
+          imp = "import '../../../core/widgets/app_labeled_field.dart';\n"
+          anchor = "import '../../../core/widgets/app_back_header.dart';\n"
+          if imp not in text:
+              if text.count(anchor) != 1:
+                  raise SystemExit(f'import anchor count={text.count(anchor)}')
+              text = text.replace(anchor, anchor + imp, 1)
+
+          old = '''  @override
+          Widget build(BuildContext context) {
+            return TextFormField(
+              controller: controller,
+              keyboardType: keyboardType,
+              textCapitalization: textCapitalization,
+              minLines: minLines,
+              maxLines: maxLines,
+              validator: validator,
+              decoration: InputDecoration(
+                labelText: label,
+                prefixIcon: Icon(icon),
+                alignLabelWithHint: maxLines > 1,
+              ),
+            );
+          }
+'''.replace('          ', '')
+          new = '''  @override
+  Widget build(BuildContext context) {
+    return AppLabeledField(
+      label: label,
+      isRequired: validator != null,
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        textCapitalization: textCapitalization,
+        minLines: minLines,
+        maxLines: maxLines,
+        validator: validator,
+        decoration: InputDecoration(
+          prefixIcon: Icon(icon),
+          alignLabelWithHint: maxLines > 1,
+        ),
+      ),
+    );
+  }
+'''
+          if text.count(old) != 1:
+              raise SystemExit(f'_SheetTextField anchor count={text.count(old)}')
+          text = text.replace(old, new, 1)
+
+          handle = '''                      Center(
+                        child: Container(
+                          width: 42,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: AppTheme.border,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+'''
+          if text.count(handle) != 1:
+              raise SystemExit(f'custom drag handle count={text.count(handle)}')
+          text = text.replace(handle, '', 1)
+
+          if 'labelText: label' in text:
+              raise SystemExit('floating profile sheet label still present')
+          path.write_text(text)
+          PY
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+
+      - name: Format and diff check
+        shell: bash
+        run: |
+          dart format omc_app/lib/features/profile/presentation/edit_profile_v2_screen.dart
+          git diff --check
+
+      - name: Resolve dependencies
+        working-directory: omc_app
+        run: flutter pub get
+
+      - name: Focused profile resilience test
+        working-directory: omc_app
+        run: flutter test --no-pub test/features/profile_resilience/profile_failure_mapping_test.dart
+
+      - name: Analyze
+        working-directory: omc_app
+        run: flutter analyze --no-pub
+
+      - name: Full Flutter tests
+        working-directory: omc_app
+        run: flutter test --no-pub
+
+      - name: Commit verified profile closure
+        shell: bash
+        run: |
+          git fetch origin main
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+            echo 'main moved during verification; refusing stale push'
+            exit 1
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add omc_app/lib/features/profile/presentation/edit_profile_v2_screen.dart
+          git rm .github/workflows/uiux-profile-v2-form-closure.yml
+          git diff --cached --check
+          git commit -m 'fix: close routed profile form standards'
+          git push origin HEAD:main
