@@ -8,6 +8,7 @@ import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../core/widgets/omc_premium.dart';
@@ -94,9 +95,8 @@ class _OperationalServiceCaseDetailScreenState
                 fallbackTitle: 'Tracking detail unavailable',
                 fallbackMessage:
                     'This service request could not be loaded right now.',
-                onRetry: () => ref.invalidate(
-                  serviceCaseDetailProvider(widget.caseId),
-                ),
+                onRetry: () =>
+                    ref.invalidate(serviceCaseDetailProvider(widget.caseId)),
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
@@ -126,25 +126,27 @@ class _OperationalServiceCaseDetailScreenState
               );
             }
 
-            final uploadAction = !serviceCase.isHistoricalRequest &&
-                    canUploadDocuments
+            final uploadAction =
+                !serviceCase.isHistoricalRequest && canUploadDocuments
                 ? () => _showUploadDocumentSheet(serviceCase)
                 : null;
-            final cancelAction = !serviceCase.isHistoricalRequest &&
+            final cancelAction =
+                !serviceCase.isHistoricalRequest &&
                     canCancelOwnRequest &&
                     serviceCase.canCancel
                 ? () => _confirmCancelServiceRequest(serviceCase)
                 : null;
-            final reviewAction = !serviceCase.isHistoricalRequest &&
+            final reviewAction =
+                !serviceCase.isHistoricalRequest &&
                     canReviewDocuments &&
                     serviceCase.canReviewDocuments &&
                     !_isUpdatingDocumentStatus
                 ? (ServiceCaseDocument document, String status) =>
-                    _updateServiceDocumentStatus(
-                      serviceCase,
-                      document,
-                      status,
-                    )
+                      _updateServiceDocumentStatus(
+                        serviceCase,
+                        document,
+                        status,
+                      )
                 : null;
 
             return RefreshIndicator.adaptive(
@@ -152,7 +154,9 @@ class _OperationalServiceCaseDetailScreenState
                 ref.invalidate(serviceCaseDetailProvider(widget.caseId));
                 ref.invalidate(serviceCasesProvider);
                 try {
-                  await ref.read(serviceCaseDetailProvider(widget.caseId).future);
+                  await ref.read(
+                    serviceCaseDetailProvider(widget.caseId).future,
+                  );
                 } catch (_) {
                   // Provider remains in its authoritative error state.
                 }
@@ -247,7 +251,7 @@ class _OperationalServiceCaseDetailScreenState
                         onRetry: _retrySync,
                         onReviewDiscount: snapshot.hasData
                             ? (approve) =>
-                                _reviewDiscount(snapshot.data!, approve)
+                                  _reviewDiscount(snapshot.data!, approve)
                             : null,
                         onReload: () {
                           setState(() {
@@ -309,10 +313,7 @@ class _OperationalServiceCaseDetailScreenState
     );
   }
 
-  Future<void> _reviewDiscount(
-    AdminCaseOptions options,
-    bool approve,
-  ) async {
+  Future<void> _reviewDiscount(AdminCaseOptions options, bool approve) async {
     if (options.text('discount_status') != 'Pending Approval') {
       _showSnack('This request has no discount awaiting approval.');
       return;
@@ -461,10 +462,7 @@ class _OperationalServiceCaseDetailScreenState
     try {
       await ref
           .read(serviceCaseRepositoryProvider)
-          .updateServiceDocumentStatus(
-            documentId: document.id,
-            status: status,
-          );
+          .updateServiceDocumentStatus(documentId: document.id, status: status);
       if (!mounted) return;
       ref.invalidate(serviceCaseDetailProvider(widget.caseId));
       ref.invalidate(serviceCasesProvider);
@@ -508,6 +506,7 @@ class _OperationalServiceCaseDetailScreenState
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       isDismissible: false,
       enableDrag: false,
       builder: (_) => _OperationalDocumentUploadSheet(
@@ -618,9 +617,9 @@ class _OperationalServiceCaseDetailScreenState
 
   void _showSnack(String message) {
     if (!mounted || message.trim().isEmpty) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message.trim())),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message.trim())));
   }
 }
 
@@ -642,7 +641,8 @@ class _AssistedIdentityCard extends StatelessWidget {
     final customer = suppliedCustomerName?.trim().isNotEmpty == true
         ? suppliedCustomerName!.trim()
         : serviceCase.displayCustomerName;
-    final creator = serviceCase.submittedByInternalName?.trim().isNotEmpty == true
+    final creator =
+        serviceCase.submittedByInternalName?.trim().isNotEmpty == true
         ? serviceCase.submittedByInternalName!.trim()
         : serviceCase.submittedByName?.trim().isNotEmpty == true
         ? serviceCase.submittedByName!.trim()
@@ -709,9 +709,7 @@ class _AssistedIdentityCard extends StatelessWidget {
                           label: serviceCase.internalCustomerModeLabel!,
                         ),
                       if (serviceCase.internalSubmissionLabel != null)
-                        _MetaPill(
-                          label: serviceCase.internalSubmissionLabel!,
-                        ),
+                        _MetaPill(label: serviceCase.internalSubmissionLabel!),
                     ],
                   ),
                 ],
@@ -747,7 +745,10 @@ class _ServiceAuthorityCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 6,
             children: [
-              OmcStatusBadge(label: status, color: OmcPremium.statusColor(status)),
+              OmcStatusBadge(
+                label: status,
+                color: OmcPremium.statusColor(status),
+              ),
               if (serviceCase.isHistoricalRequest)
                 const _MetaPill(label: 'Historical · read only'),
               if (serviceCase.isFinancialHold)
@@ -920,9 +921,12 @@ class _NextOperationCard extends StatelessWidget {
         ? backendStep!
         : null;
     final documents = serviceCase.documentDetails;
-    final hasRejectedDocuments = documents.any((document) => document.isRejected);
+    final hasRejectedDocuments = documents.any(
+      (document) => document.isRejected,
+    );
     final missingCount =
-        serviceCase.missingDocumentsCount ?? serviceCase.missingDocuments.length;
+        serviceCase.missingDocumentsCount ??
+        serviceCase.missingDocuments.length;
     final hasMissingDocuments =
         missingCount > 0 || documents.any((document) => document.isMissing);
     final paymentRejected =
@@ -1085,7 +1089,9 @@ class _DocumentEvidenceCard extends StatelessWidget {
             for (var index = 0; index < names.length; index++) ...[
               _DocumentNameRow(
                 name: names[index],
-                submitted: serviceCase.submittedDocuments.contains(names[index]),
+                submitted: serviceCase.submittedDocuments.contains(
+                  names[index],
+                ),
                 missing: serviceCase.missingDocuments.contains(names[index]),
               ),
               if (index != names.length - 1) const Divider(height: 18),
@@ -1202,10 +1208,7 @@ class _DocumentEvidenceRow extends StatelessWidget {
           const SizedBox(height: 7),
           const Text(
             'File attached',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
           ),
         ],
         if (document.hasRealId && onReview != null) ...[
@@ -1247,7 +1250,11 @@ class _DocumentNameRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = submitted ? 'Submitted' : missing ? 'Missing' : 'Required';
+    final status = submitted
+        ? 'Submitted'
+        : missing
+        ? 'Missing'
+        : 'Required';
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1296,7 +1303,10 @@ class _PaymentEvidenceCard extends StatelessWidget {
             summary: serviceCase.paymentSummaryLabel,
           ),
           const SizedBox(height: 12),
-          _AuthorityRow(label: 'Receipt status', value: serviceCase.receipt.status),
+          _AuthorityRow(
+            label: 'Receipt status',
+            value: serviceCase.receipt.status,
+          ),
           if (serviceCase.receipt.paymentStatus.trim().isNotEmpty)
             _AuthorityRow(
               label: 'Payment status',
@@ -1539,7 +1549,10 @@ class _OperationalDetailsCard extends StatelessWidget {
           ),
         ),
         children: [
-          _AuthorityRow(label: 'Reference', value: serviceCase.displayReference),
+          _AuthorityRow(
+            label: 'Reference',
+            value: serviceCase.displayReference,
+          ),
           _AuthorityRow(label: 'Created', value: serviceCase.createdAtLabel),
           _AuthorityRow(label: 'Updated', value: serviceCase.updatedAtLabel),
           _AuthorityRow(label: 'Lifecycle', value: serviceCase.lifecycleState),
@@ -1718,9 +1731,7 @@ class _RequestActionsCard extends StatelessWidget {
                     )
                   : const Icon(Icons.close_rounded),
               label: Text(isCancelling ? 'Cancelling' : 'Cancel request'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.danger,
-              ),
+              style: OutlinedButton.styleFrom(foregroundColor: AppTheme.danger),
             ),
         ],
       ),
@@ -1788,7 +1799,8 @@ class _AdminOperationsCard extends StatelessWidget {
       );
     }
 
-    final discountPending = options!.text('discount_status') == 'Pending Approval';
+    final discountPending =
+        options!.text('discount_status') == 'Pending Approval';
     final assignedStaff = options!.text('assigned_staff');
     final syncStatus = options!.text('erp_sync_status');
     final originalPrice = options!.text('original_price');
@@ -1863,7 +1875,8 @@ class _OperationalDocumentUploadSheet extends StatefulWidget {
   final Future<void> Function(
     ServiceCaseDocument document,
     DocumentAttachment attachment,
-  ) onUpload;
+  )
+  onUpload;
 
   @override
   State<_OperationalDocumentUploadSheet> createState() =>
@@ -1928,27 +1941,31 @@ class _OperationalDocumentUploadSheetState
                     ),
                   ),
                   const SizedBox(height: 18),
-                  DropdownButtonFormField<ServiceCaseDocument>(
-                    initialValue: _selectedDocument,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Document type'),
-                    items: widget.documents
-                        .map(
-                          (document) => DropdownMenuItem(
-                            value: document,
-                            child: Text(document.title),
-                          ),
-                        )
-                        .toList(growable: false),
-                    onChanged: _isUploading
-                        ? null
-                        : (document) {
-                            if (document == null) return;
-                            setState(() {
-                              _selectedDocument = document;
-                              _errorMessage = null;
-                            });
-                          },
+                  AppLabeledField(
+                    label: 'Document type',
+                    isRequired: true,
+                    child: DropdownButtonFormField<ServiceCaseDocument>(
+                      initialValue: _selectedDocument,
+                      isExpanded: true,
+                      decoration: const InputDecoration(),
+                      items: widget.documents
+                          .map(
+                            (document) => DropdownMenuItem(
+                              value: document,
+                              child: Text(document.title),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: _isUploading
+                          ? null
+                          : (document) {
+                              if (document == null) return;
+                              setState(() {
+                                _selectedDocument = document;
+                                _errorMessage = null;
+                              });
+                            },
+                    ),
                   ),
                   const SizedBox(height: 14),
                   OutlinedButton.icon(
@@ -2107,13 +2124,16 @@ class _DiscountRejectionDialogState extends State<_DiscountRejectionDialog> {
       controller: _dirtyFormController,
       child: AlertDialog(
         title: const Text('Reject discount request?'),
-        content: TextField(
-          controller: _controller,
-          autofocus: true,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Review remarks',
-            hintText: 'Explain why this discount cannot be approved.',
+        content: AppLabeledField(
+          label: 'Review remarks',
+          isRequired: true,
+          child: TextField(
+            controller: _controller,
+            autofocus: true,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              hintText: 'Explain why this discount cannot be approved.',
+            ),
           ),
         ),
         actions: [

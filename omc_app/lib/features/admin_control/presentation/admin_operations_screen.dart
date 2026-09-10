@@ -8,6 +8,7 @@ import '../../../app/theme.dart';
 import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
+import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/admin_control_repository.dart';
 
@@ -315,27 +316,29 @@ class _AdminOperationsScreenState extends ConsumerState<AdminOperationsScreen> {
                       }),
                     ),
                     const SizedBox(height: AppSpacing.sm),
-                    DropdownButtonFormField<AdminAssignmentCandidate>(
-                      initialValue: selected,
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Eligible assignee',
-                      ),
-                      items: [
-                        for (final candidate in candidates)
-                          DropdownMenuItem(
-                            value: candidate,
-                            child: Text(
-                              '${candidate.fullName} (${candidate.userId})',
-                              softWrap: true,
-                              maxLines: 2,
+                    AppLabeledField(
+                      label: 'Eligible assignee',
+                      isRequired: true,
+                      child: DropdownButtonFormField<AdminAssignmentCandidate>(
+                        initialValue: selected,
+                        isExpanded: true,
+                        decoration: const InputDecoration(),
+                        items: [
+                          for (final candidate in candidates)
+                            DropdownMenuItem(
+                              value: candidate,
+                              child: Text(
+                                '${candidate.fullName} (${candidate.userId})',
+                                softWrap: true,
+                                maxLines: 2,
+                              ),
                             ),
-                          ),
-                      ],
-                      onChanged: (value) {
-                        dirtyFormController.markDirty();
-                        setDialogState(() => selected = value);
-                      },
+                        ],
+                        onChanged: (value) {
+                          dirtyFormController.markDirty();
+                          setDialogState(() => selected = value);
+                        },
+                      ),
                     ),
                     if (candidates.isEmpty) ...[
                       const SizedBox(height: AppSpacing.xs),
@@ -347,13 +350,15 @@ class _AdminOperationsScreenState extends ConsumerState<AdminOperationsScreen> {
                       ),
                     ],
                     const SizedBox(height: AppSpacing.sm),
-                    TextField(
-                      controller: reason,
-                      minLines: 2,
-                      maxLines: 4,
-                      decoration: const InputDecoration(
-                        labelText: 'Reason (optional)',
-                        alignLabelWithHint: true,
+                    AppLabeledField(
+                      label: 'Reason (optional)',
+                      child: TextField(
+                        controller: reason,
+                        minLines: 2,
+                        maxLines: 4,
+                        decoration: const InputDecoration(
+                          alignLabelWithHint: true,
+                        ),
                       ),
                     ),
                   ],
@@ -542,17 +547,18 @@ class _AdminOperationsScreenState extends ConsumerState<AdminOperationsScreen> {
                     },
                   ),
                   const SizedBox(height: AppSpacing.sm),
-                  TextField(
-                    controller: remarks,
-                    minLines: 2,
-                    maxLines: 5,
-                    decoration: InputDecoration(
-                      labelText: approve == false
-                          ? 'Review remarks (required)'
-                          : 'Review remarks (optional)',
-                      alignLabelWithHint: true,
+                  AppLabeledField(
+                    label: 'Review remarks',
+                    isRequired: approve == false,
+                    child: TextField(
+                      controller: remarks,
+                      minLines: 2,
+                      maxLines: 5,
+                      decoration: const InputDecoration(
+                        alignLabelWithHint: true,
+                      ),
+                      onChanged: (_) => setDialogState(() {}),
                     ),
-                    onChanged: (_) => setDialogState(() {}),
                   ),
                 ],
               ),

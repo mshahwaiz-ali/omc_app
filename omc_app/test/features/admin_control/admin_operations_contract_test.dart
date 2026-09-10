@@ -28,7 +28,12 @@ void main() {
       expect(screen, contains('Search eligible staff'));
       expect(screen, contains('Reason (optional)'));
       expect(screen, contains('Retry exhausted sync'));
-      expect(screen, contains('Review remarks (required)'));
+      expect(screen, contains("label: 'Review remarks'"));
+      expect(screen, contains('isRequired: approve == false'));
+      expect(
+        screen,
+        contains('(approve == false && remarks.text.trim().isEmpty)'),
+      );
     },
   );
 
