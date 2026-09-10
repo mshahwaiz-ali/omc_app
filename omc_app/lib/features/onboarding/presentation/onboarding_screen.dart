@@ -82,7 +82,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: AppLayout.formMaxWidth),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              padding: EdgeInsets.fromLTRB(
+                AppLayout.pageInsetFor(MediaQuery.sizeOf(context).width),
+                12,
+                AppLayout.pageInsetFor(MediaQuery.sizeOf(context).width),
+                20,
+              ),
               child: Column(
                 children: [
                   Row(
@@ -93,7 +98,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         padding: const EdgeInsets.all(7),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(AppRadius.control),
+                          borderRadius: BorderRadius.circular(
+                            AppRadius.control,
+                          ),
                           border: Border.all(color: AppTheme.border),
                         ),
                         child: const OmcLogo.symbol(size: 34, borderRadius: 0),

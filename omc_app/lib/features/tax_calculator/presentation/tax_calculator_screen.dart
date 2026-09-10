@@ -11,6 +11,7 @@ import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/loading_view.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
@@ -108,8 +109,9 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
           }
 
           if (snapshot.hasError) {
-            return Padding(
-              padding: const EdgeInsets.all(20),
+            return OmcPagePadding(
+              topPadding: 20,
+              bottomPadding: 20,
               child: AppErrorState.fromError(
                 error: snapshot.error!,
                 onRetry: _retryConfig,
@@ -122,8 +124,9 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
 
           final config = snapshot.data;
           if (config == null) {
-            return Padding(
-              padding: const EdgeInsets.all(20),
+            return OmcPagePadding(
+              topPadding: 20,
+              bottomPadding: 20,
               child: AppErrorState(
                 title: 'Calculator settings unavailable',
                 message:
@@ -134,8 +137,9 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
           }
 
           if (!config.enabled) {
-            return Padding(
-              padding: const EdgeInsets.all(20),
+            return OmcPagePadding(
+              topPadding: 20,
+              bottomPadding: 20,
               child: AppConfigurationState(
                 title: config.stateTitle,
                 message: config.stateMessage,
@@ -144,8 +148,9 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
           }
 
           if (config.activeTaxYear == null) {
-            return const Padding(
-              padding: EdgeInsets.all(20),
+            return const OmcPagePadding(
+              topPadding: 20,
+              bottomPadding: 20,
               child: AppConfigurationState(
                 title: 'Tax calculator is not configured',
                 message:
@@ -164,11 +169,9 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
 
           return RefreshIndicator.adaptive(
             onRefresh: _refreshConfig,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+            child: OmcPageListView(
+              topPadding: 8,
+              bottomPadding: 40,
               children: [
                 _TaxYearSection(
                   config: config,

@@ -11,6 +11,7 @@ import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_skeleton.dart';
 import '../../../core/widgets/app_state.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../documents/application/document_attachment_controller.dart';
 import '../../documents/data/documents_repository.dart';
@@ -97,11 +98,9 @@ class _CustomerServiceCaseDetailScreenState
 
                   return RefreshIndicator(
                     onRefresh: refresh,
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(
-                        parent: BouncingScrollPhysics(),
-                      ),
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+                    child: OmcPageListView(
+                      topPadding: 12,
+                      bottomPadding: 40,
                       children: [
                         _ServiceHero(detail: detail),
                         const SizedBox(height: 12),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/config/support_config.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
@@ -85,7 +86,9 @@ class _UnderReviewScreenState extends ConsumerState<UnderReviewScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.sheet),
+        ),
       ),
       builder: (sheetContext) => SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
@@ -98,20 +101,14 @@ class _UnderReviewScreenState extends ConsumerState<UnderReviewScreen> {
               style: Theme.of(sheetContext).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
-            Text(
-              'Email',
-              style: Theme.of(sheetContext).textTheme.titleMedium,
-            ),
+            Text('Email', style: Theme.of(sheetContext).textTheme.titleMedium),
             const SizedBox(height: 4),
             SelectableText(
               SupportConfig.email,
               style: Theme.of(sheetContext).textTheme.bodyLarge,
             ),
             const SizedBox(height: 16),
-            Text(
-              'Phone',
-              style: Theme.of(sheetContext).textTheme.titleMedium,
-            ),
+            Text('Phone', style: Theme.of(sheetContext).textTheme.titleMedium),
             const SizedBox(height: 4),
             SelectableText(
               SupportConfig.phoneNumber,
@@ -142,7 +139,12 @@ class _UnderReviewScreenState extends ConsumerState<UnderReviewScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+            padding: EdgeInsets.fromLTRB(
+              AppLayout.pageInsetFor(MediaQuery.sizeOf(context).width),
+              24,
+              AppLayout.pageInsetFor(MediaQuery.sizeOf(context).width),
+              28,
+            ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
               child: PremiumCard(

@@ -16,6 +16,7 @@ import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_labeled_field.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../auth/application/auth_state.dart';
@@ -58,11 +59,15 @@ class ExpenseTrackerV2Screen extends ConsumerWidget {
         ),
         body: const SafeArea(
           top: false,
-          child: PremiumEmptyState(
-            icon: Icons.admin_panel_settings_outlined,
-            title: 'Customer tracker hidden',
-            message:
-                'Internal users use the internal workspace for customer review. Personal customer tracking is hidden by default.',
+          child: OmcPagePadding(
+            topPadding: AppSpacing.lg,
+            bottomPadding: AppSpacing.lg,
+            child: PremiumEmptyState(
+              icon: Icons.admin_panel_settings_outlined,
+              title: 'Customer tracker hidden',
+              message:
+                  'Internal users use the internal workspace for customer review. Personal customer tracking is hidden by default.',
+            ),
           ),
         ),
       );
@@ -192,8 +197,9 @@ class ExpenseTrackerV2Screen extends ConsumerWidget {
               )
             : transactionsAsync.when(
                 loading: () => const _TrackerLoadingView(),
-                error: (_, _) => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
+                error: (_, _) => OmcPagePadding(
+                  topPadding: AppSpacing.lg,
+                  bottomPadding: AppSpacing.lg,
                   child: PremiumEmptyState(
                     icon: Icons.account_balance_wallet_outlined,
                     title: 'Tracker unavailable',
@@ -738,11 +744,9 @@ class _LocalLedgerViewState extends State<_LocalLedgerView> {
         // retains the established repository reload operation.
       },
       notificationPredicate: (_) => false,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+      child: OmcPageListView(
+        topPadding: 12,
+        bottomPadding: 40,
         children: [
           _FinancialSummary(stats: allStats),
           const SizedBox(height: 12),
@@ -1560,9 +1564,10 @@ class _CloudLedgerViewState extends ConsumerState<_CloudLedgerView> {
 
     return data.when(
       loading: () => const _TrackerLoadingView(),
-      error: (error, _) => ListView(
+      error: (error, _) => OmcPageListView(
+        topPadding: 20,
+        bottomPadding: 20,
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(20),
         children: [
           PremiumEmptyState(
             icon: Icons.cloud_off_outlined,
@@ -1586,11 +1591,9 @@ class _CloudLedgerViewState extends ConsumerState<_CloudLedgerView> {
           ref.invalidate(provider);
           await ref.read(provider.future);
         },
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+        child: OmcPageListView(
+          topPadding: 12,
+          bottomPadding: 40,
           children: [
             _CloudFinancialSummary(page: page, month: month),
             const SizedBox(height: 12),
@@ -2416,9 +2419,10 @@ class _TrackerLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return OmcPageListView(
+      topPadding: 12,
+      bottomPadding: 40,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
       children: [
         PremiumCard(
           padding: const EdgeInsets.all(20),

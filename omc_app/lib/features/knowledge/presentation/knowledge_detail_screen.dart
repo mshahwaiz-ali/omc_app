@@ -9,6 +9,7 @@ import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_skeleton.dart';
 import '../../../core/widgets/app_state.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/knowledge_article.dart';
 import '../data/knowledge_repository.dart';
@@ -28,8 +29,9 @@ class KnowledgeDetailScreen extends ConsumerWidget {
       body: SafeArea(
         child: articleState.when(
           loading: () => const _KnowledgeDetailLoadingView(),
-          error: (error, _) => Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+          error: (error, _) => OmcPagePadding(
+            topPadding: 24,
+            bottomPadding: 28,
             child: AppErrorState.fromError(
               error: error,
               fallbackTitle: 'Article unavailable',
@@ -41,8 +43,9 @@ class KnowledgeDetailScreen extends ConsumerWidget {
           ),
           data: (article) {
             if (article == null) {
-              return const Padding(
-                padding: EdgeInsets.fromLTRB(20, 24, 20, 28),
+              return const OmcPagePadding(
+                topPadding: 24,
+                bottomPadding: 28,
                 child: AppEmptyState(
                   icon: Icons.article_outlined,
                   title: 'Article unavailable',

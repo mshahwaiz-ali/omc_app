@@ -5,8 +5,9 @@ class _LoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 36),
+    return OmcPageListView(
+      topPadding: 10,
+      bottomPadding: 36,
       children: const [
         AppSkeleton(height: 170),
         SizedBox(height: 14),
@@ -27,11 +28,10 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(22),
-        child: AppErrorState(title: title, message: message, onRetry: onRetry),
-      ),
+    return OmcPagePadding(
+      topPadding: 22,
+      bottomPadding: 22,
+      child: AppErrorState(title: title, message: message, onRetry: onRetry),
     );
   }
 }

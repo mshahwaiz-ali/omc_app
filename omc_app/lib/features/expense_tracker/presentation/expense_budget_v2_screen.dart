@@ -9,6 +9,7 @@ import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_labeled_field.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../auth/application/auth_controller.dart';
@@ -61,8 +62,9 @@ class _ExpenseBudgetV2ScreenState extends ConsumerState<ExpenseBudgetV2Screen> {
         ),
         body: const SafeArea(
           top: false,
-          child: Padding(
-            padding: EdgeInsets.all(AppSpacing.lg),
+          child: OmcPagePadding(
+            topPadding: AppSpacing.lg,
+            bottomPadding: AppSpacing.lg,
             child: PremiumEmptyState(
               icon: Icons.lock_outline_rounded,
               title: 'Approved access required',
@@ -112,11 +114,9 @@ class _ExpenseBudgetV2ScreenState extends ConsumerState<ExpenseBudgetV2Screen> {
         top: false,
         child: RefreshIndicator.adaptive(
           onRefresh: () async => _refresh(),
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+          child: OmcPageListView(
+            topPadding: 12,
+            bottomPadding: 40,
             children: [
               _MonthSelector(
                 month: _month,
