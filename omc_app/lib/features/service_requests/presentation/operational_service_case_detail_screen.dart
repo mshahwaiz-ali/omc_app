@@ -510,6 +510,7 @@ class _OperationalServiceCaseDetailScreenState
       useSafeArea: true,
       isDismissible: false,
       enableDrag: false,
+      showDragHandle: false,
       builder: (_) => _OperationalDocumentUploadSheet(
         documents: options,
         onPickDocument: () =>
@@ -2305,11 +2306,9 @@ class _MetaPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: AppTheme.processing,
-          fontSize: 13,
-          height: 1.35,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.labelMedium?.copyWith(color: AppTheme.processing),
       ),
     );
   }

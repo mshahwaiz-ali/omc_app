@@ -170,6 +170,7 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
       useSafeArea: true,
       isDismissible: false,
       enableDrag: false,
+      showDragHandle: false,
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
