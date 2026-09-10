@@ -19,7 +19,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Apply live form closure
-        run: python3 .github/scripts/uiux_live_admin_service_forms.py
+        run: |
+          python3 .github/scripts/uiux_live_admin_service_forms.py
+          python3 .github/scripts/uiux_admin_contract_update.py
       - name: Static form invariants
         shell: bash
         run: |
@@ -27,13 +29,18 @@ jobs:
           from pathlib import Path
           admin = Path('omc_app/lib/features/admin_control/presentation/admin_operations_screen.dart').read_text()
           service = Path('omc_app/lib/features/service_requests/presentation/operational_service_case_detail_screen.dart').read_text()
+          test = Path('omc_app/test/features/admin_control/admin_operations_contract_test.dart').read_text()
           assert admin.count('labelText:') == 2, 'admin must retain only its two search labels'
           assert "labelText: 'Search case, customer or service'" in admin
           assert "labelText: 'Search eligible staff'" in admin
-          assert 'AppLabeledField(' in admin
+          assert "label: 'Review remarks'" in admin
+          assert 'isRequired: approve == false' in admin
+          assert '(approve == false && remarks.text.trim().isEmpty)' in admin
           assert 'labelText:' not in service, 'operational service forms must use persistent labels'
           assert 'useSafeArea: true' in service
           assert "isDismissible: false" in service and "enableDrag: false" in service
+          assert "contains(\"label: 'Review remarks'\")" in test
+          assert "contains('isRequired: approve == false')" in test
           PY
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -49,11 +56,15 @@ jobs:
         run: |
           dart format \
             omc_app/lib/features/admin_control/presentation/admin_operations_screen.dart \
-            omc_app/lib/features/service_requests/presentation/operational_service_case_detail_screen.dart
+            omc_app/lib/features/service_requests/presentation/operational_service_case_detail_screen.dart \
+            omc_app/test/features/admin_control/admin_operations_contract_test.dart
           git diff --check
-      - name: Focused route gate
+      - name: Focused admin and route gates
         working-directory: omc_app
-        run: flutter test --no-pub test/features/app_config/app_gate_batch2_test.dart
+        shell: bash
+        run: |
+          flutter test --no-pub test/features/admin_control/admin_operations_contract_test.dart
+          flutter test --no-pub test/features/app_config/app_gate_batch2_test.dart
       - name: Analyze
         working-directory: omc_app
         run: flutter analyze --no-pub
@@ -69,10 +80,12 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
             omc_app/lib/features/admin_control/presentation/admin_operations_screen.dart \
-            omc_app/lib/features/service_requests/presentation/operational_service_case_detail_screen.dart
+            omc_app/lib/features/service_requests/presentation/operational_service_case_detail_screen.dart \
+            omc_app/test/features/admin_control/admin_operations_contract_test.dart
           git rm \
             .github/workflows/uiux-live-admin-service-forms.yml \
-            .github/scripts/uiux_live_admin_service_forms.py
+            .github/scripts/uiux_live_admin_service_forms.py \
+            .github/scripts/uiux_admin_contract_update.py
           git diff --cached --check
           git commit -m 'fix: close live admin and service form standards'
           git push origin HEAD:main
