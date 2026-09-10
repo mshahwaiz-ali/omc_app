@@ -9,6 +9,7 @@ import '../../../core/network/api_error.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_state.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../application/document_attachment_controller.dart';
 import '../data/document_item.dart';
@@ -45,8 +46,9 @@ class DocumentDetailScreen extends ConsumerWidget {
       body: documentAsync.when(
         data: (document) {
           if (document == null) {
-            return const Padding(
-              padding: EdgeInsets.all(20),
+            return const OmcPagePadding(
+              topPadding: 20,
+              bottomPadding: 20,
               child: AppEmptyState(
                 icon: Icons.description_outlined,
                 title: 'Document unavailable',
@@ -62,8 +64,9 @@ class DocumentDetailScreen extends ConsumerWidget {
           );
         },
         loading: () => const _DetailLoadingView(),
-        error: (error, _) => Padding(
-          padding: const EdgeInsets.all(20),
+        error: (error, _) => OmcPagePadding(
+          topPadding: 20,
+          bottomPadding: 20,
           child: AppErrorState.fromError(
             error: error,
             fallbackTitle: 'Document unavailable',
@@ -84,8 +87,9 @@ class _DetailLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(20),
+    return OmcPageListView(
+      topPadding: 20,
+      bottomPadding: 20,
       children: [
         PremiumCard(
           child: Row(
@@ -437,9 +441,10 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return ListView(
+    return OmcPageListView(
+      topPadding: 12,
+      bottomPadding: 32,
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
       children: [
         _DocumentHeroCard(
           document: document,

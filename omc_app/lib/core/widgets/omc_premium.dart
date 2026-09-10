@@ -166,6 +166,42 @@ class OmcPageListView extends StatelessWidget {
   }
 }
 
+class OmcPagePadding extends StatelessWidget {
+  const OmcPagePadding({
+    required this.child,
+    super.key,
+    this.topPadding = AppSpacing.lg,
+    this.bottomPadding = AppSpacing.xl,
+    this.maxWidth = AppLayout.generalMaxWidth,
+  });
+
+  final Widget child;
+  final double topPadding;
+  final double bottomPadding;
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inset = AppLayout.pageInsetFor(constraints.maxWidth);
+        final horizontal = constraints.maxWidth > maxWidth + inset * 2
+            ? (constraints.maxWidth - maxWidth) / 2
+            : inset;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            horizontal,
+            topPadding,
+            horizontal,
+            bottomPadding,
+          ),
+          child: child,
+        );
+      },
+    );
+  }
+}
+
 class OmcSurface extends StatelessWidget {
   const OmcSurface({
     required this.child,

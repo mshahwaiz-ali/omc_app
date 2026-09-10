@@ -125,11 +125,9 @@ class _ProfileContent extends StatelessWidget {
         ? profile.status!.trim()
         : 'Account active';
 
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 40),
+    return OmcPageListView(
+      topPadding: 18,
+      bottomPadding: 40,
       children: [
         Text('Profile', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: 4),
@@ -691,9 +689,10 @@ class _ProfileUnavailableView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return OmcPageListView(
+      topPadding: 18,
+      bottomPadding: 40,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 40),
       children: [
         Text('Profile', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: 18),
@@ -768,9 +767,10 @@ class _ProfileLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return OmcPageListView(
+      topPadding: 18,
+      bottomPadding: 40,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 40),
       children: [
         const _SkeletonLine(width: 120, height: 26),
         const SizedBox(height: 18),

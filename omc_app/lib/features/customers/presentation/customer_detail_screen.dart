@@ -6,6 +6,7 @@ import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../crm/presentation/widgets/crm_detail_widgets.dart';
@@ -73,11 +74,9 @@ class _CustomerDetailBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+    return OmcPageListView(
+      topPadding: 16,
+      bottomPadding: 40,
       children: [
         _IdentityAndStatusCard(customer: customer),
         const SizedBox(height: 24),
@@ -206,7 +205,10 @@ class _IdentityAndStatusCard extends StatelessWidget {
           const SizedBox(height: 18),
           const Divider(height: 1),
           const SizedBox(height: 16),
-          Text('Account status', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Account status',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 10),
           _CustomerStatusBadge(
             status: customer.status,

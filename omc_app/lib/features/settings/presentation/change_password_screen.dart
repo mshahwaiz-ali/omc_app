@@ -178,9 +178,16 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
           child: Align(
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: AppLayout.formMaxWidth),
+              constraints: const BoxConstraints(
+                maxWidth: AppLayout.formMaxWidth,
+              ),
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 40),
+                padding: EdgeInsets.fromLTRB(
+                  AppLayout.pageInsetFor(MediaQuery.sizeOf(context).width),
+                  18,
+                  AppLayout.pageInsetFor(MediaQuery.sizeOf(context).width),
+                  40,
+                ),
                 children: [
                   Text(
                     'Secure your account',
@@ -241,7 +248,10 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                               validator: _newPasswordValidator,
                             ),
                             const SizedBox(height: AppSpacing.md),
-                            Text('Confirm new password', style: fieldLabelStyle),
+                            Text(
+                              'Confirm new password',
+                              style: fieldLabelStyle,
+                            ),
                             const SizedBox(height: AppSpacing.xs),
                             TextFormField(
                               controller: _confirmPasswordController,

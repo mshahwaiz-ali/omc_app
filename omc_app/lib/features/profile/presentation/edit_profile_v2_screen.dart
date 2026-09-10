@@ -11,6 +11,7 @@ import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_state.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/profile_repository.dart';
 import '../data/profile_summary.dart';
@@ -65,11 +66,9 @@ class _ProfileEditorOverview extends ConsumerWidget {
         ref.invalidate(profileSummaryProvider);
         await ref.read(profileSummaryProvider.future);
       },
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+      child: OmcPageListView(
+        topPadding: 12,
+        bottomPadding: 40,
         children: [
           _ProfileIdentitySummary(profile: profile, isInternal: isInternal),
           const SizedBox(height: 22),
@@ -1095,9 +1094,10 @@ class _ProfileEditorLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return OmcPageListView(
+      topPadding: 12,
+      bottomPadding: 40,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
       children: [
         PremiumCard(
           padding: const EdgeInsets.all(18),
@@ -1137,8 +1137,9 @@ class _ProfileEditorUnavailable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.all(20),
+    return const OmcPagePadding(
+      topPadding: 20,
+      bottomPadding: 20,
       child: AppEmptyState(
         icon: Icons.person_off_outlined,
         title: 'Profile details unavailable',
@@ -1155,8 +1156,9 @@ class _ProfileEditorError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
+    return OmcPagePadding(
+      topPadding: 20,
+      bottomPadding: 20,
       child: AppErrorState.fromError(
         error: error,
         fallbackTitle: 'Profile unavailable',

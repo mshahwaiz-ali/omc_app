@@ -57,9 +57,10 @@ class SettingsV2Screen extends ConsumerWidget {
       key: OmcWidgetKeys.settingsScreen,
       backgroundColor: AppTheme.background,
       body: SafeArea(
-        child: ListView(
+        child: OmcPageListView(
+          topPadding: 18,
+          bottomPadding: 40,
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 40),
           children: [
             Text('Settings', style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 4),

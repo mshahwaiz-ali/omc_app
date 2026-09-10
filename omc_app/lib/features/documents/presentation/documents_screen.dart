@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/resilience/app_failure.dart';
@@ -216,12 +215,9 @@ class _DocumentsWorkspaceState extends State<_DocumentsWorkspace> {
     final visible = _filteredDocuments(widget.documents);
     final groups = _DocumentRequestGroup.fromDocuments(visible);
 
-    return ListView(
+    return OmcPageListView(
+      topPadding: 16,
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
       children: [
         _Header(
           documents: widget.documents,
@@ -856,7 +852,7 @@ class _FilteredEmptyView extends StatelessWidget {
           const Icon(
             Icons.search_off_rounded,
             color: OmcPremium.documents,
-            size: 36,
+            size: 32,
           ),
           const SizedBox(height: 10),
           Text(
@@ -899,7 +895,7 @@ class _EmptyDocumentsView extends StatelessWidget {
           const Icon(
             Icons.folder_copy_outlined,
             color: OmcPremium.documents,
-            size: 40,
+            size: 32,
           ),
           const SizedBox(height: 14),
           const Text(
@@ -936,9 +932,9 @@ class _DocumentsErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return OmcPageListView(
+      topPadding: 18,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl),
       children: [
         AppErrorState.fromError(
           error: error,
@@ -958,21 +954,24 @@ class _DocumentsLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
+    return OmcPageListView(
+      topPadding: 28,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 28, 20, AppSpacing.xl),
-      itemBuilder: (context, index) => PremiumCard(
-        padding: const EdgeInsets.all(16),
-        child: Container(
-          height: index == 0 ? 76 : 108,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(12),
+      children: [
+        for (var index = 0; index < 6; index++) ...[
+          PremiumCard(
+            padding: const EdgeInsets.all(16),
+            child: Container(
+              height: index == 0 ? 76 : 108,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
-        ),
-      ),
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemCount: 6,
+          if (index != 5) const SizedBox(height: 10),
+        ],
+      ],
     );
   }
 }

@@ -34,8 +34,9 @@ class NotificationDetailScreen extends ConsumerWidget {
         child: notificationAsync.when(
           data: (notification) {
             if (notification == null) {
-              return const Padding(
-                padding: EdgeInsets.all(20),
+              return const OmcPagePadding(
+                topPadding: 20,
+                bottomPadding: 20,
                 child: AppEmptyState(
                   icon: Icons.notifications_none_rounded,
                   title: 'Alert unavailable',
@@ -48,8 +49,9 @@ class NotificationDetailScreen extends ConsumerWidget {
             return _NotificationDetailBody(notification: notification);
           },
           loading: () => const _NotificationDetailLoadingView(),
-          error: (error, _) => Padding(
-            padding: const EdgeInsets.all(20),
+          error: (error, _) => OmcPagePadding(
+            topPadding: 20,
+            bottomPadding: 20,
             child: AppErrorState.fromError(
               error: error,
               fallbackTitle: 'Alert unavailable',
@@ -112,8 +114,9 @@ class _NotificationDetailBodyState
     final color = _typeColor(notification.type);
     final relatedAction = _relatedActionLabel(notification);
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 36),
+    return OmcPageListView(
+      topPadding: 14,
+      bottomPadding: 36,
       children: [
         PremiumCard(
           padding: const EdgeInsets.all(18),
@@ -561,8 +564,9 @@ class _NotificationDetailLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 36),
+    return OmcPageListView(
+      topPadding: 14,
+      bottomPadding: 36,
       children: [
         PremiumCard(
           padding: const EdgeInsets.all(20),

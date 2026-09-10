@@ -9,6 +9,7 @@ import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../data/customers_repository.dart';
@@ -105,11 +106,9 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
         .length;
     final attentionCount = customers.where(_needsAttention).length;
 
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+    return OmcPageListView(
+      topPadding: 12,
+      bottomPadding: 40,
       children: [
         _CustomerSearchField(
           controller: _searchController,
@@ -464,7 +463,7 @@ class _CustomerStatusBadge extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
           color: presentation.background,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -676,9 +675,10 @@ class _CustomersLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return OmcPageListView(
+      topPadding: 12,
+      bottomPadding: 40,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
       children: [
         _CustomerSearchField(
           controller: searchController,
@@ -718,9 +718,10 @@ class _BackendUnavailableState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return OmcPageListView(
+      topPadding: 12,
+      bottomPadding: 40,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
       children: [
         _CustomerSearchField(
           controller: searchController,
