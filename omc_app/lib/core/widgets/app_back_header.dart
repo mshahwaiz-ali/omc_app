@@ -6,6 +6,8 @@ import '../../app/navigation/navigation_coordinator.dart';
 import '../../app/theme.dart';
 
 class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
+  static const double _bottomBorderWidth = 1.0;
+
   const AppBackHeader({
     required this.title,
     super.key,
@@ -40,13 +42,14 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
         : actionIcon != null && onAction != null
         ? 60.0
         : 0.0;
-    final availableTextWidth = (width -
-            (horizontalInset * 2) -
-            AppTouchTarget.minimum -
-            AppSpacing.sm -
-            trailingReserve)
-        .clamp(96.0, width)
-        .toDouble();
+    final availableTextWidth =
+        (width -
+                (horizontalInset * 2) -
+                AppTouchTarget.minimum -
+                AppSpacing.sm -
+                trailingReserve)
+            .clamp(96.0, width)
+            .toDouble();
 
     final titleHeight = _measureTextHeight(
       title,
@@ -63,16 +66,20 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
             maxWidth: availableTextWidth,
             textScaler: media.textScaler,
           );
-    final textHeight = titleHeight +
+    final textHeight =
+        titleHeight +
         (subtitleHeight > 0 ? AppSpacing.xxs + subtitleHeight : 0.0);
-    final rowHeight = textHeight > AppTouchTarget.minimum
-        ? textHeight
+    final paddedTextHeight = (AppSpacing.xxs + textHeight).ceilToDouble();
+    final rowHeight = paddedTextHeight > AppTouchTarget.minimum
+        ? paddedTextHeight
         : AppTouchTarget.minimum;
 
     // Scaffold adds the system top inset to preferredSize. AppBackHeader keeps
     // SafeArea so the same widget also remains correct when used directly in a
     // Column outside Scaffold.appBar.
-    return Size.fromHeight(rowHeight + AppSpacing.lg);
+    final chromeHeight = AppSpacing.xs + AppSpacing.sm + _bottomBorderWidth;
+
+    return Size.fromHeight(rowHeight + chromeHeight);
   }
 
   double get _fallbackPreferredHeight =>
@@ -120,7 +127,12 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
           ),
           decoration: BoxDecoration(
             color: colors.surface,
-            border: Border(bottom: BorderSide(color: colors.outlineVariant)),
+            border: Border(
+              bottom: BorderSide(
+                color: colors.outlineVariant,
+                width: _bottomBorderWidth,
+              ),
+            ),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
