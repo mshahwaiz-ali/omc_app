@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
@@ -123,6 +124,7 @@ class _CompleteCustomerActivationScreenState
   @override
   Widget build(BuildContext context) {
     final hasToken = widget.token.trim().isNotEmpty;
+    final theme = Theme.of(context);
 
     if (!hasToken || _linkInvalid) {
       return AuthEntryScaffold(
@@ -136,7 +138,7 @@ class _CompleteCustomerActivationScreenState
           icon: const Icon(Icons.arrow_back_rounded),
         ),
         child: PremiumCard(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Semantics(
             container: true,
             liveRegion: _linkInvalid,
@@ -148,25 +150,25 @@ class _CompleteCustomerActivationScreenState
                   color: AppTheme.danger,
                   size: 40,
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: AppSpacing.md),
                 Text(
                   'Request a new account activation link',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: theme.textTheme.titleLarge,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   _linkInvalid && _message?.trim().isNotEmpty == true
                       ? _message!
                       : 'Request a new account activation email to continue securely.',
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  style: theme.textTheme.bodyLarge,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.xl),
                 AppButton(
                   label: 'Request new link',
                   icon: Icons.outgoing_mail,
                   onPressed: () => context.go('/activate-existing-account'),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: AppSpacing.xs),
                 OutlinedButton.icon(
                   onPressed: () => context.go('/login'),
                   icon: const Icon(Icons.login_rounded),
@@ -190,7 +192,7 @@ class _CompleteCustomerActivationScreenState
           icon: const Icon(Icons.arrow_back_rounded),
         ),
         child: PremiumCard(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Semantics(
             container: true,
             liveRegion: true,
@@ -202,23 +204,23 @@ class _CompleteCustomerActivationScreenState
                   color: AppTheme.warning,
                   size: 40,
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: AppSpacing.md),
                 Text(
                   'OMC review is required',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: theme.textTheme.titleLarge,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   _message ??
                       'This account requires OMC review before app access can be activated.',
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  style: theme.textTheme.bodyLarge,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   'This is an account-access review. It does not change any service request, payment, document, or settlement status.',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: theme.textTheme.bodyMedium,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.xl),
                 AppButton(
                   label: 'Back to login',
                   icon: Icons.login_rounded,
@@ -242,7 +244,7 @@ class _CompleteCustomerActivationScreenState
         icon: const Icon(Icons.arrow_back_rounded),
       ),
       child: PremiumCard(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: _completed
             ? Semantics(
                 container: true,
@@ -255,18 +257,18 @@ class _CompleteCustomerActivationScreenState
                       color: AppTheme.success,
                       size: 40,
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: AppSpacing.md),
                     Text(
                       'App account access is ready',
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: theme.textTheme.titleLarge,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       _message ??
                           'Your OMC account is activated. You can sign in now.',
-                      style: Theme.of(context).textTheme.bodyLarge,
+                      style: theme.textTheme.bodyLarge,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppSpacing.xl),
                     AppButton(
                       label: 'Continue to login',
                       icon: Icons.login_rounded,
@@ -280,23 +282,22 @@ class _CompleteCustomerActivationScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'Set your password',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 6),
+                    Text('Set your password', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       'Use at least 8 characters. This password is for signing in to your OMC account.',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: theme.textTheme.bodyMedium,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.md),
+                    Text('Password', style: theme.textTheme.labelLarge),
+                    const SizedBox(height: AppSpacing.xs),
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
                       textInputAction: TextInputAction.next,
                       autofillHints: const [AutofillHints.newPassword],
                       decoration: InputDecoration(
-                        labelText: 'Password',
+                        hintText: 'Enter a new password',
                         prefixIcon: const Icon(Icons.lock_outline_rounded),
                         suffixIcon: IconButton(
                           tooltip: _obscurePassword
@@ -316,7 +317,9 @@ class _CompleteCustomerActivationScreenState
                       ),
                       validator: _passwordValidator,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.md),
+                    Text('Confirm password', style: theme.textTheme.labelLarge),
+                    const SizedBox(height: AppSpacing.xs),
                     TextFormField(
                       controller: _confirmController,
                       obscureText: _obscureConfirm,
@@ -324,7 +327,7 @@ class _CompleteCustomerActivationScreenState
                       autofillHints: const [AutofillHints.newPassword],
                       onFieldSubmitted: (_) => _submit(),
                       decoration: InputDecoration(
-                        labelText: 'Confirm password',
+                        hintText: 'Re-enter the new password',
                         prefixIcon: const Icon(Icons.lock_reset_outlined),
                         suffixIcon: IconButton(
                           tooltip: _obscureConfirm
@@ -352,10 +355,10 @@ class _CompleteCustomerActivationScreenState
                       },
                     ),
                     if (_message != null) ...[
-                      const SizedBox(height: 14),
+                      const SizedBox(height: AppSpacing.sm),
                       AuthErrorBanner(message: _message!),
                     ],
-                    const SizedBox(height: 22),
+                    const SizedBox(height: AppSpacing.xl),
                     AppButton(
                       label: 'Activate account access',
                       icon: Icons.verified_user_outlined,
