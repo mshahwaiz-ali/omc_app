@@ -1,0 +1,54 @@
+name: Budget V2 validation closure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/uiux-budget-validation.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply transform
+        run: python3 .github/scripts/uiux_budget_inline_validation.py
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+      - name: Dependencies
+        working-directory: omc_app
+        run: flutter pub get
+      - name: Format
+        run: |
+          dart format omc_app/lib/features/expense_tracker/presentation/expense_budget_v2_screen.dart
+          git diff --check
+      - name: Focused route test
+        working-directory: omc_app
+        run: flutter test --no-pub test/features/app_config/app_gate_batch2_test.dart
+      - name: Analyze
+        working-directory: omc_app
+        run: flutter analyze --no-pub
+      - name: Full tests
+        working-directory: omc_app
+        run: flutter test --no-pub
+      - name: Commit verified source
+        run: |
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || { echo 'main moved; refusing stale push'; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add omc_app/lib/features/expense_tracker/presentation/expense_budget_v2_screen.dart
+          git rm .github/workflows/uiux-budget-validation.yml .github/scripts/uiux_budget_inline_validation.py
+          git diff --cached --check
+          git commit -m 'fix: show budget amount validation inline'
+          git push origin HEAD:main
