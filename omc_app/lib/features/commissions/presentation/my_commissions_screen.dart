@@ -101,13 +101,18 @@ class _MyCommissionsScreenState extends ConsumerState<MyCommissionsScreen> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final inset = AppLayout.pageInsetFor(constraints.maxWidth);
-            final horizontal = constraints.maxWidth >
-                    AppLayout.generalMaxWidth + inset * 2
+            final horizontal =
+                constraints.maxWidth > AppLayout.generalMaxWidth + inset * 2
                 ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
                 : inset;
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(horizontal, 16, horizontal, 80),
+              padding: EdgeInsets.fromLTRB(
+                horizontal,
+                16,
+                horizontal,
+                AppSpacing.xl,
+              ),
               children: [
                 Text(
                   'Commission totals',
@@ -168,10 +173,15 @@ class _MyCommissionsScreenState extends ConsumerState<MyCommissionsScreen> {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 if (_error != null)
-                  _ErrorCard(message: _error!, retry: () => _load(refresh: true)),
+                  _ErrorCard(
+                    message: _error!,
+                    retry: () => _load(refresh: true),
+                  ),
                 if (!_loading && _items.isEmpty && _error == null)
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.xl,
+                    ),
                     child: Text(
                       _hasFilters
                           ? 'No commission earnings match the current filters.'
@@ -221,7 +231,10 @@ class _CurrencySummary extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(summary.currency, style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            summary.currency,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: AppSpacing.sm),
           LayoutBuilder(
             builder: (context, constraints) {
@@ -280,9 +293,9 @@ class _AmountValue extends StatelessWidget {
       children: [
         Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
         ),
         const SizedBox(height: AppSpacing.xxs),
         Text(
@@ -333,9 +346,9 @@ class _CommissionFilters extends StatelessWidget {
         ),
         subtitle: Text(
           _filterSummary(),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
         ),
         children: [
           DropdownButtonFormField<String>(
@@ -375,7 +388,10 @@ class _CommissionFilters extends StatelessWidget {
             runSpacing: AppSpacing.xs,
             children: [
               TextButton(onPressed: clear, child: const Text('Clear')),
-              FilledButton(onPressed: apply, child: const Text('Apply filters')),
+              FilledButton(
+                onPressed: apply,
+                child: const Text('Apply filters'),
+              ),
             ],
           ),
         ],
@@ -386,8 +402,7 @@ class _CommissionFilters extends StatelessWidget {
   String _filterSummary() {
     final values = <String>[
       if (status.isNotEmpty) status,
-      if (periodController.text.trim().isNotEmpty)
-        periodController.text.trim(),
+      if (periodController.text.trim().isNotEmpty) periodController.text.trim(),
       if (customerController.text.trim().isNotEmpty) 'Customer',
       if (serviceController.text.trim().isNotEmpty) 'Service',
     ];
@@ -404,9 +419,8 @@ class _CommissionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return PremiumCard(
       padding: const EdgeInsets.all(AppSpacing.md),
-      onTap: () => context.push(
-        '/my-commissions/${Uri.encodeComponent(item.id)}',
-      ),
+      onTap: () =>
+          context.push('/my-commissions/${Uri.encodeComponent(item.id)}'),
       semanticLabel:
           '${item.currency} ${item.amount.toStringAsFixed(2)}. ${item.status}. ${item.customer}. ${item.serviceLabel}. Open commission details.',
       child: Column(
@@ -430,16 +444,16 @@ class _CommissionRow extends StatelessWidget {
           const SizedBox(height: AppSpacing.xxs),
           Text(
             item.serviceLabel,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             item.earnedOn,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
           ),
         ],
       ),

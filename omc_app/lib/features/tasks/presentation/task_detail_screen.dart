@@ -100,15 +100,20 @@ class _TaskListView extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final inset = AppLayout.pageInsetFor(constraints.maxWidth);
-        final horizontal = constraints.maxWidth >
-                AppLayout.generalMaxWidth + inset * 2
+        final horizontal =
+            constraints.maxWidth > AppLayout.generalMaxWidth + inset * 2
             ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
             : inset;
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(
             parent: BouncingScrollPhysics(),
           ),
-          padding: EdgeInsets.fromLTRB(horizontal, 16, horizontal, 80),
+          padding: EdgeInsets.fromLTRB(
+            horizontal,
+            16,
+            horizontal,
+            AppSpacing.xl,
+          ),
           children: children,
         );
       },
@@ -135,9 +140,9 @@ class _TaskHero extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             task.id,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: AppSpacing.md),
           Wrap(
@@ -157,9 +162,12 @@ class _TaskHero extends StatelessWidget {
               if (due.isNotEmpty)
                 _StatusBadge(
                   label: 'Due $due',
-                  color: _isOverdue(task) ? AppTheme.danger : AppTheme.processing,
-                  background:
-                      _isOverdue(task) ? AppTheme.dangerSoft : AppTheme.processingSoft,
+                  color: _isOverdue(task)
+                      ? AppTheme.danger
+                      : AppTheme.processing,
+                  background: _isOverdue(task)
+                      ? AppTheme.dangerSoft
+                      : AppTheme.processingSoft,
                 ),
             ],
           ),
@@ -273,9 +281,9 @@ class _LinkedCaseCard extends StatelessWidget {
           else
             Text(
               'This task does not grant access to open the linked service case.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
             ),
         ],
       ),
@@ -368,9 +376,9 @@ class _DetailRow extends StatelessWidget {
         final stack = constraints.maxWidth < 420 || textScale >= 1.5;
         final labelWidget = Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
         );
         final valueWidget = SelectableText(
           value,

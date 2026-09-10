@@ -112,13 +112,15 @@ class _FinanceCommissionsScreenState
     try {
       await action();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(success)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(success)));
       await _load(refresh: true);
     } on ApiError catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -235,7 +237,9 @@ class _FinanceCommissionsScreenState
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('A rejection reason is required for the audit trail.'),
+                const Text(
+                  'A rejection reason is required for the audit trail.',
+                ),
                 const SizedBox(height: AppSpacing.sm),
                 TextField(
                   controller: controller,
@@ -259,7 +263,8 @@ class _FinanceCommissionsScreenState
             FilledButton(
               onPressed: controller.text.trim().isEmpty
                   ? null
-                  : () => Navigator.of(dialogContext).pop(controller.text.trim()),
+                  : () =>
+                        Navigator.of(dialogContext).pop(controller.text.trim()),
               child: const Text('Reject'),
             ),
           ],
@@ -280,15 +285,20 @@ class _FinanceCommissionsScreenState
         child: LayoutBuilder(
           builder: (context, constraints) {
             final inset = AppLayout.pageInsetFor(constraints.maxWidth);
-            final horizontal = constraints.maxWidth >
-                    AppLayout.generalMaxWidth + inset * 2
+            final horizontal =
+                constraints.maxWidth > AppLayout.generalMaxWidth + inset * 2
                 ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
                 : inset;
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(
                 parent: BouncingScrollPhysics(),
               ),
-              padding: EdgeInsets.fromLTRB(horizontal, 14, horizontal, 100),
+              padding: EdgeInsets.fromLTRB(
+                horizontal,
+                14,
+                horizontal,
+                AppSpacing.xl,
+              ),
               children: [
                 const _FinanceHeader(),
                 const SizedBox(height: AppSpacing.xl),
@@ -337,7 +347,10 @@ class _FinanceCommissionsScreenState
                     prefixIcon: Icon(Icons.verified_outlined),
                   ),
                   items: const [
-                    DropdownMenuItem(value: '', child: Text('All evidence states')),
+                    DropdownMenuItem(
+                      value: '',
+                      child: Text('All evidence states'),
+                    ),
                     DropdownMenuItem(
                       value: 'Matched',
                       child: Text('Accounting ready'),
@@ -354,7 +367,10 @@ class _FinanceCommissionsScreenState
                       value: 'Quarantined',
                       child: Text('Reconciliation blocked'),
                     ),
-                    DropdownMenuItem(value: 'Reversed', child: Text('Reversed')),
+                    DropdownMenuItem(
+                      value: 'Reversed',
+                      child: Text('Reversed'),
+                    ),
                   ],
                   onChanged: (value) {
                     setState(() => _evidenceStatus = value ?? '');
@@ -452,9 +468,9 @@ class _FinanceHeader extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             'Review allocations, make approved items payable, and record external settlement evidence. Accounting and ERP records remain authoritative.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
         ],
       ),
@@ -539,9 +555,9 @@ class _CommissionOperationCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xxs),
           Text(
             title,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
@@ -683,9 +699,9 @@ class _SettlementSheetState extends State<_SettlementSheet> {
           const SizedBox(height: AppSpacing.xs),
           Text(
             'OMC records the external accounting/payment reference here. This action does not create a Journal Entry.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: AppSpacing.md),
           TextField(
@@ -723,13 +739,13 @@ class _SettlementSheetState extends State<_SettlementSheet> {
               onPressed: _referenceController.text.trim().isEmpty
                   ? null
                   : () => Navigator.of(context).pop(
-                        _SettlementInput(
-                          reference: _referenceController.text.trim(),
-                          settledOn: _date == null
-                              ? null
-                              : DateFormat('yyyy-MM-dd').format(_date!),
-                        ),
+                      _SettlementInput(
+                        reference: _referenceController.text.trim(),
+                        settledOn: _date == null
+                            ? null
+                            : DateFormat('yyyy-MM-dd').format(_date!),
                       ),
+                    ),
               child: const Text('Record commission paid'),
             ),
           ),
@@ -763,9 +779,9 @@ class _QueueMessage extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: AppSpacing.sm),
@@ -791,9 +807,9 @@ class _MetaLine extends StatelessWidget {
         final stack = constraints.maxWidth < 420 || textScale >= 1.5;
         final labelWidget = Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
         );
         final valueWidget = SelectableText(
           value,
@@ -852,9 +868,9 @@ class _InlineNotice extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
             ),
           ),
         ],

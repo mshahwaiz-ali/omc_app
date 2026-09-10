@@ -32,11 +32,11 @@ class _SettlementExceptionsScreenState
   }
 
   FinanceReconciliationQuery get _query => FinanceReconciliationQuery(
-        start: _start,
-        pageLength: _pageLength,
-        search: _search,
-        status: _status,
-      );
+    start: _start,
+    pageLength: _pageLength,
+    search: _search,
+    status: _status,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -131,20 +131,20 @@ class _SettlementExceptionsScreenState
                     busy: _mutatingReview == page.items[index].id,
                     onOpenCase: page.items[index].hasServiceRequest
                         ? () => context.push(
-                              '/internal-workspace/service-cases/${Uri.encodeComponent(page.items[index].serviceRequest)}',
-                            )
+                            '/internal-workspace/service-cases/${Uri.encodeComponent(page.items[index].serviceRequest)}',
+                          )
                         : null,
                     onResolve: page.items[index].canResolve
                         ? () => _decide(
-                              page.items[index],
-                              FinanceReconciliationDecision.resolve,
-                            )
+                            page.items[index],
+                            FinanceReconciliationDecision.resolve,
+                          )
                         : null,
                     onIgnore: page.items[index].canIgnore
                         ? () => _decide(
-                              page.items[index],
-                              FinanceReconciliationDecision.ignore,
-                            )
+                            page.items[index],
+                            FinanceReconciliationDecision.ignore,
+                          )
                         : null,
                   ),
                   if (index != page.items.length - 1)
@@ -158,14 +158,14 @@ class _SettlementExceptionsScreenState
                 onPrevious: page.start == 0
                     ? null
                     : () => setState(() {
-                          _start = (_start - _pageLength)
-                              .clamp(0, 1 << 30)
-                              .toInt();
-                        }),
+                        _start = (_start - _pageLength)
+                            .clamp(0, 1 << 30)
+                            .toInt();
+                      }),
                 onNext: page.hasMore
                     ? () => setState(() {
-                          _start = page.nextStart ?? _start + _pageLength;
-                        })
+                        _start = page.nextStart ?? _start + _pageLength;
+                      })
                     : null,
               ),
             ],
@@ -257,9 +257,9 @@ class _SettlementExceptionsScreenState
         fallbackTitle: 'Review not updated',
         fallbackMessage: 'The settlement review could not be updated.',
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(failure.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(failure.message)));
     } finally {
       if (mounted) setState(() => _mutatingReview = null);
     }
@@ -276,13 +276,18 @@ class _ResponsiveList extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final inset = AppLayout.pageInsetFor(constraints.maxWidth);
-        final horizontal = constraints.maxWidth >
-                AppLayout.generalMaxWidth + inset * 2
+        final horizontal =
+            constraints.maxWidth > AppLayout.generalMaxWidth + inset * 2
             ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
             : inset;
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(horizontal, 18, horizontal, 100),
+          padding: EdgeInsets.fromLTRB(
+            horizontal,
+            18,
+            horizontal,
+            AppSpacing.xl,
+          ),
           children: children,
         );
       },
@@ -380,7 +385,9 @@ class _ReviewCard extends StatelessWidget {
         : item.serviceRequest.isNotEmpty
         ? item.serviceRequest
         : item.sourceName;
-    final reason = item.reasonLabel.isEmpty ? item.reasonCode : item.reasonLabel;
+    final reason = item.reasonLabel.isEmpty
+        ? item.reasonCode
+        : item.reasonLabel;
     final contextLine = [
       item.customerName,
       item.serviceRequest,
@@ -418,21 +425,23 @@ class _ReviewCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           Text(
             'Exception reason',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: AppSpacing.xxs),
           Text(reason, style: Theme.of(context).textTheme.bodyLarge),
-          if (item.requestState.isNotEmpty || item.serviceStatus.isNotEmpty) ...[
+          if (item.requestState.isNotEmpty ||
+              item.serviceStatus.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
-              [item.requestState, item.serviceStatus]
-                  .where((value) => value.isNotEmpty)
-                  .join(' • '),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+              [
+                item.requestState,
+                item.serviceStatus,
+              ].where((value) => value.isNotEmpty).join(' • '),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
             ),
           ],
           if (onResolve != null || onIgnore != null || onOpenCase != null) ...[
@@ -559,9 +568,9 @@ class _Pager extends StatelessWidget {
         Expanded(
           child: Text(
             shown == 0 ? 'No records' : 'Showing $first-$last',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
           ),
         ),
         IconButton(

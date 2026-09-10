@@ -102,9 +102,9 @@ class _MyReferralsScreenState extends ConsumerState<MyReferralsScreen> {
     if (code.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: code));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Referral code copied.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Referral code copied.')));
   }
 
   Future<void> _shareCode() async {
@@ -133,13 +133,18 @@ class _MyReferralsScreenState extends ConsumerState<MyReferralsScreen> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final inset = AppLayout.pageInsetFor(constraints.maxWidth);
-            final horizontal = constraints.maxWidth >
-                    AppLayout.generalMaxWidth + inset * 2
+            final horizontal =
+                constraints.maxWidth > AppLayout.generalMaxWidth + inset * 2
                 ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
                 : inset;
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(horizontal, 16, horizontal, 140),
+              padding: EdgeInsets.fromLTRB(
+                horizontal,
+                16,
+                horizontal,
+                AppSpacing.xl,
+              ),
               children: [
                 if (_loading)
                   const SizedBox(
@@ -211,9 +216,9 @@ class _MyReferralsScreenState extends ConsumerState<MyReferralsScreen> {
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       'More referrals could not be loaded. Pull to refresh or try again.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.danger,
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: AppTheme.danger),
                     ),
                   ],
                   if (_loadingMore)
@@ -296,9 +301,9 @@ class _ReferralCodeCard extends StatelessWidget {
             active
                 ? 'Customers can use this code when joining OMC.'
                 : 'This code is inactive and cannot be used for new referrals.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: AppSpacing.md),
           LayoutBuilder(
@@ -399,9 +404,9 @@ class _ResultSummary extends StatelessWidget {
                 : hasMore
                 ? '$loadedCount referrals loaded · more available'
                 : '${summary?.totalReferrals ?? loadedCount} referrals',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
         ),
         if (hasSearch) ...[
@@ -542,9 +547,8 @@ class _ReferralSummaryCard extends StatelessWidget {
                         const SizedBox(height: AppSpacing.xxs),
                         Text(
                           item.$1,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppTheme.textSecondary,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppTheme.textSecondary),
                         ),
                       ],
                     ),

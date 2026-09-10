@@ -621,7 +621,12 @@ class _ResponsiveList extends StatelessWidget {
           physics: const AlwaysScrollableScrollPhysics(
             parent: BouncingScrollPhysics(),
           ),
-          padding: EdgeInsets.fromLTRB(horizontal, 14, horizontal, 100),
+          padding: EdgeInsets.fromLTRB(
+            horizontal,
+            14,
+            horizontal,
+            AppSpacing.xl,
+          ),
           children: children,
         );
       },

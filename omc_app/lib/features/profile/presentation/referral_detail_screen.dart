@@ -73,7 +73,12 @@ class _ReferralDetailScreenState extends ConsumerState<ReferralDetailScreen> {
                 : inset;
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(horizontal, 16, horizontal, 100),
+              padding: EdgeInsets.fromLTRB(
+                horizontal,
+                16,
+                horizontal,
+                AppSpacing.xl,
+              ),
               children: [
                 if (_loading)
                   const SizedBox(
