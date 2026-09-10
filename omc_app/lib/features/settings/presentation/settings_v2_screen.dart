@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
+import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/push/push_device_settings_tile.dart';
 import '../../../core/resilience/app_failure.dart';
@@ -370,6 +371,7 @@ class SettingsV2Screen extends ConsumerWidget {
   }
 
   Future<String?> _requestDeviceLockPassword(BuildContext context) async {
+    final formKey = GlobalKey<FormState>();
     var passwordValue = '';
     var obscure = true;
 
@@ -379,38 +381,48 @@ class SettingsV2Screen extends ConsumerWidget {
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Enable biometric sign in'),
           content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Confirm your current OMC password. It will be protected by the device secure storage and used only after successful biometric authentication.',
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  obscureText: obscure,
-                  onChanged: (value) => passwordValue = value,
-                  autofocus: true,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (value) {
-                    if (value.isNotEmpty) {
-                      Navigator.of(dialogContext).pop(value);
-                    }
-                  },
-                  decoration: InputDecoration(
-                    labelText: 'Current password',
-                    prefixIcon: const Icon(Icons.lock_outline_rounded),
-                    suffixIcon: IconButton(
-                      onPressed: () => setDialogState(() => obscure = !obscure),
-                      icon: Icon(
-                        obscure
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Confirm your current OMC password. It will be protected by the device secure storage and used only after successful biometric authentication.',
+                  ),
+                  const SizedBox(height: 16),
+                  AppLabeledField(
+                    label: 'Current password',
+                    isRequired: true,
+                    child: TextFormField(
+                      obscureText: obscure,
+                      onChanged: (value) => passwordValue = value,
+                      autofocus: true,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (value) {
+                        if (formKey.currentState?.validate() != true) return;
+                        Navigator.of(dialogContext).pop(value);
+                      },
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.lock_outline_rounded),
+                        suffixIcon: IconButton(
+                          tooltip: obscure ? 'Show password' : 'Hide password',
+                          onPressed: () =>
+                              setDialogState(() => obscure = !obscure),
+                          icon: Icon(
+                            obscure
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                        ),
                       ),
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Current password is required.'
+                          : null,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           actions: [
@@ -420,9 +432,8 @@ class SettingsV2Screen extends ConsumerWidget {
             ),
             FilledButton(
               onPressed: () {
-                if (passwordValue.isNotEmpty) {
-                  Navigator.of(dialogContext).pop(passwordValue);
-                }
+                if (formKey.currentState?.validate() != true) return;
+                Navigator.of(dialogContext).pop(passwordValue);
               },
               child: const Text('Continue'),
             ),
@@ -940,7 +951,7 @@ class _PreferencesLoadingCard extends StatelessWidget {
   }
 }
 
-class _AccountRequestSheet extends StatelessWidget {
+class _AccountRequestSheet extends StatefulWidget {
   const _AccountRequestSheet({
     required this.title,
     required this.label,
@@ -954,6 +965,13 @@ class _AccountRequestSheet extends StatelessWidget {
   final String hint;
   final String submitLabel;
   final TextEditingController controller;
+
+  @override
+  State<_AccountRequestSheet> createState() => _AccountRequestSheetState();
+}
+
+class _AccountRequestSheetState extends State<_AccountRequestSheet> {
+  final _formKey = GlobalKey<FormState>();
 
   @override
   Widget build(BuildContext context) {
@@ -977,34 +995,42 @@ class _AccountRequestSheet extends StatelessWidget {
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: controller,
-                      minLines: 4,
-                      maxLines: 7,
-                      textInputAction: TextInputAction.newline,
-                      decoration: InputDecoration(
-                        labelText: label,
-                        hintText: hint,
-                        alignLabelWithHint: true,
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        widget.title,
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: () =>
-                          Navigator.of(context).pop(controller.text),
-                      icon: const Icon(Icons.send_rounded),
-                      label: Text(submitLabel),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      AppLabeledField(
+                        label: widget.label,
+                        isRequired: true,
+                        child: TextFormField(
+                          controller: widget.controller,
+                          minLines: 4,
+                          maxLines: 7,
+                          textInputAction: TextInputAction.newline,
+                          decoration: InputDecoration(hintText: widget.hint),
+                          validator: (value) => value?.trim().isEmpty ?? true
+                              ? 'Enter a reason or instruction.'
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: () {
+                          if (_formKey.currentState?.validate() != true) return;
+                          Navigator.of(context).pop(widget.controller.text);
+                        },
+                        icon: const Icon(Icons.send_rounded),
+                        label: Text(widget.submitLabel),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

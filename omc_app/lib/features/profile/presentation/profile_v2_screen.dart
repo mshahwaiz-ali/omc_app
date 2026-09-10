@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
+import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/resilience/app_failure.dart';
@@ -954,9 +955,16 @@ Future<void> _showProfileSupportSheet(
   }
 }
 
-class _ProfileSupportSheet extends StatelessWidget {
+class _ProfileSupportSheet extends StatefulWidget {
   const _ProfileSupportSheet({required this.controller});
   final TextEditingController controller;
+
+  @override
+  State<_ProfileSupportSheet> createState() => _ProfileSupportSheetState();
+}
+
+class _ProfileSupportSheetState extends State<_ProfileSupportSheet> {
+  final _formKey = GlobalKey<FormState>();
 
   @override
   Widget build(BuildContext context) {
@@ -980,52 +988,55 @@ class _ProfileSupportSheet extends StatelessWidget {
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Contact OMC support',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Describe the profile, login or account issue.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: controller,
-                      minLines: 4,
-                      maxLines: 7,
-                      textInputAction: TextInputAction.newline,
-                      decoration: const InputDecoration(
-                        labelText: 'How can OMC help?',
-                        hintText:
-                            'Example: I need help with my profile, login, or account.',
-                        alignLabelWithHint: true,
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Contact OMC support',
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: () {
-                        final text = controller.text.trim();
-                        if (text.length < 10) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Please enter at least 10 characters.',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-                        Navigator.of(context).pop(text);
-                      },
-                      icon: const Icon(Icons.send_rounded),
-                      label: const Text('Submit support request'),
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      Text(
+                        'Describe the profile, login or account issue.',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 16),
+                      AppLabeledField(
+                        label: 'How can OMC help?',
+                        isRequired: true,
+                        child: TextFormField(
+                          controller: widget.controller,
+                          minLines: 4,
+                          maxLines: 7,
+                          textInputAction: TextInputAction.newline,
+                          decoration: const InputDecoration(
+                            hintText:
+                                'Example: I need help with my profile, login, or account.',
+                          ),
+                          validator: (value) {
+                            if ((value?.trim().length ?? 0) < 10) {
+                              return 'Enter at least 10 characters.';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: () {
+                          if (_formKey.currentState?.validate() != true) return;
+                          Navigator.of(
+                            context,
+                          ).pop(widget.controller.text.trim());
+                        },
+                        icon: const Icon(Icons.send_rounded),
+                        label: const Text('Submit support request'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
