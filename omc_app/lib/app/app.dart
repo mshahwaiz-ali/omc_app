@@ -88,7 +88,10 @@ ThemeData _withAccentTheme(ThemeData base, OmcAppColors colors) {
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(AppTouchTarget.primaryButtonHeight),
+        minimumSize: const Size(
+          AppTouchTarget.minimum,
+          AppTouchTarget.primaryButtonHeight,
+        ),
         backgroundColor: colors.accent,
         foregroundColor: colors.onAccent,
         disabledBackgroundColor: const Color(0xFFE2E8F0),
@@ -108,7 +111,10 @@ ThemeData _withAccentTheme(ThemeData base, OmcAppColors colors) {
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        minimumSize: const Size.fromHeight(AppTouchTarget.primaryButtonHeight),
+        minimumSize: const Size(
+          AppTouchTarget.minimum,
+          AppTouchTarget.primaryButtonHeight,
+        ),
         backgroundColor: colors.accent,
         foregroundColor: colors.onAccent,
         disabledBackgroundColor: const Color(0xFFE2E8F0),
@@ -129,7 +135,10 @@ ThemeData _withAccentTheme(ThemeData base, OmcAppColors colors) {
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(AppTouchTarget.secondaryButtonHeight),
+        minimumSize: const Size(
+          AppTouchTarget.minimum,
+          AppTouchTarget.secondaryButtonHeight,
+        ),
         foregroundColor: colors.accentInk,
         side: BorderSide(color: colors.accentFocus),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
