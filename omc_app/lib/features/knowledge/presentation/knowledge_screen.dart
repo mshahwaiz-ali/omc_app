@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/widgets/app_skeleton.dart';
@@ -23,81 +24,105 @@ class KnowledgeScreen extends ConsumerWidget {
       key: OmcWidgetKeys.knowledgeScreen,
       backgroundColor: AppTheme.background,
       body: SafeArea(
-        child: articlesState.when(
-          loading: () => const _KnowledgeLoadingView(),
-          error: (error, _) => Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-            child: AppErrorState.fromError(
-              error: error,
-              fallbackTitle: 'Knowledge is unavailable',
-              fallbackMessage: 'OMC updates could not be loaded right now.',
-              onRetry: () => ref.invalidate(knowledgeArticlesProvider),
-            ),
-          ),
-          data: (articles) {
-            if (articles.isEmpty) {
-              return _KnowledgeEmptyState(
-                title: 'No published updates yet',
-                message:
-                    'OMC knowledge articles and news will appear here when content is published.',
-                onRetry: () => ref.invalidate(knowledgeArticlesProvider),
-              );
-            }
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final inset = AppLayout.pageInsetFor(constraints.maxWidth);
+            final horizontal = constraints.maxWidth >
+                    AppLayout.generalMaxWidth + inset * 2
+                ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
+                : inset;
 
-            final featured = articles.firstWhere(
-              (article) => article.isFeatured,
-              orElse: () => articles.first,
-            );
-
-            return RefreshIndicator.adaptive(
-              onRefresh: () async => ref.refresh(knowledgeArticlesProvider),
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
+            return articlesState.when(
+              loading: () => _KnowledgeLoadingView(horizontal: horizontal),
+              error: (error, _) => ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(
+                  horizontal,
+                  AppSpacing.lg,
+                  horizontal,
+                  AppSpacing.xl,
                 ),
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
                 children: [
-                  const PremiumListHeader(
-                    icon: Icons.auto_stories_outlined,
-                    title: 'Knowledge & news',
-                    subtitle:
-                        'Tax, FBR, compliance and practical OMC guidance.',
-                  ),
-                  const SizedBox(height: 22),
-                  const _SectionHeader(
-                    title: 'Featured',
-                    subtitle: 'A highlighted update from the current feed.',
-                  ),
-                  const SizedBox(height: 10),
-                  _FeaturedArticleCard(article: featured),
-                  const SizedBox(height: 26),
-                  const _SectionHeader(
-                    title: 'Latest updates',
-                    subtitle:
-                        'Published items remain in the order supplied by the backend.',
-                  ),
-                  const SizedBox(height: 10),
-                  PremiumCard(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
-                    ),
-                    child: Column(
-                      children: [
-                        for (
-                          var index = 0;
-                          index < articles.length;
-                          index++
-                        ) ...[
-                          _KnowledgeArticleRow(article: articles[index]),
-                          if (index != articles.length - 1)
-                            const Divider(height: 1),
-                        ],
-                      ],
-                    ),
+                  AppErrorState.fromError(
+                    error: error,
+                    fallbackTitle: 'Knowledge is unavailable',
+                    fallbackMessage: 'OMC updates could not be loaded right now.',
+                    onRetry: () => ref.invalidate(knowledgeArticlesProvider),
                   ),
                 ],
               ),
+              data: (articles) {
+                if (articles.isEmpty) {
+                  return _KnowledgeEmptyState(
+                    horizontal: horizontal,
+                    title: 'No published updates yet',
+                    message:
+                        'OMC knowledge articles and news will appear here when content is published.',
+                    onRetry: () => ref.invalidate(knowledgeArticlesProvider),
+                  );
+                }
+
+                final featured = articles.firstWhere(
+                  (article) => article.isFeatured,
+                  orElse: () => articles.first,
+                );
+
+                return RefreshIndicator.adaptive(
+                  onRefresh: () async => ref.refresh(knowledgeArticlesProvider),
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    padding: EdgeInsets.fromLTRB(
+                      horizontal,
+                      AppSpacing.sm,
+                      horizontal,
+                      AppSpacing.xxl,
+                    ),
+                    children: [
+                      const PremiumListHeader(
+                        icon: Icons.auto_stories_outlined,
+                        title: 'Knowledge & news',
+                        subtitle:
+                            'Tax, FBR, compliance and practical OMC guidance.',
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      const _SectionHeader(
+                        title: 'Featured',
+                        subtitle: 'A highlighted update from the current feed.',
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      _FeaturedArticleCard(article: featured),
+                      const SizedBox(height: AppSpacing.xxl),
+                      const _SectionHeader(
+                        title: 'Latest updates',
+                        subtitle:
+                            'Published items remain in the order supplied by the backend.',
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      PremiumCard(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.xxs,
+                        ),
+                        child: Column(
+                          children: [
+                            for (
+                              var index = 0;
+                              index < articles.length;
+                              index++
+                            ) ...[
+                              _KnowledgeArticleRow(article: articles[index]),
+                              if (index != articles.length - 1)
+                                const Divider(height: 1),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             );
           },
         ),
@@ -113,7 +138,9 @@ class _FeaturedArticleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final summary = article.summary.trim();
+    final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.45;
     return PremiumCard(
       padding: EdgeInsets.zero,
       onTap: () =>
@@ -121,13 +148,13 @@ class _FeaturedArticleCard extends StatelessWidget {
       semanticLabel: 'Featured article, ${article.title}',
       semanticHint: 'Open article',
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Wrap(
-              spacing: 8,
-              runSpacing: 6,
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
               children: [
                 _MetaPill(label: _labelForType(article.type)),
                 if (article.publishedAtLabel?.trim().isNotEmpty == true)
@@ -136,44 +163,40 @@ class _FeaturedArticleCard extends StatelessWidget {
                   _MetaPill(label: article.category!.trim()),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               article.title,
-              style: const TextStyle(
+              softWrap: true,
+              style: theme.textTheme.titleLarge?.copyWith(
                 color: AppTheme.textPrimary,
-                fontSize: 21,
-                height: 1.25,
-                fontWeight: FontWeight.w600,
               ),
             ),
             if (summary.isNotEmpty && summary != '-') ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 summary,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                maxLines: largeText ? null : 3,
+                overflow:
+                    largeText ? TextOverflow.visible : TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
                   color: AppTheme.textSecondary,
-                  fontSize: 15,
-                  height: 1.4,
                 ),
               ),
             ],
-            const SizedBox(height: 14),
-            const Row(
+            const SizedBox(height: AppSpacing.sm),
+            Row(
               children: [
                 Text(
                   'Read article',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 15,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.primary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.xs),
                 Icon(
                   Icons.arrow_forward_rounded,
-                  color: AppTheme.textSecondary,
+                  color: theme.colorScheme.primary,
                   size: 20,
                 ),
               ],
@@ -192,7 +215,9 @@ class _KnowledgeArticleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final summary = article.summary.trim();
+    final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.45;
     final metadata = <String>[
       _labelForType(article.type),
       if (article.publishedAtLabel?.trim().isNotEmpty == true)
@@ -203,17 +228,17 @@ class _KnowledgeArticleRow extends StatelessWidget {
       onTap: () =>
           context.push('/knowledge/${Uri.encodeComponent(article.id)}'),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             OmcIconBadge(
               icon: _iconForType(article.type),
               color: AppTheme.textSecondary,
-              size: 40,
+              size: AppTouchTarget.minimum,
               iconSize: 20,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,41 +246,37 @@ class _KnowledgeArticleRow extends StatelessWidget {
                   Text(
                     article.title,
                     softWrap: true,
-                    style: const TextStyle(
+                    style: theme.textTheme.titleMedium?.copyWith(
                       color: AppTheme.textPrimary,
-                      fontSize: 17,
-                      height: 1.3,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: AppSpacing.xxs),
                   Text(
                     metadata.join(' · '),
-                    style: const TextStyle(
+                    softWrap: true,
+                    style: theme.textTheme.bodySmall?.copyWith(
                       color: AppTheme.textSecondary,
-                      fontSize: 13,
-                      height: 1.35,
                     ),
                   ),
                   if (summary.isNotEmpty && summary != '-') ...[
-                    const SizedBox(height: 5),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
                       summary,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      maxLines: largeText ? null : 2,
+                      overflow: largeText
+                          ? TextOverflow.visible
+                          : TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: AppTheme.textSecondary,
-                        fontSize: 15,
-                        height: 1.4,
                       ),
                     ),
                   ],
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.xs),
             const Padding(
-              padding: EdgeInsets.only(top: 8),
+              padding: EdgeInsets.only(top: AppSpacing.xs),
               child: Icon(
                 Icons.chevron_right_rounded,
                 color: AppTheme.textSecondary,
@@ -276,28 +297,19 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Semantics(
           header: true,
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 21,
-              height: 1.25,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          child: Text(title, style: theme.textTheme.titleLarge),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xxs),
         Text(
           subtitle,
-          style: const TextStyle(
+          style: theme.textTheme.bodyMedium?.copyWith(
             color: AppTheme.textSecondary,
-            fontSize: 15,
-            height: 1.4,
           ),
         ),
       ],
@@ -312,18 +324,21 @@ class _MetaPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
         color: AppTheme.processingSoft,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        softWrap: true,
+        style: theme.textTheme.labelMedium?.copyWith(
           color: AppTheme.processing,
-          fontSize: 13,
-          height: 1.35,
         ),
       ),
     );
@@ -331,19 +346,26 @@ class _MetaPill extends StatelessWidget {
 }
 
 class _KnowledgeLoadingView extends StatelessWidget {
-  const _KnowledgeLoadingView();
+  const _KnowledgeLoadingView({required this.horizontal});
+
+  final double horizontal;
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+      padding: EdgeInsets.fromLTRB(
+        horizontal,
+        AppSpacing.lg,
+        horizontal,
+        AppSpacing.xxl,
+      ),
       children: const [
-        AppSkeleton(height: 72, radius: 16),
-        SizedBox(height: 22),
-        AppSkeleton(height: 190, radius: 16),
-        SizedBox(height: 26),
-        AppSkeleton(height: 260, radius: 16),
+        AppSkeleton(height: 72, radius: AppRadius.card),
+        SizedBox(height: AppSpacing.xl),
+        AppSkeleton(height: 190, radius: AppRadius.card),
+        SizedBox(height: AppSpacing.xxl),
+        AppSkeleton(height: 260, radius: AppRadius.card),
       ],
     );
   }
@@ -351,53 +373,54 @@ class _KnowledgeLoadingView extends StatelessWidget {
 
 class _KnowledgeEmptyState extends StatelessWidget {
   const _KnowledgeEmptyState({
+    required this.horizontal,
     required this.title,
     required this.message,
     required this.onRetry,
   });
 
+  final double horizontal;
   final String title;
   final String message;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+      padding: EdgeInsets.fromLTRB(
+        horizontal,
+        AppSpacing.xl,
+        horizontal,
+        AppSpacing.xl,
+      ),
       children: [
         PremiumCard(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppSpacing.xl),
           child: Column(
             children: [
               const OmcIconBadge(
                 icon: Icons.menu_book_outlined,
                 color: AppTheme.textSecondary,
-                size: 48,
+                size: AppTouchTarget.minimum,
                 iconSize: 24,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 21,
-                  height: 1.25,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: theme.textTheme.titleLarge,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: theme.textTheme.bodyMedium?.copyWith(
                   color: AppTheme.textSecondary,
-                  fontSize: 15,
-                  height: 1.4,
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: AppSpacing.lg),
               OutlinedButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh_rounded),
