@@ -1,0 +1,133 @@
+name: One-shot routed page conformance batch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/uiux-routed-pages-batch2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-verify-land:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply routed page fixes
+        run: python3 .github/scripts/uiux_routed_pages_batch2.py
+
+      - name: Preserve routing and business authority
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          router = Path('omc_app/lib/app/router.dart').read_text()
+          profile = Path('omc_app/lib/features/profile/presentation/profile_v2_screen.dart').read_text()
+          edit = Path('omc_app/lib/features/profile/presentation/edit_profile_v2_screen.dart').read_text()
+          settings = Path('omc_app/lib/features/settings/presentation/settings_v2_screen.dart').read_text()
+          password = Path('omc_app/lib/features/settings/presentation/change_password_screen.dart').read_text()
+          customers = Path('omc_app/lib/features/customers/presentation/customers_screen.dart').read_text()
+          docs = Path('omc_app/lib/features/documents/presentation/documents_screen.dart').read_text()
+          doc_detail = Path('omc_app/lib/features/documents/presentation/document_detail_screen.dart').read_text()
+          notification = Path('omc_app/lib/features/notifications/presentation/notification_detail_screen.dart').read_text()
+
+          # Routed owners remain unchanged.
+          assert 'const ProfileV2Screen()' in router
+          assert 'const EditProfileV2Screen()' in router
+          assert 'const SettingsV2Screen()' in router
+          assert 'const ChangePasswordScreen()' in router
+          assert 'const CustomersScreen()' in router
+          assert 'CustomerDetailScreen(customerId: customerId)' in router
+          assert 'DocumentDetailScreen(' in router
+          assert 'NotificationDetailScreen(notificationId: notificationId)' in router
+
+          # Existing authority / mutation paths remain present.
+          assert 'profileSummaryProvider' in profile
+          assert 'profileRepositoryProvider' in edit
+          assert 'DirtyFormController' in edit
+          assert 'settingsPreferencesProvider' in settings
+          assert 'authControllerProvider.notifier' in password
+          assert 'changePassword(' in password
+          assert 'customersResultPageProvider' in customers
+          assert 'customersRepositoryProvider' in customers
+          assert 'documentPageProvider' in docs
+          assert 'assistedDocumentPageProvider' in docs
+          assert 'documentsRepositoryProvider' in doc_detail
+          assert 'invalidateDocumentMutation' in doc_detail
+          assert 'markNotificationAsRead' in notification
+          assert 'notificationDetailProvider' in notification
+          PY
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+
+      - name: Dependencies
+        working-directory: omc_app
+        run: flutter pub get
+
+      - name: Format and diff check
+        shell: bash
+        run: |
+          dart format \
+            omc_app/lib/core/widgets/omc_premium.dart \
+            omc_app/lib/features/profile/presentation/profile_v2_screen.dart \
+            omc_app/lib/features/profile/presentation/edit_profile_v2_screen.dart \
+            omc_app/lib/features/settings/presentation/settings_v2_screen.dart \
+            omc_app/lib/features/settings/presentation/change_password_screen.dart \
+            omc_app/lib/features/customers/presentation/customers_screen.dart \
+            omc_app/lib/features/customers/presentation/customer_detail_screen.dart \
+            omc_app/lib/features/documents/presentation/documents_screen.dart \
+            omc_app/lib/features/documents/presentation/document_detail_screen.dart \
+            omc_app/lib/features/notifications/presentation/notification_detail_screen.dart \
+            omc_app/test/app/uiux_routed_pages_batch2_test.dart
+          git diff --check
+
+      - name: Focused routed page contract
+        working-directory: omc_app
+        run: flutter test --no-pub test/app/uiux_routed_pages_batch2_test.dart
+
+      - name: Existing route authority regression
+        working-directory: omc_app
+        run: flutter test --no-pub test/app/route_access_policy_test.dart
+
+      - name: Analyze
+        working-directory: omc_app
+        run: flutter analyze --no-pub
+
+      - name: Full Flutter tests
+        working-directory: omc_app
+        run: flutter test --no-pub
+
+      - name: Commit verified source
+        shell: bash
+        run: |
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || { echo 'main moved; refusing stale push'; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            omc_app/lib/core/widgets/omc_premium.dart \
+            omc_app/lib/features/profile/presentation/profile_v2_screen.dart \
+            omc_app/lib/features/profile/presentation/edit_profile_v2_screen.dart \
+            omc_app/lib/features/settings/presentation/settings_v2_screen.dart \
+            omc_app/lib/features/settings/presentation/change_password_screen.dart \
+            omc_app/lib/features/customers/presentation/customers_screen.dart \
+            omc_app/lib/features/customers/presentation/customer_detail_screen.dart \
+            omc_app/lib/features/documents/presentation/documents_screen.dart \
+            omc_app/lib/features/documents/presentation/document_detail_screen.dart \
+            omc_app/lib/features/notifications/presentation/notification_detail_screen.dart \
+            omc_app/test/app/uiux_routed_pages_batch2_test.dart
+          git rm \
+            .github/workflows/uiux-routed-pages-batch2.yml \
+            .github/scripts/uiux_routed_pages_batch2.py
+          git diff --cached --check
+          git commit -m 'fix: close routed page responsive contracts'
+          git push origin HEAD:main
