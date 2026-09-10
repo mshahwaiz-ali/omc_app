@@ -1,3 +1,4 @@
+# retry after narrowing the compact-card patch
 name: One-shot approved home audit closure
 
 on:
