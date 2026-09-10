@@ -136,13 +136,11 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   }
 
   InputDecoration _passwordDecoration({
-    required String label,
     required IconData icon,
     required bool obscure,
     required VoidCallback onToggle,
   }) {
     return InputDecoration(
-      labelText: label,
       prefixIcon: Icon(icon),
       suffixIcon: IconButton(
         tooltip: obscure ? 'Show password' : 'Hide password',
@@ -156,6 +154,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final fieldLabelStyle = Theme.of(context).textTheme.labelLarge;
+
     return UnsavedChangesGuard(
       controller: _dirtyForm,
       child: Scaffold(
@@ -200,11 +200,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text(
-                              'Current password',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 10),
+                            Text('Current password', style: fieldLabelStyle),
+                            const SizedBox(height: AppSpacing.xs),
                             TextFormField(
                               controller: _currentPasswordController,
                               obscureText: _obscureCurrent,
@@ -212,7 +209,6 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                               textInputAction: TextInputAction.next,
                               autofillHints: const [AutofillHints.password],
                               decoration: _passwordDecoration(
-                                label: 'Current password',
                                 icon: Icons.lock_outline_rounded,
                                 obscure: _obscureCurrent,
                                 onToggle: () {
@@ -224,14 +220,11 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                               validator: (value) =>
                                   _requiredPassword(value, 'Current password'),
                             ),
-                            const SizedBox(height: 22),
-                            Text(
-                              'New password',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: AppSpacing.xl),
+                            Text('New password', style: fieldLabelStyle),
+                            const SizedBox(height: AppSpacing.xs),
                             const _PasswordRequirements(),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: AppSpacing.sm),
                             TextFormField(
                               controller: _newPasswordController,
                               obscureText: _obscureNew,
@@ -239,7 +232,6 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                               textInputAction: TextInputAction.next,
                               autofillHints: const [AutofillHints.newPassword],
                               decoration: _passwordDecoration(
-                                label: 'New password',
                                 icon: Icons.password_rounded,
                                 obscure: _obscureNew,
                                 onToggle: () {
@@ -248,7 +240,9 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                               ),
                               validator: _newPasswordValidator,
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: AppSpacing.md),
+                            Text('Confirm new password', style: fieldLabelStyle),
+                            const SizedBox(height: AppSpacing.xs),
                             TextFormField(
                               controller: _confirmPasswordController,
                               obscureText: _obscureConfirm,
@@ -257,7 +251,6 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                               autofillHints: const [AutofillHints.newPassword],
                               onFieldSubmitted: (_) => _submit(),
                               decoration: _passwordDecoration(
-                                label: 'Confirm new password',
                                 icon: Icons.lock_reset_outlined,
                                 obscure: _obscureConfirm,
                                 onToggle: () {
