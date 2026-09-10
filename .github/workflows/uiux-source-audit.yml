@@ -1,0 +1,103 @@
+name: One-shot UIUX source audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/uiux-source-audit.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan current Flutter source
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('omc_app/lib')
+          files = sorted(root.rglob('*.dart'))
+
+          class_to_file = {}
+          for path in files:
+              text = path.read_text(errors='replace')
+              for name in re.findall(r'\bclass\s+([A-Z][A-Za-z0-9_]*)\b', text):
+                  class_to_file.setdefault(name, path)
+
+          router = Path('omc_app/lib/app/router.dart').read_text(errors='replace')
+          routed_classes = sorted(set(re.findall(r'\b([A-Z][A-Za-z0-9_]*Screen)\s*\(', router)))
+          print('=== ROUTED SCREEN OWNERS ===')
+          for name in routed_classes:
+              print(f'{name}: {class_to_file.get(name, "UNKNOWN")}')
+
+          checks = [
+              ('FLOATING_LABEL', re.compile(r'\blabelText\s*:')),
+              ('ELLIPSIS', re.compile(r'TextOverflow\.ellipsis')),
+              ('MAX_LINES_ONE', re.compile(r'\bmaxLines\s*:\s*1\b')),
+              ('SMALL_FONT', re.compile(r'\bfontSize\s*:\s*(\d+(?:\.\d+)?)')),
+              ('HEAVY_WEIGHT', re.compile(r'FontWeight\.w(?:800|900)')),
+              ('NOOP_CALLBACK', re.compile(r'\b(?:onPressed|onTap|onChanged|onSelected)\s*:\s*\([^)]*\)\s*\{\s*\}')),
+              ('SHRINK_TARGET', re.compile(r'(?:minimumSize\s*:\s*Size\.zero|MaterialTapTargetSize\.shrinkWrap)')),
+              ('FITTED_OR_SCALE_OVERRIDE', re.compile(r'\b(?:FittedBox|textScaleFactor|textScaler\s*:)')),
+              ('BOX_SHADOW', re.compile(r'\bBoxShadow\s*\(')),
+              ('MAX_HEIGHT', re.compile(r'\bmaxHeight\s*:\s*(\d+(?:\.\d+)?)')),
+          ]
+
+          for label, pattern in checks:
+              print(f'\n=== {label} ===')
+              count = 0
+              for path in files:
+                  lines = path.read_text(errors='replace').splitlines()
+                  for idx, line in enumerate(lines, 1):
+                      match = pattern.search(line)
+                      if not match:
+                          continue
+                      if label == 'SMALL_FONT' and float(match.group(1)) >= 13:
+                          continue
+                      count += 1
+                      print(f'{path}:{idx}: {line.strip()}')
+              print(f'TOTAL {label}: {count}')
+
+          print('\n=== CUSTOM_42X4_HANDLE ===')
+          handle_count = 0
+          for path in files:
+              text = path.read_text(errors='replace')
+              for match in re.finditer(r'width\s*:\s*42\s*,(?:(?!\n\s*\n).){0,180}?height\s*:\s*4\s*,', text, re.S):
+                  line = text.count('\n', 0, match.start()) + 1
+                  handle_count += 1
+                  print(f'{path}:{line}')
+          print(f'TOTAL CUSTOM_42X4_HANDLE: {handle_count}')
+
+          print('\n=== BOTTOM_SHEETS_WITHOUT_NEARBY_SAFE_AREA ===')
+          modal_count = 0
+          missing = 0
+          for path in files:
+              lines = path.read_text(errors='replace').splitlines()
+              for idx, line in enumerate(lines):
+                  if 'showModalBottomSheet' not in line:
+                      continue
+                  modal_count += 1
+                  nearby = '\n'.join(lines[idx:idx+20])
+                  if 'useSafeArea: true' not in nearby:
+                      missing += 1
+                      print(f'{path}:{idx+1}: {line.strip()}')
+          print(f'TOTAL BOTTOM_SHEETS: {modal_count}; WITHOUT_NEARBY_SAFE_AREA: {missing}')
+          PY
+      - name: Remove audit workflow
+        shell: bash
+        run: |
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || { echo 'main moved; refusing stale cleanup'; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/uiux-source-audit.yml
+          git commit -m 'chore: complete uiux source audit'
+          git push origin HEAD:main
