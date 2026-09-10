@@ -230,6 +230,7 @@ class _ExpenseBudgetV2ScreenState extends ConsumerState<ExpenseBudgetV2Screen> {
       text: (budget?.alertThreshold ?? 80).toStringAsFixed(0),
     );
     final dirtyFormController = DirtyFormController();
+    final amountFieldKey = GlobalKey<FormFieldState<String>>();
 
     void markDirty() => dirtyFormController.markDirty();
 
@@ -292,7 +293,8 @@ class _ExpenseBudgetV2ScreenState extends ConsumerState<ExpenseBudgetV2Screen> {
                         AppLabeledField(
                           label: 'Budget limit',
                           isRequired: true,
-                          child: TextField(
+                          child: TextFormField(
+                            key: amountFieldKey,
                             controller: amountController,
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
@@ -303,6 +305,13 @@ class _ExpenseBudgetV2ScreenState extends ConsumerState<ExpenseBudgetV2Screen> {
                                 Icons.account_balance_wallet_outlined,
                               ),
                             ),
+                            validator: (value) {
+                              final amount =
+                                  double.tryParse(value?.trim() ?? '') ?? 0;
+                              return amount <= 0
+                                  ? 'Enter a valid budget amount.'
+                                  : null;
+                            },
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -326,6 +335,10 @@ class _ExpenseBudgetV2ScreenState extends ConsumerState<ExpenseBudgetV2Screen> {
                           label: 'Save budget',
                           icon: Icons.check_rounded,
                           onPressed: () async {
+                            if (!(amountFieldKey.currentState?.validate() ??
+                                false)) {
+                              return;
+                            }
                             final amount =
                                 double.tryParse(amountController.text.trim()) ??
                                 0;
@@ -334,14 +347,6 @@ class _ExpenseBudgetV2ScreenState extends ConsumerState<ExpenseBudgetV2Screen> {
                                   thresholdController.text.trim(),
                                 ) ??
                                 80;
-                            if (amount <= 0) {
-                              ScaffoldMessenger.of(sheetContext).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Enter a valid budget amount.'),
-                                ),
-                              );
-                              return;
-                            }
 
                             final payload = <String, dynamic>{
                               if (budget != null && budget.name.isNotEmpty)
