@@ -30,24 +30,24 @@ class _CustomerHomeContentSections extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (content.featuredBanners.isNotEmpty) ...[
-              const SizedBox(height: 26),
+              const SizedBox(height: AppSpacing.xxl),
               const OmcSectionHeader(
                 title: 'Featured for you',
                 subtitle: 'Important OMC updates and highlights.',
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.sm),
               HomeFeaturedCarousel(
                 banners: content.featuredBanners,
                 onBannerTap: onBannerTap,
               ),
             ],
             if (content.taxBusinessUpdates.isNotEmpty) ...[
-              const SizedBox(height: 26),
+              const SizedBox(height: AppSpacing.xxl),
               const OmcSectionHeader(
                 title: 'Tax & business updates',
                 subtitle: 'Useful changes, alerts and OMC announcements.',
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.sm),
               HomeContentRail(
                 items: content.taxBusinessUpdates,
                 padding: EdgeInsets.zero,
@@ -55,12 +55,12 @@ class _CustomerHomeContentSections extends StatelessWidget {
               ),
             ],
             if (content.learnGrow.isNotEmpty) ...[
-              const SizedBox(height: 26),
+              const SizedBox(height: AppSpacing.xxl),
               const OmcSectionHeader(
                 title: 'Learn & grow',
                 subtitle: 'Short guides to help you make better decisions.',
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.sm),
               HomeContentRail(
                 items: content.learnGrow,
                 padding: EdgeInsets.zero,
@@ -82,13 +82,13 @@ class _HomeContentLoading extends StatelessWidget {
     return const Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(height: 26),
+        SizedBox(height: AppSpacing.xxl),
         OmcSectionHeader(
           title: 'Latest from OMC',
           subtitle: 'Loading useful updates for you.',
         ),
-        SizedBox(height: 12),
-        AppSkeleton(height: 148, radius: 22),
+        SizedBox(height: AppSpacing.sm),
+        AppSkeleton(height: 148, radius: AppRadius.card),
       ],
     );
   }
@@ -101,51 +101,76 @@ class _HomeContentError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final stackAction = textScale >= 1.45;
+
+    final copy = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Updates unavailable',
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xxs),
+        Text(
+          'Your service dashboard is still available. You can retry OMC updates separately.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: AppTheme.textSecondary,
+          ),
+        ),
+      ],
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 26),
+        const SizedBox(height: AppSpacing.xxl),
         PremiumCard(
-          padding: const EdgeInsets.all(15),
-          child: Row(
-            children: [
-              const OmcIconBadge(
-                icon: Icons.wifi_off_rounded,
-                color: OmcPremium.system,
-                size: 42,
-                iconSize: 20,
-                radius: 13,
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: stackAction
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'Updates unavailable',
-                      style: TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w900,
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const OmcIconBadge(
+                          icon: Icons.wifi_off_rounded,
+                          color: OmcPremium.system,
+                          size: 48,
+                          iconSize: 20,
+                          radius: AppRadius.control,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(child: copy),
+                      ],
                     ),
-                    SizedBox(height: 3),
-                    Text(
-                      'Your service dashboard is still available. You can retry OMC updates separately.',
-                      style: TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 11.5,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    const SizedBox(height: AppSpacing.sm),
+                    OutlinedButton(
+                      onPressed: onRetry,
+                      child: const Text('Retry'),
                     ),
                   ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const OmcIconBadge(
+                      icon: Icons.wifi_off_rounded,
+                      color: OmcPremium.system,
+                      size: 48,
+                      iconSize: 20,
+                      radius: AppRadius.control,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(child: copy),
+                    const SizedBox(width: AppSpacing.xs),
+                    TextButton(onPressed: onRetry, child: const Text('Retry')),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              TextButton(onPressed: onRetry, child: const Text('Retry')),
-            ],
-          ),
         ),
       ],
     );
