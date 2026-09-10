@@ -361,50 +361,80 @@ class _AttentionCard extends StatelessWidget {
       onTap: () => context.push(item.route),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            OmcIconBadge(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final textScale = MediaQuery.textScalerOf(context).scale(1);
+            final compact = constraints.maxWidth < 280 || textScale >= 1.5;
+
+            final badge = OmcIconBadge(
               icon: item.icon,
               color: item.color,
               size: 44,
               iconSize: 22,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
+            );
+
+            final details = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 17,
+                    height: 1.3,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  item.subtitle,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 15,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            );
+
+            const chevron = Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.textSecondary,
+            );
+
+            if (compact) {
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    item.title,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 17,
-                      height: 1.3,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  const SizedBox.shrink(),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [badge, const SizedBox(width: 8), chevron],
                   ),
-                  const SizedBox(height: 5),
-                  Text(
-                    item.subtitle,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 15,
-                      height: 1.45,
-                    ),
-                  ),
+                  const SizedBox(height: 12),
+                  details,
                 ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Icon(
-                Icons.chevron_right_rounded,
-                color: AppTheme.textSecondary,
-              ),
-            ),
-          ],
+              );
+            }
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                badge,
+                const SizedBox(width: 12),
+                Expanded(child: details),
+                const SizedBox(width: 8),
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -458,6 +488,7 @@ class _InternalQuickActions extends StatelessWidget {
         final tileWidth = singleColumn
             ? constraints.maxWidth
             : (constraints.maxWidth - 10) / 2;
+
         return Wrap(
           spacing: 10,
           runSpacing: 10,
@@ -466,6 +497,7 @@ class _InternalQuickActions extends StatelessWidget {
               Builder(
                 builder: (context) {
                   final count = _actionCount(action, summary);
+
                   return SizedBox(
                     width: tileWidth,
                     child: PremiumCard(
@@ -478,52 +510,85 @@ class _InternalQuickActions extends StatelessWidget {
                         constraints: const BoxConstraints(minHeight: 72),
                         child: Padding(
                           padding: const EdgeInsets.all(12),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              OmcIconBadge(
+                          child: LayoutBuilder(
+                            builder: (context, tileConstraints) {
+                              final compact =
+                                  tileConstraints.maxWidth < 180 ||
+                                  textScale >= 1.5;
+
+                              final badge = OmcIconBadge(
                                 icon: _actionIcon(action.iconKey),
                                 color: _actionColor(action.iconKey),
                                 size: 42,
                                 iconSize: 21,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      action.title,
-                                      softWrap: true,
-                                      style: const TextStyle(
-                                        color: AppTheme.textPrimary,
-                                        fontSize: 16,
-                                        height: 1.25,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                              );
+
+                              final details = Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    action.title,
+                                    softWrap: true,
+                                    style: const TextStyle(
+                                      color: AppTheme.textPrimary,
+                                      fontSize: 16,
+                                      height: 1.25,
+                                      fontWeight: FontWeight.w600,
                                     ),
-                                    if (count != null) ...[
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        '$count items',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium
-                                            ?.copyWith(
-                                              color: AppTheme.textSecondary,
-                                            ),
-                                      ),
-                                    ],
+                                  ),
+                                  if (count != null) ...[
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      '$count items',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: AppTheme.textSecondary,
+                                          ),
+                                    ),
                                   ],
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              const Icon(
+                                ],
+                              );
+
+                              const chevron = Icon(
                                 Icons.chevron_right_rounded,
                                 color: AppTheme.textSecondary,
                                 size: 20,
-                              ),
-                            ],
+                              );
+
+                              if (compact) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        badge,
+                                        const SizedBox(width: 6),
+                                        chevron,
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    details,
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  badge,
+                                  const SizedBox(width: 10),
+                                  Expanded(child: details),
+                                  const SizedBox(width: 6),
+                                  chevron,
+                                ],
+                              );
+                            },
                           ),
                         ),
                       ),
