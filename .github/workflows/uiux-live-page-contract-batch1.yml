@@ -1,4 +1,4 @@
-# diagnostic retry: isolate each new source-contract assertion before accepting source
+# diagnostic retry: isolate each live page surface before accepting source
 name: One-shot live page contract batch one
 
 on:
@@ -20,7 +20,9 @@ jobs:
           fetch-depth: 0
 
       - name: Apply confirmed live page fixes
-        run: python3 .github/scripts/uiux_live_page_contract_batch1.py
+        run: |
+          python3 .github/scripts/uiux_live_page_contract_batch1.py
+          python3 .github/scripts/uiux_live_page_contract_batch1_test_split.py
 
       - name: Static authority invariants
         shell: bash
@@ -76,9 +78,17 @@ jobs:
         working-directory: omc_app
         run: flutter test --no-pub test/app/uiux_live_page_contract_batch1_test.dart --plain-name 'live Home owners use responsive page primitive'
 
-      - name: Contract - Dashboard Payments Notifications
+      - name: Contract - Dashboard
         working-directory: omc_app
-        run: flutter test --no-pub test/app/uiux_live_page_contract_batch1_test.dart --plain-name 'live Dashboard, Payments and Notifications page states use C2 primitive'
+        run: flutter test --no-pub test/app/uiux_live_page_contract_batch1_test.dart --plain-name 'live Dashboard page states use C2 primitive'
+
+      - name: Contract - Payments
+        working-directory: omc_app
+        run: flutter test --no-pub test/app/uiux_live_page_contract_batch1_test.dart --plain-name 'live Payments page states use C2 primitive'
+
+      - name: Contract - Notifications
+        working-directory: omc_app
+        run: flutter test --no-pub test/app/uiux_live_page_contract_batch1_test.dart --plain-name 'live Notifications page states use C2 primitive'
 
       - name: Contract - status typography
         working-directory: omc_app
@@ -117,7 +127,8 @@ jobs:
             omc_app/test/app/uiux_live_page_contract_batch1_test.dart
           git rm \
             .github/workflows/uiux-live-page-contract-batch1.yml \
-            .github/scripts/uiux_live_page_contract_batch1.py
+            .github/scripts/uiux_live_page_contract_batch1.py \
+            .github/scripts/uiux_live_page_contract_batch1_test_split.py
           git diff --cached --check
           git commit -m 'fix: enforce live responsive page contracts'
           git push origin HEAD:main
