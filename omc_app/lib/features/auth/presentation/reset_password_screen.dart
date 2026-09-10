@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
@@ -129,7 +130,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
           icon: const Icon(Icons.arrow_back_rounded),
         ),
         child: PremiumCard(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Semantics(
             container: true,
             liveRegion: _linkInvalid,
@@ -141,25 +142,25 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                   color: AppTheme.danger,
                   size: 40,
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: AppSpacing.md),
                 Text(
                   'Request a new reset link',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   _linkInvalid && _message?.trim().isNotEmpty == true
                       ? _message!
                       : 'Request a new password reset email to continue securely.',
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.xl),
                 AppButton(
                   label: 'Request new link',
                   icon: Icons.outgoing_mail,
                   onPressed: () => context.go('/forgot-password'),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: AppSpacing.xs),
                 OutlinedButton.icon(
                   onPressed: () => context.go('/login'),
                   icon: const Icon(Icons.login_rounded),
@@ -183,7 +184,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         icon: const Icon(Icons.arrow_back_rounded),
       ),
       child: PremiumCard(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: _completed
             ? Semantics(
                 container: true,
@@ -196,18 +197,18 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       color: AppTheme.success,
                       size: 40,
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: AppSpacing.md),
                     Text(
                       'Password changed successfully',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       _message ??
                           'Your password has been updated. You can sign in now.',
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppSpacing.xl),
                     AppButton(
                       label: 'Continue to login',
                       icon: Icons.login_rounded,
@@ -225,19 +226,24 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       'New password',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       'Use at least 8 characters. Enter the same password in both fields.',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      'New password',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
                       textInputAction: TextInputAction.next,
                       autofillHints: const [AutofillHints.newPassword],
                       decoration: InputDecoration(
-                        labelText: 'New password',
+                        hintText: 'Enter a new password',
                         prefixIcon: const Icon(Icons.lock_outline_rounded),
                         suffixIcon: IconButton(
                           tooltip: _obscurePassword
@@ -257,7 +263,12 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       ),
                       validator: _passwordValidator,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      'Confirm password',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
                     TextFormField(
                       controller: _confirmController,
                       obscureText: _obscureConfirm,
@@ -265,7 +276,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       autofillHints: const [AutofillHints.newPassword],
                       onFieldSubmitted: (_) => _submit(),
                       decoration: InputDecoration(
-                        labelText: 'Confirm password',
+                        hintText: 'Re-enter the new password',
                         prefixIcon: const Icon(Icons.lock_reset_outlined),
                         suffixIcon: IconButton(
                           tooltip: _obscureConfirm
@@ -291,10 +302,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       },
                     ),
                     if (_message != null) ...[
-                      const SizedBox(height: 14),
+                      const SizedBox(height: AppSpacing.sm),
                       AuthErrorBanner(message: _message!),
                     ],
-                    const SizedBox(height: 22),
+                    const SizedBox(height: AppSpacing.xl),
                     AppButton(
                       label: 'Update password',
                       icon: Icons.lock_reset_rounded,
