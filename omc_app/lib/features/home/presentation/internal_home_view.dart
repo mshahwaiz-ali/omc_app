@@ -497,7 +497,7 @@ class _InternalQuickActions extends StatelessWidget {
                                       softWrap: true,
                                       style: const TextStyle(
                                         color: AppTheme.textPrimary,
-                                        fontSize: 15,
+                                        fontSize: 16,
                                         height: 1.25,
                                         fontWeight: FontWeight.w600,
                                       ),

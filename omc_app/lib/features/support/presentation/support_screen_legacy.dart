@@ -1057,7 +1057,7 @@ class _FaqTile extends StatelessWidget {
               color: AppTheme.textSecondary,
               fontSize: 15,
               height: 1.5,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w400,
             ),
           ),
         ),

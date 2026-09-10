@@ -97,8 +97,9 @@ class PaymentActionCard extends StatelessWidget {
                   : 'Opens the available payment channel for this payment.',
               style: const TextStyle(
                 color: AppTheme.textSecondary,
-                fontSize: 13,
-                height: 1.35,
+                fontSize: 14,
+                height: 1.4,
+                fontWeight: FontWeight.w400,
               ),
             ),
           ],
@@ -135,8 +136,9 @@ class PaymentActionCard extends StatelessWidget {
                 'Uploading proof submits evidence for OMC review; it does not confirm that payment has been verified.',
                 style: TextStyle(
                   color: AppTheme.textSecondary,
-                  fontSize: 13,
+                  fontSize: 14,
                   height: 1.4,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ],
@@ -146,11 +148,9 @@ class PaymentActionCard extends StatelessWidget {
             header: true,
             child: Text(
               'Payment evidence',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: AppTheme.textPrimary),
             ),
           ),
           const SizedBox(height: 10),
@@ -295,10 +295,8 @@ class _UploadProgressPanel extends StatelessWidget {
                     percent == null
                         ? 'Preparing upload...'
                         : 'Uploading payment proof — $percent%',
-                    style: const TextStyle(
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: AppTheme.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -317,8 +315,9 @@ class _UploadProgressPanel extends StatelessWidget {
               'Upload progress only. Payment remains unverified until OMC completes its review.',
               style: TextStyle(
                 color: AppTheme.textSecondary,
-                fontSize: 13,
+                fontSize: 14,
                 height: 1.4,
+                fontWeight: FontWeight.w400,
               ),
             ),
           ],

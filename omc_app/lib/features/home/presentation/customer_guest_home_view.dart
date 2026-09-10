@@ -683,7 +683,7 @@ class _PublicActionsGrid extends StatelessWidget {
                                         softWrap: true,
                                         style: const TextStyle(
                                           color: AppTheme.textPrimary,
-                                          fontSize: 15,
+                                          fontSize: 16,
                                           height: 1.25,
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -697,9 +697,9 @@ class _PublicActionsGrid extends StatelessWidget {
                                           softWrap: true,
                                           style: const TextStyle(
                                             color: AppTheme.textSecondary,
-                                            fontSize: 13,
-                                            height: 1.35,
-                                            fontWeight: FontWeight.w500,
+                                            fontSize: 15,
+                                            height: 1.4,
+                                            fontWeight: FontWeight.w400,
                                           ),
                                         ),
                                       ],

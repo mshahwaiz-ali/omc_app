@@ -586,10 +586,8 @@ class _InternalCaseRow extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       serviceCase.documentSummaryLabel.trim(),
-                      style: const TextStyle(
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: AppTheme.textSecondary,
-                        fontSize: 13,
-                        height: 1.35,
                       ),
                     ),
                   ],
@@ -870,11 +868,8 @@ class _ActivityRow extends StatelessWidget {
                       if (status.isNotEmpty)
                         Text(
                           status,
-                          style: const TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(color: AppTheme.textSecondary),
                         ),
                       if (time.isNotEmpty)
                         Text(

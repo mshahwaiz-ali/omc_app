@@ -62,7 +62,8 @@ class DocumentPreviewScreen extends StatelessWidget {
   Widget _buildPreview(BuildContext context) {
     if (_isPdf) {
       return Semantics(
-        label: 'PDF preview of $fileName. Use pinch gestures to zoom and drag to move through the document.',
+        label:
+            'PDF preview of $fileName. Use pinch gestures to zoom and drag to move through the document.',
         container: true,
         child: PdfViewer.data(bytes, sourceName: fileName),
       );
@@ -71,7 +72,8 @@ class DocumentPreviewScreen extends StatelessWidget {
     if (_isImage) {
       return Semantics(
         image: true,
-        label: 'Image preview of $fileName. Use pinch gestures to zoom and drag to pan.',
+        label:
+            'Image preview of $fileName. Use pinch gestures to zoom and drag to pan.',
         child: Center(
           child: InteractiveViewer(
             minScale: 0.8,
@@ -124,9 +126,9 @@ class _PreviewHint extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.3,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  height: 1.35,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ),
@@ -138,10 +140,7 @@ class _PreviewHint extends StatelessWidget {
 }
 
 class _UnsupportedPreview extends StatelessWidget {
-  const _UnsupportedPreview({
-    required this.fileName,
-    required this.message,
-  });
+  const _UnsupportedPreview({required this.fileName, required this.message});
 
   final String fileName;
   final String message;

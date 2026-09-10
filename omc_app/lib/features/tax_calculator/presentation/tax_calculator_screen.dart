@@ -1288,11 +1288,9 @@ class _InfoPill extends StatelessWidget {
           Flexible(
             child: Text(
               label,
-              style: const TextStyle(
-                color: AppTheme.processing,
-                fontSize: 13,
-                height: 1.35,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(color: AppTheme.processing),
             ),
           ),
         ],

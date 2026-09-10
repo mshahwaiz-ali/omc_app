@@ -373,8 +373,8 @@ class _NotificationList extends StatelessWidget {
                     'Clear',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -442,14 +442,8 @@ class _NotificationRow extends StatelessWidget {
                           Expanded(
                             child: Text(
                               item.title,
-                              style: TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: 16,
-                                height: 1.3,
-                                fontWeight: item.isRead
-                                    ? FontWeight.w600
-                                    : FontWeight.w700,
-                              ),
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(color: AppTheme.textPrimary),
                             ),
                           ),
                           if (!item.isRead) ...[
@@ -469,11 +463,8 @@ class _NotificationRow extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(
                         item.message,
-                        style: const TextStyle(
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppTheme.textSecondary,
-                          fontSize: 14,
-                          height: 1.45,
-                          fontWeight: FontWeight.w500,
                         ),
                       ),
                       const SizedBox(height: 10),

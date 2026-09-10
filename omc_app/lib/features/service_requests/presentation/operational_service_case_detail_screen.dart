@@ -1988,8 +1988,9 @@ class _OperationalDocumentUploadSheetState
                     'PDF, JPG, JPEG, PNG, DOC or DOCX · maximum 10 MB',
                     style: TextStyle(
                       color: AppTheme.textSecondary,
-                      fontSize: 13,
-                      height: 1.35,
+                      fontSize: 14,
+                      height: 1.4,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                   if (_errorMessage != null) ...[
