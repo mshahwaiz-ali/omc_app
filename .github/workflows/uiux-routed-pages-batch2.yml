@@ -1,4 +1,4 @@
-# rerun after exact document-detail anchor correction
+# rerun with current presentation-level authority assertions
 name: One-shot routed page conformance batch
 
 on:
@@ -27,6 +27,11 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+
+          def require(token, source, label):
+              if token not in source:
+                  raise SystemExit(f'missing preserved contract: {label} -> {token}')
+
           router = Path('omc_app/lib/app/router.dart').read_text()
           profile = Path('omc_app/lib/features/profile/presentation/profile_v2_screen.dart').read_text()
           edit = Path('omc_app/lib/features/profile/presentation/edit_profile_v2_screen.dart').read_text()
@@ -37,29 +42,32 @@ jobs:
           doc_detail = Path('omc_app/lib/features/documents/presentation/document_detail_screen.dart').read_text()
           notification = Path('omc_app/lib/features/notifications/presentation/notification_detail_screen.dart').read_text()
 
-          assert 'const ProfileV2Screen()' in router
-          assert 'const EditProfileV2Screen()' in router
-          assert 'const SettingsV2Screen()' in router
-          assert 'const ChangePasswordScreen()' in router
-          assert 'const CustomersScreen()' in router
-          assert 'CustomerDetailScreen(customerId: customerId)' in router
-          assert 'DocumentDetailScreen(' in router
-          assert 'NotificationDetailScreen(notificationId: notificationId)' in router
+          for token, label in [
+              ('const ProfileV2Screen()', 'profile route'),
+              ('const EditProfileV2Screen()', 'edit profile route'),
+              ('const SettingsV2Screen()', 'settings route'),
+              ('const ChangePasswordScreen()', 'change password route'),
+              ('const CustomersScreen()', 'customers route'),
+              ('CustomerDetailScreen(customerId: customerId)', 'customer detail route'),
+              ('DocumentDetailScreen(', 'document detail route'),
+              ('NotificationDetailScreen(notificationId: notificationId)', 'notification detail route'),
+          ]:
+              require(token, router, label)
 
-          assert 'profileSummaryProvider' in profile
-          assert 'profileRepositoryProvider' in edit
-          assert 'DirtyFormController' in edit
-          assert 'settingsPreferencesProvider' in settings
-          assert 'authControllerProvider.notifier' in password
-          assert 'changePassword(' in password
-          assert 'customersResultPageProvider' in customers
-          assert 'customersRepositoryProvider' in customers
-          assert 'documentPageProvider' in docs
-          assert 'assistedDocumentPageProvider' in docs
-          assert 'documentsRepositoryProvider' in doc_detail
-          assert 'invalidateDocumentMutation' in doc_detail
-          assert 'markNotificationAsRead' in notification
-          assert 'notificationDetailProvider' in notification
+          require('profileSummaryProvider', profile, 'profile provider')
+          require('profileRepositoryProvider', edit, 'edit profile repository')
+          require('DirtyFormController', edit, 'edit profile dirty-form guard')
+          require('settingsPreferencesProvider', settings, 'settings preferences')
+          require('authControllerProvider.notifier', password, 'password auth controller')
+          require('changePassword(', password, 'password mutation')
+          require('customersResultPageProvider', customers, 'customer paging provider')
+          require('ref.watch(pageProvider)', customers, 'customer provider watch')
+          require('documentPageProvider', docs, 'document paging provider')
+          require('assistedDocumentPageProvider', docs, 'assisted document paging provider')
+          require('documentsRepositoryProvider', doc_detail, 'document repository')
+          require('invalidateDocumentMutation', doc_detail, 'document invalidation')
+          require('markNotificationAsRead', notification, 'notification read mutation')
+          require('notificationDetailProvider', notification, 'notification detail provider')
           PY
 
       - uses: subosito/flutter-action@v2
