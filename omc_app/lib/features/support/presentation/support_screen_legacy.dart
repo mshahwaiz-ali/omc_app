@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/omc_premium.dart';
+import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_list_header.dart';
 import '../../auth/application/auth_controller.dart';
@@ -289,7 +291,7 @@ class _CreateSupportTicketCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -303,32 +305,40 @@ class _CreateSupportTicketCard extends StatelessWidget {
             _AccessNote(message: lockedMessage),
           ],
           const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            initialValue: topics.contains(selectedTopic) ? selectedTopic : null,
-            isExpanded: true,
-            items: topics
-                .map(
-                  (topic) => DropdownMenuItem(value: topic, child: Text(topic)),
-                )
-                .toList(growable: false),
-            onChanged: canCreateTicket ? onTopicChanged : null,
-            decoration: const InputDecoration(
-              labelText: 'Topic',
-              prefixIcon: Icon(Icons.topic_outlined),
+          AppLabeledField(
+            label: 'Topic',
+            isRequired: true,
+            child: DropdownButtonFormField<String>(
+              initialValue: topics.contains(selectedTopic)
+                  ? selectedTopic
+                  : null,
+              isExpanded: true,
+              items: topics
+                  .map(
+                    (topic) =>
+                        DropdownMenuItem(value: topic, child: Text(topic)),
+                  )
+                  .toList(growable: false),
+              onChanged: canCreateTicket ? onTopicChanged : null,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.topic_outlined),
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: messageController,
-            enabled: canCreateTicket,
-            minLines: 4,
-            maxLines: 7,
-            style: const TextStyle(fontSize: 16),
-            decoration: const InputDecoration(
-              labelText: 'Message',
-              hintText: 'Explain what you need help with…',
-              alignLabelWithHint: true,
-              prefixIcon: Icon(Icons.message_outlined),
+          const SizedBox(height: AppSpacing.lg),
+          AppLabeledField(
+            label: 'Message',
+            isRequired: true,
+            child: TextField(
+              controller: messageController,
+              enabled: canCreateTicket,
+              minLines: 4,
+              maxLines: 7,
+              decoration: const InputDecoration(
+                hintText: 'Explain what you need help with…',
+                alignLabelWithHint: true,
+                prefixIcon: Icon(Icons.message_outlined),
+              ),
             ),
           ),
           const SizedBox(height: 14),
@@ -350,14 +360,12 @@ class _CreateSupportTicketCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 7),
-          const Text(
+          const SizedBox(height: 6),
+          Text(
             'Messages must contain at least 10 characters.',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 13,
-              height: 1.35,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
         ],
       ),
