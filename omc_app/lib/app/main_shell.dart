@@ -182,9 +182,12 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   void _showQuickActionsSheet() {
     final capabilities = _currentCapabilities();
+    final mobileConfig =
+        ref.read(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
     showOmcQuickActionsSheet(
       context: context,
       capabilities: capabilities,
+      features: mobileConfig.features,
       onOpenServices: () => _openPath('/services'),
       onOpenDocuments: () => _openWhenAllowed(
         allowed: _canOpenDocuments(capabilities),

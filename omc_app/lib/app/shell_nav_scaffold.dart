@@ -126,9 +126,12 @@ class ShellNavScaffold extends ConsumerWidget {
     WidgetRef ref,
     AuthCapabilities capabilities,
   ) {
+    final mobileConfig =
+        ref.read(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
     showOmcQuickActionsSheet(
       context: context,
       capabilities: capabilities,
+      features: mobileConfig.features,
       onOpenServices: () => context.go('/services'),
       onOpenDocuments: () => _openWhenAllowed(
         context: context,

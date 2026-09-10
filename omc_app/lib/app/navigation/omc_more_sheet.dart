@@ -45,6 +45,8 @@ Future<bool> showOmcMoreSheet({
       expenseTrackerEnabled: features.expenseTrackerEnabled,
       knowledgeEnabled: features.knowledgeEnabled,
       supportEnabled: features.supportEnabled,
+      taxCalculatorEnabled: features.taxCalculatorEnabled,
+      internalWorkspaceEnabled: features.internalWorkspaceEnabled,
     ),
     isGuest: isGuest,
   );
@@ -492,37 +494,42 @@ class _AccessStatusNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final (icon, title, message, tone, background) =
-        switch (capabilities.accessState) {
-          AccountAccessState.guest => (
-            Icons.info_outline_rounded,
-            'Guest mode',
-            'Public tools are available. Sign in for protected OMC services.',
-            AppTheme.info,
-            AppTheme.infoSoft,
-          ),
-          AccountAccessState.pending => (
-            Icons.hourglass_top_rounded,
-            'Account under review',
-            'Public tools remain available while OMC reviews your access.',
-            AppTheme.warning,
-            AppTheme.warningSoft,
-          ),
-          AccountAccessState.rejected => (
-            Icons.error_outline_rounded,
-            'Approval required',
-            'Protected services are unavailable. Contact OMC support if needed.',
-            AppTheme.danger,
-            AppTheme.dangerSoft,
-          ),
-          _ => (
-            Icons.verified_outlined,
-            'Approved access',
-            'Protected OMC services are enabled.',
-            AppTheme.success,
-            AppTheme.successSoft,
-          ),
-        };
+    final (
+      icon,
+      title,
+      message,
+      tone,
+      background,
+    ) = switch (capabilities.accessState) {
+      AccountAccessState.guest => (
+        Icons.info_outline_rounded,
+        'Guest mode',
+        'Public tools are available. Sign in for protected OMC services.',
+        AppTheme.info,
+        AppTheme.infoSoft,
+      ),
+      AccountAccessState.pending => (
+        Icons.hourglass_top_rounded,
+        'Account under review',
+        'Public tools remain available while OMC reviews your access.',
+        AppTheme.warning,
+        AppTheme.warningSoft,
+      ),
+      AccountAccessState.rejected => (
+        Icons.error_outline_rounded,
+        'Approval required',
+        'Protected services are unavailable. Contact OMC support if needed.',
+        AppTheme.danger,
+        AppTheme.dangerSoft,
+      ),
+      _ => (
+        Icons.verified_outlined,
+        'Approved access',
+        'Protected OMC services are enabled.',
+        AppTheme.success,
+        AppTheme.successSoft,
+      ),
+    };
 
     return Semantics(
       container: true,

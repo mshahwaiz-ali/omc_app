@@ -7,6 +7,17 @@ const features = OmcNavigationFeatureFlags(
   expenseTrackerEnabled: true,
   knowledgeEnabled: true,
   supportEnabled: true,
+  taxCalculatorEnabled: true,
+  internalWorkspaceEnabled: true,
+);
+
+const disabledFeatures = OmcNavigationFeatureFlags(
+  paymentsEnabled: false,
+  expenseTrackerEnabled: false,
+  knowledgeEnabled: false,
+  supportEnabled: false,
+  taxCalculatorEnabled: false,
+  internalWorkspaceEnabled: false,
 );
 
 void main() {
@@ -54,10 +65,12 @@ void main() {
       isGuest: false,
     );
 
-    expect(
-      groups.map((group) => group.title).toList(),
-      ['My OMC', 'Tax & knowledge', 'Tools & help', 'Account'],
-    );
+    expect(groups.map((group) => group.title).toList(), [
+      'My OMC',
+      'Tax & knowledge',
+      'Tools & help',
+      'Account',
+    ]);
     final taxKnowledge = groups.singleWhere(
       (group) => group.title == 'Tax & knowledge',
     );
@@ -134,7 +147,7 @@ void main() {
         canViewRelevantCustomers: true,
       );
 
-      final actions = buildOmcQuickActions(staff);
+      final actions = buildOmcQuickActions(staff, features: features);
       final ids = actions.map((item) => item.id).toSet();
 
       expect(ids, contains(OmcNavigationActionId.startRequest));
@@ -158,7 +171,7 @@ void main() {
         canTrackRequests: true,
       );
 
-      final actions = buildOmcQuickActions(customer);
+      final actions = buildOmcQuickActions(customer, features: features);
       final labels = actions.map((item) => item.label);
 
       expect(
@@ -169,4 +182,110 @@ void main() {
       expect(labels, isNot(contains('Requests')));
     },
   );
+
+  test('customer More hides feature-disabled routes but keeps Documents', () {
+    const customer = AuthCapabilities(
+      accessState: AccountAccessState.approved,
+      canViewDocuments: true,
+      canViewPayments: true,
+      canCreateSupportTicket: true,
+      canUseTaxCalculator: true,
+    );
+
+    final groups = buildOmcMoreNavigation(
+      capabilities: customer,
+      features: disabledFeatures,
+      isGuest: false,
+    );
+    final ids = groups
+        .expand((group) => group.items)
+        .map((item) => item.id)
+        .toSet();
+
+    expect(ids, contains(OmcNavigationActionId.documents));
+    expect(ids, isNot(contains(OmcNavigationActionId.payments)));
+    expect(ids, isNot(contains(OmcNavigationActionId.tax)));
+    expect(ids, isNot(contains(OmcNavigationActionId.knowledge)));
+    expect(ids, isNot(contains(OmcNavigationActionId.support)));
+  });
+
+  test(
+    'internal More hides internal-feature routes but keeps capability-only work',
+    () {
+      const staff = AuthCapabilities(
+        accessState: AccountAccessState.internal,
+        canAccessInternalWorkspace: true,
+        canManageCustomers: true,
+        canManageLeads: true,
+        canViewTasks: true,
+        canViewDocumentQueue: true,
+        canViewPaymentQueue: true,
+        canViewSupportTickets: true,
+        canUseTaxCalculator: true,
+        canOwnReferrals: true,
+        canViewOwnCommissions: true,
+        canApproveCommissions: true,
+      );
+
+      final groups = buildOmcMoreNavigation(
+        capabilities: staff,
+        features: disabledFeatures,
+        isGuest: false,
+      );
+      final ids = groups
+          .expand((group) => group.items)
+          .map((item) => item.id)
+          .toSet();
+
+      expect(ids, contains(OmcNavigationActionId.documents));
+      expect(ids, contains(OmcNavigationActionId.referrals));
+      expect(ids, contains(OmcNavigationActionId.commissions));
+
+      expect(ids, isNot(contains(OmcNavigationActionId.workspace)));
+      expect(ids, isNot(contains(OmcNavigationActionId.customers)));
+      expect(ids, isNot(contains(OmcNavigationActionId.tasks)));
+      expect(ids, isNot(contains(OmcNavigationActionId.payments)));
+      expect(ids, isNot(contains(OmcNavigationActionId.commissionOperations)));
+      expect(ids, isNot(contains(OmcNavigationActionId.support)));
+      expect(ids, isNot(contains(OmcNavigationActionId.leads)));
+      expect(ids, isNot(contains(OmcNavigationActionId.tax)));
+    },
+  );
+
+  test('internal Quick Actions suppress feature-disabled destinations', () {
+    const staff = AuthCapabilities(
+      accessState: AccountAccessState.internal,
+      canAccessInternalWorkspace: true,
+      canManageLeads: true,
+      canCreateServiceForCustomer: true,
+      canReviewPayments: true,
+      canReviewDocuments: true,
+      canApproveCommissions: true,
+      canViewSupportTickets: true,
+      canViewTasks: true,
+    );
+
+    final actions = buildOmcQuickActions(staff, features: disabledFeatures);
+    final ids = actions.map((item) => item.id).toSet();
+
+    expect(ids, contains(OmcNavigationActionId.startRequest));
+    expect(ids, contains(OmcNavigationActionId.reviewDocuments));
+
+    expect(ids, isNot(contains(OmcNavigationActionId.createLead)));
+    expect(ids, isNot(contains(OmcNavigationActionId.reviewPayments)));
+    expect(ids, isNot(contains(OmcNavigationActionId.commissionOperations)));
+    expect(ids, isNot(contains(OmcNavigationActionId.supportQueue)));
+    expect(ids, isNot(contains(OmcNavigationActionId.tasks)));
+    expect(ids, isNot(contains(OmcNavigationActionId.workspace)));
+  });
+
+  test('guest Quick Actions expose no disabled public utility', () {
+    final actions = buildOmcQuickActions(
+      AuthCapabilities.guest,
+      features: disabledFeatures,
+    );
+
+    expect(actions, hasLength(1));
+    expect(actions.single.id, OmcNavigationActionId.profile);
+  });
 }

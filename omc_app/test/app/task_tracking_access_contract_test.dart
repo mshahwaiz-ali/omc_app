@@ -8,6 +8,8 @@ const _features = OmcNavigationFeatureFlags(
   expenseTrackerEnabled: true,
   knowledgeEnabled: true,
   supportEnabled: true,
+  taxCalculatorEnabled: true,
+  internalWorkspaceEnabled: true,
 );
 
 void main() {

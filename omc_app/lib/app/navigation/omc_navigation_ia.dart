@@ -48,12 +48,16 @@ class OmcNavigationFeatureFlags {
     required this.expenseTrackerEnabled,
     required this.knowledgeEnabled,
     required this.supportEnabled,
+    required this.taxCalculatorEnabled,
+    required this.internalWorkspaceEnabled,
   });
 
   final bool paymentsEnabled;
   final bool expenseTrackerEnabled;
   final bool knowledgeEnabled;
   final bool supportEnabled;
+  final bool taxCalculatorEnabled;
+  final bool internalWorkspaceEnabled;
 }
 
 List<OmcNavigationGroup> buildOmcMoreNavigation({
@@ -94,12 +98,9 @@ List<OmcNavigationGroup> buildOmcMoreNavigation({
 
   // Tax and knowledge are high-value destinations when available, so they
   // remain a first-level group rather than being buried among optional tools.
-  if (capabilities.canUseTaxCalculator) {
+  if (features.taxCalculatorEnabled && capabilities.canUseTaxCalculator) {
     taxKnowledge.add(
-      const OmcNavigationItem(
-        OmcNavigationActionId.tax,
-        'Tax calculator',
-      ),
+      const OmcNavigationItem(OmcNavigationActionId.tax, 'Tax calculator'),
     );
   }
   if (features.knowledgeEnabled) {
@@ -157,21 +158,28 @@ List<OmcNavigationGroup> _internalMoreNavigation(
   AuthCapabilities capabilities,
   OmcNavigationFeatureFlags features,
 ) {
-  final work = <OmcNavigationItem>[
-    const OmcNavigationItem(OmcNavigationActionId.workspace, 'Workspace'),
-  ];
+  final work = <OmcNavigationItem>[];
   final review = <OmcNavigationItem>[];
   final manage = <OmcNavigationItem>[];
   final tools = <OmcNavigationItem>[];
   final account = <OmcNavigationItem>[];
 
-  if (capabilities.canManageCustomers ||
-      capabilities.canViewAllCustomers ||
-      capabilities.canViewRelevantCustomers) {
+  if (features.internalWorkspaceEnabled) {
     work.add(
-      const OmcNavigationItem(OmcNavigationActionId.customers, 'Customers'),
+      const OmcNavigationItem(OmcNavigationActionId.workspace, 'Workspace'),
     );
+
+    if (capabilities.canManageCustomers ||
+        capabilities.canViewAllCustomers ||
+        capabilities.canViewRelevantCustomers) {
+      work.add(
+        const OmcNavigationItem(OmcNavigationActionId.customers, 'Customers'),
+      );
+    }
   }
+
+  // These routes are capability-authorized and are not feature-gated by the
+  // mobile route policy.
   if (capabilities.canOwnReferrals) {
     work.add(
       const OmcNavigationItem(OmcNavigationActionId.referrals, 'My Referrals'),
@@ -185,22 +193,25 @@ List<OmcNavigationGroup> _internalMoreNavigation(
       ),
     );
   }
-  if (capabilities.canViewTasks) {
+
+  if (features.internalWorkspaceEnabled && capabilities.canViewTasks) {
     work.add(const OmcNavigationItem(OmcNavigationActionId.tasks, 'Tasks'));
   }
 
+  // /documents is intentionally not controlled by internal_workspace_enabled.
   if (capabilities.canViewAnyDocument) {
     review.add(
       const OmcNavigationItem(OmcNavigationActionId.documents, 'Documents'),
     );
   }
-  if (capabilities.canViewAnyPayment) {
+  if (features.paymentsEnabled && capabilities.canViewAnyPayment) {
     review.add(
       const OmcNavigationItem(OmcNavigationActionId.payments, 'Payments'),
     );
   }
-  if (capabilities.canApproveCommissions ||
-      capabilities.canMarkCommissionsPaid) {
+  if (features.internalWorkspaceEnabled &&
+      (capabilities.canApproveCommissions ||
+          capabilities.canMarkCommissionsPaid)) {
     review.add(
       const OmcNavigationItem(
         OmcNavigationActionId.commissionOperations,
@@ -208,7 +219,7 @@ List<OmcNavigationGroup> _internalMoreNavigation(
       ),
     );
   }
-  if (capabilities.canUseSupportWorkspace) {
+  if (features.supportEnabled && capabilities.canUseSupportWorkspace) {
     review.add(
       const OmcNavigationItem(OmcNavigationActionId.support, 'Support'),
     );
@@ -217,15 +228,12 @@ List<OmcNavigationGroup> _internalMoreNavigation(
     review.add(const OmcNavigationItem(OmcNavigationActionId.alerts, 'Alerts'));
   }
 
-  if (capabilities.canManageLeads) {
+  if (features.internalWorkspaceEnabled && capabilities.canManageLeads) {
     manage.add(const OmcNavigationItem(OmcNavigationActionId.leads, 'Leads'));
   }
-  if (capabilities.canUseTaxCalculator) {
+  if (features.taxCalculatorEnabled && capabilities.canUseTaxCalculator) {
     tools.add(
-      const OmcNavigationItem(
-        OmcNavigationActionId.tax,
-        'Tax calculator',
-      ),
+      const OmcNavigationItem(OmcNavigationActionId.tax, 'Tax calculator'),
     );
   }
   if (features.expenseTrackerEnabled) {
@@ -249,7 +257,7 @@ List<OmcNavigationGroup> _internalMoreNavigation(
   account.add(const OmcNavigationItem(OmcNavigationActionId.logout, 'Logout'));
 
   return [
-    OmcNavigationGroup('Work', work),
+    if (work.isNotEmpty) OmcNavigationGroup('Work', work),
     if (review.isNotEmpty) OmcNavigationGroup('Review & support', review),
     if (manage.isNotEmpty) OmcNavigationGroup('Manage', manage),
     if (tools.isNotEmpty) OmcNavigationGroup('Tools', tools),
@@ -257,10 +265,14 @@ List<OmcNavigationGroup> _internalMoreNavigation(
   ];
 }
 
-List<OmcNavigationItem> buildOmcQuickActions(AuthCapabilities capabilities) {
+List<OmcNavigationItem> buildOmcQuickActions(
+  AuthCapabilities capabilities, {
+  required OmcNavigationFeatureFlags features,
+}) {
   if (capabilities.canAccessInternalWorkspace || capabilities.isInternal) {
     final items = <OmcNavigationItem>[];
-    if (capabilities.canManageLeads) {
+
+    if (features.internalWorkspaceEnabled && capabilities.canManageLeads) {
       items.add(
         const OmcNavigationItem(OmcNavigationActionId.createLead, 'New Lead'),
       );
@@ -273,7 +285,7 @@ List<OmcNavigationItem> buildOmcQuickActions(AuthCapabilities capabilities) {
         ),
       );
     }
-    if (capabilities.canReviewPayments) {
+    if (features.paymentsEnabled && capabilities.canReviewPayments) {
       items.add(
         const OmcNavigationItem(
           OmcNavigationActionId.reviewPayments,
@@ -281,6 +293,9 @@ List<OmcNavigationItem> buildOmcQuickActions(AuthCapabilities capabilities) {
         ),
       );
     }
+
+    // This opens /documents, which is capability-gated but intentionally not
+    // controlled by internal_workspace_enabled.
     if (capabilities.canReviewDocuments) {
       items.add(
         const OmcNavigationItem(
@@ -289,8 +304,10 @@ List<OmcNavigationItem> buildOmcQuickActions(AuthCapabilities capabilities) {
         ),
       );
     }
-    if (capabilities.canApproveCommissions ||
-        capabilities.canMarkCommissionsPaid) {
+
+    if (features.internalWorkspaceEnabled &&
+        (capabilities.canApproveCommissions ||
+            capabilities.canMarkCommissionsPaid)) {
       items.add(
         const OmcNavigationItem(
           OmcNavigationActionId.commissionOperations,
@@ -298,7 +315,7 @@ List<OmcNavigationItem> buildOmcQuickActions(AuthCapabilities capabilities) {
         ),
       );
     }
-    if (capabilities.canUseSupportWorkspace) {
+    if (features.supportEnabled && capabilities.canUseSupportWorkspace) {
       items.add(
         const OmcNavigationItem(
           OmcNavigationActionId.supportQueue,
@@ -306,11 +323,11 @@ List<OmcNavigationItem> buildOmcQuickActions(AuthCapabilities capabilities) {
         ),
       );
     }
-    if (capabilities.canViewTasks) {
+    if (features.internalWorkspaceEnabled && capabilities.canViewTasks) {
       items.add(const OmcNavigationItem(OmcNavigationActionId.tasks, 'Tasks'));
     }
 
-    if (items.isEmpty) {
+    if (items.isEmpty && features.internalWorkspaceEnabled) {
       items.add(
         const OmcNavigationItem(OmcNavigationActionId.workspace, 'Workspace'),
       );
@@ -320,6 +337,7 @@ List<OmcNavigationItem> buildOmcQuickActions(AuthCapabilities capabilities) {
 
   if (capabilities.isApproved) {
     final items = <OmcNavigationItem>[];
+
     if (capabilities.canCreateServiceRequest) {
       items.add(const OmcNavigationItem(OmcNavigationActionId.apply, 'Apply'));
     }
@@ -328,37 +346,58 @@ List<OmcNavigationItem> buildOmcQuickActions(AuthCapabilities capabilities) {
         const OmcNavigationItem(OmcNavigationActionId.documents, 'Documents'),
       );
     }
-    if (capabilities.canViewPayments ||
-        capabilities.canUploadPaymentReceipt ||
-        capabilities.canUploadPaymentReceipts) {
+    if (features.paymentsEnabled &&
+        (capabilities.canViewPayments ||
+            capabilities.canUploadPaymentReceipt ||
+            capabilities.canUploadPaymentReceipts)) {
       items.add(
         const OmcNavigationItem(OmcNavigationActionId.payments, 'Payments'),
       );
     }
-    if (capabilities.canCreateSupportTicket) {
+    if (features.supportEnabled && capabilities.canCreateSupportTicket) {
       items.add(
         const OmcNavigationItem(OmcNavigationActionId.support, 'Support'),
       );
     }
-    if (capabilities.canUseTaxCalculator) {
+    if (features.taxCalculatorEnabled && capabilities.canUseTaxCalculator) {
       items.add(const OmcNavigationItem(OmcNavigationActionId.tax, 'Tax Calc'));
     }
     return items;
   }
 
   if (capabilities.isPending) {
-    return const [
-      OmcNavigationItem(OmcNavigationActionId.tax, 'Tax'),
-      OmcNavigationItem(OmcNavigationActionId.knowledge, 'Knowledge'),
-      OmcNavigationItem(OmcNavigationActionId.support, 'Support'),
-      OmcNavigationItem(OmcNavigationActionId.profile, 'Status'),
-    ];
+    final items = <OmcNavigationItem>[];
+    if (features.taxCalculatorEnabled) {
+      items.add(const OmcNavigationItem(OmcNavigationActionId.tax, 'Tax'));
+    }
+    if (features.knowledgeEnabled) {
+      items.add(
+        const OmcNavigationItem(OmcNavigationActionId.knowledge, 'Knowledge'),
+      );
+    }
+    if (features.supportEnabled) {
+      items.add(
+        const OmcNavigationItem(OmcNavigationActionId.support, 'Support'),
+      );
+    }
+    items.add(const OmcNavigationItem(OmcNavigationActionId.profile, 'Status'));
+    return items;
   }
 
-  return const [
-    OmcNavigationItem(OmcNavigationActionId.tax, 'Tax'),
-    OmcNavigationItem(OmcNavigationActionId.knowledge, 'Knowledge'),
-    OmcNavigationItem(OmcNavigationActionId.support, 'Support'),
-    OmcNavigationItem(OmcNavigationActionId.profile, 'Sign Up'),
-  ];
+  final items = <OmcNavigationItem>[];
+  if (features.taxCalculatorEnabled) {
+    items.add(const OmcNavigationItem(OmcNavigationActionId.tax, 'Tax'));
+  }
+  if (features.knowledgeEnabled) {
+    items.add(
+      const OmcNavigationItem(OmcNavigationActionId.knowledge, 'Knowledge'),
+    );
+  }
+  if (features.supportEnabled) {
+    items.add(
+      const OmcNavigationItem(OmcNavigationActionId.support, 'Support'),
+    );
+  }
+  items.add(const OmcNavigationItem(OmcNavigationActionId.profile, 'Sign Up'));
+  return items;
 }

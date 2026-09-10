@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../features/app_config/data/mobile_app_config.dart';
 import '../../features/auth/application/auth_state.dart';
 import '../design_tokens.dart';
 import '../theme.dart';
@@ -8,6 +9,7 @@ import 'omc_navigation_ia.dart';
 Future<void> showOmcQuickActionsSheet({
   required BuildContext context,
   required AuthCapabilities capabilities,
+  required MobileFeatureConfig features,
   required VoidCallback onOpenServices,
   required VoidCallback onOpenDocuments,
   required VoidCallback onOpenPayments,
@@ -23,7 +25,17 @@ Future<void> showOmcQuickActionsSheet({
   required VoidCallback onOpenTasks,
   required VoidCallback onCreateLead,
 }) async {
-  final actions = buildOmcQuickActions(capabilities);
+  final actions = buildOmcQuickActions(
+    capabilities,
+    features: OmcNavigationFeatureFlags(
+      paymentsEnabled: features.paymentsEnabled,
+      expenseTrackerEnabled: features.expenseTrackerEnabled,
+      knowledgeEnabled: features.knowledgeEnabled,
+      supportEnabled: features.supportEnabled,
+      taxCalculatorEnabled: features.taxCalculatorEnabled,
+      internalWorkspaceEnabled: features.internalWorkspaceEnabled,
+    ),
+  );
 
   VoidCallback callbackFor(OmcNavigationActionId id) {
     return switch (id) {
@@ -130,9 +142,8 @@ class _QuickActionsContent extends StatelessWidget {
                         width: itemWidth,
                         child: _QuickActionButton(
                           item: item,
-                          onTap: () => Navigator.of(
-                            context,
-                          ).pop(callbackFor(item.id)),
+                          onTap: () =>
+                              Navigator.of(context).pop(callbackFor(item.id)),
                         ),
                       ),
                   ],
@@ -148,8 +159,7 @@ class _QuickActionsContent extends StatelessWidget {
   int _columnCount({required double width, required double textScale}) {
     if (width < 300 || textScale >= 1.5) return 1;
     if (width >= 600 && textScale < 1.3) {
-      final threeColumnItemWidth =
-          (width - AppSpacing.sm * 2) / 3;
+      final threeColumnItemWidth = (width - AppSpacing.sm * 2) / 3;
       if (threeColumnItemWidth >= 176) return 3;
     }
     return 2;
