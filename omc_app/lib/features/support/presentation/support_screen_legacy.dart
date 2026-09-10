@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/design_tokens.dart';
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/network/api_error.dart';
@@ -63,7 +64,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
   Widget build(BuildContext context) {
     final supportConfigAsync = ref.watch(supportConfigProvider);
     final faqsAsync = ref.watch(appFaqsProvider);
-    final capabilities = ref.watch(authControllerProvider).capabilities;
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
     final supportConfig =
         supportConfigAsync.value ?? SupportConfigData.fallback;
     final supportTopics = supportConfig.topics.isNotEmpty
@@ -191,7 +192,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
   Future<void> _submitSupportTicket() async {
     if (_isSubmitting) return;
 
-    final capabilities = ref.read(authControllerProvider).capabilities;
+    final capabilities = ref.read(effectiveCapabilitiesProvider);
     if (!capabilities.canCreateSupportTicket) {
       _showSnack(_lockedAccessMessage(capabilities));
       return;
@@ -465,9 +466,9 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
 
   Future<void> _assignToMe(SupportTicket ticket) async {
     final authState = ref.read(authControllerProvider);
+    final capabilities = ref.read(effectiveCapabilitiesProvider);
     final currentUser = authState.userId?.trim() ?? '';
-    final canAssign =
-        authState.capabilities.canAssignSupportTickets && ticket.canAssign;
+    final canAssign = capabilities.canAssignSupportTickets && ticket.canAssign;
     if (!canAssign || ticket.isClosed || currentUser.isEmpty) return;
     if (ticket.isAssignedTo(currentUser)) return;
     if (_assigningTicketId != null) return;

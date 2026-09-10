@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/design_tokens.dart';
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/forms/dirty_form_controller.dart';
@@ -16,7 +17,6 @@ import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
-import '../../auth/application/auth_controller.dart';
 import '../data/support_repository.dart';
 import '../data/support_ticket.dart';
 
@@ -167,7 +167,7 @@ class _SupportTicketChatBodyState
 
   @override
   Widget build(BuildContext context) {
-    final capabilities = ref.watch(authControllerProvider).capabilities;
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
     final isInternal = capabilities.isInternal;
     final canReply =
         ticket.canReply && (!isInternal || capabilities.canReplySupportTickets);
@@ -261,7 +261,7 @@ class _SupportTicketChatBodyState
     if (_isSendingReply) return;
 
     final messenger = ScaffoldMessenger.of(context);
-    final capabilities = ref.read(authControllerProvider).capabilities;
+    final capabilities = ref.read(effectiveCapabilitiesProvider);
     final canReply =
         ticket.canReply &&
         (!capabilities.isInternal || capabilities.canReplySupportTickets);
@@ -341,7 +341,7 @@ class _SupportTicketChatBodyState
     final attachment = _pickedAttachment;
     final messenger = ScaffoldMessenger.of(context);
 
-    final capabilities = ref.read(authControllerProvider).capabilities;
+    final capabilities = ref.read(effectiveCapabilitiesProvider);
     final canReply =
         ticket.canReply &&
         (!capabilities.isInternal || capabilities.canReplySupportTickets);
@@ -431,7 +431,7 @@ class _SupportTicketChatBodyState
     if (_isUpdatingStatus) return;
 
     final messenger = ScaffoldMessenger.of(context);
-    final capabilities = ref.read(authControllerProvider).capabilities;
+    final capabilities = ref.read(effectiveCapabilitiesProvider);
 
     if (!ticket.canUpdateStatus || !capabilities.canUpdateSupportTicketStatus) {
       messenger.showSnackBar(

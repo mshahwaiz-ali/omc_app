@@ -5,12 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/design_tokens.dart';
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
-import '../../auth/application/auth_controller.dart';
 import '../data/leads_repository.dart';
 import '../domain/lead_item.dart';
 
@@ -34,8 +34,7 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
     super.initState();
     if (widget.openCreateOnLoad) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted &&
-            ref.read(authControllerProvider).capabilities.canManageLeads) {
+        if (mounted && ref.read(effectiveCapabilitiesProvider).canManageLeads) {
           _showCreateLeadSheet();
         }
       });
@@ -75,8 +74,7 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
     ));
     final resultAsync = ref.watch(pageProvider);
     final canCreateLeads = ref
-        .watch(authControllerProvider)
-        .capabilities
+        .watch(effectiveCapabilitiesProvider)
         .canManageLeads;
 
     return Scaffold(
@@ -124,7 +122,7 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
   }
 
   Future<void> _showCreateLeadSheet() async {
-    if (!ref.read(authControllerProvider).capabilities.canManageLeads) {
+    if (!ref.read(effectiveCapabilitiesProvider).canManageLeads) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Your role cannot create leads.')),
       );
@@ -176,10 +174,7 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
           builder: (context, setSheetState) {
             Future<void> submit() async {
               if (saving) return;
-              if (!ref
-                  .read(authControllerProvider)
-                  .capabilities
-                  .canManageLeads) {
+              if (!ref.read(effectiveCapabilitiesProvider).canManageLeads) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Your role cannot create leads.'),

@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/design_tokens.dart';
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_skeleton.dart';
 import '../../../core/widgets/premium_empty_state.dart';
-import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../service_requests/data/service_case.dart';
 import '../../service_requests/data/service_case_repository.dart';
@@ -34,7 +34,7 @@ class ServiceDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final servicesAsync = ref.watch(serviceDetailProvider(serviceId));
-    final capabilities = ref.watch(authControllerProvider).capabilities;
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
 
     return servicesAsync.when(
       loading: () => const Scaffold(

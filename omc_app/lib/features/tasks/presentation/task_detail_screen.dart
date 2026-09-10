@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/design_tokens.dart';
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/premium_card.dart';
-import '../../auth/application/auth_controller.dart';
 import '../data/task_item.dart';
 import '../data/tasks_repository.dart';
 
@@ -28,7 +28,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final taskAsync = ref.watch(taskDetailProvider(widget.taskId));
-    final capabilities = ref.watch(authControllerProvider).capabilities;
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
 
     return Scaffold(
       backgroundColor: AppTheme.background,

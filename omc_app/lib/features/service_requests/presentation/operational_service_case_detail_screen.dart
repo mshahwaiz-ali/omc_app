@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/design_tokens.dart';
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/mutation_invalidation.dart';
 import '../../../app/theme.dart';
 import '../../../core/forms/dirty_form_controller.dart';
@@ -15,7 +16,6 @@ import '../../../core/widgets/loading_view.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../admin_control/data/admin_control_repository.dart';
-import '../../auth/application/auth_controller.dart';
 import '../../documents/application/document_attachment_controller.dart';
 import '../../documents/data/document_attachment.dart';
 import '../../support/application/support_launcher.dart';
@@ -51,7 +51,7 @@ class _OperationalServiceCaseDetailScreenState
   @override
   Widget build(BuildContext context) {
     final caseAsync = ref.watch(serviceCaseDetailProvider(widget.caseId));
-    final capabilities = ref.watch(authControllerProvider).capabilities;
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
     final canReviewDocuments = capabilities.canReviewDocuments;
     final canUploadDocuments =
         capabilities.canUploadDocuments ||
@@ -399,7 +399,7 @@ class _OperationalServiceCaseDetailScreenState
       return;
     }
 
-    final capabilities = ref.read(authControllerProvider).capabilities;
+    final capabilities = ref.read(effectiveCapabilitiesProvider);
     if (!capabilities.isApproved || !capabilities.canTrackRequests) {
       _showSnack('Your account cannot cancel this service request.');
       return;
@@ -447,7 +447,7 @@ class _OperationalServiceCaseDetailScreenState
       return;
     }
 
-    if (!ref.read(authControllerProvider).capabilities.canReviewDocuments) {
+    if (!ref.read(effectiveCapabilitiesProvider).canReviewDocuments) {
       _showSnack(
         'Your role can view document information but cannot review files.',
       );
@@ -489,7 +489,7 @@ class _OperationalServiceCaseDetailScreenState
       return;
     }
 
-    final capabilities = ref.read(authControllerProvider).capabilities;
+    final capabilities = ref.read(effectiveCapabilitiesProvider);
     final canUploadDocuments =
         capabilities.canUploadDocuments ||
         (widget.assisted && capabilities.canUploadCustomerDocuments);

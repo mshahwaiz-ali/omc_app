@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/design_tokens.dart';
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/diagnostics/e2e_network_audit.dart';
@@ -18,7 +19,6 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
-import '../../auth/application/auth_controller.dart';
 import '../../profile/data/profile_repository.dart';
 import '../../profile/data/profile_summary.dart';
 import '../../internal_workspace/presentation/internal_workspace_providers.dart';
@@ -141,8 +141,8 @@ class _ServiceRequestDraftScreenState
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authControllerProvider);
-    final profileAsync = authState.capabilities.isInternal
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
+    final profileAsync = capabilities.isInternal
         ? null
         : ref.watch(profileSummaryProvider);
     final customerProfile = profileAsync?.asData?.value;
@@ -235,8 +235,7 @@ class _ServiceRequestDraftScreenState
                       onChange: () => context.go('/services'),
                     ),
                     if (ref
-                        .watch(authControllerProvider)
-                        .capabilities
+                        .watch(effectiveCapabilitiesProvider)
                         .isInternal) ...[
                       const SizedBox(height: 12),
                       AssistedCustomerCard(
@@ -332,7 +331,7 @@ class _ServiceRequestDraftScreenState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _customerProfilePrefillScheduled = false;
       if (!mounted || _customerProfilePrefilled) return;
-      if (ref.read(authControllerProvider).capabilities.isInternal) return;
+      if (ref.read(effectiveCapabilitiesProvider).isInternal) return;
       final wasDirty = _dirtyFormController.isDirty;
 
       _setIfEmpty(_nameController, profile.displayName);
@@ -476,7 +475,7 @@ class _ServiceRequestDraftScreenState
   }
 
   FocusNode? _firstInvalidFocusNode(List<ServiceTemplateField> fields) {
-    final capabilities = ref.read(authControllerProvider).capabilities;
+    final capabilities = ref.read(effectiveCapabilitiesProvider);
     if (capabilities.isInternal) {
       final cleanDiscount = _discountValueController.text.trim().replaceAll(
         ',',
@@ -611,7 +610,7 @@ class _ServiceRequestDraftScreenState
       return;
     }
 
-    final capabilities = ref.read(authControllerProvider).capabilities;
+    final capabilities = ref.read(effectiveCapabilitiesProvider);
     if (capabilities.isInternal && _assistedSelection == null) {
       _revealAssistedCustomerCard();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -745,7 +744,7 @@ class _ServiceRequestDraftScreenState
   }
 
   Future<void> _refreshRequestTracking(String requestId) async {
-    final capabilities = ref.read(authControllerProvider).capabilities;
+    final capabilities = ref.read(effectiveCapabilitiesProvider);
 
     ref.invalidate(serviceCasesProvider);
     ref.invalidate(serviceCaseDetailProvider(requestId));
@@ -777,7 +776,7 @@ class _ServiceRequestDraftScreenState
 
   void _openSubmittedRequest(String requestId) {
     final encodedRequestId = Uri.encodeComponent(requestId);
-    final capabilities = ref.read(authControllerProvider).capabilities;
+    final capabilities = ref.read(effectiveCapabilitiesProvider);
 
     if (capabilities.isInternal) {
       context.go('/internal-workspace/service-cases/$encodedRequestId');
@@ -788,7 +787,7 @@ class _ServiceRequestDraftScreenState
   }
 
   String _requestHomeRoute() {
-    final capabilities = ref.read(authControllerProvider).capabilities;
+    final capabilities = ref.read(effectiveCapabilitiesProvider);
     return capabilities.isInternal
         ? '/internal-workspace/service-cases'
         : '/my-services';

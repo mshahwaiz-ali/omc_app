@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/mutation_invalidation.dart';
 import '../../../app/design_tokens.dart';
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/config/api_config.dart';
@@ -16,7 +17,6 @@ import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
-import '../../auth/application/auth_controller.dart';
 import '../../documents/application/document_attachment_controller.dart';
 import '../../documents/presentation/document_preview_screen.dart';
 import '../data/payment_item.dart';
@@ -576,7 +576,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final capabilities = ref.watch(authControllerProvider).capabilities;
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
 
     return OmcPageListView(
       topPadding: AppSpacing.md,
@@ -814,7 +814,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
   Future<void> _pickAndUploadReceipt(BuildContext context) async {
     if (_isUploadingReceipt) return;
 
-    final capabilities = ref.read(authControllerProvider).capabilities;
+    final capabilities = ref.read(effectiveCapabilitiesProvider);
     final canUploadReceipt =
         capabilities.canUploadPaymentReceipt ||
         capabilities.canUploadCustomerPaymentReceipt;
