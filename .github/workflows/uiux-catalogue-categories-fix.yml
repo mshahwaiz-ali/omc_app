@@ -1,0 +1,140 @@
+name: One-shot UI UX catalogue category fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/uiux-catalogue-categories-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply audited catalogue fix
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def insert_once(path, anchor, addition):
+              p = Path(path)
+              text = p.read_text()
+              if addition.strip() in text:
+                  raise SystemExit(f'{path}: addition already present')
+              count = text.count(anchor)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one anchor, found {count}')
+              p.write_text(text.replace(anchor, addition + anchor, 1))
+              print(f'{path}: inserted audited block')
+
+          repo = 'omc_app/lib/features/service_catalogue/data/service_catalogue_repository.dart'
+          insert_once(
+              repo,
+              '  Future<ServiceItem> fetchDetail(\n',
+              '''  Future<List<String>> fetchCategories() async {\n    final categories = <String>{};\n    final visitedStarts = <int>{};\n    var start = 0;\n\n    while (visitedStarts.add(start)) {\n      final page = await fetchPage(start: start);\n      for (final service in page.items) {\n        final category = service.category.trim();\n        if (category.isNotEmpty) categories.add(category);\n      }\n\n      final next = page.nextStart;\n      if (next == null) break;\n      if (next <= start) {\n        throw const ApiError(\n          message: 'Service categories could not be loaded from the server right now.',\n          code: 'service_catalogue_invalid_continuation',\n        );\n      }\n      start = next;\n    }\n\n    final result = categories.toList()..sort();\n    return List.unmodifiable(result);\n  }\n\n''',
+          )
+
+          controller = Path('omc_app/lib/features/service_catalogue/application/service_catalogue_controller.dart')
+          text = controller.read_text()
+          anchor = 'final serviceCataloguePageProvider = FutureProvider.autoDispose\n'
+          if text.count(anchor) != 1:
+              raise SystemExit('controller provider anchor not unique')
+          addition = '''final serviceCatalogueCategoriesProvider = FutureProvider.autoDispose<List<String>>((ref) {\n  return ref.watch(serviceCatalogueRepositoryProvider).fetchCategories();\n});\n\n'''
+          controller.write_text(text.replace(anchor, addition + anchor, 1))
+          print('service_catalogue_controller.dart: added categories provider')
+
+          screen = Path('omc_app/lib/features/service_catalogue/presentation/service_catalogue_screen_impl.dart')
+          text = screen.read_text()
+          watch_anchor = '    final pageAsync = ref.watch(pageProvider);\n    final servicesAsync = pageAsync.whenData((page) => page.items);\n'
+          watch_replacement = '    final pageAsync = ref.watch(pageProvider);\n    final categoriesAsync = ref.watch(serviceCatalogueCategoriesProvider);\n    final servicesAsync = pageAsync.whenData((page) => page.items);\n'
+          if text.count(watch_anchor) != 1:
+              raise SystemExit('screen watch anchor not unique')
+          text = text.replace(watch_anchor, watch_replacement, 1)
+
+          old_categories = '''          final categories = <String>[\n            _allCategory,\n            ...{\n              if (_selectedCategory != _allCategory) _selectedCategory,\n              for (final service in services)\n                if (service.category.trim().isNotEmpty) service.category.trim(),\n            }.toList()..sort(),\n          ];\n'''
+          new_categories = '''          final discoveredCategories =\n              categoriesAsync.value ??\n              services\n                  .map((service) => service.category.trim())\n                  .where((category) => category.isNotEmpty);\n          final categorySet = <String>{\n            if (_selectedCategory != _allCategory) _selectedCategory,\n            ...discoveredCategories,\n          };\n          final sortedCategories = categorySet.toList()..sort();\n          final categories = <String>[_allCategory, ...sortedCategories];\n'''
+          if text.count(old_categories) != 1:
+              raise SystemExit('screen category block not unique')
+          text = text.replace(old_categories, new_categories, 1)
+
+          old_refresh = '''            onRefresh: () async {\n              ref.invalidate(pageProvider);\n              await ref.read(pageProvider.future);\n            },\n'''
+          new_refresh = '''            onRefresh: () async {\n              ref.invalidate(pageProvider);\n              ref.invalidate(serviceCatalogueCategoriesProvider);\n              await ref.read(pageProvider.future);\n              try {\n                await ref.read(serviceCatalogueCategoriesProvider.future);\n              } catch (_) {\n                // Category discovery is auxiliary. Current-page categories remain usable.\n              }\n            },\n'''
+          if text.count(old_refresh) != 1:
+              raise SystemExit('screen refresh block not unique')
+          screen.write_text(text.replace(old_refresh, new_refresh, 1))
+          print('service_catalogue_screen_impl.dart: wired global categories with page fallback')
+
+          test_file = Path('omc_app/test/features/service_catalogue/service_catalogue_repository_test.dart')
+          text = test_file.read_text()
+          test_anchor = '''  test('catalogue stays lightweight and preserves pricing metadata', () async {\n'''
+          new_test = '''  test('category discovery follows continuation beyond the first page', () async {\n    final client = _CatalogueFrappeClient()..paginateCatalogue = true;\n    final repository = ServiceCatalogueRepository(frappeClient: client);\n\n    final categories = await repository.fetchCategories();\n\n    expect(categories, ['Company', 'Tax']);\n    expect(client.catalogueStarts, [0, 50]);\n  });\n\n'''
+          if text.count(test_anchor) != 1:
+              raise SystemExit('catalogue test insertion anchor not unique')
+          text = text.replace(test_anchor, new_test + test_anchor, 1)
+
+          fields_anchor = '''  final calls = <String>[];\n  bool failTemplate = false;\n'''
+          fields_replacement = '''  final calls = <String>[];\n  final catalogueStarts = <int>[];\n  bool failTemplate = false;\n  bool paginateCatalogue = false;\n'''
+          if text.count(fields_anchor) != 1:
+              raise SystemExit('fake client fields anchor not unique')
+          text = text.replace(fields_anchor, fields_replacement, 1)
+
+          catalogue_anchor = '''    if (method == ApiConfig.serviceCatalogueMethod) {\n      expect(queryParameters?['lightweight'], 1);\n      return {\n'''
+          catalogue_replacement = '''    if (method == ApiConfig.serviceCatalogueMethod) {\n      expect(queryParameters?['lightweight'], 1);\n      final start = (queryParameters?['start'] as num?)?.toInt() ?? 0;\n      catalogueStarts.add(start);\n      if (paginateCatalogue) {\n        if (start == 0) {\n          return {\n            'message': {\n              'services': [\n                {\n                  'id': 'ntn-registration',\n                  'title': 'NTN Registration',\n                  'category': 'Tax',\n                  'service_version': 7,\n                  'pricing_version': 'server-pricing-hash',\n                },\n              ],\n              'next_start': 50,\n              'has_more': true,\n            },\n          };\n        }\n        expect(start, 50);\n        return {\n          'message': {\n            'services': [\n              {\n                'id': 'company-registration',\n                'title': 'Company Registration',\n                'category': 'Company',\n                'service_version': 3,\n                'pricing_version': 'company-pricing-hash',\n              },\n            ],\n            'next_start': null,\n            'has_more': false,\n          },\n        };\n      }\n      return {\n'''
+          if text.count(catalogue_anchor) != 1:
+              raise SystemExit('fake catalogue branch anchor not unique')
+          test_file.write_text(text.replace(catalogue_anchor, catalogue_replacement, 1))
+          print('service_catalogue_repository_test.dart: added >50 category coverage')
+          PY
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+
+      - name: Format touched Dart files
+        shell: bash
+        run: |
+          dart format \
+            omc_app/lib/features/service_catalogue/data/service_catalogue_repository.dart \
+            omc_app/lib/features/service_catalogue/application/service_catalogue_controller.dart \
+            omc_app/lib/features/service_catalogue/presentation/service_catalogue_screen_impl.dart \
+            omc_app/test/features/service_catalogue/service_catalogue_repository_test.dart
+          git diff --check
+
+      - name: Resolve dependencies
+        working-directory: omc_app
+        run: flutter pub get
+
+      - name: Focused catalogue tests
+        working-directory: omc_app
+        run: flutter test --no-pub test/features/service_catalogue/service_catalogue_repository_test.dart
+
+      - name: Analyze
+        working-directory: omc_app
+        run: flutter analyze
+
+      - name: Full Flutter tests
+        working-directory: omc_app
+        run: flutter test --no-pub
+
+      - name: Commit verified fix and remove one-shot workflow
+        shell: bash
+        run: |
+          rm .github/workflows/uiux-catalogue-categories-fix.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix: expose all service catalogue categories'
+          git push origin HEAD:main
