@@ -1,3 +1,4 @@
+# rerun after exact document-detail anchor correction
 name: One-shot routed page conformance batch
 
 on:
@@ -36,7 +37,6 @@ jobs:
           doc_detail = Path('omc_app/lib/features/documents/presentation/document_detail_screen.dart').read_text()
           notification = Path('omc_app/lib/features/notifications/presentation/notification_detail_screen.dart').read_text()
 
-          # Routed owners remain unchanged.
           assert 'const ProfileV2Screen()' in router
           assert 'const EditProfileV2Screen()' in router
           assert 'const SettingsV2Screen()' in router
@@ -46,7 +46,6 @@ jobs:
           assert 'DocumentDetailScreen(' in router
           assert 'NotificationDetailScreen(notificationId: notificationId)' in router
 
-          # Existing authority / mutation paths remain present.
           assert 'profileSummaryProvider' in profile
           assert 'profileRepositoryProvider' in edit
           assert 'DirtyFormController' in edit
