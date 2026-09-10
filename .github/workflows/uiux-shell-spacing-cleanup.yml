@@ -58,21 +58,29 @@ jobs:
               1,
           )
 
-          for path in (
+          add_import(
               'omc_app/lib/features/home/presentation/customer_guest_home_view.dart',
+              "import 'package:flutter/material.dart';\n\n",
+              "import '../../../app/design_tokens.dart';\n",
+          )
+          replace_token(
+              'omc_app/lib/features/home/presentation/customer_guest_home_view.dart',
+              'EdgeInsets.fromLTRB(20, 18, 20, 150)',
+              'EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl)',
+              1,
+          )
+
+          add_import(
               'omc_app/lib/features/home/presentation/internal_home_view.dart',
-          ):
-              add_import(
-                  path,
-                  "import 'package:flutter/material.dart';\n\n",
-                  "import '../../../app/design_tokens.dart';\n",
-              )
-              replace_token(
-                  path,
-                  'EdgeInsets.fromLTRB(20, 18, 20, 150)',
-                  'EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl)',
-                  1,
-              )
+              "import 'package:go_router/go_router.dart';\n\n",
+              "import '../../../app/design_tokens.dart';\n",
+          )
+          replace_token(
+              'omc_app/lib/features/home/presentation/internal_home_view.dart',
+              'EdgeInsets.fromLTRB(20, 18, 20, 150)',
+              'EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl)',
+              1,
+          )
 
           for path, value, expected in (
               ('omc_app/lib/features/tasks/presentation/tasks_screen.dart', '164', 2),
