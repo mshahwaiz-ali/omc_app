@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/design_tokens.dart';
 import '../../../../app/theme.dart';
+import '../../../../core/widgets/omc_premium.dart';
 import '../../../../core/widgets/premium_card.dart';
 
 class CrmDetailHeaderCard extends StatelessWidget {
@@ -19,77 +21,69 @@ class CrmDetailHeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: EdgeInsets.zero,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: Stack(
-          children: [
-            Positioned(
-              right: -28,
-              top: -30,
-              child: Icon(
-                icon,
-                size: 108,
-                color: AppTheme.primary.withValues(alpha: 0.045),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 54,
-                    height: 54,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary.withValues(alpha: 0.09),
-                      borderRadius: BorderRadius.circular(19),
-                      border: Border.all(
-                        color: AppTheme.primary.withValues(alpha: 0.10),
-                      ),
-                    ),
-                    child: Icon(icon, color: AppTheme.primary, size: 26),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 20,
-                            height: 1.16,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                        Text(
-                          subtitle,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 13,
-                            height: 1.35,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  _CrmStatusPill(label: statusLabel),
-                ],
-              ),
-            ),
-          ],
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
+    final stackStatus = MediaQuery.sizeOf(context).width < 380 ||
+        MediaQuery.textScalerOf(context).scale(1) >= 1.45;
+
+    final identity = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: AppTouchTarget.minimum,
+          height: AppTouchTarget.minimum,
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(AppRadius.control),
+            border: Border.all(color: accent.withValues(alpha: 0.14)),
+          ),
+          child: Icon(icon, color: accent, size: 24),
         ),
-      ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                softWrap: true,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                subtitle,
+                softWrap: true,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: stackStatus
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                identity,
+                const SizedBox(height: AppSpacing.sm),
+                OmcStatusBadge(label: statusLabel.trim().isEmpty ? 'Open' : statusLabel),
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: identity),
+                const SizedBox(width: AppSpacing.sm),
+                OmcStatusBadge(label: statusLabel.trim().isEmpty ? 'Open' : statusLabel),
+              ],
+            ),
     );
   }
 }
@@ -102,39 +96,39 @@ class CrmDetailInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
     return PremiumCard(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 7,
-                height: 22,
+                width: AppSpacing.xxs,
+                height: AppSpacing.xl,
                 decoration: BoxDecoration(
-                  color: AppTheme.primary,
-                  borderRadius: BorderRadius.circular(999),
+                  color: accent,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppSpacing.xs),
               Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                child: Text(title, style: theme.textTheme.titleMedium),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          ...rows.map(
-            (row) =>
-                Padding(padding: const EdgeInsets.only(bottom: 12), child: row),
-          ),
+          const SizedBox(height: AppSpacing.md),
+          for (var index = 0; index < rows.length; index++) ...[
+            rows[index],
+            if (index != rows.length - 1)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                child: Divider(height: 1),
+              ),
+          ],
         ],
       ),
     );
@@ -149,32 +143,52 @@ class CrmInfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final safeValue = value.trim().isEmpty ? '-' : value.trim();
+    final stack = MediaQuery.sizeOf(context).width < 380 ||
+        MediaQuery.textScalerOf(context).scale(1) >= 1.45;
+
+    if (stack) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          SelectableText(
+            safeValue,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: AppTheme.textPrimary,
+            ),
+          ),
+        ],
+      );
+    }
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 104,
+          width: 120,
           child: Text(
             label,
-            style: const TextStyle(
+            style: theme.textTheme.labelMedium?.copyWith(
               color: AppTheme.textSecondary,
-              fontSize: 12,
-              height: 1.35,
-              fontWeight: FontWeight.w800,
             ),
           ),
         ),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
-          child: Text(
+          child: SelectableText(
             safeValue,
             textAlign: TextAlign.right,
-            style: const TextStyle(
+            style: theme.textTheme.bodyMedium?.copyWith(
               color: AppTheme.textPrimary,
-              fontSize: 13,
-              height: 1.35,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ),
@@ -197,39 +211,35 @@ class CrmActivityTimelineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
     return PremiumCard(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 7,
-                height: 22,
+                width: AppSpacing.xxs,
+                height: AppSpacing.xl,
                 decoration: BoxDecoration(
-                  color: AppTheme.primary,
-                  borderRadius: BorderRadius.circular(999),
+                  color: accent,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppSpacing.xs),
               Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                child: Text(title, style: theme.textTheme.titleMedium),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.md),
           if (items.isEmpty)
             _TimelineEmptyMessage(message: emptyMessage)
           else
-            ...items.map((item) => _TimelineItemTile(item: item)),
+            for (final item in items) _TimelineItemTile(item: item),
         ],
       ),
     );
@@ -250,34 +260,6 @@ class CrmTimelineItem {
   final IconData icon;
 }
 
-class _CrmStatusPill extends StatelessWidget {
-  const _CrmStatusPill({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: AppTheme.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.14)),
-      ),
-      child: Text(
-        label.trim().isEmpty ? 'Open' : label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: AppTheme.primary,
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
 class _TimelineEmptyMessage extends StatelessWidget {
   const _TimelineEmptyMessage({required this.message});
 
@@ -285,21 +267,19 @@ class _TimelineEmptyMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppTheme.background,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        color: theme.colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: AppTheme.border),
       ),
       child: Text(
         message,
-        style: const TextStyle(
+        style: theme.textTheme.bodyMedium?.copyWith(
           color: AppTheme.textSecondary,
-          fontSize: 13,
-          height: 1.35,
-          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -313,51 +293,47 @@ class _TimelineItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 31,
-            height: 31,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.08),
+              color: accent.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
-            child: Icon(item.icon, size: 16, color: AppTheme.primary),
+            alignment: Alignment.center,
+            child: Icon(item.icon, size: 18, color: accent),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   item.title,
-                  style: const TextStyle(
+                  style: theme.textTheme.titleSmall?.copyWith(
                     color: AppTheme.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xxs),
                 Text(
                   item.description,
-                  style: const TextStyle(
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     color: AppTheme.textSecondary,
-                    fontSize: 13,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (item.timeLabel != null) ...[
-                  const SizedBox(height: 4),
+                if (item.timeLabel?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: AppSpacing.xxs),
                   Text(
-                    item.timeLabel!,
-                    style: const TextStyle(
+                    item.timeLabel!.trim(),
+                    style: theme.textTheme.labelMedium?.copyWith(
                       color: AppTheme.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -384,90 +360,74 @@ class CrmDetailLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        PremiumCard(
-          padding: EdgeInsets.zero,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: Stack(
-              children: [
-                Positioned(
-                  right: -30,
-                  top: -32,
-                  child: Icon(
-                    icon,
-                    size: 112,
-                    color: AppTheme.primary.withValues(alpha: 0.04),
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inset = AppLayout.pageInsetFor(constraints.maxWidth);
+        final horizontal = constraints.maxWidth >
+                AppLayout.generalMaxWidth + inset * 2
+            ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
+            : inset;
+        return ListView(
+          padding: EdgeInsets.fromLTRB(
+            horizontal,
+            AppSpacing.lg,
+            horizontal,
+            AppSpacing.xl,
+          ),
+          children: [
+            PremiumCard(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: AppTouchTarget.minimum,
+                    height: AppTouchTarget.minimum,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(AppRadius.control),
+                    ),
+                    child: const Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2.4),
+                      ),
+                    ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(22),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 54,
-                        height: 54,
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary.withValues(alpha: 0.09),
-                          borderRadius: BorderRadius.circular(19),
-                          border: Border.all(
-                            color: AppTheme.primary.withValues(alpha: 0.10),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: theme.textTheme.headlineSmall),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          message,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.textSecondary,
                           ),
                         ),
-                        child: const Center(
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2.4),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: const TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: 20,
-                                height: 1.16,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            const SizedBox(height: 7),
-                            Text(
-                              message,
-                              style: const TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 13,
-                                height: 1.35,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const CrmDetailInfoCard(
+              title: 'Preparing details',
+              rows: [
+                CrmInfoRow(label: 'Contact', value: 'Loading'),
+                CrmInfoRow(label: 'Activity', value: 'Loading'),
+                CrmInfoRow(label: 'Timeline', value: 'Loading'),
               ],
             ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        const CrmDetailInfoCard(
-          title: 'Preparing details',
-          rows: [
-            CrmInfoRow(label: 'Contact', value: 'Loading'),
-            CrmInfoRow(label: 'Activity', value: 'Loading'),
-            CrmInfoRow(label: 'Timeline', value: 'Loading'),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 }
@@ -484,41 +444,60 @@ class CrmDetailMetaFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final safeValue = value.trim().isEmpty ? '-' : value.trim();
+    final stack = MediaQuery.sizeOf(context).width < 380 ||
+        MediaQuery.textScalerOf(context).scale(1) >= 1.45;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: AppTheme.background,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        color: theme.colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: AppTheme.border),
       ),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
+      child: stack
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                SelectableText(
+                  safeValue,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: SelectableText(
+                    safeValue,
+                    textAlign: TextAlign.right,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              safeValue,
-              textAlign: TextAlign.right,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
