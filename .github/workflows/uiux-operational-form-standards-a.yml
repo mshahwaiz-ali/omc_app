@@ -1,0 +1,782 @@
+name: One-shot UI UX operational form standards A
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/uiux-operational-form-standards-a.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply audited persistent-label fixes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new, label):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: {label}: expected 1 anchor, found {count}')
+              p.write_text(text.replace(old, new, 1))
+              print(f'{path}: {label}')
+
+          def add_import(path):
+              p = Path(path)
+              text = p.read_text()
+              imp = "import '../../../core/widgets/app_labeled_field.dart';\n"
+              if imp in text:
+                  raise SystemExit(f'{path}: app_labeled_field import already present')
+              anchor = "import '../../../app/theme.dart';\n"
+              if text.count(anchor) != 1:
+                  raise SystemExit(f'{path}: theme import anchor is not unique')
+              p.write_text(text.replace(anchor, anchor + imp, 1))
+              print(f'{path}: added AppLabeledField import')
+
+          helper = Path('omc_app/lib/core/widgets/app_labeled_field.dart')
+          if helper.exists():
+              raise SystemExit('AppLabeledField already exists; refusing ambiguous rerun')
+          helper.write_text("""import 'package:flutter/material.dart';
+
+import '../../app/design_tokens.dart';
+
+class AppLabeledField extends StatelessWidget {
+  const AppLabeledField({
+    super.key,
+    required this.label,
+    required this.child,
+    this.isRequired = false,
+  });
+
+  final String label;
+  final Widget child;
+  final bool isRequired;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          isRequired ? '$label *' : label,
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        child,
+      ],
+    );
+  }
+}
+""")
+          print('app_labeled_field.dart: created shared persistent-label primitive')
+
+          targets = [
+              'omc_app/lib/features/service_requests/presentation/service_request_draft_screen.dart',
+              'omc_app/lib/features/tax_calculator/presentation/tax_calculator_screen.dart',
+              'omc_app/lib/features/commissions/presentation/my_commissions_screen.dart',
+              'omc_app/lib/features/commissions/presentation/finance_commissions_screen.dart',
+              'omc_app/lib/features/payments/presentation/settlement_exceptions_screen.dart',
+          ]
+          for target in targets:
+              add_import(target)
+
+          path = 'omc_app/lib/features/service_requests/presentation/service_request_draft_form_sections.dart'
+          replace_once(
+              path,
+              """          TextFormField(
+            controller: remarksController,
+            minLines: 3,
+            maxLines: 6,
+            textInputAction: TextInputAction.newline,
+            decoration: const InputDecoration(
+              labelText: 'Additional notes (optional)',
+              hintText: 'Add anything else OMC should know.',
+              alignLabelWithHint: true,
+              prefixIcon: Icon(Icons.notes_outlined),
+            ),
+          ),
+""",
+              """          AppLabeledField(
+            label: 'Additional notes (optional)',
+            child: TextFormField(
+              controller: remarksController,
+              minLines: 3,
+              maxLines: 6,
+              textInputAction: TextInputAction.newline,
+              decoration: const InputDecoration(
+                hintText: 'Add anything else OMC should know.',
+                prefixIcon: Icon(Icons.notes_outlined),
+              ),
+            ),
+          ),
+""",
+              'externalized additional-notes label',
+          )
+          replace_once(
+              path,
+              """      return DropdownButtonFormField<String>(
+        focusNode: focusNode,
+        initialValue: selected,
+        isExpanded: true,
+        items: field.options
+            .map(
+              (option) => DropdownMenuItem(value: option, child: Text(option)),
+            )
+            .toList(growable: false),
+        onChanged: onSelectChanged,
+        decoration: InputDecoration(
+          labelText: field.isRequired ? '$label *' : label,
+          helperText: helperText,
+          prefixIcon: const Icon(Icons.list_alt_outlined),
+        ),
+        validator: field.isRequired
+            ? (value) => requiredValidator(value, label)
+            : null,
+      );
+""",
+              """      return AppLabeledField(
+        label: label,
+        isRequired: field.isRequired,
+        child: DropdownButtonFormField<String>(
+          focusNode: focusNode,
+          initialValue: selected,
+          isExpanded: true,
+          items: field.options
+              .map(
+                (option) => DropdownMenuItem(value: option, child: Text(option)),
+              )
+              .toList(growable: false),
+          onChanged: onSelectChanged,
+          decoration: InputDecoration(
+            helperText: helperText,
+            prefixIcon: const Icon(Icons.list_alt_outlined),
+          ),
+          validator: field.isRequired
+              ? (value) => requiredValidator(value, label)
+              : null,
+        ),
+      );
+""",
+              'externalized dynamic select label',
+          )
+          replace_once(
+              path,
+              """    return TextFormField(
+      controller: controller,
+      focusNode: focusNode,
+      minLines: _isLongTextField(field) ? 3 : 1,
+      maxLines: _isLongTextField(field) ? 6 : 1,
+      keyboardType: _keyboardTypeFor(field),
+      inputFormatters: _inputFormattersFor(field),
+      textInputAction: _isLongTextField(field)
+          ? TextInputAction.newline
+          : TextInputAction.next,
+      decoration: InputDecoration(
+        labelText: field.isRequired ? '$label *' : label,
+        hintText: field.placeholder.trim().isEmpty
+            ? null
+            : field.placeholder.trim(),
+        helperText: helperText,
+        alignLabelWithHint: _isLongTextField(field),
+        prefixIcon: Icon(_iconFor(field)),
+      ),
+      validator: field.isRequired
+          ? (value) => requiredValidator(value, label)
+          : null,
+    );
+""",
+              """    return AppLabeledField(
+      label: label,
+      isRequired: field.isRequired,
+      child: TextFormField(
+        controller: controller,
+        focusNode: focusNode,
+        minLines: _isLongTextField(field) ? 3 : 1,
+        maxLines: _isLongTextField(field) ? 6 : 1,
+        keyboardType: _keyboardTypeFor(field),
+        inputFormatters: _inputFormattersFor(field),
+        textInputAction: _isLongTextField(field)
+            ? TextInputAction.newline
+            : TextInputAction.next,
+        decoration: InputDecoration(
+          hintText: field.placeholder.trim().isEmpty
+              ? null
+              : field.placeholder.trim(),
+          helperText: helperText,
+          prefixIcon: Icon(_iconFor(field)),
+        ),
+        validator: field.isRequired
+            ? (value) => requiredValidator(value, label)
+            : null,
+      ),
+    );
+""",
+              'externalized dynamic text label',
+          )
+
+          path = 'omc_app/lib/features/tax_calculator/presentation/tax_calculator_screen.dart'
+          replace_once(
+              path,
+              """          DropdownButtonFormField<String>(
+            initialValue: currentValue,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Tax year',
+              prefixIcon: Icon(Icons.calendar_month_outlined),
+            ),
+            items: years
+                .map(
+                  (item) => DropdownMenuItem(
+                    value: item.name,
+                    child: Text(item.title),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: years.length > 1 ? onTaxYearChanged : null,
+          ),
+""",
+              """          AppLabeledField(
+            label: 'Tax year',
+            child: DropdownButtonFormField<String>(
+              initialValue: currentValue,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.calendar_month_outlined),
+              ),
+              items: years
+                  .map(
+                    (item) => DropdownMenuItem(
+                      value: item.name,
+                      child: Text(item.title),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: years.length > 1 ? onTaxYearChanged : null,
+            ),
+          ),
+""",
+              'externalized tax-year label',
+          )
+          replace_once(
+              path,
+              """          TextField(
+            controller: amountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]')),
+            ],
+            decoration: InputDecoration(
+              labelText: incomeMode == TaxIncomeMode.monthly
+                  ? 'Monthly income amount'
+                  : 'Annual income amount',
+              prefixText: '$currency ',
+            ),
+          ),
+""",
+              """          AppLabeledField(
+            label: incomeMode == TaxIncomeMode.monthly
+                ? 'Monthly income amount'
+                : 'Annual income amount',
+            child: TextField(
+              controller: amountController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]')),
+              ],
+              decoration: InputDecoration(prefixText: '$currency '),
+            ),
+          ),
+""",
+              'externalized income-amount label',
+          )
+          replace_once(
+              path,
+              """      return DropdownButtonFormField<String>(
+        focusNode: focusNode,
+        initialValue: field.options.contains(value) ? value?.toString() : null,
+        isExpanded: true,
+        decoration: InputDecoration(
+          labelText: field.isRequired ? '${field.label} *' : field.label,
+          helperText: field.helpText.isEmpty ? null : field.helpText,
+          errorText: invalid ? '${field.label} is required.' : null,
+        ),
+        items: field.options
+            .map(
+              (option) => DropdownMenuItem(value: option, child: Text(option)),
+            )
+            .toList(growable: false),
+        onChanged: onChanged,
+      );
+""",
+              """      return AppLabeledField(
+        label: field.label,
+        isRequired: field.isRequired,
+        child: DropdownButtonFormField<String>(
+          focusNode: focusNode,
+          initialValue: field.options.contains(value) ? value?.toString() : null,
+          isExpanded: true,
+          decoration: InputDecoration(
+            helperText: field.helpText.isEmpty ? null : field.helpText,
+            errorText: invalid ? '${field.label} is required.' : null,
+          ),
+          items: field.options
+              .map(
+                (option) => DropdownMenuItem(value: option, child: Text(option)),
+              )
+              .toList(growable: false),
+          onChanged: onChanged,
+        ),
+      );
+""",
+              'externalized advanced-select label',
+          )
+          replace_once(
+              path,
+              """    return TextField(
+      controller: controller,
+      focusNode: focusNode,
+      keyboardType: type == 'number'
+          ? const TextInputType.numberWithOptions(decimal: true)
+          : TextInputType.text,
+      inputFormatters: type == 'number'
+          ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))]
+          : null,
+      onChanged: (raw) => onChanged(type == 'number' ? _parseAmount(raw) : raw),
+      decoration: InputDecoration(
+        labelText: field.isRequired ? '${field.label} *' : field.label,
+        helperText: field.helpText.isEmpty ? null : field.helpText,
+        errorText: invalid ? '${field.label} is required.' : null,
+        prefixText: type == 'number' ? '$currency ' : null,
+      ),
+    );
+""",
+              """    return AppLabeledField(
+      label: field.label,
+      isRequired: field.isRequired,
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        keyboardType: type == 'number'
+            ? const TextInputType.numberWithOptions(decimal: true)
+            : TextInputType.text,
+        inputFormatters: type == 'number'
+            ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))]
+            : null,
+        onChanged: (raw) => onChanged(type == 'number' ? _parseAmount(raw) : raw),
+        decoration: InputDecoration(
+          helperText: field.helpText.isEmpty ? null : field.helpText,
+          errorText: invalid ? '${field.label} is required.' : null,
+          prefixText: type == 'number' ? '$currency ' : null,
+        ),
+      ),
+    );
+""",
+              'externalized advanced-text label',
+          )
+
+          path = 'omc_app/lib/features/commissions/presentation/my_commissions_screen.dart'
+          old = """          DropdownButtonFormField<String>(
+            initialValue: status,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Status'),
+            items: const [
+              DropdownMenuItem(value: '', child: Text('All statuses')),
+              DropdownMenuItem(value: 'Earned', child: Text('Outstanding')),
+              DropdownMenuItem(value: 'Settled', child: Text('Settled')),
+              DropdownMenuItem(value: 'Reversed', child: Text('Reversed')),
+            ],
+            onChanged: (value) => onStatusChanged(value ?? ''),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            controller: periodController,
+            decoration: const InputDecoration(
+              labelText: 'Earned month',
+              hintText: 'YYYY-MM',
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            controller: customerController,
+            decoration: const InputDecoration(labelText: 'Customer profile'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            controller: serviceController,
+            decoration: const InputDecoration(labelText: 'Service'),
+          ),
+"""
+          new = """          AppLabeledField(
+            label: 'Status',
+            child: DropdownButtonFormField<String>(
+              initialValue: status,
+              isExpanded: true,
+              decoration: const InputDecoration(),
+              items: const [
+                DropdownMenuItem(value: '', child: Text('All statuses')),
+                DropdownMenuItem(value: 'Earned', child: Text('Outstanding')),
+                DropdownMenuItem(value: 'Settled', child: Text('Settled')),
+                DropdownMenuItem(value: 'Reversed', child: Text('Reversed')),
+              ],
+              onChanged: (value) => onStatusChanged(value ?? ''),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppLabeledField(
+            label: 'Earned month',
+            child: TextField(
+              controller: periodController,
+              decoration: const InputDecoration(hintText: 'YYYY-MM'),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppLabeledField(
+            label: 'Customer profile',
+            child: TextField(
+              controller: customerController,
+              decoration: const InputDecoration(),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppLabeledField(
+            label: 'Service',
+            child: TextField(
+              controller: serviceController,
+              decoration: const InputDecoration(),
+            ),
+          ),
+"""
+          replace_once(path, old, new, 'externalized commission filter labels')
+
+          path = 'omc_app/lib/features/commissions/presentation/finance_commissions_screen.dart'
+          replace_once(
+              path,
+              """                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  minLines: 3,
+                  maxLines: 6,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Reason',
+                    alignLabelWithHint: true,
+                  ),
+                ),
+""",
+              """                AppLabeledField(
+                  label: 'Reason',
+                  isRequired: true,
+                  child: TextField(
+                    controller: controller,
+                    autofocus: true,
+                    minLines: 3,
+                    maxLines: 6,
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(),
+                  ),
+                ),
+""",
+              'externalized rejection-reason label',
+          )
+          replace_once(
+              path,
+              """                DropdownButtonFormField<String>(
+                  initialValue: _evidenceStatus,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Accounting evidence',
+                    prefixIcon: Icon(Icons.verified_outlined),
+                  ),
+                  items: const [
+""",
+              """                AppLabeledField(
+                  label: 'Accounting evidence',
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _evidenceStatus,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.verified_outlined),
+                    ),
+                    items: const [
+""",
+              'opened accounting-evidence labeled field',
+          )
+          replace_once(
+              path,
+              """                  onChanged: (value) {
+                    setState(() => _evidenceStatus = value ?? '');
+                    _load(refresh: true);
+                  },
+                ),
+                const SizedBox(height: AppSpacing.xl),
+""",
+              """                    onChanged: (value) {
+                      setState(() => _evidenceStatus = value ?? '');
+                      _load(refresh: true);
+                    },
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+""",
+              'closed accounting-evidence labeled field',
+          )
+          replace_once(
+              path,
+              """          TextField(
+            controller: _referenceController,
+            autofocus: true,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              labelText: 'Settlement reference',
+              hintText: 'Bank transfer, payment voucher or accounting ref',
+              prefixIcon: Icon(Icons.receipt_long_outlined),
+            ),
+          ),
+""",
+              """          AppLabeledField(
+            label: 'Settlement reference',
+            isRequired: true,
+            child: TextField(
+              controller: _referenceController,
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                hintText: 'Bank transfer, payment voucher or accounting ref',
+                prefixIcon: Icon(Icons.receipt_long_outlined),
+              ),
+            ),
+          ),
+""",
+              'externalized settlement-reference label',
+          )
+
+          path = 'omc_app/lib/features/payments/presentation/settlement_exceptions_screen.dart'
+          replace_once(
+              path,
+              """    final noteController = TextEditingController();
+    final decisionLabel = decision == FinanceReconciliationDecision.resolve
+""",
+              """    final noteController = TextEditingController();
+    final noteFormKey = GlobalKey<FormState>();
+    final decisionLabel = decision == FinanceReconciliationDecision.resolve
+""",
+              'added finance-note form key',
+          )
+          replace_once(
+              path,
+              """        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                decision == FinanceReconciliationDecision.resolve
+                    ? 'Confirm the accounting evidence was corrected or independently verified before recording this review as resolved. This does not repair or settle the payment.'
+                    : 'Use Ignore only for an intentional exception that should remain documented. This does not make accounting changes.',
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              TextField(
+                controller: noteController,
+                autofocus: true,
+                minLines: 3,
+                maxLines: 6,
+                decoration: const InputDecoration(
+                  labelText: 'Finance review note',
+                  hintText: 'Required: what was verified and where',
+                ),
+              ),
+            ],
+          ),
+        ),
+""",
+              """        content: SingleChildScrollView(
+          child: Form(
+            key: noteFormKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  decision == FinanceReconciliationDecision.resolve
+                      ? 'Confirm the accounting evidence was corrected or independently verified before recording this review as resolved. This does not repair or settle the payment.'
+                      : 'Use Ignore only for an intentional exception that should remain documented. This does not make accounting changes.',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                AppLabeledField(
+                  label: 'Finance review note',
+                  isRequired: true,
+                  child: TextFormField(
+                    controller: noteController,
+                    autofocus: true,
+                    minLines: 3,
+                    maxLines: 6,
+                    decoration: const InputDecoration(
+                      hintText: 'What was verified and where',
+                    ),
+                    validator: (value) => value?.trim().isEmpty ?? true
+                        ? 'Enter a finance review note.'
+                        : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+""",
+              'made finance note visibly validated',
+          )
+          replace_once(
+              path,
+              """            onPressed: () {
+              if (noteController.text.trim().isEmpty) return;
+              Navigator.pop(dialogContext, true);
+            },
+""",
+              """            onPressed: () {
+              if (noteFormKey.currentState?.validate() != true) return;
+              Navigator.pop(dialogContext, true);
+            },
+""",
+              'wired finance-note validation',
+          )
+          replace_once(
+              path,
+              """          DropdownButtonFormField<String>(
+            initialValue: status,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Review status',
+              prefixIcon: Icon(Icons.filter_alt_outlined),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'Open', child: Text('Open')),
+              DropdownMenuItem(value: 'Resolved', child: Text('Resolved')),
+              DropdownMenuItem(value: 'Ignored', child: Text('Ignored')),
+              DropdownMenuItem(value: 'All', child: Text('All')),
+            ],
+            onChanged: (value) {
+              if (value != null) onStatusChanged(value);
+            },
+          ),
+""",
+              """          AppLabeledField(
+            label: 'Review status',
+            child: DropdownButtonFormField<String>(
+              initialValue: status,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.filter_alt_outlined),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'Open', child: Text('Open')),
+                DropdownMenuItem(value: 'Resolved', child: Text('Resolved')),
+                DropdownMenuItem(value: 'Ignored', child: Text('Ignored')),
+                DropdownMenuItem(value: 'All', child: Text('All')),
+              ],
+              onChanged: (value) {
+                if (value != null) onStatusChanged(value);
+              },
+            ),
+          ),
+""",
+              'externalized review-status label',
+          )
+
+          test = Path('omc_app/test/core/widgets/app_labeled_field_test.dart')
+          test.parent.mkdir(parents=True, exist_ok=True)
+          if test.exists():
+              raise SystemExit('AppLabeledField test already exists')
+          test.write_text("""import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:omc_app/core/widgets/app_labeled_field.dart';
+
+void main() {
+  testWidgets('renders a persistent required label above its control', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: AppLabeledField(
+            label: 'Finance review note',
+            isRequired: true,
+            child: TextField(),
+          ),
+        ),
+      ),
+    );
+
+    final label = find.text('Finance review note *');
+    final field = find.byType(TextField);
+    expect(label, findsOneWidget);
+    expect(field, findsOneWidget);
+    expect(tester.getTopLeft(label).dy, lessThan(tester.getTopLeft(field).dy));
+  });
+}
+""")
+          print('app_labeled_field_test.dart: created')
+          PY
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+
+      - name: Format touched Dart files
+        shell: bash
+        run: |
+          dart format \
+            omc_app/lib/core/widgets/app_labeled_field.dart \
+            omc_app/lib/features/service_requests/presentation/service_request_draft_screen.dart \
+            omc_app/lib/features/service_requests/presentation/service_request_draft_form_sections.dart \
+            omc_app/lib/features/tax_calculator/presentation/tax_calculator_screen.dart \
+            omc_app/lib/features/commissions/presentation/my_commissions_screen.dart \
+            omc_app/lib/features/commissions/presentation/finance_commissions_screen.dart \
+            omc_app/lib/features/payments/presentation/settlement_exceptions_screen.dart \
+            omc_app/test/core/widgets/app_labeled_field_test.dart
+          git diff --check
+
+      - name: Resolve dependencies
+        working-directory: omc_app
+        run: flutter pub get
+
+      - name: Focused operational form tests
+        working-directory: omc_app
+        run: |
+          flutter test --no-pub \
+            test/core/widgets/app_labeled_field_test.dart \
+            test/features/commissions/commission_accessibility_test.dart \
+            test/features/commissions/finance_commission_contract_test.dart \
+            test/features/payments/finance_reconciliation_contract_test.dart
+
+      - name: Analyze
+        working-directory: omc_app
+        run: flutter analyze
+
+      - name: Full Flutter tests
+        working-directory: omc_app
+        run: flutter test --no-pub
+
+      - name: Commit verified fixes and remove one-shot workflow
+        shell: bash
+        run: |
+          rm .github/workflows/uiux-operational-form-standards-a.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix: standardize operational form labels'
+          git push origin HEAD:main
