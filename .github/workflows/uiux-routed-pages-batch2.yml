@@ -1,4 +1,4 @@
-# rerun with current presentation-level authority assertions
+# final rerun with analyzer-clean Documents imports
 name: One-shot routed page conformance batch
 
 on:
@@ -20,7 +20,9 @@ jobs:
           fetch-depth: 0
 
       - name: Apply routed page fixes
-        run: python3 .github/scripts/uiux_routed_pages_batch2.py
+        run: |
+          python3 .github/scripts/uiux_routed_pages_batch2.py
+          python3 .github/scripts/uiux_routed_pages_batch2_cleanup.py
 
       - name: Preserve routing and business authority
         shell: bash
@@ -134,7 +136,8 @@ jobs:
             omc_app/test/app/uiux_routed_pages_batch2_test.dart
           git rm \
             .github/workflows/uiux-routed-pages-batch2.yml \
-            .github/scripts/uiux_routed_pages_batch2.py
+            .github/scripts/uiux_routed_pages_batch2.py \
+            .github/scripts/uiux_routed_pages_batch2_cleanup.py
           git diff --cached --check
           git commit -m 'fix: close routed page responsive contracts'
           git push origin HEAD:main
