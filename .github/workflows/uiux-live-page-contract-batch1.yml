@@ -1,4 +1,4 @@
-# retry with only confirmed focused test paths
+# diagnostic retry with isolated focused gates; source still lands only after all gates pass
 name: One-shot live page contract batch one
 
 on:
@@ -68,13 +68,17 @@ jobs:
             omc_app/test/app/uiux_live_page_contract_batch1_test.dart
           git diff --check
 
-      - name: Focused page-contract gates
+      - name: New responsive-page contract test
         working-directory: omc_app
-        shell: bash
-        run: |
-          flutter test --no-pub test/app/uiux_live_page_contract_batch1_test.dart
-          flutter test --no-pub test/app/home_placeholder_hygiene_test.dart
-          flutter test --no-pub test/app/route_access_policy_test.dart
+        run: flutter test --no-pub test/app/uiux_live_page_contract_batch1_test.dart
+
+      - name: Existing Home hygiene regression
+        working-directory: omc_app
+        run: flutter test --no-pub test/app/home_placeholder_hygiene_test.dart
+
+      - name: Existing route authority regression
+        working-directory: omc_app
+        run: flutter test --no-pub test/app/route_access_policy_test.dart
 
       - name: Analyze
         working-directory: omc_app
