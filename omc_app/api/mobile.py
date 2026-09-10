@@ -3747,20 +3747,15 @@ def _settings_bool(doc, fieldname, default=False):
     if not doc or not doc.meta.has_field(fieldname):
         return default
 
-    # Frappe Single DocTypes can return Check fields as 0 before a row exists in
-    # tabSingles. Use code defaults until an admin explicitly saves the field.
     try:
-        has_saved_value = frappe.db.exists(
-            "Singles",
-            {"doctype": doc.doctype, "field": fieldname},
+        value = frappe.db.get_single_value(
+            doc.doctype,
+            fieldname,
+            cache=False,
         )
     except Exception:
-        has_saved_value = True
-
-    if not has_saved_value:
         return default
 
-    value = doc.get(fieldname)
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "yes", "on", "enabled"}
 
