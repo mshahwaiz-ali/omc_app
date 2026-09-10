@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
+import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
@@ -545,22 +546,24 @@ class _TaxYearSection extends StatelessWidget {
                 'Select the backend tax-year configuration for this estimate.',
           ),
           const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            initialValue: currentValue,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Tax year',
-              prefixIcon: Icon(Icons.calendar_month_outlined),
+          AppLabeledField(
+            label: 'Tax year',
+            child: DropdownButtonFormField<String>(
+              initialValue: currentValue,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.calendar_month_outlined),
+              ),
+              items: years
+                  .map(
+                    (item) => DropdownMenuItem(
+                      value: item.name,
+                      child: Text(item.title),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: years.length > 1 ? onTaxYearChanged : null,
             ),
-            items: years
-                .map(
-                  (item) => DropdownMenuItem(
-                    value: item.name,
-                    child: Text(item.title),
-                  ),
-                )
-                .toList(growable: false),
-            onChanged: years.length > 1 ? onTaxYearChanged : null,
           ),
           const SizedBox(height: 14),
           Wrap(
@@ -643,17 +646,19 @@ class _IncomeSection extends StatelessWidget {
             onChanged: onIncomeModeChanged,
           ),
           const SizedBox(height: 20),
-          TextField(
-            controller: amountController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]')),
-            ],
-            decoration: InputDecoration(
-              labelText: incomeMode == TaxIncomeMode.monthly
-                  ? 'Monthly income amount'
-                  : 'Annual income amount',
-              prefixText: '$currency ',
+          AppLabeledField(
+            label: incomeMode == TaxIncomeMode.monthly
+                ? 'Monthly income amount'
+                : 'Annual income amount',
+            child: TextField(
+              controller: amountController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]')),
+              ],
+              decoration: InputDecoration(prefixText: '$currency '),
             ),
           ),
           const SizedBox(height: 20),
@@ -789,39 +794,49 @@ class _AdvancedField extends StatelessWidget {
     }
 
     if (type == 'select' && field.options.isNotEmpty) {
-      return DropdownButtonFormField<String>(
-        focusNode: focusNode,
-        initialValue: field.options.contains(value) ? value?.toString() : null,
-        isExpanded: true,
-        decoration: InputDecoration(
-          labelText: field.isRequired ? '${field.label} *' : field.label,
-          helperText: field.helpText.isEmpty ? null : field.helpText,
-          errorText: invalid ? '${field.label} is required.' : null,
+      return AppLabeledField(
+        label: field.label,
+        isRequired: field.isRequired,
+        child: DropdownButtonFormField<String>(
+          focusNode: focusNode,
+          initialValue: field.options.contains(value)
+              ? value?.toString()
+              : null,
+          isExpanded: true,
+          decoration: InputDecoration(
+            helperText: field.helpText.isEmpty ? null : field.helpText,
+            errorText: invalid ? '${field.label} is required.' : null,
+          ),
+          items: field.options
+              .map(
+                (option) =>
+                    DropdownMenuItem(value: option, child: Text(option)),
+              )
+              .toList(growable: false),
+          onChanged: onChanged,
         ),
-        items: field.options
-            .map(
-              (option) => DropdownMenuItem(value: option, child: Text(option)),
-            )
-            .toList(growable: false),
-        onChanged: onChanged,
       );
     }
 
-    return TextField(
-      controller: controller,
-      focusNode: focusNode,
-      keyboardType: type == 'number'
-          ? const TextInputType.numberWithOptions(decimal: true)
-          : TextInputType.text,
-      inputFormatters: type == 'number'
-          ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))]
-          : null,
-      onChanged: (raw) => onChanged(type == 'number' ? _parseAmount(raw) : raw),
-      decoration: InputDecoration(
-        labelText: field.isRequired ? '${field.label} *' : field.label,
-        helperText: field.helpText.isEmpty ? null : field.helpText,
-        errorText: invalid ? '${field.label} is required.' : null,
-        prefixText: type == 'number' ? '$currency ' : null,
+    return AppLabeledField(
+      label: field.label,
+      isRequired: field.isRequired,
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        keyboardType: type == 'number'
+            ? const TextInputType.numberWithOptions(decimal: true)
+            : TextInputType.text,
+        inputFormatters: type == 'number'
+            ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))]
+            : null,
+        onChanged: (raw) =>
+            onChanged(type == 'number' ? _parseAmount(raw) : raw),
+        decoration: InputDecoration(
+          helperText: field.helpText.isEmpty ? null : field.helpText,
+          errorText: invalid ? '${field.label} is required.' : null,
+          prefixText: type == 'number' ? '$currency ' : null,
+        ),
       ),
     );
   }

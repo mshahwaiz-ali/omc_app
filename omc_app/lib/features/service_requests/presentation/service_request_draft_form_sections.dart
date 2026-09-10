@@ -51,16 +51,17 @@ class _DynamicFormCard extends StatelessWidget {
             ),
             const SizedBox(height: 14),
           ],
-          TextFormField(
-            controller: remarksController,
-            minLines: 3,
-            maxLines: 6,
-            textInputAction: TextInputAction.newline,
-            decoration: const InputDecoration(
-              labelText: 'Additional notes (optional)',
-              hintText: 'Add anything else OMC should know.',
-              alignLabelWithHint: true,
-              prefixIcon: Icon(Icons.notes_outlined),
+          AppLabeledField(
+            label: 'Additional notes (optional)',
+            child: TextFormField(
+              controller: remarksController,
+              minLines: 3,
+              maxLines: 6,
+              textInputAction: TextInputAction.newline,
+              decoration: const InputDecoration(
+                hintText: 'Add anything else OMC should know.',
+                prefixIcon: Icon(Icons.notes_outlined),
+              ),
             ),
           ),
         ],
@@ -140,49 +141,55 @@ class _DynamicField extends StatelessWidget {
 
     if (_isSelectField(field) && field.options.isNotEmpty) {
       final selected = field.options.contains(selectValue) ? selectValue : null;
-      return DropdownButtonFormField<String>(
+      return AppLabeledField(
+        label: label,
+        isRequired: field.isRequired,
+        child: DropdownButtonFormField<String>(
+          focusNode: focusNode,
+          initialValue: selected,
+          isExpanded: true,
+          items: field.options
+              .map(
+                (option) =>
+                    DropdownMenuItem(value: option, child: Text(option)),
+              )
+              .toList(growable: false),
+          onChanged: onSelectChanged,
+          decoration: InputDecoration(
+            helperText: helperText,
+            prefixIcon: const Icon(Icons.list_alt_outlined),
+          ),
+          validator: field.isRequired
+              ? (value) => requiredValidator(value, label)
+              : null,
+        ),
+      );
+    }
+
+    return AppLabeledField(
+      label: label,
+      isRequired: field.isRequired,
+      child: TextFormField(
+        controller: controller,
         focusNode: focusNode,
-        initialValue: selected,
-        isExpanded: true,
-        items: field.options
-            .map(
-              (option) => DropdownMenuItem(value: option, child: Text(option)),
-            )
-            .toList(growable: false),
-        onChanged: onSelectChanged,
+        minLines: _isLongTextField(field) ? 3 : 1,
+        maxLines: _isLongTextField(field) ? 6 : 1,
+        keyboardType: _keyboardTypeFor(field),
+        inputFormatters: _inputFormattersFor(field),
+        textInputAction: _isLongTextField(field)
+            ? TextInputAction.newline
+            : TextInputAction.next,
         decoration: InputDecoration(
-          labelText: field.isRequired ? '$label *' : label,
+          hintText: field.placeholder.trim().isEmpty
+              ? null
+              : field.placeholder.trim(),
           helperText: helperText,
-          prefixIcon: const Icon(Icons.list_alt_outlined),
+          prefixIcon: Icon(_iconFor(field)),
         ),
         validator: field.isRequired
             ? (value) => requiredValidator(value, label)
             : null,
-      );
-    }
-
-    return TextFormField(
-      controller: controller,
-      focusNode: focusNode,
-      minLines: _isLongTextField(field) ? 3 : 1,
-      maxLines: _isLongTextField(field) ? 6 : 1,
-      keyboardType: _keyboardTypeFor(field),
-      inputFormatters: _inputFormattersFor(field),
-      textInputAction: _isLongTextField(field)
-          ? TextInputAction.newline
-          : TextInputAction.next,
-      decoration: InputDecoration(
-        labelText: field.isRequired ? '$label *' : label,
-        hintText: field.placeholder.trim().isEmpty
-            ? null
-            : field.placeholder.trim(),
-        helperText: helperText,
-        alignLabelWithHint: _isLongTextField(field),
-        prefixIcon: Icon(_iconFor(field)),
       ),
-      validator: field.isRequired
-          ? (value) => requiredValidator(value, label)
-          : null,
     );
   }
 }
