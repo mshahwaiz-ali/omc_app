@@ -1,0 +1,33 @@
+name: One-shot exact UIUX source scan
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/uiux-final-source-scan.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Exact current source scan
+        run: python3 .github/scripts/uiux_final_source_scan.py
+
+      - name: Cleanup diagnostic files
+        shell: bash
+        run: |
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || { echo 'main moved; refusing stale cleanup'; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/uiux-final-source-scan.yml .github/scripts/uiux_final_source_scan.py
+          git commit -m 'chore: complete exact uiux source scan'
+          git push origin HEAD:main
