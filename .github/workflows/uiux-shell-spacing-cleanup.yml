@@ -1,0 +1,121 @@
+name: One-shot UI UX shell spacing cleanup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/uiux-shell-spacing-cleanup.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply exact audited spacing replacements
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_token(path, old, new, expected):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f'{path}: expected {expected} occurrences of {old!r}, found {count}')
+              p.write_text(text.replace(old, new))
+              print(f'{path}: replaced {count} occurrence(s)')
+
+          def add_import(path, anchor, import_line):
+              p = Path(path)
+              text = p.read_text()
+              if import_line in text:
+                  return
+              count = text.count(anchor)
+              if count != 1:
+                  raise SystemExit(f'{path}: import anchor count is {count}, expected 1')
+              p.write_text(text.replace(anchor, anchor + import_line, 1))
+              print(f'{path}: added design-token import')
+
+          replace_token(
+              'omc_app/lib/features/home/presentation/approved_customer_home_view.dart',
+              'EdgeInsets.fromLTRB(20, 18, 20, 150)',
+              'EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl)',
+              2,
+          )
+          replace_token(
+              'omc_app/lib/features/home/presentation/approved_customer_home_support.dart',
+              'EdgeInsets.fromLTRB(20, 18, 20, 150)',
+              'EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl)',
+              1,
+          )
+
+          for path in (
+              'omc_app/lib/features/home/presentation/customer_guest_home_view.dart',
+              'omc_app/lib/features/home/presentation/internal_home_view.dart',
+          ):
+              add_import(
+                  path,
+                  "import 'package:flutter/material.dart';\n\n",
+                  "import '../../../app/design_tokens.dart';\n",
+              )
+              replace_token(
+                  path,
+                  'EdgeInsets.fromLTRB(20, 18, 20, 150)',
+                  'EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl)',
+                  1,
+              )
+
+          for path, value, expected in (
+              ('omc_app/lib/features/tasks/presentation/tasks_screen.dart', '164', 2),
+              ('omc_app/lib/features/leads/presentation/leads_screen.dart', '164', 1),
+              ('omc_app/lib/features/internal_workspace/presentation/internal_workspace_screen.dart', '164', 1),
+              ('omc_app/lib/features/internal_workspace/presentation/internal_service_cases_screen.dart', '164', 1),
+              ('omc_app/lib/features/internal_workspace/presentation/internal_operations_center_screen.dart', '164', 2),
+              ('omc_app/lib/features/service_catalogue/presentation/service_catalogue_screen_impl.dart', '122', 1),
+              ('omc_app/lib/features/service_catalogue/presentation/service_detail_screen_impl.dart', '122', 1),
+          ):
+              replace_token(path, value, 'AppSpacing.xl', expected)
+
+          workflow = Path('.github/workflows/uiux-shell-spacing-cleanup.yml')
+          if not workflow.exists():
+              raise SystemExit('one-shot workflow file disappeared unexpectedly')
+          PY
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        working-directory: omc_app
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: omc_app
+        run: flutter analyze
+
+      - name: Test
+        working-directory: omc_app
+        run: flutter test --no-pub
+
+      - name: Commit verified cleanup and remove one-shot workflow
+        shell: bash
+        run: |
+          rm .github/workflows/uiux-shell-spacing-cleanup.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix: remove duplicated shell bottom spacing'
+          git push origin HEAD:main
