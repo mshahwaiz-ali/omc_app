@@ -52,8 +52,9 @@ class PaymentDetailScreen extends ConsumerWidget {
       body: paymentAsync.when(
         data: (payment) {
           if (payment == null) {
-            return const Padding(
-              padding: EdgeInsets.all(20),
+            return const OmcPagePadding(
+              topPadding: AppSpacing.lg,
+              bottomPadding: AppSpacing.xl,
               child: AppEmptyState(
                 icon: Icons.account_balance_wallet_outlined,
                 title: 'Payment unavailable',
@@ -70,8 +71,9 @@ class PaymentDetailScreen extends ConsumerWidget {
           );
         },
         loading: () => const _DetailLoadingView(),
-        error: (error, _) => Padding(
-          padding: const EdgeInsets.all(20),
+        error: (error, _) => OmcPagePadding(
+          topPadding: AppSpacing.lg,
+          bottomPadding: AppSpacing.xl,
           child: AppErrorState.fromError(
             error: error,
             fallbackTitle: 'Payment unavailable',
@@ -92,8 +94,9 @@ class _DetailLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, AppSpacing.xl),
+    return OmcPageListView(
+      topPadding: AppSpacing.lg,
+      bottomPadding: AppSpacing.xl,
       children: [
         PremiumCard(
           padding: const EdgeInsets.all(20),
@@ -575,9 +578,10 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
     final theme = Theme.of(context);
     final capabilities = ref.watch(authControllerProvider).capabilities;
 
-    return ListView(
+    return OmcPageListView(
+      topPadding: AppSpacing.md,
+      bottomPadding: AppSpacing.xl,
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, AppSpacing.xl),
       children: [
         _PaymentHeroCard(
           payment: payment,

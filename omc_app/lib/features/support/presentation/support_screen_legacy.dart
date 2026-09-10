@@ -83,12 +83,10 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
     return UnsavedChangesGuard(
       controller: _dirtyFormController,
       child: SafeArea(
-        child: ListView(
+        child: OmcPageListView(
+          topPadding: 18,
+          bottomPadding: AppSpacing.xl,
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 112),
           children: [
             PremiumListHeader(
               icon: Icons.support_agent_rounded,

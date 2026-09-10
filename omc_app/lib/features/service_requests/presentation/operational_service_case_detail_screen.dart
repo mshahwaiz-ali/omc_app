@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/mutation_invalidation.dart';
 import '../../../app/theme.dart';
 import '../../../core/forms/dirty_form_controller.dart';
@@ -86,9 +87,10 @@ class _OperationalServiceCaseDetailScreenState
         top: false,
         child: caseAsync.when(
           loading: () => const LoadingView(message: 'Loading service request'),
-          error: (error, _) => ListView(
+          error: (error, _) => OmcPageListView(
+            topPadding: AppSpacing.lg,
+            bottomPadding: AppSpacing.xxl,
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
             children: [
               AppErrorState.fromError(
                 error: error,
@@ -108,9 +110,10 @@ class _OperationalServiceCaseDetailScreenState
           ),
           data: (serviceCase) {
             if (serviceCase == null) {
-              return ListView(
+              return OmcPageListView(
+                topPadding: AppSpacing.lg,
+                bottomPadding: AppSpacing.xxl,
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
                 children: [
                   AppEmptyState(
                     icon: Icons.search_off_rounded,
@@ -161,11 +164,9 @@ class _OperationalServiceCaseDetailScreenState
                   // Provider remains in its authoritative error state.
                 }
               },
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
+              child: OmcPageListView(
+                topPadding: AppSpacing.sm,
+                bottomPadding: AppSpacing.xxl,
                 children: [
                   _AssistedIdentityCard(
                     serviceCase: serviceCase,

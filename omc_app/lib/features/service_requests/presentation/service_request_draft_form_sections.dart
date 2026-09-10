@@ -492,48 +492,57 @@ class _SubmitRequestBar extends StatelessWidget {
         ),
         child: SafeArea(
           top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final useStackedLayout =
-                    constraints.maxWidth < 390 ||
-                    MediaQuery.textScalerOf(context).scale(1) >= 1.35;
-                final status = Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    statusText,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppTheme.textSecondary,
-                      fontWeight: FontWeight.w600,
-                      height: 1.35,
-                    ),
-                  ),
-                );
-                final button = AppButton(
-                  label: 'Submit request',
-                  icon: Icons.arrow_forward_rounded,
-                  isLoading: isSubmitting,
-                  onPressed: isSubmitting ? null : onSubmit,
-                );
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: AppLayout.formMaxWidth + 32,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final useStackedLayout =
+                        constraints.maxWidth < 390 ||
+                        MediaQuery.textScalerOf(context).scale(1) >= 1.35;
+                    final status = Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        statusText,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: AppTheme.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                    final button = AppButton(
+                      label: 'Submit request',
+                      icon: Icons.arrow_forward_rounded,
+                      isLoading: isSubmitting,
+                      onPressed: isSubmitting ? null : onSubmit,
+                    );
 
-                if (useStackedLayout) {
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [status, const SizedBox(height: 10), button],
-                  );
-                }
+                    if (useStackedLayout) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [status, const SizedBox(height: 10), button],
+                      );
+                    }
 
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(child: status),
-                    const SizedBox(width: 16),
-                    SizedBox(width: 190, child: button),
-                  ],
-                );
-              },
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(child: status),
+                        const SizedBox(width: 16),
+                        SizedBox(width: 190, child: button),
+                      ],
+                    );
+                  },
+                ),
+              ),
             ),
           ),
         ),

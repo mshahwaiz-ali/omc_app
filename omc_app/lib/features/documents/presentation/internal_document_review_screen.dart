@@ -344,9 +344,10 @@ class _InternalDocumentReviewScreenState
               }
 
               if (snapshot.hasError) {
-                return ListView(
+                return OmcPageListView(
+                  topPadding: AppSpacing.lg,
+                  bottomPadding: AppSpacing.xl,
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(20),
                   children: [
                     AppErrorState.fromError(
                       error: snapshot.error!,
@@ -490,10 +491,11 @@ class _ReviewContent extends StatelessWidget {
     final groups = _ServiceDocumentGroup.fromDocuments(filteredDocuments);
     final selectedGroup = _selectedGroup(groups, selectedServiceReference);
 
-    return ListView(
+    return OmcPageListView(
+      topPadding: 18,
+      bottomPadding: AppSpacing.xl,
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl),
       children: [
         PremiumListHeader(
           icon: Icons.fact_check_outlined,
@@ -1226,9 +1228,10 @@ class _ReviewLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return OmcPageListView(
+      topPadding: 18,
+      bottomPadding: AppSpacing.xl,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl),
       children: const [
         PremiumListHeader(
           icon: Icons.fact_check_outlined,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../core/widgets/omc_premium.dart';
@@ -78,11 +79,9 @@ class _TaxCalculationHistoryScreenState
           return RefreshIndicator.adaptive(
             onRefresh: () async =>
                 ref.invalidate(taxCalculationRepositoryProvider),
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+            child: OmcPageListView(
+              topPadding: AppSpacing.sm,
+              bottomPadding: AppSpacing.xxl,
               children: [
                 _HistoryFilterSummary(
                   incomeTypes: _incomeTypeFilters,
@@ -113,9 +112,11 @@ class _TaxCalculationHistoryScreenState
                         'Your saved estimates still exist. Try another income type or filer status.',
                   )
                 else
-                  for (var index = 0;
-                      index < filteredItems.length;
-                      index++) ...[
+                  for (
+                    var index = 0;
+                    index < filteredItems.length;
+                    index++
+                  ) ...[
                     _HistoryCard(item: filteredItems[index]),
                     if (index != filteredItems.length - 1)
                       const SizedBox(height: 10),
@@ -270,7 +271,9 @@ class _HistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final taxYear = item.taxYear.trim().isEmpty ? 'Tax year not labelled' : item.taxYear.trim();
+    final taxYear = item.taxYear.trim().isEmpty
+        ? 'Tax year not labelled'
+        : item.taxYear.trim();
     final date = item.createdOn.trim();
     final linkedRequest = item.linkedServiceRequest.trim();
 
@@ -295,10 +298,7 @@ class _HistoryCard extends StatelessWidget {
           const SizedBox(height: 14),
           const Text(
             'Estimated annual tax',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
           ),
           const SizedBox(height: 4),
           Text(
@@ -482,9 +482,10 @@ class _StateMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
+    return OmcPagePadding(
+      topPadding: AppSpacing.xl,
+      bottomPadding: AppSpacing.xl,
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

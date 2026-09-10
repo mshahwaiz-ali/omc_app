@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
@@ -62,12 +63,11 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                 ref.invalidate(serviceCasesProvider);
                 await ref.read(serviceCasesProvider.future);
               },
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 148),
+              child: OmcPageListView(
+                topPadding: 10,
+                bottomPadding: AppSpacing.xl,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 children: [
                   _TrackHeader(
                     onBack: () {
@@ -428,7 +428,9 @@ class _SearchAndFilterRow extends StatelessWidget {
                 icon: const Icon(Icons.close_rounded),
               ),
             IconButton(
-              tooltip: hasActiveFilter ? 'Filter requests, active' : 'Filter requests',
+              tooltip: hasActiveFilter
+                  ? 'Filter requests, active'
+                  : 'Filter requests',
               onPressed: onFilterTap,
               icon: Badge(
                 isLabelVisible: hasActiveFilter,
@@ -572,7 +574,8 @@ class _ServiceCard extends StatelessWidget {
     final reference = serviceCase.reference?.trim();
     final nextStep = serviceCase.nextStep?.trim();
     final missingCount =
-        serviceCase.missingDocumentsCount ?? serviceCase.missingDocuments.length;
+        serviceCase.missingDocumentsCount ??
+        serviceCase.missingDocuments.length;
     final needsUpload =
         state.needsAction &&
         capabilities.canUploadDocuments &&
@@ -602,7 +605,8 @@ class _ServiceCard extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final stacked = constraints.maxWidth < 340 ||
+              final stacked =
+                  constraints.maxWidth < 340 ||
                   MediaQuery.textScalerOf(context).scale(1) >= 1.45;
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -633,7 +637,9 @@ class _ServiceCard extends StatelessWidget {
                     dateLabel: state.isClosed
                         ? 'Closed ${serviceCase.updatedAtLabel}'
                         : 'Updated ${serviceCase.updatedAtLabel}',
-                    actionLabel: needsUpload ? 'Upload documents' : 'View details',
+                    actionLabel: needsUpload
+                        ? 'Upload documents'
+                        : 'View details',
                     emphasizeAction: needsUpload,
                     stacked: stacked,
                     onAction: () => context.push(route),
@@ -871,8 +877,9 @@ class _ServiceCardFooter extends StatelessWidget {
       icon: const Icon(Icons.arrow_forward_rounded, size: 18),
       label: Text(actionLabel),
       style: TextButton.styleFrom(
-        foregroundColor:
-            emphasizeAction ? AppTheme.primary : AppTheme.textPrimary,
+        foregroundColor: emphasizeAction
+            ? AppTheme.primary
+            : AppTheme.textPrimary,
       ),
     );
 
@@ -917,11 +924,9 @@ class _LoadingState extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.surfaceContainerHighest;
 
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+    return OmcPageListView(
+      topPadding: 14,
+      bottomPadding: AppSpacing.xl,
       children: [
         _LoadingBlock(width: 170, height: 30, radius: 10, color: color),
         const SizedBox(height: 10),
@@ -1107,7 +1112,10 @@ class _FilterEmptyState extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          OutlinedButton(onPressed: onClear, child: const Text('Clear filters')),
+          OutlinedButton(
+            onPressed: onClear,
+            child: const Text('Clear filters'),
+          ),
         ],
       ),
     );

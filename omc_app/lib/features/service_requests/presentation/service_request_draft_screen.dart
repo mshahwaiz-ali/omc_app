@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/diagnostics/e2e_network_audit.dart';
@@ -15,6 +16,7 @@ import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/loading_view.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../profile/data/profile_repository.dart';
@@ -156,8 +158,10 @@ class _ServiceRequestDraftScreenState
       ),
       error: (error, _) => Scaffold(
         appBar: const AppBackHeader(title: 'Start Request'),
-        body: Padding(
-          padding: const EdgeInsets.all(20),
+        body: OmcPagePadding(
+          topPadding: AppSpacing.lg,
+          bottomPadding: AppSpacing.xl,
+          maxWidth: AppLayout.formMaxWidth,
           child: AppErrorState.fromError(
             error: error,
             fallbackTitle: 'Request form unavailable',
@@ -176,18 +180,23 @@ class _ServiceRequestDraftScreenState
 
           return Scaffold(
             appBar: const AppBackHeader(title: 'Start Request'),
-            body: EmptyState(
-              title: catalogueIsEmpty
-                  ? 'No services available'
-                  : 'Service unavailable',
-              message: catalogueIsEmpty
-                  ? 'OMC has not published any mobile services yet. Please check again later.'
-                  : 'This service is no longer available. Select another service from the catalogue.',
-              icon: catalogueIsEmpty
-                  ? Icons.inventory_2_outlined
-                  : Icons.search_off_rounded,
-              actionLabel: 'Back to services',
-              onAction: () => context.go('/services'),
+            body: OmcPagePadding(
+              topPadding: AppSpacing.lg,
+              bottomPadding: AppSpacing.xl,
+              maxWidth: AppLayout.formMaxWidth,
+              child: EmptyState(
+                title: catalogueIsEmpty
+                    ? 'No services available'
+                    : 'Service unavailable',
+                message: catalogueIsEmpty
+                    ? 'OMC has not published any mobile services yet. Please check again later.'
+                    : 'This service is no longer available. Select another service from the catalogue.',
+                icon: catalogueIsEmpty
+                    ? Icons.inventory_2_outlined
+                    : Icons.search_off_rounded,
+                actionLabel: 'Back to services',
+                onAction: () => context.go('/services'),
+              ),
             ),
           );
         }
@@ -215,9 +224,11 @@ class _ServiceRequestDraftScreenState
               top: false,
               child: Form(
                 key: _formKey,
-                child: ListView(
+                child: OmcPageListView(
+                  topPadding: AppSpacing.sm,
+                  bottomPadding: AppSpacing.xl,
+                  maxWidth: AppLayout.formMaxWidth,
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 104),
                   children: [
                     _SelectedServiceCard(
                       service: service,

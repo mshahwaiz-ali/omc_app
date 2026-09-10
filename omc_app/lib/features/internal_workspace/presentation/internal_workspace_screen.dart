@@ -6,6 +6,7 @@ import '../../../app/design_tokens.dart';
 import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../payments/presentation/settlement_exceptions_screen.dart';
@@ -13,8 +14,6 @@ import '../application/internal_workspace_focus.dart';
 import '../domain/internal_service_case.dart';
 import '../domain/internal_workspace_summary.dart';
 import 'internal_workspace_providers.dart';
-
-const EdgeInsets _pagePadding = EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl);
 
 class InternalWorkspaceScreen extends ConsumerWidget {
   const InternalWorkspaceScreen({super.key});
@@ -70,11 +69,9 @@ class _WorkspaceContent extends ConsumerWidget {
         ? ref.watch(internalServiceCasesProvider)
         : null;
 
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
-      padding: _pagePadding,
+    return OmcPageListView(
+      topPadding: 18,
+      bottomPadding: AppSpacing.xl,
       children: [
         _WorkspaceHeader(
           focus: focus,
@@ -1033,9 +1030,10 @@ class _WorkspaceUnavailable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return OmcPageListView(
+      topPadding: 18,
+      bottomPadding: AppSpacing.xl,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: _pagePadding,
       children: [
         PremiumEmptyState(
           icon: Icons.dashboard_customize_outlined,
@@ -1054,9 +1052,10 @@ class _WorkspaceLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return OmcPageListView(
+      topPadding: 18,
+      bottomPadding: AppSpacing.xl,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: _pagePadding,
       children: const [
         _LoadingPanel(height: 92),
         SizedBox(height: 24),

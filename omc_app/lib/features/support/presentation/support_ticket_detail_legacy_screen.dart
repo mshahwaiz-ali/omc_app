@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/forms/dirty_form_controller.dart';
@@ -37,8 +38,9 @@ class SupportTicketDetailScreen extends ConsumerWidget {
       return const Scaffold(
         backgroundColor: AppTheme.background,
         appBar: AppBackHeader(title: 'Support'),
-        body: Padding(
-          padding: EdgeInsets.all(20),
+        body: OmcPagePadding(
+          topPadding: AppSpacing.lg,
+          bottomPadding: AppSpacing.xl,
           child: AppEmptyState(
             icon: Icons.support_agent_outlined,
             title: 'Ticket unavailable',
@@ -63,8 +65,9 @@ class SupportTicketDetailScreen extends ConsumerWidget {
       body: ticketAsync.when(
         data: (ticket) {
           if (ticket == null) {
-            return const Padding(
-              padding: EdgeInsets.all(20),
+            return const OmcPagePadding(
+              topPadding: AppSpacing.lg,
+              bottomPadding: AppSpacing.xl,
               child: AppEmptyState(
                 icon: Icons.support_agent_outlined,
                 title: 'Ticket unavailable',
@@ -77,8 +80,9 @@ class SupportTicketDetailScreen extends ConsumerWidget {
           return _SupportTicketChatBody(ticket: ticket);
         },
         loading: () => const _TicketDetailLoadingView(),
-        error: (error, _) => Padding(
-          padding: const EdgeInsets.all(20),
+        error: (error, _) => OmcPagePadding(
+          topPadding: AppSpacing.lg,
+          bottomPadding: AppSpacing.xl,
           child: AppErrorState.fromError(
             error: error,
             fallbackTitle: 'Ticket unavailable',
@@ -183,14 +187,12 @@ class _SupportTicketChatBodyState
                 ref.invalidate(supportTicketsProvider);
                 await _markTicketRead();
               },
-              child: ListView(
+              child: OmcPageListView(
+                topPadding: 14,
+                bottomPadding: AppSpacing.xl,
                 controller: _scrollController,
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
                 children: [
                   _TicketInfoCard(ticket: ticket),
                   if (canViewInternalDetails) ...[
@@ -210,13 +212,10 @@ class _SupportTicketChatBodyState
                   const SizedBox(height: 22),
                   Semantics(
                     header: true,
-                    child: const Text(
+                    child: Text(
                       'Conversation',
-                      style: TextStyle(
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         color: AppTheme.textPrimary,
-                        fontSize: 21,
-                        height: 1.2,
-                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -1304,13 +1303,11 @@ class _SupportAdminStatusCard extends StatelessWidget {
             children: [
               Semantics(
                 header: true,
-                child: const Text(
+                child: Text(
                   'Update ticket status',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 21,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(color: AppTheme.textPrimary),
                 ),
               ),
               const SizedBox(height: 6),
@@ -1365,8 +1362,9 @@ class _TicketDetailLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+    return OmcPageListView(
+      topPadding: 18,
+      bottomPadding: AppSpacing.lg,
       children: [
         PremiumCard(
           padding: const EdgeInsets.all(20),
