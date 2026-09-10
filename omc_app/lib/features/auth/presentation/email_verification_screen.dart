@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
@@ -181,6 +182,7 @@ class _EmailVerificationScreenState
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final title = _activated
         ? 'Account ready'
         : _tokenValid
@@ -200,7 +202,7 @@ class _EmailVerificationScreenState
       title: title,
       subtitle: subtitle,
       child: PremiumCard(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -209,7 +211,7 @@ class _EmailVerificationScreenState
                 liveRegion: true,
                 label: 'Checking verification link',
                 child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
                   child: Center(child: CircularProgressIndicator()),
                 ),
               )
@@ -237,7 +239,7 @@ class _EmailVerificationScreenState
                           ? AppTheme.warning
                           : AppTheme.danger,
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: AppSpacing.md),
                     Text(
                       _activated
                           ? 'Account creation complete'
@@ -246,32 +248,29 @@ class _EmailVerificationScreenState
                           : _canRetry
                           ? 'Verification check unavailable'
                           : 'Verification link unavailable',
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: theme.textTheme.titleLarge,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _message,
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(_message, style: theme.textTheme.bodyLarge),
                   ],
                 ),
               ),
               if (_tokenValid && !_activated) ...[
-                const SizedBox(height: 24),
-                Text(
-                  'Create your password',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 6),
+                const SizedBox(height: AppSpacing.xl),
+                Text('Create your password', style: theme.textTheme.titleMedium),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Use 8–128 characters and enter the same password in both fields.',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: theme.textTheme.bodyMedium,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.md),
                 Form(
                   key: _formKey,
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Text('New password', style: theme.textTheme.labelLarge),
+                      const SizedBox(height: AppSpacing.xs),
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
@@ -279,7 +278,7 @@ class _EmailVerificationScreenState
                         textInputAction: TextInputAction.next,
                         validator: _validatePassword,
                         decoration: InputDecoration(
-                          labelText: 'New password',
+                          hintText: 'Enter a new password',
                           prefixIcon: const Icon(Icons.lock_outline_rounded),
                           suffixIcon: IconButton(
                             tooltip: _obscurePassword
@@ -296,7 +295,9 @@ class _EmailVerificationScreenState
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppSpacing.md),
+                      Text('Confirm password', style: theme.textTheme.labelLarge),
+                      const SizedBox(height: AppSpacing.xs),
                       TextFormField(
                         controller: _confirmPasswordController,
                         obscureText: _obscureConfirmPassword,
@@ -305,7 +306,7 @@ class _EmailVerificationScreenState
                         validator: _validateConfirmation,
                         onFieldSubmitted: (_) => _completeRegistration(),
                         decoration: InputDecoration(
-                          labelText: 'Confirm password',
+                          hintText: 'Re-enter the new password',
                           prefixIcon: const Icon(Icons.lock_reset_rounded),
                           suffixIcon: IconButton(
                             tooltip: _obscureConfirmPassword
@@ -326,7 +327,7 @@ class _EmailVerificationScreenState
                     ],
                   ),
                 ),
-                const SizedBox(height: 22),
+                const SizedBox(height: AppSpacing.xl),
                 AppButton(
                   label: 'Create account',
                   icon: Icons.person_add_alt_1_rounded,
@@ -334,14 +335,14 @@ class _EmailVerificationScreenState
                   onPressed: _completing ? null : _completeRegistration,
                 ),
               ],
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.xl),
               if (_canRetry) ...[
                 AppButton(
                   label: 'Try again',
                   icon: Icons.refresh_rounded,
                   onPressed: _inspectToken,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: AppSpacing.xs),
               ],
               OutlinedButton.icon(
                 onPressed: () => context.go('/login'),
