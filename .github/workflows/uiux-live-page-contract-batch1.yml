@@ -1,4 +1,4 @@
-# verification rerun: formatting-insensitive status contract
+# verification rerun: analyzer import fix included
 name: One-shot live page contract batch one
 
 on:
@@ -23,6 +23,7 @@ jobs:
         run: |
           python3 .github/scripts/uiux_live_page_contract_batch1.py
           python3 .github/scripts/uiux_live_page_contract_batch1_dashboard_states.py
+          python3 .github/scripts/uiux_live_page_contract_batch1_notifications_import.py
           python3 .github/scripts/uiux_live_page_contract_batch1_test_split.py
 
       - name: Static authority invariants
@@ -130,6 +131,7 @@ jobs:
             .github/workflows/uiux-live-page-contract-batch1.yml \
             .github/scripts/uiux_live_page_contract_batch1.py \
             .github/scripts/uiux_live_page_contract_batch1_dashboard_states.py \
+            .github/scripts/uiux_live_page_contract_batch1_notifications_import.py \
             .github/scripts/uiux_live_page_contract_batch1_test_split.py
           git diff --cached --check
           git commit -m 'fix: enforce live responsive page contracts'
