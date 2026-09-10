@@ -13,6 +13,14 @@ def once(text, old, new, label):
     return text.replace(old, new, 1)
 
 
+def replace_in_block(text, start_marker, end_marker, old, new, label):
+    start = text.index(start_marker)
+    end = text.index(end_marker, start)
+    block = text[start:end]
+    block = once(block, old, new, label)
+    return text[:start] + block + text[end:]
+
+
 view = view_path.read_text()
 helper = '''class _CustomerHomeListView extends StatelessWidget {
   const _CustomerHomeListView({required this.children});
@@ -86,14 +94,18 @@ service = once(
                             fontWeight: FontWeight.w600,''',
     'approved home notification badge typography',
 )
-service = once(
+service = replace_in_block(
     service,
+    'class _CurrentServiceCard',
+    'class _ServiceJourneyExpansion',
     'padding: const EdgeInsets.all(18),',
     'padding: const EdgeInsets.all(AppSpacing.lg),',
     'approved home current service card padding',
 )
-service = once(
+service = replace_in_block(
     service,
+    'class _CompactServiceCard',
+    'class _NoActiveServiceCard',
     'padding: const EdgeInsets.all(14),',
     'padding: const EdgeInsets.all(AppSpacing.md),',
     'approved home compact service card padding',
