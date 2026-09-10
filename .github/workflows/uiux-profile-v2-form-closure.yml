@@ -22,80 +22,8 @@ jobs:
       - name: Apply routed profile form closure
         shell: bash
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path('omc_app/lib/features/profile/presentation/edit_profile_v2_screen.dart')
-          text = path.read_text()
-
-          imp = "import '../../../core/widgets/app_labeled_field.dart';\n"
-          anchor = "import '../../../core/widgets/app_back_header.dart';\n"
-          if imp not in text:
-              if text.count(anchor) != 1:
-                  raise SystemExit(f'import anchor count={text.count(anchor)}')
-              text = text.replace(anchor, anchor + imp, 1)
-
-          old = '''  @override
-          Widget build(BuildContext context) {
-            return TextFormField(
-              controller: controller,
-              keyboardType: keyboardType,
-              textCapitalization: textCapitalization,
-              minLines: minLines,
-              maxLines: maxLines,
-              validator: validator,
-              decoration: InputDecoration(
-                labelText: label,
-                prefixIcon: Icon(icon),
-                alignLabelWithHint: maxLines > 1,
-              ),
-            );
-          }
-'''.replace('          ', '')
-          new = '''  @override
-  Widget build(BuildContext context) {
-    return AppLabeledField(
-      label: label,
-      isRequired: validator != null,
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        textCapitalization: textCapitalization,
-        minLines: minLines,
-        maxLines: maxLines,
-        validator: validator,
-        decoration: InputDecoration(
-          prefixIcon: Icon(icon),
-          alignLabelWithHint: maxLines > 1,
-        ),
-      ),
-    );
-  }
-'''
-          if text.count(old) != 1:
-              raise SystemExit(f'_SheetTextField anchor count={text.count(old)}')
-          text = text.replace(old, new, 1)
-
-          handle = '''                      Center(
-                        child: Container(
-                          width: 42,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: AppTheme.border,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-'''
-          if text.count(handle) != 1:
-              raise SystemExit(f'custom drag handle count={text.count(handle)}')
-          text = text.replace(handle, '', 1)
-
-          if 'labelText: label' in text:
-              raise SystemExit('floating profile sheet label still present')
-          path.write_text(text)
-          PY
+          echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpwYXRoID0gUGF0aCgib21jX2FwcC9saWIvZmVhdHVyZXMvcHJvZmlsZS9wcmVzZW50YXRpb24vZWRpdF9wcm9maWxlX3YyX3NjcmVlbi5kYXJ0IikKdGV4dCA9IHBhdGgucmVhZF90ZXh0KCkKCmltcCA9ICJpbXBvcnQgJy4uLy4uLy4uL2NvcmUvd2lkZ2V0cy9hcHBfbGFiZWxlZF9maWVsZC5kYXJ0JztcbiIKYW5jaG9yID0gImltcG9ydCAnLi4vLi4vLi4vY29yZS93aWRnZXRzL2FwcF9iYWNrX2hlYWRlci5kYXJ0JztcbiIKaWYgaW1wIG5vdCBpbiB0ZXh0OgogICAgaWYgdGV4dC5jb3VudChhbmNob3IpICE9IDE6CiAgICAgICAgcmFpc2UgU3lzdGVtRXhpdChmImltcG9ydCBhbmNob3IgY291bnQ9e3RleHQuY291bnQoYW5jaG9yKX0iKQogICAgdGV4dCA9IHRleHQucmVwbGFjZShhbmNob3IsIGFuY2hvciArIGltcCwgMSkKCm9sZCA9ICIiIiAgQG92ZXJyaWRlCiAgV2lkZ2V0IGJ1aWxkKEJ1aWxkQ29udGV4dCBjb250ZXh0KSB7CiAgICByZXR1cm4gVGV4dEZvcm1GaWVsZCgKICAgICAgY29udHJvbGxlcjogY29udHJvbGxlciwKICAgICAga2V5Ym9hcmRUeXBlOiBrZXlib2FyZFR5cGUsCiAgICAgIHRleHRDYXBpdGFsaXphdGlvbjogdGV4dENhcGl0YWxpemF0aW9uLAogICAgICBtaW5MaW5lczogbWluTGluZXMsCiAgICAgIG1heExpbmVzOiBtYXhMaW5lcywKICAgICAgdmFsaWRhdG9yOiB2YWxpZGF0b3IsCiAgICAgIGRlY29yYXRpb246IElucHV0RGVjb3JhdGlvbigKICAgICAgICBsYWJlbFRleHQ6IGxhYmVsLAogICAgICAgIHByZWZpeEljb246IEljb24oaWNvbiksCiAgICAgICAgYWxpZ25MYWJlbFdpdGhIaW50OiBtYXhMaW5lcyA+IDEsCiAgICAgICksCiAgICApOwogIH0KIiIiCm5ldyA9ICIiIiAgQG92ZXJyaWRlCiAgV2lkZ2V0IGJ1aWxkKEJ1aWxkQ29udGV4dCBjb250ZXh0KSB7CiAgICByZXR1cm4gQXBwTGFiZWxlZEZpZWxkKAogICAgICBsYWJlbDogbGFiZWwsCiAgICAgIGlzUmVxdWlyZWQ6IHZhbGlkYXRvciAhPSBudWxsLAogICAgICBjaGlsZDogVGV4dEZvcm1GaWVsZCgKICAgICAgICBjb250cm9sbGVyOiBjb250cm9sbGVyLAogICAgICAgIGtleWJvYXJkVHlwZToga2V5Ym9hcmRUeXBlLAogICAgICAgIHRleHRDYXBpdGFsaXphdGlvbjogdGV4dENhcGl0YWxpemF0aW9uLAogICAgICAgIG1pbkxpbmVzOiBtaW5MaW5lcywKICAgICAgICBtYXhMaW5lczogbWF4TGluZXMsCiAgICAgICAgdmFsaWRhdG9yOiB2YWxpZGF0b3IsCiAgICAgICAgZGVjb3JhdGlvbjogSW5wdXREZWNvcmF0aW9uKAogICAgICAgICAgcHJlZml4SWNvbjogSWNvbihpY29uKSwKICAgICAgICAgIGFsaWduTGFiZWxXaXRoSGludDogbWF4TGluZXMgPiAxLAogICAgICAgICksCiAgICAgICksCiAgICApOwogIH0KIiIiCmlmIHRleHQuY291bnQob2xkKSAhPSAxOgogICAgcmFpc2UgU3lzdGVtRXhpdChmIl9TaGVldFRleHRGaWVsZCBhbmNob3IgY291bnQ9e3RleHQuY291bnQob2xkKX0iKQp0ZXh0ID0gdGV4dC5yZXBsYWNlKG9sZCwgbmV3LCAxKQoKaGFuZGxlID0gIiIiICAgICAgICAgICAgICAgICAgICAgIENlbnRlcigKICAgICAgICAgICAgICAgICAgICAgICAgY2hpbGQ6IENvbnRhaW5lcigKICAgICAgICAgICAgICAgICAgICAgICAgICB3aWR0aDogNDIsCiAgICAgICAgICAgICAgICAgICAgICAgICAgaGVpZ2h0OiA0LAogICAgICAgICAgICAgICAgICAgICAgICAgIGRlY29yYXRpb246IEJveERlY29yYXRpb24oCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBjb2xvcjogQXBwVGhlbWUuYm9yZGVyLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgYm9yZGVyUmFkaXVzOiBCb3JkZXJSYWRpdXMuY2lyY3VsYXIoOTk5KSwKICAgICAgICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogMTgpLAoiIiIKaWYgdGV4dC5jb3VudChoYW5kbGUpICE9IDE6CiAgICByYWlzZSBTeXN0ZW1FeGl0KGYiY3VzdG9tIGRyYWcgaGFuZGxlIGNvdW50PXt0ZXh0LmNvdW50KGhhbmRsZSl9IikKdGV4dCA9IHRleHQucmVwbGFjZShoYW5kbGUsICIiLCAxKQoKaWYgImxhYmVsVGV4dDogbGFiZWwiIGluIHRleHQ6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCJmbG9hdGluZyBwcm9maWxlIHNoZWV0IGxhYmVsIHN0aWxsIHByZXNlbnQiKQoKcGF0aC53cml0ZV90ZXh0KHRleHQpCg==' | base64 -d > /tmp/apply_profile_v2_form_closure.py
+          python3 /tmp/apply_profile_v2_form_closure.py
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -134,7 +62,6 @@ jobs:
             echo 'main moved during verification; refusing stale push'
             exit 1
           fi
-
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add omc_app/lib/features/profile/presentation/edit_profile_v2_screen.dart
