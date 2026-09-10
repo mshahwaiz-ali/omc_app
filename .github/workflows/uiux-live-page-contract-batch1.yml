@@ -1,3 +1,4 @@
+# retry with only confirmed focused test paths
 name: One-shot live page contract batch one
 
 on:
@@ -74,7 +75,6 @@ jobs:
           flutter test --no-pub test/app/uiux_live_page_contract_batch1_test.dart
           flutter test --no-pub test/app/home_placeholder_hygiene_test.dart
           flutter test --no-pub test/app/route_access_policy_test.dart
-          flutter test --no-pub test/features/notifications/notification_paging_test.dart
 
       - name: Analyze
         working-directory: omc_app
