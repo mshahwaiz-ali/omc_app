@@ -10,8 +10,6 @@ import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
-import '../../auth/application/auth_controller.dart';
-import '../../auth/application/auth_state.dart';
 import '../application/service_catalogue_controller.dart';
 import '../data/service_item.dart';
 import 'service_visual_registry.dart';
@@ -87,7 +85,6 @@ class _ServiceCatalogueScreenState
     final pageAsync = ref.watch(pageProvider);
     final categoriesAsync = ref.watch(serviceCatalogueCategoriesProvider);
     final servicesAsync = pageAsync.whenData((page) => page.items);
-    ref.watch(authControllerProvider);
 
     return SafeArea(
       key: OmcWidgetKeys.servicesScreen,
@@ -898,28 +895,6 @@ String initials(String value) {
   buffer.write(parts.first[0]);
   if (parts.length > 1) buffer.write(parts.last[0]);
   return buffer.toString().toUpperCase();
-}
-
-String serviceCatalogueDisplayName(AuthState authState) {
-  final displayName = authState.displayName?.trim();
-  if (displayName != null && displayName.isNotEmpty) return displayName;
-
-  final companyName = authState.companyName?.trim();
-  if (companyName != null && companyName.isNotEmpty) return companyName;
-
-  final userId = authState.userId?.trim();
-  if (userId != null && userId.isNotEmpty) {
-    final localPart = userId.contains('@') ? userId.split('@').first : userId;
-    final pieces = localPart
-        .split(RegExp(r'[._-]+'))
-        .where((item) => item.trim().isNotEmpty)
-        .map(_titleCase)
-        .toList(growable: false);
-    if (pieces.isNotEmpty) return pieces.join(' ');
-    return localPart;
-  }
-
-  return authState.capabilities.isInternal ? 'Administrator' : 'My Services';
 }
 
 String serviceCatalogueErrorMessage(Object error) {
