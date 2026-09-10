@@ -44,4 +44,13 @@ new = r'''  test('live Dashboard page states use C2 primitive', () {
 '''
 if text.count(old) != 1:
     raise SystemExit('combined contract test anchor mismatch')
-path.write_text(text.replace(old, new, 1))
+text = text.replace(old, new, 1)
+
+# Dart format may place ?.copyWith on the next line. The contract is the
+# semantic typography role itself, not a formatting-dependent source string.
+old_status = "contains('textTheme.labelMedium?.copyWith')"
+if text.count(old_status) != 2:
+    raise SystemExit(f'status typography anchors: expected 2, found {text.count(old_status)}')
+text = text.replace(old_status, "contains('textTheme.labelMedium')")
+
+path.write_text(text)
