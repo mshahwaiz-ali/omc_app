@@ -54,10 +54,12 @@ class _InternalDiscountCard extends StatelessWidget {
             icon: Icons.sell_outlined,
           ),
           const SizedBox(height: 18),
+          Text('Discount type', style: theme.textTheme.labelLarge),
+          const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             initialValue: discountType,
             isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Discount type'),
+            decoration: const InputDecoration(hintText: 'Choose discount type'),
             items: const [
               DropdownMenuItem(value: 'Percentage', child: Text('Percentage')),
               DropdownMenuItem(
@@ -67,7 +69,14 @@ class _InternalDiscountCard extends StatelessWidget {
             ],
             onChanged: onDiscountTypeChanged,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
+          Text(
+            discountType == 'Percentage'
+                ? 'Discount percentage'
+                : 'Discount amount',
+            style: theme.textTheme.labelLarge,
+          ),
+          const SizedBox(height: 8),
           TextFormField(
             controller: discountValueController,
             focusNode: discountValueFocusNode,
@@ -76,9 +85,9 @@ class _InternalDiscountCard extends StatelessWidget {
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
             ],
             decoration: InputDecoration(
-              labelText: discountType == 'Percentage'
-                  ? 'Discount percentage'
-                  : 'Discount amount',
+              hintText: discountType == 'Percentage'
+                  ? 'Enter percentage'
+                  : 'Enter amount',
               suffixText: discountType == 'Percentage' ? '%' : currency,
             ),
             validator: (value) {
@@ -91,16 +100,16 @@ class _InternalDiscountCard extends StatelessWidget {
               return null;
             },
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
+          Text('Discount reason', style: theme.textTheme.labelLarge),
+          const SizedBox(height: 8),
           TextFormField(
             controller: discountReasonController,
             focusNode: discountReasonFocusNode,
             minLines: 2,
             maxLines: 4,
             decoration: const InputDecoration(
-              labelText: 'Discount reason',
               hintText: 'Required when a discount is applied',
-              alignLabelWithHint: true,
             ),
           ),
           if (originalPrice != null) ...[
@@ -194,6 +203,7 @@ class _SelectedServiceCard extends StatelessWidget {
         ? 'Fee to be confirmed'
         : service.priceLabel.trim();
     final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
 
     Widget serviceInfo() => Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,13 +212,14 @@ class _SelectedServiceCard extends StatelessWidget {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: AppTheme.primary.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(14),
+            color: accent.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: accent.withValues(alpha: 0.16)),
           ),
           alignment: Alignment.center,
           child: Icon(
             _serviceIcon(service.iconKey),
-            color: AppTheme.textPrimary,
+            color: accent,
             size: 23,
           ),
         ),
@@ -219,24 +230,22 @@ class _SelectedServiceCard extends StatelessWidget {
             children: [
               Text(
                 'Selected service',
-                style: theme.textTheme.bodySmall?.copyWith(
+                style: theme.textTheme.labelMedium?.copyWith(
                   color: AppTheme.textSecondary,
-                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 4),
               Text(
                 service.title,
+                softWrap: true,
                 style: theme.textTheme.titleMedium?.copyWith(
                   color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  height: 1.25,
                 ),
               ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
-                runSpacing: 6,
+                runSpacing: 8,
                 children: [
                   _RequestMetaChip(icon: Icons.payments_outlined, label: price),
                   _RequestMetaChip(
@@ -301,7 +310,7 @@ class _RequestMetaChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppTheme.border),
       ),
       child: Row(
@@ -312,9 +321,9 @@ class _RequestMetaChip extends StatelessWidget {
           Flexible(
             child: Text(
               label,
-              style: theme.textTheme.bodySmall?.copyWith(
+              softWrap: true,
+              style: theme.textTheme.labelMedium?.copyWith(
                 color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -353,6 +362,7 @@ class _ContactDetailsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return PremiumCard(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -365,18 +375,22 @@ class _ContactDetailsCard extends StatelessWidget {
             icon: Icons.person_outline_rounded,
           ),
           const SizedBox(height: 18),
+          Text('Full name', style: theme.textTheme.labelLarge),
+          const SizedBox(height: 8),
           TextFormField(
             controller: nameController,
             focusNode: nameFocusNode,
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.name],
             decoration: const InputDecoration(
-              labelText: 'Full name',
+              hintText: 'Enter full name',
               prefixIcon: Icon(Icons.person_outline_rounded),
             ),
             validator: (value) => requiredValidator(value, 'Full name'),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
+          Text('Phone or WhatsApp number', style: theme.textTheme.labelLarge),
+          const SizedBox(height: 8),
           TextFormField(
             controller: phoneController,
             focusNode: phoneFocusNode,
@@ -384,12 +398,14 @@ class _ContactDetailsCard extends StatelessWidget {
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.telephoneNumber],
             decoration: const InputDecoration(
-              labelText: 'Phone or WhatsApp number',
+              hintText: 'Enter phone or WhatsApp number',
               prefixIcon: Icon(Icons.phone_outlined),
             ),
             validator: (value) => requiredValidator(value, 'Phone number'),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
+          Text('Email', style: theme.textTheme.labelLarge),
+          const SizedBox(height: 8),
           TextFormField(
             controller: emailController,
             focusNode: emailFocusNode,
@@ -397,19 +413,21 @@ class _ContactDetailsCard extends StatelessWidget {
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.email],
             decoration: const InputDecoration(
-              labelText: 'Email',
+              hintText: 'Enter email address',
               prefixIcon: Icon(Icons.email_outlined),
             ),
             validator: emailValidator,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
+          Text('CNIC / NTN (optional)', style: theme.textTheme.labelLarge),
+          const SizedBox(height: 8),
           TextFormField(
             controller: taxIdController,
             focusNode: taxIdFocusNode,
             keyboardType: TextInputType.text,
             textInputAction: TextInputAction.next,
             decoration: const InputDecoration(
-              labelText: 'CNIC / NTN (optional)',
+              hintText: 'Enter CNIC or NTN',
               helperText:
                   'CNIC must be 13 digits. NTN should be 7–9 digits if provided.',
               prefixIcon: Icon(Icons.badge_outlined),
