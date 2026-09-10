@@ -21,6 +21,37 @@ jobs:
       - name: Capture authoritative head
         run: echo "BASE_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
+      - name: Split internal workspace state anchors
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/scripts/uiux_final_live_routed_closure.py')
+          text = path.read_text()
+          old = '''text = replace_count(
+              text,
+              """    return ListView(\\n      physics: const AlwaysScrollableScrollPhysics(),\\n      padding: _pagePadding,\\n      children: [\\n""",
+              """    return OmcPageListView(\\n      topPadding: 18,\\n      bottomPadding: AppSpacing.xl,\\n      physics: const AlwaysScrollableScrollPhysics(),\\n      children: [\\n""",
+              2,
+              'internal workspace loading/error pages',
+          )'''
+          new = '''text = replace_once(
+              text,
+              """    return ListView(\\n      physics: const AlwaysScrollableScrollPhysics(),\\n      padding: _pagePadding,\\n      children: [\\n""",
+              """    return OmcPageListView(\\n      topPadding: 18,\\n      bottomPadding: AppSpacing.xl,\\n      physics: const AlwaysScrollableScrollPhysics(),\\n      children: [\\n""",
+              'internal workspace error page',
+          )
+          text = replace_once(
+              text,
+              """    return ListView(\\n      physics: const AlwaysScrollableScrollPhysics(),\\n      padding: _pagePadding,\\n      children: const [\\n""",
+              """    return OmcPageListView(\\n      topPadding: 18,\\n      bottomPadding: AppSpacing.xl,\\n      physics: const AlwaysScrollableScrollPhysics(),\\n      children: const [\\n""",
+              'internal workspace loading page',
+          )'''
+          if old not in text:
+              raise SystemExit('workspace split anchor not found in patch script')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
       - name: Apply final live routed fixes
         run: python3 .github/scripts/uiux_final_live_routed_closure.py
 
@@ -89,6 +120,7 @@ jobs:
           test "$BASE_HEAD" = "$(git rev-parse origin/main)" || { echo 'main moved; refusing stale source commit'; exit 1; }
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -- .github/scripts/uiux_final_live_routed_closure.py
           git rm .github/workflows/uiux-final-live-routed-closure.yml .github/scripts/uiux_final_live_routed_closure.py
           git add omc_app
           git diff --cached --check
