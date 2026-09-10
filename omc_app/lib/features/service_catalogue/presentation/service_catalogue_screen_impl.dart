@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
+import '../../../core/widgets/omc_premium.dart';
+import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
@@ -122,8 +124,6 @@ class _ServiceCatalogueScreenState
           final sortedCategories = categorySet.toList()..sort();
           final categories = <String>[_allCategory, ...sortedCategories];
           final filteredServices = services;
-          final screenWidth = MediaQuery.sizeOf(context).width;
-          final pageInset = AppLayout.pageInsetFor(screenWidth);
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -136,16 +136,9 @@ class _ServiceCatalogueScreenState
                 // Category discovery is auxiliary. Current-page categories remain usable.
               }
             },
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              padding: EdgeInsets.fromLTRB(
-                pageInset,
-                AppSpacing.md,
-                pageInset,
-                AppSpacing.xl,
-              ),
+            child: OmcPageListView(
+              topPadding: AppSpacing.md,
+              bottomPadding: AppSpacing.xl,
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               children: [
                 const _PageHeading(),
@@ -756,73 +749,77 @@ class _ServiceResultCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final visual = serviceVisualFor(service);
-    final radius = BorderRadius.circular(AppRadius.card);
 
-    final icon = ExcludeSemantics(
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: visual.color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(AppRadius.control),
-        ),
-        alignment: Alignment.center,
-        child: Icon(visual.icon, color: visual.color, size: 24),
+    final icon = Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: visual.color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.control),
       ),
+      alignment: Alignment.center,
+      child: Icon(visual.icon, color: visual.color, size: 24),
     );
 
-    return Semantics(
-      button: true,
-      label: service.title,
-      excludeSemantics: true,
-      child: Material(
-        color: theme.colorScheme.surface,
-        borderRadius: radius,
-        child: InkWell(
-          onTap: onOpen,
-          borderRadius: radius,
-          child: Container(
-            constraints: BoxConstraints(minHeight: listMode ? 72 : 112),
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              borderRadius: radius,
-              border: Border.all(color: theme.colorScheme.outlineVariant),
-            ),
-            child: listMode
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      icon,
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Text(
-                          service.title,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: _ink,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: theme.colorScheme.onSurfaceVariant,
-                        size: 24,
-                      ),
-                    ],
+    final chevron = Icon(
+      Icons.chevron_right_rounded,
+      color: theme.colorScheme.onSurfaceVariant,
+      size: listMode ? 24 : 20,
+    );
+
+    final content = listMode
+        ? Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              icon,
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  service.title,
+                  style: theme.textTheme.titleMedium?.copyWith(color: _ink),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              chevron,
+            ],
+          )
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  icon,
+                  const SizedBox(width: AppSpacing.xs),
+                  chevron,
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                service.title,
+                style: theme.textTheme.titleMedium?.copyWith(color: _ink),
+              ),
+            ],
+          );
+
+    return PremiumCard(
+      padding: EdgeInsets.zero,
+      onTap: onOpen,
+      semanticLabel: service.title,
+      semanticHint: 'Open service details',
+      child: ExcludeSemantics(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: listMode ? 64 : 96),
+          child: Padding(
+            padding: listMode
+                ? const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
                   )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      icon,
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        service.title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: _ink,
-                        ),
-                      ),
-                    ],
-                  ),
+                : const EdgeInsets.all(AppSpacing.md),
+            child: content,
           ),
         ),
       ),
