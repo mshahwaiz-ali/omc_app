@@ -1,0 +1,116 @@
+name: One-shot UI UX operational form standards B1 recovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/uiux-operational-form-standards-b1-recovery.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-verify-and-land:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reuse proven B1 transforms and repair typo
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64
+          import re
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/uiux-operational-form-standards-b1.yml')
+          text = workflow.read_text()
+          payloads = re.findall(
+              r"echo '([A-Za-z0-9+/=]+)' \| base64 -d > (/tmp/b1_[^\n ]+\.py)",
+              text,
+          )
+          if len(payloads) != 4:
+              raise SystemExit(f'Expected 4 proven B1 transform payloads, found {len(payloads)}')
+
+          repaired = 0
+          for encoded, temp_path in payloads:
+              script = base64.b64decode(encoded).decode('utf-8')
+              count = script.count('autofofocus')
+              if count:
+                  script = script.replace('autofofocus', 'autofocus')
+                  repaired += count
+              print(f'Applying {temp_path} (typo repairs: {count})')
+              exec(compile(script, temp_path, 'exec'), {'__name__': '__main__'})
+
+          if repaired != 1:
+              raise SystemExit(f'Expected exactly one autofofocus repair, found {repaired}')
+          PY
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+
+      - name: Format touched Dart files
+        shell: bash
+        run: |
+          dart format \
+            omc_app/lib/features/commissions/presentation/my_commissions_screen.dart \
+            omc_app/lib/features/commissions/presentation/finance_commissions_screen.dart \
+            omc_app/lib/features/payments/presentation/settlement_exceptions_screen.dart \
+            omc_app/lib/features/payments/presentation/payment_detail_screen.dart
+          git diff --check
+
+      - name: Resolve dependencies
+        working-directory: omc_app
+        run: flutter pub get
+
+      - name: Focused commission and payment tests
+        working-directory: omc_app
+        run: |
+          flutter test --no-pub \
+            test/features/commissions/commission_accessibility_test.dart \
+            test/features/commissions/commission_contract_test.dart \
+            test/features/commissions/finance_commission_contract_test.dart \
+            test/features/payments/finance_reconciliation_contract_test.dart \
+            test/features/payments/payment_receipt_upload_contract_test.dart
+
+      - name: Analyze
+        working-directory: omc_app
+        run: flutter analyze --no-pub
+
+      - name: Full Flutter tests
+        working-directory: omc_app
+        run: flutter test --no-pub
+
+      - name: Commit verified B1 source changes
+        shell: bash
+        run: |
+          git fetch origin main
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+            echo 'main moved during verification; refusing to push stale verified state'
+            exit 1
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          git add \
+            omc_app/lib/features/commissions/presentation/my_commissions_screen.dart \
+            omc_app/lib/features/commissions/presentation/finance_commissions_screen.dart \
+            omc_app/lib/features/payments/presentation/settlement_exceptions_screen.dart \
+            omc_app/lib/features/payments/presentation/payment_detail_screen.dart
+          git rm \
+            .github/workflows/uiux-operational-form-standards-b1.yml \
+            .github/workflows/uiux-operational-form-standards-b1-recovery.yml
+
+          git diff --cached --check
+          git diff --cached --stat
+          git commit -m 'fix: standardize commission and payment form labels'
+          git push origin HEAD:main
