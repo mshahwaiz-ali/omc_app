@@ -51,19 +51,19 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Full name'),
+      find.widgetWithText(TextFormField, 'Enter your full name'),
       'Ayesha Khan',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Email'),
+      find.widgetWithText(TextFormField, 'Enter your email address'),
       'ayesha@example.com',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Username'),
+      find.widgetWithText(TextFormField, 'ali.khan'),
       'ayesha.khan',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Mobile number'),
+      find.widgetWithText(TextFormField, '300 1234567'),
       '3063191907',
     );
 
@@ -76,21 +76,18 @@ void main() {
     await tester.tap(whatsappToggle);
     await tester.pumpAndSettle();
 
-    expect(
-      find.widgetWithText(TextFormField, 'WhatsApp number'),
-      findsOneWidget,
-    );
+    expect(find.text('WhatsApp number'), findsOneWidget);
 
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'WhatsApp number'),
+      find.widgetWithText(TextFormField, '300 1234567').last,
       '3063191908',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'CNIC'),
+      find.widgetWithText(TextFormField, '35202-1234567-1'),
       '42101-1234567-8',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Address'),
+      find.widgetWithText(TextFormField, 'Enter your address'),
       'Karachi, Pakistan',
     );
 
@@ -198,29 +195,29 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Full name'),
+      find.widgetWithText(TextFormField, 'Enter your full name'),
       'Existing Customer',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Email'),
+      find.widgetWithText(TextFormField, 'Enter your email address'),
       'existing@example.com',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Username'),
+      find.widgetWithText(TextFormField, 'ali.khan'),
       'existing.customer',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Mobile number'),
+      find.widgetWithText(TextFormField, '300 1234567'),
       '3001234567',
     );
-    expect(find.widgetWithText(TextFormField, 'NTN'), findsOneWidget);
+    expect(find.text('NTN'), findsOneWidget);
 
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'NTN'),
+      find.widgetWithText(TextFormField, '1234567'),
       '4590594',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Address'),
+      find.widgetWithText(TextFormField, 'Enter your address'),
       'Karachi, Pakistan',
     );
 
