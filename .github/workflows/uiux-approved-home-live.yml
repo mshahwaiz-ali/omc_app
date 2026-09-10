@@ -1,0 +1,93 @@
+name: One-shot approved home audit closure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/uiux-approved-home-live.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-verify-land:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply approved Home closure
+        run: python3 .github/scripts/uiux_approved_home_live.py
+
+      - name: Static authority invariants
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          d = Path('omc_app/lib/features/home/presentation/home_screen_dispatcher.dart').read_text()
+          v = Path('omc_app/lib/features/home/presentation/approved_customer_home_view.dart').read_text()
+          assert 'ApprovedCustomerHomeView(' in d
+          assert 'useLifecycleCustomerHome' in d
+          assert 'homeDashboardSummaryProvider' in v
+          assert 'canAccessRoute(route, capabilities)' in v
+          assert "context.push('/documents')" in v
+          assert "context.push('/payments')" in v
+          assert "context.go('/my-services')" in v
+          PY
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+
+      - name: Dependencies
+        working-directory: omc_app
+        run: flutter pub get
+
+      - name: Format and diff check
+        shell: bash
+        run: |
+          dart format \
+            omc_app/lib/features/home/presentation/approved_customer_home_view.dart \
+            omc_app/lib/features/home/presentation/approved_customer_home_service_widgets.dart \
+            omc_app/lib/features/home/presentation/approved_customer_home_support.dart \
+            omc_app/test/features/home/approved_home_uiux_contract_test.dart
+          git diff --check
+
+      - name: Focused Home gates
+        working-directory: omc_app
+        shell: bash
+        run: |
+          flutter test --no-pub test/features/home/approved_home_uiux_contract_test.dart
+          flutter test --no-pub test/app/home_placeholder_hygiene_test.dart
+          flutter test --no-pub test/app/route_access_policy_test.dart
+
+      - name: Analyze
+        working-directory: omc_app
+        run: flutter analyze --no-pub
+
+      - name: Full Flutter tests
+        working-directory: omc_app
+        run: flutter test --no-pub
+
+      - name: Commit verified source
+        shell: bash
+        run: |
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || { echo 'main moved; refusing stale push'; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            omc_app/lib/features/home/presentation/approved_customer_home_view.dart \
+            omc_app/lib/features/home/presentation/approved_customer_home_service_widgets.dart \
+            omc_app/lib/features/home/presentation/approved_customer_home_support.dart \
+            omc_app/test/features/home/approved_home_uiux_contract_test.dart
+          git rm \
+            .github/workflows/uiux-approved-home-live.yml \
+            .github/scripts/uiux_approved_home_live.py
+          git diff --cached --check
+          git commit -m 'fix: close approved home uiux audit gaps'
+          git push origin HEAD:main
