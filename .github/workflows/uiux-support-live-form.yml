@@ -1,0 +1,93 @@
+name: One-shot live support form closure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/uiux-support-live-form.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-verify-land:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply live support form closure
+        run: |
+          python3 .github/scripts/uiux_support_live_form.py
+          python3 .github/scripts/uiux_support_live_corrections.py
+
+      - name: Static support invariants
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          wrapper = Path('omc_app/lib/features/support/presentation/support_screen.dart').read_text()
+          source = Path('omc_app/lib/features/support/presentation/support_screen_legacy.dart').read_text()
+          assert 'const Expanded(child: legacy.SupportScreen())' in wrapper
+          assert '_selectedTopic.isNotEmpty' in source
+          assert '_messageController.text.trim().length >= 10' in source
+          assert 'UnsavedChangesGuard' in source
+          assert 'repository.createSupportTicket(' in source
+          assert "labelText: 'Topic'" not in source[source.index('class _CreateSupportTicketCard'):source.index('class _SupportTicketsCard')]
+          assert "labelText: 'Message'" not in source[source.index('class _CreateSupportTicketCard'):source.index('class _SupportTicketsCard')]
+          PY
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+
+      - name: Dependencies
+        working-directory: omc_app
+        run: flutter pub get
+
+      - name: Format and diff check
+        shell: bash
+        run: |
+          dart format \
+            omc_app/lib/features/support/presentation/support_screen_legacy.dart \
+            omc_app/test/features/support/support_uiux_contract_test.dart
+          git diff --check
+
+      - name: Focused support gates
+        working-directory: omc_app
+        shell: bash
+        run: |
+          flutter test --no-pub test/features/support/support_uiux_contract_test.dart
+          flutter test --no-pub test/resilience/mutation_safety_regression_test.dart
+
+      - name: Analyze
+        working-directory: omc_app
+        run: flutter analyze --no-pub
+
+      - name: Full Flutter tests
+        working-directory: omc_app
+        run: flutter test --no-pub
+
+      - name: Commit verified source
+        shell: bash
+        run: |
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || { echo 'main moved; refusing stale push'; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            omc_app/lib/features/support/presentation/support_screen_legacy.dart \
+            omc_app/test/features/support/support_uiux_contract_test.dart
+          git rm \
+            .github/workflows/uiux-support-live-form.yml \
+            .github/scripts/uiux_support_live_form.py \
+            .github/scripts/uiux_support_live_corrections.py
+          git diff --cached --check
+          git commit -m 'fix: close live support form standards'
+          git push origin HEAD:main
