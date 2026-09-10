@@ -5,10 +5,8 @@ class _CustomerHomeLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl),
-      children: const [
+    return const _CustomerHomeListView(
+      children: [
         _LoadingPanel(height: 70),
         SizedBox(height: 18),
         _LoadingPanel(height: 360),
@@ -39,7 +37,7 @@ class _LoadingPanel extends StatelessWidget {
         height: height,
         decoration: BoxDecoration(
           color: AppTheme.primarySoft,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
       ),
     );

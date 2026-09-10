@@ -81,11 +81,7 @@ class _HomeHeader extends StatelessWidget {
         if (stack) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              identity,
-              const SizedBox(height: 12),
-              actions,
-            ],
+            children: [identity, const SizedBox(height: 12), actions],
           );
         }
 
@@ -126,15 +122,15 @@ class _HeaderButton extends StatelessWidget {
         message: tooltip,
         child: Material(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.control),
             child: Container(
               width: AppTouchTarget.minimum,
               height: AppTouchTarget.minimum,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.control),
                 border: Border.all(color: AppTheme.border),
               ),
               child: Stack(
@@ -151,15 +147,15 @@ class _HeaderButton extends StatelessWidget {
                         height: 18,
                         decoration: BoxDecoration(
                           color: AppTheme.danger,
-                          borderRadius: BorderRadius.circular(999),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           badge > 99 ? '99+' : '$badge',
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -182,11 +178,13 @@ class _CurrentServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final action = service.nextAction;
-    final progressPercent =
-        (service.progress * 100).round().clamp(0, 100).toInt();
+    final progressPercent = (service.progress * 100)
+        .round()
+        .clamp(0, 100)
+        .toInt();
 
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -212,7 +210,9 @@ class _CurrentServiceCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 7),
                   Text(
-                    service.title.isEmpty ? 'OMC service request' : service.title,
+                    service.title.isEmpty
+                        ? 'OMC service request'
+                        : service.title,
                     style: const TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 21,
@@ -263,7 +263,7 @@ class _CurrentServiceCard extends StatelessWidget {
                 : 'Service $progressPercent percent complete',
             excludeSemantics: true,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(999),
+              borderRadius: BorderRadius.circular(AppRadius.pill),
               child: LinearProgressIndicator(
                 minHeight: 7,
                 value: service.progress.clamp(0, 1).toDouble(),
@@ -321,7 +321,7 @@ class _ServiceJourneyExpansion extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         border: Border.all(color: AppTheme.border),
       ),
       child: ExpansionTile(
@@ -329,7 +329,10 @@ class _ServiceJourneyExpansion extends StatelessWidget {
         childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
         shape: const Border(),
         collapsedShape: const Border(),
-        leading: const Icon(Icons.route_outlined, color: AppTheme.textSecondary),
+        leading: const Icon(
+          Icons.route_outlined,
+          color: AppTheme.textSecondary,
+        ),
         title: const Text(
           'Service journey',
           style: TextStyle(
@@ -443,7 +446,7 @@ class _NextStepPanel extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: tone.withValues(alpha: 0.07),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           border: Border.all(color: tone.withValues(alpha: 0.18)),
         ),
         child: Row(
@@ -510,7 +513,7 @@ class _CompactServiceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = service.title.isEmpty ? 'OMC service request' : service.title;
     return PremiumCard(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(AppSpacing.md),
       onTap: () => _openService(context, service),
       semanticLabel: '$label, ${service.stageLabel}',
       semanticHint: 'Open service request',
@@ -524,13 +527,15 @@ class _CompactServiceCard extends StatelessWidget {
               color: service.actionRequired
                   ? AppTheme.dangerSoft
                   : AppTheme.primarySoft,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.control),
             ),
             child: Icon(
               service.actionRequired
                   ? Icons.priority_high_rounded
                   : Icons.work_outline_rounded,
-              color: service.actionRequired ? AppTheme.danger : AppTheme.primary,
+              color: service.actionRequired
+                  ? AppTheme.danger
+                  : AppTheme.primary,
             ),
           ),
           const SizedBox(width: 12),

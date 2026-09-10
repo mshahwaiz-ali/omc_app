@@ -116,9 +116,7 @@ class ApprovedCustomerHomeView extends ConsumerWidget {
           loading: () => const _CustomerHomeLoading(),
           error: (error, _) => RefreshIndicator(
             onRefresh: refresh,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl),
+            child: _CustomerHomeListView(
               children: [
                 _HomeHeader(
                   name: profileName,
@@ -188,6 +186,37 @@ class ApprovedCustomerHomeView extends ConsumerWidget {
   }
 }
 
+class _CustomerHomeListView extends StatelessWidget {
+  const _CustomerHomeListView({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final pageInset = AppLayout.pageInsetFor(constraints.maxWidth);
+        final horizontal =
+            constraints.maxWidth > AppLayout.generalMaxWidth + AppSpacing.xl * 2
+            ? (constraints.maxWidth - AppLayout.generalMaxWidth) / 2
+            : pageInset;
+        return ListView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          padding: EdgeInsets.fromLTRB(
+            horizontal,
+            18,
+            horizontal,
+            AppSpacing.xl,
+          ),
+          children: children,
+        );
+      },
+    );
+  }
+}
+
 class _CustomerHomeContent extends StatelessWidget {
   const _CustomerHomeContent({
     required this.summary,
@@ -232,11 +261,7 @@ class _CustomerHomeContent extends StatelessWidget {
         ? const <HomeDashboardServiceSnapshot>[]
         : summary.serviceSnapshots.skip(1).take(2).toList(growable: false);
 
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, AppSpacing.xl),
+    return _CustomerHomeListView(
       children: [
         _HomeHeader(
           name: customerName,
