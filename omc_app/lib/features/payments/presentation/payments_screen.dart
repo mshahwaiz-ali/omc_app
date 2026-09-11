@@ -105,16 +105,18 @@ class _PaymentsList extends StatelessWidget {
         return 0;
       case PaymentStatus.overdue:
         return 1;
-      case PaymentStatus.pending:
+      case PaymentStatus.partiallyPaid:
         return 2;
-      case PaymentStatus.receiptSubmitted:
+      case PaymentStatus.pending:
         return 3;
-      case PaymentStatus.underReview:
+      case PaymentStatus.receiptSubmitted:
         return 4;
-      case PaymentStatus.paid:
+      case PaymentStatus.underReview:
         return 5;
-      case PaymentStatus.cancelled:
+      case PaymentStatus.paid:
         return 6;
+      case PaymentStatus.cancelled:
+        return 7;
     }
   }
 }
@@ -434,6 +436,11 @@ class _PaymentCard extends StatelessWidget {
     case PaymentStatus.receiptSubmitted:
     case PaymentStatus.underReview:
       return (color: AppTheme.info, icon: Icons.hourglass_top_rounded);
+    case PaymentStatus.partiallyPaid:
+      return (
+        color: AppTheme.warning,
+        icon: Icons.account_balance_wallet_outlined,
+      );
     case PaymentStatus.paid:
       return (color: AppTheme.success, icon: Icons.verified_outlined);
     case PaymentStatus.cancelled:
@@ -469,6 +476,12 @@ class _PaymentCard extends StatelessWidget {
         label: 'View status',
         message: 'Your receipt is with OMC for verification.',
         icon: Icons.manage_search_rounded,
+      );
+    case PaymentStatus.partiallyPaid:
+      return (
+        label: 'Pay balance',
+        message: 'A partial payment is verified; the remaining balance is still due.',
+        icon: Icons.account_balance_wallet_outlined,
       );
     case PaymentStatus.paid:
       return (

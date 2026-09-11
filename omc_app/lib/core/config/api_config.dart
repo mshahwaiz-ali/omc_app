@@ -241,6 +241,8 @@ class ApiConfig {
       'omc_app.api.payments.upload_payment_receipt_multipart';
   static const String reviewPaymentReceiptMethod =
       'omc_app.api.payments.review_payment_receipt';
+  static const String paymentReviewContextMethod =
+      'omc_app.api.payment_accounting.get_review_context';
 
   static const String profileMethod = 'omc_app.api.access_v2.get_profile';
   static const String updateProfileMethod =

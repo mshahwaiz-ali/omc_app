@@ -7,7 +7,6 @@ import '../../../app/mutation_invalidation.dart';
 import '../../../app/design_tokens.dart';
 import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
-import '../../../core/widgets/app_labeled_field.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/diagnostics/e2e_network_audit.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
@@ -20,7 +19,9 @@ import '../../../core/widgets/premium_card.dart';
 import '../../documents/application/document_attachment_controller.dart';
 import '../../documents/presentation/document_preview_screen.dart';
 import '../data/payment_item.dart';
+import '../data/payment_review_context.dart';
 import '../data/payments_repository.dart';
+import 'payment_review_dialog.dart';
 import 'widgets/payment_action_card.dart';
 
 class PaymentDetailScreen extends ConsumerWidget {
@@ -319,7 +320,15 @@ _paymentVerificationVisual(PaymentStatus status) {
         icon: Icons.manage_search_rounded,
         title: 'Payment under review',
         message:
-            'OMC is reviewing the submitted proof. The payment is not presented as verified until its status changes to Paid.',
+            'OMC is reviewing the submitted proof. Payment remains unverified until ERP accounting reconciles it.',
+      );
+    case PaymentStatus.partiallyPaid:
+      return (
+        color: AppTheme.warning,
+        icon: Icons.account_balance_wallet_outlined,
+        title: 'Payment partially settled',
+        message:
+            'A verified payment has been reconciled. The remaining balance is still due.',
       );
     case PaymentStatus.paid:
       return (
@@ -482,7 +491,7 @@ class _PaymentAdminReviewCard extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           const Text(
-            'Review the submitted payment proof. “Mark paid” records backend status Paid; rejecting the proof requires review remarks.',
+            'Verify the amount actually received. ERPNext creates and reconciles the accounting records; this action never marks an unsettled balance as fully paid.',
             style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 14,
@@ -506,10 +515,10 @@ class _PaymentAdminReviewCard extends StatelessWidget {
                 icon: const Icon(Icons.close_rounded),
                 label: const Text('Reject proof'),
               );
-              final paid = FilledButton.icon(
+              final verify = FilledButton.icon(
                 onPressed: isReviewing || onReview == null
                     ? null
-                    : () => onReview?.call('Paid'),
+                    : () => onReview?.call('Verified'),
                 icon: isReviewing
                     ? const SizedBox.square(
                         dimension: 17,
@@ -519,13 +528,13 @@ class _PaymentAdminReviewCard extends StatelessWidget {
                         ),
                       )
                     : const Icon(Icons.verified_rounded),
-                label: Text(isReviewing ? 'Reviewing' : 'Mark paid'),
+                label: Text(isReviewing ? 'Preparing' : 'Verify receipt'),
               );
 
               if (stack) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [paid, const SizedBox(height: 8), reject],
+                  children: [verify, const SizedBox(height: 8), reject],
                 );
               }
 
@@ -533,7 +542,7 @@ class _PaymentAdminReviewCard extends StatelessWidget {
                 children: [
                   Expanded(child: reject),
                   const SizedBox(width: 10),
-                  Expanded(child: paid),
+                  Expanded(child: verify),
                 ],
               );
             },
@@ -652,86 +661,60 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
     BuildContext context,
     String status,
   ) async {
+    if (_isReviewingReceipt) return;
     final repository = ref.read(paymentsRepositoryProvider);
     final messenger = ScaffoldMessenger.of(context);
-    final remarksController = TextEditingController();
-    final remarks = await showDialog<String>(
+    PaymentReviewContext? reviewContext;
+
+    if (status == 'Verified') {
+      setState(() => _isReviewingReceipt = true);
+      try {
+        reviewContext = await repository.fetchPaymentReviewContext(payment.id);
+      } catch (error) {
+        if (!context.mounted) return;
+        final failure = AppFailureClassifier.classify(
+          error,
+          fallbackTitle: 'Payment review unavailable',
+          fallbackMessage:
+              'The remaining balance and receiving accounts could not be loaded.',
+        );
+        messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+        return;
+      } finally {
+        if (mounted) setState(() => _isReviewingReceipt = false);
+      }
+    }
+
+    if (!context.mounted) return;
+    final submission = await showDialog<PaymentReviewSubmission>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          scrollable: true,
-          title: Text(
-            status == 'Rejected'
-                ? 'Reject payment proof'
-                : 'Mark payment paid?',
-          ),
-          content: AppLabeledField(
-            label: status == 'Rejected'
-                ? 'Rejection reason'
-                : 'Review remarks (optional)',
-            isRequired: status == 'Rejected',
-            child: TextField(
-              controller: remarksController,
-              autofocus: true,
-              minLines: 3,
-              maxLines: 4,
-              onChanged: (_) => setDialogState(() {}),
-              decoration: const InputDecoration(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                FocusScope.of(dialogContext).unfocus();
-                Navigator.pop(dialogContext);
-              },
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              style: status == 'Rejected'
-                  ? FilledButton.styleFrom(
-                      backgroundColor: Theme.of(
-                        dialogContext,
-                      ).colorScheme.error,
-                      foregroundColor: Theme.of(
-                        dialogContext,
-                      ).colorScheme.onError,
-                    )
-                  : null,
-              onPressed:
-                  status == 'Rejected' && remarksController.text.trim().isEmpty
-                  ? null
-                  : () {
-                      final value = remarksController.text.trim();
-                      FocusScope.of(dialogContext).unfocus();
-                      Navigator.pop(dialogContext, value);
-                    },
-              child: Text(status == 'Rejected' ? 'Reject proof' : 'Mark paid'),
-            ),
-          ],
-        ),
+      builder: (_) => PaymentReviewDialog(
+        rejecting: status == 'Rejected',
+        reviewContext: reviewContext,
       ),
     );
-
-    await Future<void>.delayed(Duration.zero);
-    remarksController.dispose();
-    if (remarks == null || !mounted) return;
+    if (submission == null || !mounted) return;
 
     setState(() => _isReviewingReceipt = true);
-
     try {
       await repository.reviewPaymentReceipt(
         paymentId: payment.id,
         status: status,
-        remarks: remarks,
+        remarks: submission.remarks,
+        verifiedAmount: submission.verifiedAmount,
+        paymentAccount: submission.paymentAccount,
       );
 
       if (!context.mounted) return;
-
       messenger.showSnackBar(
-        SnackBar(content: Text('Payment marked as $status.')),
+        SnackBar(
+          content: Text(
+            status == 'Rejected'
+                ? 'Payment proof rejected.'
+                : 'Receipt verified. ERP accounting has been queued.',
+          ),
+        ),
       );
-
       _invalidatePaymentRelatedState();
     } catch (error) {
       if (!context.mounted) return;
@@ -743,9 +726,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
       );
       messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     } finally {
-      if (mounted) {
-        setState(() => _isReviewingReceipt = false);
-      }
+      if (mounted) setState(() => _isReviewingReceipt = false);
     }
   }
 

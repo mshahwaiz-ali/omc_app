@@ -2,6 +2,7 @@ enum PaymentStatus {
   pending,
   receiptSubmitted,
   underReview,
+  partiallyPaid,
   paid,
   rejected,
   overdue,
@@ -71,6 +72,7 @@ class PaymentItem {
 
   bool get requiresAction =>
       status == PaymentStatus.pending ||
+      status == PaymentStatus.partiallyPaid ||
       status == PaymentStatus.rejected ||
       status == PaymentStatus.overdue;
 }
@@ -84,6 +86,8 @@ extension PaymentStatusLabel on PaymentStatus {
         return 'Receipt Submitted';
       case PaymentStatus.underReview:
         return 'Under Review';
+      case PaymentStatus.partiallyPaid:
+        return 'Partially Paid';
       case PaymentStatus.paid:
         return 'Paid';
       case PaymentStatus.rejected:

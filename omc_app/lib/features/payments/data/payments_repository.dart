@@ -12,6 +12,7 @@ import '../../../core/network/mutation_intent.dart';
 import '../../../core/uploads/upload_coordinator.dart';
 import '../../documents/data/document_attachment.dart';
 import 'payment_item.dart';
+import 'payment_review_context.dart';
 
 final paymentsRepositoryProvider = Provider<PaymentsRepository>((ref) {
   ref.watch(sessionEpochProvider);
@@ -109,11 +110,41 @@ class PaymentsRepository {
     return _mapPaymentDetailResponse(response);
   }
 
+  Future<PaymentReviewContext> fetchPaymentReviewContext(String paymentId) async {
+    final cleanPaymentId = paymentId.trim();
+    if (cleanPaymentId.isEmpty) {
+      throw const ApiError(message: 'Missing payment reference for review.');
+    }
+
+    final response = await _frappeClient.getMethod(
+      ApiConfig.paymentReviewContextMethod,
+      queryParameters: {'payment_id': cleanPaymentId, 'name': cleanPaymentId},
+    );
+    final payload = response['message'] is Map<String, dynamic>
+        ? response['message'] as Map<String, dynamic>
+        : response;
+    final rawAccounts = payload['payment_accounts'];
+    final accounts = rawAccounts is List
+        ? rawAccounts
+              .whereType<Map<String, dynamic>>()
+              .map(PaymentReviewAccount.fromJson)
+              .toList(growable: false)
+        : const <PaymentReviewAccount>[];
+
+    return PaymentReviewContext(
+      currency: _stringValue(payload['currency']),
+      remainingAmount: _doubleValue(payload['remaining_amount']),
+      accounts: accounts,
+    );
+  }
+
   Future<PaymentItem?> reviewPaymentReceipt({
     required String paymentId,
     required String status,
     String? remarks,
     String? paymentReference,
+    double? verifiedAmount,
+    String? paymentAccount,
   }) async {
     final cleanPaymentId = paymentId.trim();
     final cleanStatus = status.trim();
@@ -138,6 +169,12 @@ class PaymentsRepository {
 
     if (paymentReference != null) {
       data['payment_reference'] = paymentReference;
+    }
+    if (verifiedAmount != null) {
+      data['verified_amount'] = verifiedAmount;
+    }
+    if (paymentAccount != null && paymentAccount.trim().isNotEmpty) {
+      data['payment_account'] = paymentAccount.trim();
     }
 
     final response = await _frappeClient.postMethod(
@@ -404,6 +441,11 @@ class PaymentsRepository {
     return int.tryParse(value?.toString() ?? '') ?? fallback;
   }
 
+  double _doubleValue(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
   PaymentStatus _statusFromValue(dynamic value) {
     final status = value?.toString().trim().toLowerCase() ?? '';
 
@@ -414,6 +456,11 @@ class PaymentsRepository {
     }
     if (status.contains('under review') || status.contains('review')) {
       return PaymentStatus.underReview;
+    }
+    if (status.contains('partially paid') ||
+        status.contains('partial paid') ||
+        status.contains('partially_paid')) {
+      return PaymentStatus.partiallyPaid;
     }
     if (status.contains('reject')) return PaymentStatus.rejected;
     if (status.contains('overdue') || status.contains('expired')) {

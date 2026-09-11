@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/design_tokens.dart';
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
@@ -10,6 +11,7 @@ import '../../../core/widgets/premium_card.dart';
 import '../../payments/data/payment_item.dart';
 import '../../payments/data/payments_repository.dart';
 import '../domain/internal_service_case.dart';
+import 'internal_case_documents_screen.dart';
 import 'internal_workspace_providers.dart';
 
 const EdgeInsets _kOpsPadding = EdgeInsets.fromLTRB(20, 8, 20, AppSpacing.xl);
@@ -4041,18 +4043,19 @@ class _PaymentReviewVisual {
 _PaymentReviewVisual _paymentReviewVisual(PaymentStatus status) {
   switch (status) {
     case PaymentStatus.receiptSubmitted:
-      return const _PaymentReviewVisual(
-        color: AppTheme.info,
-        background: AppTheme.infoSoft,
-        icon: Icons.upload_file_outlined,
-        message: 'Receipt submitted; verification is still pending.',
-      );
     case PaymentStatus.underReview:
       return const _PaymentReviewVisual(
         color: AppTheme.info,
         background: AppTheme.infoSoft,
-        icon: Icons.fact_check_outlined,
-        message: 'Receipt is currently under review.',
+        icon: Icons.manage_search_rounded,
+        message: 'Payment proof is awaiting review.',
+      );
+    case PaymentStatus.partiallyPaid:
+      return const _PaymentReviewVisual(
+        color: AppTheme.warning,
+        background: AppTheme.warningSoft,
+        icon: Icons.account_balance_wallet_outlined,
+        message: 'Payment is partially settled; a remaining balance is still due.',
       );
     case PaymentStatus.paid:
       return const _PaymentReviewVisual(
@@ -4584,8 +4587,13 @@ class _CaseEvidenceV2 extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () => context.go(
-                '/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}',
+              onPressed: () => Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => InternalCaseDocumentsScreen(
+                    serviceRequest: serviceCase.id,
+                    customerName: serviceCase.displayCustomer,
+                  ),
+                ),
               ),
               icon: const Icon(Icons.folder_open_outlined),
               label: const Text('Open case documents'),
@@ -4960,13 +4968,16 @@ class _CaseTimelineRowV2 extends StatelessWidget {
   }
 }
 
-class _CaseOperationsV2 extends StatelessWidget {
+class _CaseOperationsV2 extends ConsumerWidget {
   const _CaseOperationsV2({required this.serviceCase});
 
   final InternalServiceCase serviceCase;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
+    if (!capabilities.canViewAnyPayment) return const SizedBox.shrink();
+
     return PremiumCard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -4984,7 +4995,7 @@ class _CaseOperationsV2 extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () => context.push('/internal-workspace/payments'),
+              onPressed: () => context.go('/internal-workspace/payments'),
               icon: const Icon(Icons.payments_outlined),
               label: const Text('Open payment operations'),
             ),

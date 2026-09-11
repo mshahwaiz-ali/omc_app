@@ -190,6 +190,8 @@ class PaymentActionCard extends StatelessWidget {
       case PaymentStatus.receiptSubmitted:
       case PaymentStatus.underReview:
         return 'Payment proof has been submitted and is awaiting OMC verification. No paid status is implied yet.';
+      case PaymentStatus.partiallyPaid:
+        return 'A verified partial payment has been reconciled. The remaining balance is still due.';
       case PaymentStatus.paid:
         return 'This payment is marked paid. Evidence remains available below for reference.';
       case PaymentStatus.cancelled:

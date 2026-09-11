@@ -258,10 +258,14 @@ def lifecycle_presentation(snapshot: dict) -> dict:
         or payment_state == "not required"
         or settlement_state == "not required"
     )
+    partial_payment = (
+        payment_state == "partially paid"
+        or settlement_state == "partially settled"
+    )
     payment_complete = (
         payment_not_required
-        or request_state in _PAYMENT_COMPLETE_STATES
         or settlement_state in _SETTLED_STATES
+        or (request_state in _PAYMENT_COMPLETE_STATES and not partial_payment)
     )
 
     terminal = request_state in _TERMINAL_STATES
@@ -330,6 +334,13 @@ def lifecycle_presentation(snapshot: dict) -> dict:
             "Payment",
             "complete",
             "Payment requirements are complete.",
+        )
+    elif partial_payment:
+        payment_milestone = _milestone(
+            "payment",
+            "Payment",
+            "current",
+            "Partial payment is verified. The remaining balance is still due.",
         )
     elif request_state == "pending payment" and receipt_rejected:
         payment_milestone = _milestone(

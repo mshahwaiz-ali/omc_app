@@ -41,10 +41,21 @@ class TestPaymentPolicyCompletion(FrappeTestCase):
         ):
             return workflow_automation.completion_blockers(service_case)
 
-    def test_verified_payment_allows_completion_after_partial_settlement_projection(self):
+    def test_verified_payment_still_requires_full_settlement_for_completion(self):
         blockers = self._blockers(
             self._case("Verified Payment"),
             "Partially Paid",
+        )
+
+        self.assertIn(
+            "Required payment has not been confirmed.",
+            blockers,
+        )
+
+    def test_verified_payment_allows_completion_after_paid_projection(self):
+        blockers = self._blockers(
+            self._case("Verified Payment"),
+            "Paid",
         )
 
         self.assertNotIn(

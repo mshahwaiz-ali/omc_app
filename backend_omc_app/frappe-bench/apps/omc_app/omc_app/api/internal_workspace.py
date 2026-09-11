@@ -186,6 +186,7 @@ def _case_to_queue_item(row, contract=None):
     projection = workflow_contract.project(
         {
             "status": operational_status,
+            "request_state": request_state,
             "required_documents_count": doc_summary["required"],
             "approved_documents_count": doc_summary["approved"],
             "missing_documents_count": (
