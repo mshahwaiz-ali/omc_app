@@ -213,6 +213,40 @@ def run_daily_workflow_checks():
     return summary
 
 
+def _payment_completion_satisfied(service_case, active_payments) -> bool:
+    """Apply the request's frozen payment policy to operational completion.
+
+    Payment status is only treated as evidence after the accounting projection
+    has written it. This keeps operational completion aligned with the same
+    policy that allowed the request to activate, without converting an ERP
+    receivable into an OMC paid balance.
+    """
+
+    policy = str(
+        getattr(service_case, "payment_policy_snapshot", None)
+        or "Full Settlement"
+    ).strip()
+
+    if policy == "No Charge":
+        return True
+
+    if policy == "Post-paid Approval":
+        return bool(
+            getattr(service_case, "post_paid_approved_by", None)
+            and getattr(service_case, "post_paid_approved_at", None)
+        )
+
+    allowed_statuses = {"Paid"}
+    if policy == "Verified Payment":
+        allowed_statuses.add("Partially Paid")
+
+    return not active_payments or all(
+        str(getattr(payment, "status", None) or "").strip()
+        in allowed_statuses
+        for payment in active_payments
+    )
+
+
 def completion_blockers(service_case):
     blockers = []
 
@@ -287,9 +321,9 @@ def completion_blockers(service_case):
         },
         fields=["status"],
     )
-    if active_payments and any(
-        (payment.status or "") != "Paid"
-        for payment in active_payments
+    if not _payment_completion_satisfied(
+        service_case,
+        active_payments,
     ):
         blockers.append(
             "Required payment has not been confirmed."
