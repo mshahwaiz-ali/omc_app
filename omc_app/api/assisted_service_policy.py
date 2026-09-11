@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import frappe
 
-from omc_app.api import assisted_service, payment_opening
+from omc_app.api import assisted_service, document_reuse, payment_opening
 
 
 ALLOWED_ASSISTED_MODES = {"My Referral", "Existing Customer"}
@@ -67,6 +67,12 @@ def _ensure_payment_from_response(response):
         or response.get("name")
     )
     if request_name and frappe.db.exists("OMC Service Request", request_name):
+        reuse = document_reuse.reuse_approved_documents(
+            request_name,
+            actor=frappe.session.user,
+        )
+        response["reused_document_count"] = int(reuse.get("reused") or 0)
+        response["reused_documents"] = reuse.get("reused_documents") or []
         payment_name = payment_opening.ensure_service_payment(request_name)
         response["payment_id"] = payment_name
     return response

@@ -16,6 +16,7 @@
   "quarantine_status",
   "status",
   "source",
+  "source_document",
   "uploaded_by",
   "uploaded_on",
   "visible_to_customer",
@@ -121,6 +122,15 @@
    "options": "Service Upload\nManual Upload\nAdmin Upload\nExisting Document"
   },
   {
+   "description": "Approved document from an earlier request that supplied this reused evidence. The source record remains unchanged.",
+   "fieldname": "source_document",
+   "fieldtype": "Link",
+   "label": "Source Document",
+   "options": "OMC Service Document",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
    "fieldname": "uploaded_by",
    "fieldtype": "Link",
    "label": "Uploaded By",
@@ -200,7 +210,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-09 19:30:00.000000",
+ "modified": "2026-09-11 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC Service Document",
@@ -221,7 +231,7 @@
   }
  ],
  "row_format": "Dynamic",
- "search_fields": "document_title,document_type,service_request,status,customer_profile",
+ "search_fields": "document_title,document_type,service_request,status,customer_profile,source_document",
  "sort_field": "uploaded_on",
  "sort_order": "DESC",
  "states": [],

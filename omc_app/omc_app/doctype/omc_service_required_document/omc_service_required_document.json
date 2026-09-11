@@ -13,6 +13,8 @@
   "document_title",
   "document_type",
   "is_required",
+  "reuse_policy",
+  "reuse_validity_days",
   "instructions",
   "allowed_extensions",
   "max_size_mb",
@@ -62,6 +64,24 @@
    "label": "Is Required"
   },
   {
+   "default": "Always New",
+   "description": "Controls whether an approved document from an earlier request for the same customer and service may satisfy this requirement on a later assisted request. Always New is the safe default for period-specific evidence.",
+   "fieldname": "reuse_policy",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Reuse Policy",
+   "options": "Always New\nReusable Until Replaced\nReusable for N Days",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.reuse_policy=='Reusable for N Days'",
+   "description": "Maximum age of the prior approved document. Required only when Reuse Policy is Reusable for N Days.",
+   "fieldname": "reuse_validity_days",
+   "fieldtype": "Int",
+   "label": "Reuse Validity (Days)"
+  },
+  {
    "fieldname": "instructions",
    "fieldtype": "Small Text",
    "label": "Instructions"
@@ -93,7 +113,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-07 00:00:00.000000",
+ "modified": "2026-09-11 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC Service Required Document",
