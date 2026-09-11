@@ -37,266 +37,64 @@
   "default_assignee",
   "default_assignment_role",
   "allow_parallel_requests",
+  "erp_accounting_section",
+  "erp_invoice_item",
+  "erp_sales_taxes_and_charges_template",
+  "erp_task_type",
   "publishing_section",
   "sort_order",
   "is_featured",
-  "is_active",
-  "erp_task_type"
+  "is_active"
  ],
  "fields": [
-  {
-   "description": "Automatically generated from the service title.",
-   "fieldname": "service_id",
-   "fieldtype": "Data",
-   "hidden": 1,
-   "label": "Service ID",
-   "no_copy": 1,
-   "read_only": 1,
-   "unique": 1
-  },
-  {
-   "fieldname": "title",
-   "fieldtype": "Data",
-   "label": "Title",
-   "reqd": 1
-  },
-  {
-   "fieldname": "category",
-   "fieldtype": "Link",
-   "label": "Category",
-   "options": "OMC Service Category"
-  },
-  {
-   "fieldname": "description",
-   "fieldtype": "Long Text",
-   "label": "Description"
-  },
-  {
-   "default": "general_service",
-   "description": "Stable semantic icon key used by mobile clients.",
-   "fieldname": "icon",
-   "fieldtype": "Select",
-   "label": "Service Icon",
-   "options": "\nbusiness_setup\ncompany_registration\ntax_filing\ntax_registration\ngst\naccounting\naudit\ndocuments\ncertificate\nlegal\nvisa\npayroll\npayments\ncompliance\nconsultation\nlicensing\ntrademark\nbookkeeping\nbanking\ngeneral_service"
-  },
-  {
-   "description": "Legacy compatibility field. Completion Time is the canonical customer-facing duration.",
-   "fieldname": "estimated_duration",
-   "fieldtype": "Data",
-   "hidden": 1,
-   "label": "Estimated Duration",
-   "read_only": 1
-  },
-  {
-   "fieldname": "default_assignee",
-   "fieldtype": "Link",
-   "label": "Default Assignee",
-   "options": "User",
-   "description": "Optional preferred staff member. If blank, automatic assignment uses the normal eligible staff pool after activation."
-  },
-  {
-   "default": "Employee",
-   "description": "Legacy compatibility field. Automatic assignment falls back to the standard Employee pool; historical role values remain readable until data normalization is complete.",
-   "fieldname": "default_assignment_role",
-   "fieldtype": "Select",
-   "hidden": 1,
-   "label": "Default Assignment Role",
-   "options": "\nEmployee\nConsultant\nTax Associates\nBusiness Partner\nOMC Manager\nOMC Consultant\nOMC Tax Associate\nOMC Business Partner",
-   "read_only": 1
-  },
-  {
-   "default": "0",
-   "description": "Allow the same customer to hold more than one active request for this service.",
-   "fieldname": "allow_parallel_requests",
-   "fieldtype": "Check",
-   "label": "Allow Parallel Requests"
-  },
-  {
-   "default": "0",
-   "fieldname": "base_price",
-   "fieldtype": "Currency",
-   "label": "Base Price"
-  },
-  {
-   "default": "PKR",
-   "fieldname": "currency",
-   "fieldtype": "Data",
-   "label": "Currency"
-  },
-  {
-   "description": "Authoritative ERPNext legal company for this service. New requests freeze this value and accounting must match it exactly.",
-   "fieldname": "company",
-   "fieldtype": "Link",
-   "in_standard_filter": 1,
-   "label": "Company",
-   "options": "Company",
-   "search_index": 1
-  },
-  {
-   "default": "1",
-   "fieldname": "service_version",
-   "fieldtype": "Int",
-   "hidden": 1,
-   "label": "Service Version",
-   "read_only": 1,
-   "reqd": 1
-  },
-  {
-   "fieldname": "pricing_version",
-   "fieldtype": "Data",
-   "hidden": 1,
-   "label": "Pricing Version",
-   "read_only": 1,
-   "search_index": 1
-  },
-  {
-   "default": "No Tax",
-   "fieldname": "tax_policy",
-   "fieldtype": "Select",
-   "label": "Tax Policy",
-   "options": "No Tax\nTax Included\nTax Exclusive",
-   "reqd": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "tax_rate",
-   "fieldtype": "Percent",
-   "label": "Tax Rate"
-  },
-  {
-   "default": "Full Settlement",
-   "fieldname": "activation_policy",
-   "fieldtype": "Select",
-   "label": "Activation Policy",
-   "options": "Full Settlement\nNo Charge\nPost-paid Approval",
-   "reqd": 1
-  },
-  {
-   "default": "72",
-   "fieldname": "pending_payment_expiry_hours",
-   "fieldtype": "Int",
-   "label": "Pending Payment Expiry Hours",
-   "reqd": 1
-  },
-  {
-   "default": "24",
-   "fieldname": "duplicate_window_hours",
-   "fieldtype": "Int",
-   "label": "Duplicate Window Hours",
-   "reqd": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "sort_order",
-   "fieldtype": "Int",
-   "label": "Sort Order"
-  },
-  {
-   "default": "0",
-   "fieldname": "is_featured",
-   "fieldtype": "Check",
-   "label": "Is Featured"
-  },
-  {
-   "default": "1",
-   "fieldname": "is_active",
-   "fieldtype": "Check",
-   "label": "Is Active"
-  },
-  {
-   "fieldname": "short_description",
-   "fieldtype": "Small Text",
-   "label": "Short Description"
-  },
-  {
-   "fieldname": "fee_label",
-   "fieldtype": "Data",
-   "label": "Fee Label"
-  },
-  {
-   "fieldname": "government_fee_label",
-   "fieldtype": "Data",
-   "label": "Government Fee Label"
-  },
-  {
-   "fieldname": "completion_time",
-   "fieldtype": "Data",
-   "label": "Completion Time"
-  },
-  {
-   "fieldname": "support_message",
-   "fieldtype": "Small Text",
-   "label": "Support Message"
-  },
-  {
-   "default": "#526173",
-   "description": "Choose a preset colour or enter a custom hex colour for the service icon treatment.",
-   "fieldname": "color_family",
-   "fieldtype": "Color",
-   "label": "Accent Color"
-  },
-  {
-   "fieldname": "identity_section",
-   "fieldtype": "Section Break",
-   "label": "Identity"
-  },
-  {
-   "fieldname": "mobile_appearance_section",
-   "fieldtype": "Section Break",
-   "label": "Mobile Appearance"
-  },
-  {
-   "fieldname": "pricing_duration_section",
-   "fieldtype": "Section Break",
-   "label": "Pricing and Duration"
-  },
-  {
-   "fieldname": "request_configuration_section",
-   "fieldtype": "Section Break",
-   "label": "Request Configuration"
-  },
-  {
-   "fieldname": "publishing_section",
-   "fieldtype": "Section Break",
-   "label": "Publishing"
-  },
-  {
-   "fieldname": "erp_task_type",
-   "fieldtype": "Link",
-   "label": "ERP Task Type",
-   "options": "Task Type",
-   "description": "Canonical ERP Task Type used when this mobile service creates an ERP Service and ERP Task.",
-   "in_standard_filter": 1,
-   "search_index": 1
-  },
-  {
-   "fieldname": "icon_preview",
-   "fieldtype": "HTML",
-   "label": "Icon Preview"
-  }
+  {"description": "Automatically generated from the service title.", "fieldname": "service_id", "fieldtype": "Data", "hidden": 1, "label": "Service ID", "no_copy": 1, "read_only": 1, "unique": 1},
+  {"fieldname": "title", "fieldtype": "Data", "label": "Title", "reqd": 1},
+  {"fieldname": "category", "fieldtype": "Link", "label": "Category", "options": "OMC Service Category"},
+  {"fieldname": "description", "fieldtype": "Long Text", "label": "Description"},
+  {"default": "general_service", "description": "Stable semantic icon key used by mobile clients.", "fieldname": "icon", "fieldtype": "Select", "label": "Service Icon", "options": "\nbusiness_setup\ncompany_registration\ntax_filing\ntax_registration\ngst\naccounting\naudit\ndocuments\ncertificate\nlegal\nvisa\npayroll\npayments\ncompliance\nconsultation\nlicensing\ntrademark\nbookkeeping\nbanking\ngeneral_service"},
+  {"description": "Legacy compatibility field. Completion Time is the canonical customer-facing duration.", "fieldname": "estimated_duration", "fieldtype": "Data", "hidden": 1, "label": "Estimated Duration", "read_only": 1},
+  {"fieldname": "default_assignee", "fieldtype": "Link", "label": "Default Assignee", "options": "User", "description": "Optional preferred staff member. If blank, automatic assignment uses the normal eligible staff pool after activation."},
+  {"default": "Employee", "description": "Legacy compatibility field. Automatic assignment falls back to the standard Employee pool; historical role values remain readable until data normalization is complete.", "fieldname": "default_assignment_role", "fieldtype": "Select", "hidden": 1, "label": "Default Assignment Role", "options": "\nEmployee\nConsultant\nTax Associates\nBusiness Partner\nOMC Manager\nOMC Consultant\nOMC Tax Associate\nOMC Business Partner", "read_only": 1},
+  {"default": "0", "description": "Allow the same customer to hold more than one active request for this service.", "fieldname": "allow_parallel_requests", "fieldtype": "Check", "label": "Allow Parallel Requests"},
+  {"default": "0", "fieldname": "base_price", "fieldtype": "Currency", "label": "Base Price"},
+  {"default": "PKR", "fieldname": "currency", "fieldtype": "Data", "label": "Currency"},
+  {"description": "Authoritative ERPNext legal company for this service. New requests freeze this value and accounting must match it exactly.", "fieldname": "company", "fieldtype": "Link", "in_standard_filter": 1, "label": "Company", "options": "Company", "search_index": 1},
+  {"default": "1", "fieldname": "service_version", "fieldtype": "Int", "hidden": 1, "label": "Service Version", "read_only": 1, "reqd": 1},
+  {"fieldname": "pricing_version", "fieldtype": "Data", "hidden": 1, "label": "Pricing Version", "read_only": 1, "search_index": 1},
+  {"default": "No Tax", "fieldname": "tax_policy", "fieldtype": "Select", "label": "Tax Policy", "options": "No Tax\nTax Included\nTax Exclusive", "reqd": 1},
+  {"default": "0", "fieldname": "tax_rate", "fieldtype": "Percent", "label": "Tax Rate"},
+  {"default": "Verified Payment", "description": "Verified Payment starts service after any positive ERP-reconciled payment. Full Settlement waits until the invoice is fully settled.", "fieldname": "activation_policy", "fieldtype": "Select", "label": "Activation Policy", "options": "Verified Payment\nFull Settlement\nNo Charge\nPost-paid Approval", "reqd": 1},
+  {"default": "72", "fieldname": "pending_payment_expiry_hours", "fieldtype": "Int", "label": "Pending Payment Expiry Hours", "reqd": 1},
+  {"default": "24", "fieldname": "duplicate_window_hours", "fieldtype": "Int", "label": "Duplicate Window Hours", "reqd": 1},
+  {"default": "0", "fieldname": "sort_order", "fieldtype": "Int", "label": "Sort Order"},
+  {"default": "0", "fieldname": "is_featured", "fieldtype": "Check", "label": "Is Featured"},
+  {"default": "1", "fieldname": "is_active", "fieldtype": "Check", "label": "Is Active"},
+  {"fieldname": "short_description", "fieldtype": "Small Text", "label": "Short Description"},
+  {"fieldname": "fee_label", "fieldtype": "Data", "label": "Fee Label"},
+  {"fieldname": "government_fee_label", "fieldtype": "Data", "label": "Government Fee Label"},
+  {"fieldname": "completion_time", "fieldtype": "Data", "label": "Completion Time"},
+  {"fieldname": "support_message", "fieldtype": "Small Text", "label": "Support Message"},
+  {"default": "#526173", "description": "Choose a preset colour or enter a custom hex colour for the service icon treatment.", "fieldname": "color_family", "fieldtype": "Color", "label": "Accent Color"},
+  {"fieldname": "identity_section", "fieldtype": "Section Break", "label": "Identity"},
+  {"fieldname": "mobile_appearance_section", "fieldtype": "Section Break", "label": "Mobile Appearance"},
+  {"fieldname": "pricing_duration_section", "fieldtype": "Section Break", "label": "Pricing and Duration"},
+  {"fieldname": "request_configuration_section", "fieldtype": "Section Break", "label": "Request Configuration"},
+  {"fieldname": "publishing_section", "fieldtype": "Section Break", "label": "Publishing"},
+  {"fieldname": "erp_accounting_section", "fieldtype": "Section Break", "label": "ERP Accounting Mapping", "collapsible": 1},
+  {"description": "Non-stock ERPNext sales item used to create the authoritative Sales Invoice after payment verification.", "fieldname": "erp_invoice_item", "fieldtype": "Link", "in_standard_filter": 1, "label": "ERP Invoice Item", "options": "Item", "search_index": 1},
+  {"description": "Required for taxed services so the generated ERPNext Sales Invoice reproduces the frozen OMC payable amount.", "fieldname": "erp_sales_taxes_and_charges_template", "fieldtype": "Link", "label": "ERP Sales Taxes and Charges Template", "options": "Sales Taxes and Charges Template", "search_index": 1},
+  {"fieldname": "erp_task_type", "fieldtype": "Link", "label": "ERP Task Type", "options": "Task Type", "description": "Canonical ERP Task Type used when this mobile service creates an ERP Service and ERP Task.", "in_standard_filter": 1, "search_index": 1},
+  {"fieldname": "icon_preview", "fieldtype": "HTML", "label": "Icon Preview"}
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-06 00:00:00.000000",
+ "modified": "2026-09-11 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC Service",
  "naming_rule": "By fieldname",
  "owner": "Administrator",
- "permissions": [
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "OMC Admin",
-   "share": 1,
-   "write": 1
-  }
- ],
+ "permissions": [{"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "OMC Admin", "share": 1, "write": 1}],
  "quick_entry": 0,
  "sort_field": "sort_order",
  "sort_order": "ASC",

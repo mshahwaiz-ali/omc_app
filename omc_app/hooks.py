@@ -20,8 +20,8 @@ doc_events = {
     'Task': {'on_update': 'omc_app.api.erp_task_status_sync.sync_task_status'},
     'Payment Entry': {
         'before_submit': 'omc_app.api.commission_projection.suppress_legacy_commission_writer',
-        'on_submit': 'omc_app.api.accounting_reconciliation.payment_entry_submitted',
-        'on_cancel': 'omc_app.api.accounting_reconciliation.payment_entry_cancelled',
+        'on_submit': 'omc_app.api.payment_accounting_hooks.payment_entry_submitted',
+        'on_cancel': 'omc_app.api.payment_accounting_hooks.payment_entry_cancelled',
     },
     'Sales Invoice': {
         'on_submit': 'omc_app.api.accounting_reconciliation.sales_invoice_submitted',
@@ -41,5 +41,6 @@ scheduler_events = {
 }
 fixtures = [{'doctype': 'Workspace', 'filters': [['name', 'in', ['OMC App']]]}]
 app_include_css = '/assets/omc_app/css/omc_desk.css'
-# Durable push retries are isolated from business mutations.
+# Durable operational retries are isolated from business mutations.
 scheduler_events.setdefault("cron", {}).setdefault("* * * * *", []).append("omc_app.api.push_delivery.sweep")
+scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("omc_app.api.payment_accounting.process_pending_receipts")

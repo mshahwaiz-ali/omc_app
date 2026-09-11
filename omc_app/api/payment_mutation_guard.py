@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import frappe
 
-from omc_app.api import mobile, payments
+from omc_app.api import mobile, payment_accounting, payments
 from omc_app.omc_app.doctype.omc_service_payment.omc_service_payment import (
     TERMINAL_PAYMENT_STATUSES,
     TERMINAL_SERVICE_REQUEST_STATUSES,
@@ -57,10 +57,6 @@ def _same_text(current, requested):
 
 
 def _review_is_noop(payment, *, status, remarks=None, payment_reference=None):
-    if status == "Paid" and payment.receipt_status == "Accepted":
-        return _same_text(payment.remarks, remarks) and _same_text(
-            payment.payment_reference, payment_reference
-        )
     return (
         (payment.status or "") == (status or "")
         and _same_text(payment.remarks, remarks)
@@ -115,12 +111,37 @@ def review_payment_receipt(
     status=None,
     remarks=None,
     payment_reference=None,
+    verified_amount=None,
+    payment_account=None,
 ):
     resolved_id = _payment_id(payment_id, name)
     payment = _load_mutable_payment(resolved_id)
+    normalized = (status or "").strip()
+
+    # Compatibility: older Flutter builds send Paid for receipt acceptance.
+    # Paid itself remains an ERP settlement projection; this request means
+    # "verify the submitted receipt" and starts ERP accounting automation.
+    if normalized in {"Paid", "Verified"}:
+        return payment_accounting.review_receipt(
+            payment_id=resolved_id,
+            decision="Verified",
+            remarks=remarks,
+            payment_reference=payment_reference,
+            verified_amount=verified_amount,
+            payment_account=payment_account,
+        )
+
+    if normalized == "Rejected":
+        return payment_accounting.review_receipt(
+            payment_id=resolved_id,
+            decision="Rejected",
+            remarks=remarks,
+            payment_reference=payment_reference,
+        )
+
     if _review_is_noop(
         payment,
-        status=status,
+        status=normalized,
         remarks=remarks,
         payment_reference=payment_reference,
     ):
@@ -128,7 +149,7 @@ def review_payment_receipt(
 
     return payments.review_payment_receipt(
         payment_id=resolved_id,
-        status=status,
+        status=normalized,
         remarks=remarks,
         payment_reference=payment_reference,
     )

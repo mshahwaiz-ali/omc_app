@@ -6,7 +6,8 @@ TERMINAL_SERVICE_REQUEST_STATUSES = {"Completed", "Cancelled"}
 ALLOWED_PAYMENT_STATUS_TRANSITIONS = {
     "Pending": {"Receipt Submitted", "Under Review", "Cancelled"},
     "Receipt Submitted": {"Under Review", "Rejected", "Cancelled"},
-    "Under Review": {"Rejected", "Cancelled"},
+    "Under Review": {"Partially Paid", "Rejected", "Cancelled"},
+    "Partially Paid": {"Receipt Submitted", "Under Review", "Rejected", "Cancelled"},
     "Rejected": {"Receipt Submitted", "Under Review", "Cancelled"},
     "Paid": set(),
     "Cancelled": set(),
@@ -48,6 +49,8 @@ class OMCServicePayment(Document):
 
         if self.status == "Paid" and self.accounting_status != "Settled":
             frappe.throw("Paid is reserved for reconciled ERP settlement.")
+        if self.status == "Partially Paid" and self.accounting_status != "Partially Settled":
+            frappe.throw("Partially Paid is reserved for reconciled ERP partial settlement.")
 
         if previous_status != self.status:
             self._assert_parent_is_mutable()
@@ -75,7 +78,7 @@ class OMCServicePayment(Document):
                     "Payment amount cannot be changed after creation."
                 )
 
-        if self.status in {"Paid", "Rejected"} and not self.receipt_attachment and self.receipt_status != "Not Submitted":
+        if self.status in {"Paid", "Partially Paid", "Rejected"} and not self.receipt_attachment and self.receipt_status != "Not Submitted":
             frappe.throw(
                 "A receipt must be attached before marking this payment "
                 f"as {self.status}."
