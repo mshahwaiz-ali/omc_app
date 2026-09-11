@@ -27,6 +27,49 @@ def _operation_key(request) -> str:
     ).hexdigest()
 
 
+def _accounting_status(request_name: str) -> str:
+    value = _text(
+        frappe.db.get_value(
+            "OMC Accounting Link",
+            {"base_request_key": request_name},
+            "accounting_status",
+        )
+    )
+    if value:
+        return value
+    # Keep compatibility with the original boolean settlement gate and its
+    # existing regression tests while exposing the richer partial state.
+    if frappe.db.exists(
+        "OMC Accounting Link",
+        {"base_request_key": request_name, "accounting_status": "Settled"},
+    ):
+        return "Settled"
+    if frappe.db.exists(
+        "OMC Accounting Link",
+        {"base_request_key": request_name, "accounting_status": "Partially Settled"},
+    ):
+        return "Partially Settled"
+    return ""
+
+
+def _payment_evidence(request) -> dict:
+    policy = _text(request.payment_policy_snapshot) or "Full Settlement"
+    accounting_status = _accounting_status(request.name)
+    if policy == "Verified Payment":
+        valid = accounting_status in {"Partially Settled", "Settled"}
+        return {
+            "valid": valid,
+            "reason": "A positive ERP-reconciled payment is required." if not valid else "",
+        }
+    if policy == "Full Settlement":
+        valid = accounting_status == "Settled"
+        return {
+            "valid": valid,
+            "reason": "Full ERP settlement is required." if not valid else "",
+        }
+    return {"valid": True, "reason": ""}
+
+
 def eligibility(request) -> dict:
     state = _text(request.request_state)
     policy = _text(request.payment_policy_snapshot) or "Full Settlement"
@@ -34,6 +77,7 @@ def eligibility(request) -> dict:
         return {"eligible": False, "reason": f"request is {state}"}
     if state == "Activated":
         return {"eligible": False, "reason": "request is already activated"}
+    allowed_states = {"Pending Payment", "Ready for Activation", "Activation Failed"}
     if policy == "No Charge":
         eligible = not request.payable_amount and state in {
             "Payment Not Required", "Ready for Activation", "Activation Failed"
@@ -47,25 +91,16 @@ def eligibility(request) -> dict:
             ),
         }
     if policy == "Post-paid Approval":
-        eligible = bool(request.post_paid_approved_by and request.post_paid_approved_at) and state in {
-            "Pending Payment", "Ready for Activation", "Activation Failed"
-        }
+        eligible = bool(request.post_paid_approved_by and request.post_paid_approved_at) and state in allowed_states
         return {
             "eligible": eligible,
             "reason": "Finance approval is required." if not eligible else "",
         }
-    settled = bool(
-        frappe.db.exists(
-            "OMC Accounting Link",
-            {
-                "base_request_key": request.name,
-                "accounting_status": "Settled",
-            },
-        )
-    )
+    evidence = _payment_evidence(request)
+    eligible = bool(evidence["valid"] and state in allowed_states)
     return {
-        "eligible": settled and state in {"Pending Payment", "Ready for Activation", "Activation Failed"},
-        "reason": "Full ERP settlement is required." if not settled else "Request is not activation-eligible.",
+        "eligible": eligible,
+        "reason": evidence["reason"] if not evidence["valid"] else "Request is not activation-eligible.",
     }
 
 
@@ -106,18 +141,20 @@ def enqueue_if_eligible(request_name: str):
             _enqueue_operation(name)
         return name
 
-    doc = frappe.get_doc({
-        "doctype": "OMC Bridge Operation",
-        "operation_key": key,
-        "operation_type": "Activate Request",
-        "service_request": request.name,
-        "source_version": hashlib.sha256(
-            f"{request.name}|{request.pricing_version_snapshot}|{request.modified}".encode()
-        ).hexdigest(),
-        "state": "Pending",
-        "attempt_count": 0,
-        "next_attempt_at": now_datetime(),
-    })
+    doc = frappe.get_doc(
+        {
+            "doctype": "OMC Bridge Operation",
+            "operation_key": key,
+            "operation_type": "Activate Request",
+            "service_request": request.name,
+            "source_version": hashlib.sha256(
+                f"{request.name}|{request.pricing_version_snapshot}|{request.modified}".encode()
+            ).hexdigest(),
+            "state": "Pending",
+            "attempt_count": 0,
+            "next_attempt_at": now_datetime(),
+        }
+    )
     try:
         doc.insert(ignore_permissions=True)
         name = doc.name
@@ -136,19 +173,41 @@ def _profile_for_request(request):
 
 def _mark_operation_retry(operation_name: str, attempts: int) -> str:
     next_state = "Failed" if attempts >= MAX_ATTEMPTS else "Retry"
-    values = {
-        "state": next_state,
-        "attempt_count": attempts,
-        "next_attempt_at": (
-            None
-            if next_state == "Failed"
-            else add_to_date(now_datetime(), minutes=min(2 ** attempts, 60))
-        ),
-        "last_error_category": "bridge_failure",
-        "last_safe_error": "ERP activation could not be completed.",
-    }
-    frappe.db.set_value("OMC Bridge Operation", operation_name, values, update_modified=False)
+    frappe.db.set_value(
+        "OMC Bridge Operation",
+        operation_name,
+        {
+            "state": next_state,
+            "attempt_count": attempts,
+            "next_attempt_at": (
+                None
+                if next_state == "Failed"
+                else add_to_date(now_datetime(), minutes=min(2 ** attempts, 60))
+            ),
+            "last_error_category": "bridge_failure",
+            "last_safe_error": "ERP activation could not be completed.",
+        },
+        update_modified=False,
+    )
     return next_state
+
+
+def _cancel_for_lost_payment_evidence(request, operation, reason: str) -> dict:
+    if request.request_state in {"Ready for Activation", "Activating", "Activation Failed"}:
+        request_lifecycle.transition_request_state(
+            request.name,
+            "Financial Hold",
+            reason=reason,
+            actor=frappe.session.user,
+            idempotency_key=f"hold:{operation.operation_key}",
+        )
+    frappe.db.set_value(
+        operation.doctype,
+        operation.name,
+        {"state": "Cancelled", "next_attempt_at": None, "last_safe_error": reason},
+        update_modified=False,
+    )
+    return {"status": "ineligible", "reason": reason}
 
 
 def process_operation(operation_name: str) -> dict:
@@ -212,28 +271,13 @@ def process_operation(operation_name: str) -> dict:
         )
         return {"status": "ineligible", "reason": allowed["reason"]}
 
-    # Re-check settlement under the request row lock immediately before any ERP write.
-    if request.payment_policy_snapshot == "Full Settlement" and not frappe.db.exists(
-        "OMC Accounting Link",
-        {
-            "base_request_key": request.name,
-            "accounting_status": "Settled",
-        },
-    ):
-        request_lifecycle.transition_request_state(
-            request.name,
-            "Financial Hold",
-            reason="Settlement was reversed before activation.",
-            actor=frappe.session.user,
-            idempotency_key=f"hold:{operation.operation_key}",
+    evidence = _payment_evidence(request)
+    if not evidence["valid"]:
+        return _cancel_for_lost_payment_evidence(
+            request,
+            operation,
+            evidence["reason"] or "Payment evidence is no longer sufficient for activation.",
         )
-        frappe.db.set_value(
-            operation.doctype,
-            operation.name,
-            {"state": "Cancelled", "next_attempt_at": None, "last_safe_error": "Settlement is no longer complete."},
-            update_modified=False,
-        )
-        return {"status": "ineligible", "reason": "Settlement is no longer complete."}
 
     attempts = cint(operation.attempt_count or 0) + 1
     frappe.db.set_value(
@@ -254,15 +298,11 @@ def process_operation(operation_name: str) -> dict:
     frappe.db.savepoint(bridge_savepoint)
     try:
         request.reload()
-        # Final eligibility check while the request lock is still held.
-        if request.payment_policy_snapshot == "Full Settlement" and not frappe.db.exists(
-            "OMC Accounting Link",
-            {
-                "base_request_key": request.name,
-                "accounting_status": "Settled",
-            },
-        ):
-            raise frappe.ValidationError("Settlement changed before ERP activation.")
+        evidence = _payment_evidence(request)
+        if not evidence["valid"]:
+            raise frappe.ValidationError(
+                evidence["reason"] or "Payment evidence changed before ERP activation."
+            )
 
         service = frappe.get_doc("OMC Service", request.service)
         result = erp_service_task_adapter.sync_request(
@@ -420,8 +460,6 @@ def process_pending(limit: int = 25):
         order_by="next_attempt_at asc, creation asc",
         limit_page_length=min(max(cint(limit), 1), 100),
     )
-    # Some stale Processing rows may not have a useful next_attempt_at from an
-    # interrupted worker, so add them explicitly to the recovery sweep.
     stale = frappe.get_all(
         "OMC Bridge Operation",
         filters={"state": "Processing", "last_attempt_at": ["<=", stale_cutoff]},
