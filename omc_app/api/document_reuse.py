@@ -118,7 +118,6 @@ def _latest_prior_document(prior_requests: list[str], document_key: str):
             "service_request": ["in", prior_requests],
             "document_key": document_key,
             "visible_to_customer": 1,
-            "attachment": ["!=", ""],
         },
         fields=[
             "name",
@@ -139,12 +138,15 @@ def _latest_prior_document(prior_requests: list[str], document_key: str):
     if not rows:
         return None
 
-    # The newest evidence wins. Never fall back to an older approved file when
-    # a newer replacement was rejected or is still awaiting review.
+    # The newest evidence wins even when its attachment is empty. Never fall
+    # back to an older approved file after a newer replacement was rejected,
+    # cleared, or is still awaiting review.
     latest = rows[0]
     if _text(latest.status) != "Approved":
         return None
     if _text(latest.quarantine_status) == "Rejected":
+        return None
+    if not _text(latest.attachment):
         return None
     return latest
 
