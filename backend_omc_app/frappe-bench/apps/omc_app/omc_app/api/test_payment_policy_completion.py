@@ -31,6 +31,11 @@ class TestPaymentPolicyCompletion(FrappeTestCase):
                 return_value=True,
             ),
             patch.object(
+                workflow_automation.mobile,
+                "_doctype_has_field",
+                return_value=False,
+            ),
+            patch.object(
                 workflow_automation.frappe,
                 "get_all",
                 side_effect=[
