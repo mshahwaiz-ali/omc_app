@@ -33,4 +33,17 @@ count = text.count(old)
 if count != 1:
     raise SystemExit(f"expected one payment visual block, found {count}")
 path.write_text(text.replace(old, new, 1), encoding="utf-8")
-print("Payment visual normalized for exact closure patch.")
+
+payment_detail = Path(
+    "omc_app/lib/features/payments/presentation/payment_detail_screen.dart"
+)
+payment_text = payment_detail.read_text(encoding="utf-8")
+stale_import = "import '../../../core/widgets/app_labeled_field.dart';\n"
+if payment_text.count(stale_import) != 1:
+    raise SystemExit("expected one stale AppLabeledField import")
+payment_detail.write_text(
+    payment_text.replace(stale_import, "", 1),
+    encoding="utf-8",
+)
+
+print("Closure patch input normalized.")
