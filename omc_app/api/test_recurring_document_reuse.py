@@ -88,11 +88,6 @@ class TestRecurringDocumentReuse(FrappeTestCase):
                 return_value=True,
             ),
             patch.object(
-                assisted_service_policy.frappe.session,
-                "user",
-                "consultant@example.com",
-            ),
-            patch.object(
                 assisted_service_policy.document_reuse,
                 "reuse_approved_documents",
                 side_effect=reuse,
