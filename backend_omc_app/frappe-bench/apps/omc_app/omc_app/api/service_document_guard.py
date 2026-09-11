@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import frappe
 
-from omc_app.api import customer_documents, payment_opening
+from omc_app.api import completion_recheck, customer_documents, payment_opening
 
 TERMINAL_SERVICE_REQUEST_STATUSES = {"Completed", "Cancelled"}
 
@@ -49,6 +49,12 @@ def _review_is_noop(document, *, status, remarks=None):
     )
 
 
+def _after_approval(service_request: str):
+    payment_name = payment_opening.ensure_service_payment(service_request)
+    completion_recheck.recheck_completed_task(service_request)
+    return payment_name
+
+
 @frappe.whitelist()
 def get_document(document_id=None):
     _load_document_with_parent(document_id)
@@ -68,7 +74,7 @@ def update_service_document_status(document_id=None, status=None, remarks=None):
 
     if _review_is_noop(document, status=status, remarks=remarks):
         payment_name = (
-            payment_opening.ensure_service_payment(service_request)
+            _after_approval(service_request)
             if (status or "").strip() == "Approved"
             else None
         )
@@ -88,7 +94,7 @@ def update_service_document_status(document_id=None, status=None, remarks=None):
         remarks=remarks,
     )
     if (status or "").strip() == "Approved":
-        payment_name = payment_opening.ensure_service_payment(service_request)
+        payment_name = _after_approval(service_request)
         if isinstance(response, dict):
             response["payment_id"] = payment_name
     return response
