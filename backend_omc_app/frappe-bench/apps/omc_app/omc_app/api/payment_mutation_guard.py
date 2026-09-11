@@ -82,6 +82,34 @@ def _noop_review_response(payment):
     }
 
 
+def _activated_case_snapshot(payment):
+    request = frappe.db.get_value(
+        "OMC Service Request",
+        payment.service_request,
+        ["request_state", "status"],
+        as_dict=True,
+    )
+    if request and (request.request_state or "").strip() == "Activated":
+        return (request.status or "").strip() or "In Progress"
+    return None
+
+
+def _restore_activated_case_status(payment, previous_status):
+    if not previous_status:
+        return
+    state = frappe.db.get_value(
+        "OMC Service Request", payment.service_request, "request_state"
+    )
+    if (state or "").strip() == "Activated":
+        frappe.db.set_value(
+            "OMC Service Request",
+            payment.service_request,
+            "status",
+            previous_status,
+            update_modified=False,
+        )
+
+
 @frappe.whitelist(methods=["POST"])
 def upload_payment_receipt_file(
     payment_id=None,
@@ -93,8 +121,9 @@ def upload_payment_receipt_file(
     idempotency_key=None,
 ):
     resolved_id = _payment_id(payment_id, name)
-    _load_mutable_payment(resolved_id)
-    return payments.upload_payment_receipt_file(
+    payment = _load_mutable_payment(resolved_id)
+    activated_status = _activated_case_snapshot(payment)
+    response = payments.upload_payment_receipt_file(
         payment_id=resolved_id,
         file_name=file_name,
         content_base64=content_base64,
@@ -102,6 +131,29 @@ def upload_payment_receipt_file(
         remarks=remarks,
         idempotency_key=idempotency_key,
     )
+    _restore_activated_case_status(payment, activated_status)
+    return response
+
+
+@frappe.whitelist(methods=["POST"])
+def upload_payment_receipt_multipart(
+    payment_id=None,
+    name=None,
+    payment_reference=None,
+    remarks=None,
+    idempotency_key=None,
+):
+    resolved_id = _payment_id(payment_id, name)
+    payment = _load_mutable_payment(resolved_id)
+    activated_status = _activated_case_snapshot(payment)
+    response = payments.upload_payment_receipt_multipart(
+        payment_id=resolved_id,
+        payment_reference=payment_reference,
+        remarks=remarks,
+        idempotency_key=idempotency_key,
+    )
+    _restore_activated_case_status(payment, activated_status)
+    return response
 
 
 @frappe.whitelist(methods=["POST"])
