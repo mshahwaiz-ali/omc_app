@@ -52,6 +52,9 @@ Future<bool> saveOptionalUpdateDismissal(String pair) async {
 final appGateDecisionProvider = Provider<AppGateDecision>((ref) {
   final state = ref.watch(mobileAppConfigProvider);
   final config = state.value;
+  final now = DateTime.now();
+  final keepCurrentConfigDuringRefresh =
+      state.isRefreshing && config?.isCurrentAt(now) == true;
   final needsVersion = config?.controls.minimumAppVersion.isNotEmpty == true;
   final version = needsVersion
       ? ref.watch(installedMobileVersionProvider)
@@ -79,8 +82,10 @@ final appGateDecisionProvider = Provider<AppGateDecision>((ref) {
   }
   return evaluateMobileGate(
     config: config,
-    now: DateTime.now(),
-    loading: state.isLoading || suppressionLoading,
+    now: now,
+    loading:
+        (state.isLoading && !keepCurrentConfigDuringRefresh) ||
+        suppressionLoading,
     failed: state.hasError,
     installedVersion: version?.value,
     installedVersionLoading: version?.isLoading == true,

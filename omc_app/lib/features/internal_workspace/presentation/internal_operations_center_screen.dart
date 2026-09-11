@@ -489,7 +489,7 @@ class InternalServiceCaseWorkspaceScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final queueAsync = ref.watch(internalServiceCasesProvider);
+    final caseAsync = ref.watch(internalServiceCaseByIdProvider(caseId));
 
     return Scaffold(
       body: Column(
@@ -504,10 +504,11 @@ class InternalServiceCaseWorkspaceScreen extends ConsumerWidget {
           Expanded(
             child: RefreshIndicator(
               onRefresh: () {
-                ref.invalidate(internalServiceCasesProvider);
-                return ref.read(internalServiceCasesProvider.future);
+                ref.invalidate(internalServiceCaseByIdProvider(caseId));
+
+                return ref.read(internalServiceCaseByIdProvider(caseId).future);
               },
-              child: queueAsync.when(
+              child: caseAsync.when(
                 loading: () => const _CaseDetailsLoading(),
                 error: (error, _) => _CaseDetailsState(
                   icon: Icons.cloud_off_rounded,
@@ -520,26 +521,18 @@ class InternalServiceCaseWorkspaceScreen extends ConsumerWidget {
                   ).message,
                   actionLabel: 'Try again',
                   actionIcon: Icons.refresh_rounded,
-                  onAction: () => ref.invalidate(internalServiceCasesProvider),
+                  onAction: () =>
+                      ref.invalidate(internalServiceCaseByIdProvider(caseId)),
                 ),
-                data: (queue) {
-                  InternalServiceCase? serviceCase;
-
-                  for (final item in queue.cases) {
-                    if (item.id == caseId) {
-                      serviceCase = item;
-                      break;
-                    }
-                  }
-
+                data: (serviceCase) {
                   if (serviceCase == null) {
                     return _CaseDetailsState(
                       icon: Icons.search_off_rounded,
-                      title: 'Case not available in this queue',
+                      title: 'Case not available',
                       message:
-                          'This case is not present in the currently loaded internal queue. '
-                          'That does not mean the backend record does not exist. Return to '
-                          'the scoped case queue to continue.',
+                          'This case is not available to your current account '
+                          'or is no longer in your service-case scope. '
+                          'Return to the scoped case queue to continue.',
                       actionLabel: 'Back to case queue',
                       actionIcon: Icons.list_alt_rounded,
                       onAction: () => context.go(_fullCaseRoute),

@@ -512,6 +512,24 @@ def _pagination(limit_start=0, limit_page_length=20):
     return start, length
 
 
+def _approved_assisted_profile_names() -> list[str]:
+    names = frappe.get_all(
+        "OMC Customer Account",
+        filters={
+            "identity_proof_status": "Verified",
+            "account_link_status": "Linked",
+            "service_access_status": "Approved",
+        },
+        pluck="legacy_customer_profile",
+        limit_page_length=0,
+    )
+    return sorted({
+        _text(name)
+        for name in names
+        if _text(name)
+    })
+
+
 def _customer_item(row, *, mode: str) -> dict:
     return {
         "customer_mode": mode,
@@ -592,8 +610,15 @@ def get_customer_selection_options(
             frappe.PermissionError,
         )
 
+    approved_profile_names = _approved_assisted_profile_names()
+    approved_profile_filter = [
+        "in",
+        approved_profile_names or ["__none__"],
+    ]
+
     if selected_mode == "My Referral":
         filters = {
+            "name": approved_profile_filter,
             "referred_by": user,
             "referral_assistance_consent": 1,
             "is_active": 1,
@@ -625,7 +650,10 @@ def get_customer_selection_options(
     elif selected_mode == "Existing Customer":
         rows = frappe.get_all(
             "OMC Customer Profile",
-            filters={"is_active": 1},
+            filters={
+                "name": approved_profile_filter,
+                "is_active": 1,
+            },
             or_filters=_search_or_filters(
                 search,
                 ("name", "full_name", "email", "phone", "cnic"),

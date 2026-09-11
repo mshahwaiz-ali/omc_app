@@ -38,7 +38,8 @@ class AssistedCustomerCard extends ConsumerStatefulWidget {
       _AssistedCustomerCardState();
 }
 
-class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
+class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard>
+    with AutomaticKeepAliveClientMixin<AssistedCustomerCard> {
   final _customerController = TextEditingController();
   final _searchController = TextEditingController();
   final _consentController = TextEditingController();
@@ -197,7 +198,11 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     final selectedCustomer = _selectedCustomer;
 
@@ -255,14 +260,16 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Search eligible customers', style: theme.textTheme.labelLarge),
+            Text(
+              'Search eligible customers',
+              style: theme.textTheme.labelLarge,
+            ),
             const SizedBox(height: AppSpacing.xs),
             TextField(
               controller: _searchController,
               textInputAction: TextInputAction.search,
-              onSubmitted: (_) => _loading
-                  ? null
-                  : _loadItems(search: _searchController.text),
+              onSubmitted: (_) =>
+                  _loading ? null : _loadItems(search: _searchController.text),
               decoration: InputDecoration(
                 hintText: 'Name, phone, email or customer ID',
                 prefixIcon: const Icon(Icons.manage_search_rounded),

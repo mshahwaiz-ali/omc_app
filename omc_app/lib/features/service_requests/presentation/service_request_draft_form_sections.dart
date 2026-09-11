@@ -493,6 +493,7 @@ class _SubmitRequestBar extends StatelessWidget {
         child: SafeArea(
           top: false,
           child: Center(
+            heightFactor: 1,
             child: ConstrainedBox(
               constraints: const BoxConstraints(
                 maxWidth: AppLayout.formMaxWidth + 32,

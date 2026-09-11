@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../data/internal_workspace_repository.dart';
+import '../data/internal_service_case_page_repository.dart';
 import '../domain/internal_service_case.dart';
 import '../domain/internal_workspace_summary.dart';
 
@@ -48,4 +49,24 @@ final internalServiceCasesProvider =
         status: filters.status,
         documentStatus: filters.documentStatus,
       );
+    });
+
+final internalServiceCaseByIdProvider = FutureProvider.autoDispose
+    .family<InternalServiceCase?, String>((ref, caseId) async {
+      ref.watch(sessionEpochProvider);
+
+      final cleanCaseId = caseId.trim();
+      if (cleanCaseId.isEmpty) return null;
+
+      final repository = ref.watch(internalServiceCasePageRepositoryProvider);
+
+      final page = await repository.fetchPage(caseId: cleanCaseId, limit: 1);
+
+      for (final serviceCase in page.queue.cases) {
+        if (serviceCase.id == cleanCaseId) {
+          return serviceCase;
+        }
+      }
+
+      return null;
     });

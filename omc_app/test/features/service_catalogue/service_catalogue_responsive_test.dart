@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omc_app/app/theme.dart';
+import 'package:omc_app/core/widgets/premium_card.dart';
 import 'package:omc_app/features/auth/application/auth_controller.dart';
 import 'package:omc_app/features/auth/application/auth_state.dart';
 import 'package:omc_app/features/service_catalogue/application/service_catalogue_controller.dart';
@@ -119,6 +120,13 @@ void main() {
 
     expect((first.dy - second.dy).abs(), lessThan(2));
     expect(second.dx, greaterThan(first.dx));
+
+    final firstTitle = find.text('Income Tax Return Filing');
+    expect(
+      find.ancestor(of: firstTitle, matching: find.byType(PremiumCard)),
+      findsNothing,
+    );
+    expect(find.byIcon(Icons.chevron_right_rounded), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

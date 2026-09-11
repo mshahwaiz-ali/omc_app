@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:omc_app/features/app_config/application/app_gate_controller.dart';
 import 'package:omc_app/features/app_config/application/app_gate_policy.dart';
 import 'package:omc_app/features/app_config/data/mobile_app_config.dart';
+import 'package:omc_app/features/app_config/data/mobile_app_config_repository.dart';
 import 'package:omc_app/features/app_config/data/mobile_release_controls.dart';
 import 'package:omc_app/features/app_config/presentation/app_readiness_gate.dart';
 
@@ -90,12 +95,66 @@ void main() {
     expect(value.isCurrentAt(now), isTrue);
     expect(value.isFallback, isTrue);
   });
-  test('loading or refresh blocks even with previous enabled data', () {
+  test('explicit blocking load remains blocked', () {
     expect(
       evaluateMobileGate(config: config(), now: now, loading: true).kind,
       AppGateKind.loading,
     );
   });
+  test(
+    'current config remains open while a background refresh is loading',
+    () async {
+      final firstConfig = MobileAppConfig.fromApiResponse(
+        payload(),
+        fetchedAt: DateTime.now().toUtc(),
+      );
+      final refreshedConfig = MobileAppConfig.fromApiResponse(
+        payload(),
+        fetchedAt: DateTime.now().toUtc(),
+      );
+      final refreshCompleter = Completer<MobileAppConfig>();
+      var loadCount = 0;
+
+      final container = ProviderContainer(
+        overrides: [
+          mobileAppConfigProvider.overrideWith((ref) async {
+            loadCount += 1;
+            if (loadCount == 1) {
+              return firstConfig;
+            }
+            return refreshCompleter.future;
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final subscription = container.listen<AppGateDecision>(
+        appGateDecisionProvider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      addTearDown(subscription.close);
+
+      await container.read(mobileAppConfigProvider.future);
+
+      expect(container.read(appGateDecisionProvider).kind, AppGateKind.open);
+
+      container.invalidate(mobileAppConfigProvider);
+      await Future<void>.delayed(Duration.zero);
+
+      final refreshing = container.read(mobileAppConfigProvider);
+
+      expect(refreshing.isRefreshing, isTrue);
+      expect(refreshing.value, same(firstConfig));
+      expect(container.read(appGateDecisionProvider).kind, AppGateKind.open);
+
+      refreshCompleter.complete(refreshedConfig);
+      await container.read(mobileAppConfigProvider.future);
+
+      expect(container.read(appGateDecisionProvider).kind, AppGateKind.open);
+    },
+  );
+
   test('expired enabled config cannot unlock normal usage', () {
     expect(
       evaluateMobileGate(

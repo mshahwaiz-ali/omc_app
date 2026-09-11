@@ -8,7 +8,6 @@ import '../../../app/design_tokens.dart';
 import '../../../app/theme.dart';
 import '../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../core/widgets/omc_premium.dart';
-import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../application/service_catalogue_controller.dart';
 import '../data/service_item.dart';
@@ -701,12 +700,11 @@ class _ServiceResults extends StatelessWidget {
         final textScale = MediaQuery.textScalerOf(context).scale(1);
         final width = constraints.maxWidth;
         final oneColumn = width < 300 || textScale >= 1.5;
-        var columns = 2;
+        var columns = 3;
         if (oneColumn) {
           columns = 1;
-        } else if (width >= 600 && textScale < 1.3) {
-          final candidateWidth = (width - (AppSpacing.sm * 2)) / 3;
-          if (candidateWidth >= 176) columns = 3;
+        } else if (width < 340 || textScale >= 1.3) {
+          columns = 2;
         }
         final gap = AppSpacing.sm;
         final itemWidth = (width - gap * (columns - 1)) / columns;
@@ -747,76 +745,53 @@ class _ServiceResultCard extends StatelessWidget {
     final theme = Theme.of(context);
     final visual = serviceVisualFor(service);
 
-    final icon = Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: visual.color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppRadius.control),
-      ),
-      alignment: Alignment.center,
-      child: Icon(visual.icon, color: visual.color, size: 24),
-    );
-
-    final chevron = Icon(
-      Icons.chevron_right_rounded,
-      color: theme.colorScheme.onSurfaceVariant,
-      size: listMode ? 24 : 20,
-    );
-
-    final content = listMode
-        ? Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              icon,
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  service.title,
-                  style: theme.textTheme.titleMedium?.copyWith(color: _ink),
-                ),
+    return Semantics(
+      button: true,
+      label: service.title,
+      hint: 'Open service details',
+      excludeSemantics: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onOpen,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          splashColor: visual.color.withValues(alpha: 0.08),
+          highlightColor: visual.color.withValues(alpha: 0.04),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: listMode ? 112 : 124),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+                vertical: AppSpacing.sm,
               ),
-              const SizedBox(width: AppSpacing.xs),
-              chevron,
-            ],
-          )
-        : Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  icon,
-                  const SizedBox(width: AppSpacing.xs),
-                  chevron,
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: visual.color.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(visual.icon, color: visual.color, size: 30),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    service.title,
+                    textAlign: TextAlign.center,
+                    softWrap: true,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: _ink,
+                      fontWeight: FontWeight.w600,
+                      height: 1.25,
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                service.title,
-                style: theme.textTheme.titleMedium?.copyWith(color: _ink),
-              ),
-            ],
-          );
-
-    return PremiumCard(
-      padding: EdgeInsets.zero,
-      onTap: onOpen,
-      semanticLabel: service.title,
-      semanticHint: 'Open service details',
-      child: ExcludeSemantics(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: listMode ? 64 : 96),
-          child: Padding(
-            padding: listMode
-                ? const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
-                  )
-                : const EdgeInsets.all(AppSpacing.md),
-            child: content,
+            ),
           ),
         ),
       ),
