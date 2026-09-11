@@ -74,3 +74,9 @@ jobs:
           git diff --cached --check
           git commit -m 'fix: close payment and case workflow parity'
           git push origin HEAD:main
+
+      # Increment this marker only to re-run the guarded verification after
+      # changing a temporary patch helper.
+      - name: Closure retry marker
+        if: always()
+        run: echo closure-retry-2
