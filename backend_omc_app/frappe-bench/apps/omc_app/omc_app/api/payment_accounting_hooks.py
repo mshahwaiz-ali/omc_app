@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import frappe
 
-from omc_app.api import accounting_reconciliation, bridge_outbox
+from omc_app.api import (
+    accounting_reconciliation,
+    bridge_outbox,
+    completion_recheck,
+)
 
 
 def _request_names(payment_entry) -> set[str]:
@@ -32,16 +36,22 @@ def project_request_payment_state(request_name: str) -> dict:
         limit_page_length=10,
     )
     for name in payment_names:
-        current = str(frappe.db.get_value("OMC Service Payment", name, "status") or "").strip()
+        current = str(
+            frappe.db.get_value("OMC Service Payment", name, "status") or ""
+        ).strip()
         values = {"accounting_status": state}
         if state == "Partially Settled":
-            values.update({"status": "Partially Paid", "paid_on": None, "settled_at": None})
+            values.update(
+                {"status": "Partially Paid", "paid_on": None, "settled_at": None}
+            )
         elif state == "Settled":
             # reconcile_request already projects Paid; keep this explicit so
             # manual and automated ERP Payment Entries share one result.
             values.update({"status": "Paid"})
         elif current in {"Paid", "Partially Paid"}:
-            values.update({"status": "Under Review", "paid_on": None, "settled_at": None})
+            values.update(
+                {"status": "Under Review", "paid_on": None, "settled_at": None}
+            )
         frappe.db.set_value(
             "OMC Service Payment",
             name,
@@ -51,6 +61,8 @@ def project_request_payment_state(request_name: str) -> dict:
 
     if state in {"Partially Settled", "Settled"}:
         bridge_outbox.enqueue_if_eligible(request_name)
+    if state == "Settled":
+        completion_recheck.recheck_completed_task(request_name)
     return result
 
 
