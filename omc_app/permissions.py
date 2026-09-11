@@ -131,15 +131,20 @@ def referral_has_permission(doc, user=None, permission_type=None):
 
 def service_document_query(user=None):
     user = _user(user)
+    if user == 'Guest':
+        return '1=0'
     roles = _roles(user)
     if roles.intersection(PRIVILEGED_ROLES | {DOCUMENT_REVIEWER_ROLE}):
         return ''
-    if roles.intersection(FIELD_ROLES):
-        return _todo_condition('OMC Service Request', '`tabOMC Service Document`.service_request', user)
+
+    request_conditions = _service_request_scope_conditions('sr', user, roles)
+    request_scope = ' or '.join(
+        f'({condition})' for condition in request_conditions
+    ) or '1=0'
     return (
         "exists (select 1 from `tabOMC Service Request` sr "
         "where sr.name = `tabOMC Service Document`.service_request and "
-        f"{_owned_request_condition('sr', user)})"
+        f"({request_scope}))"
     )
 
 
