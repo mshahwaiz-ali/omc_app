@@ -20,6 +20,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Normalize exact patch input
+        run: python tools/payment_case_closure_prepatch.py
+
       - name: Apply exact source closure patch
         run: python tools/payment_case_closure_patch.py
 
