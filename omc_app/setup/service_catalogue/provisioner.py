@@ -142,6 +142,10 @@ def _desired_service_values(
     current_tax_rate = _number(
         current.get("tax_rate")
     )
+    current_activation_policy = (
+        _text(current.get("activation_policy"))
+        or ACTIVATION_POLICY
+    )
 
     pending_expiry = int(
         _number(
@@ -179,7 +183,8 @@ def _desired_service_values(
         # Existing tax authority is deliberately preserved.
         "tax_policy": current_tax_policy,
         "tax_rate": current_tax_rate,
-        "activation_policy": ACTIVATION_POLICY,
+        # Existing payment/activation authority is deliberately preserved.
+        "activation_policy": current_activation_policy,
         "pending_payment_expiry_hours": (
             pending_expiry
         ),

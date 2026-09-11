@@ -236,13 +236,10 @@ def _payment_completion_satisfied(service_case, active_payments) -> bool:
             and getattr(service_case, "post_paid_approved_at", None)
         )
 
-    allowed_statuses = {"Paid"}
-    if policy == "Verified Payment":
-        allowed_statuses.add("Partially Paid")
-
+    # Verified Payment changes the activation threshold only. A charged
+    # service is not financially complete until ERP reconciliation projects Paid.
     return not active_payments or all(
-        str(getattr(payment, "status", None) or "").strip()
-        in allowed_statuses
+        str(getattr(payment, "status", None) or "").strip() == "Paid"
         for payment in active_payments
     )
 

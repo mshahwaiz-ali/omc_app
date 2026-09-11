@@ -6,7 +6,7 @@ from typing import Any, Mapping
 
 SERVICE_STATUSES = ("Open", "In Progress", "Waiting for Customer", "Waiting for Payment", "Completed", "Cancelled")
 DOCUMENT_STATUSES = ("Pending", "Uploaded", "Approved", "Rejected")
-PAYMENT_STATUSES = ("Pending", "Receipt Submitted", "Under Review", "Paid", "Rejected", "Cancelled")
+PAYMENT_STATUSES = ("Pending", "Receipt Submitted", "Under Review", "Partially Paid", "Paid", "Rejected", "Cancelled")
 SERVICE_TRANSITIONS = {
     "Open": {"In Progress", "Waiting for Customer", "Waiting for Payment", "Cancelled"},
     "In Progress": {"Waiting for Customer", "Waiting for Payment", "Completed", "Cancelled"},
@@ -48,6 +48,7 @@ def validate_service_transition(current: Any, target: Any) -> tuple[str, str]:
 
 def project(case: Mapping[str, Any]) -> dict[str, Any]:
     status = normalize_service_status(case.get("status"))
+    request_state = _text(case.get("request_state")).lower()
     required = _number(case.get("required_documents_count"))
     approved = _number(case.get("approved_documents_count"))
     missing = _number(case.get("missing_documents_count"))
@@ -89,6 +90,9 @@ def project(case: Mapping[str, Any]) -> dict[str, Any]:
     elif not documents_complete:
         stage = "documents"
         progress = 15 + round((approved / required if required else 0) * 30)
+    elif request_state == "activated":
+        stage, progress, next_action = "processing", 85, None
+        customer_action = False
     elif not payment_complete or status == "Waiting for Payment":
         stage = "payment"
         progress = 50 + round((paid_payments / active_payments if active_payments else 0) * 20)
