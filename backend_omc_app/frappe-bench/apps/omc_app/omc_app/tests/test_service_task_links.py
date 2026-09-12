@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from frappe.tests.utils import FrappeTestCase
 
-from omc_app.api import service_task_links
+from omc_app.api import service_task_links, task_read_guard
 
 
 class TestServiceTaskLinks(FrappeTestCase):
@@ -131,3 +131,45 @@ class TestServiceTaskLinks(FrappeTestCase):
         self.assertTrue(state["all_required_completed"])
         self.assertEqual(state["completed_tasks"], 2)
         self.assertEqual(state["incomplete_tasks"], [])
+
+    def test_task_read_enrichment_resolves_secondary_relation(self):
+        relation_rows = [
+            {
+                "erp_task": "TASK-SECONDARY",
+                "service_request": "OMC-SR-0001",
+            }
+        ]
+        request_rows = [
+            {
+                "name": "OMC-SR-0001",
+                "erp_service": "ERP-SVC-0001",
+                "customer_profile": "OMC-CUST-0001",
+                "assigned_staff": "staff@example.com",
+            }
+        ]
+
+        def get_all(doctype, **kwargs):
+            if doctype == service_task_links.LINK_DOCTYPE:
+                return relation_rows
+            if doctype == "OMC Service Request":
+                return request_rows
+            return []
+
+        with patch.object(
+            service_task_links,
+            "_link_doctype_available",
+            return_value=True,
+        ), patch.object(
+            task_read_guard.frappe,
+            "get_all",
+            side_effect=get_all,
+        ):
+            rows = task_read_guard._request_links(
+                task_names={"TASK-SECONDARY"},
+                limit_page_length=10,
+            )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["erp_task"], "TASK-SECONDARY")
+        self.assertEqual(rows[0]["name"], "OMC-SR-0001")
+        self.assertEqual(rows[0]["erp_service"], "ERP-SVC-0001")
