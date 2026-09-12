@@ -47,21 +47,29 @@ HISTORICAL_TASK_STATUS_MAP = {
 }
 
 
+TERMINAL_TASK_STATUSES = {"completed", "complete", "closed", "cancelled", "canceled"}
+
+
 def _text(value: Any) -> str:
     return str(value or "").strip()
 
 
 def customer_status(task_status: Any, operation_status: Any = None) -> str:
-    """Project customer status from canonical ERP Task.status first.
+    """Project customer status while keeping ERP terminal state authoritative.
 
-    ``custom_operation_status`` is supplemental workflow metadata. It may
-    refine a status only when canonical Task.status has no recognized mapping;
-    it must never override a terminal/computable ERP Task state.
+    The client's operational status refines non-terminal ERP Task states such as
+    Working -> Waiting for Customer. Completed/Cancelled on ERP Task.status is
+    terminal authority and can never be overridden by stale operation metadata.
     """
-    for value in (task_status, operation_status):
-        normalized = _text(value).lower()
-        if normalized in CUSTOMER_STATUS_MAP:
-            return CUSTOMER_STATUS_MAP[normalized]
+    task_normalized = _text(task_status).lower()
+    operation_normalized = _text(operation_status).lower()
+
+    if task_normalized in TERMINAL_TASK_STATUSES:
+        return CUSTOMER_STATUS_MAP[task_normalized]
+    if operation_normalized in CUSTOMER_STATUS_MAP:
+        return CUSTOMER_STATUS_MAP[operation_normalized]
+    if task_normalized in CUSTOMER_STATUS_MAP:
+        return CUSTOMER_STATUS_MAP[task_normalized]
     return "In Progress"
 
 
@@ -268,6 +276,18 @@ def _nonterminal_aggregate_status(current_status: str) -> str:
     return "In Progress"
 
 
+def _legacy_completion_state(task_name: str, raw_status: str) -> dict[str, Any]:
+    completed = raw_status == "Completed"
+    cancelled = raw_status in {"Cancelled", "Canceled"}
+    return {
+        "required_tasks": 1,
+        "completed_tasks": 1 if completed else 0,
+        "incomplete_tasks": [] if completed else [task_name],
+        "cancelled_tasks": [task_name] if cancelled else [],
+        "all_required_completed": completed,
+    }
+
+
 def sync_task_status(doc, method=None) -> dict[str, Any]:
     task_name = _text(getattr(doc, "name", None))
     if not task_name:
@@ -279,6 +299,16 @@ def sync_task_status(doc, method=None) -> dict[str, Any]:
             "updated": False,
             "reason": "task is not linked to an OMC request",
         }
+
+    # Preserve legacy invoice compatibility on real ERP Task document events.
+    # Lightweight unit-test doubles intentionally skip this side projection.
+    if _text(getattr(doc, "doctype", None)) == "Task":
+        from omc_app.api import task_invoice_compat
+
+        task_invoice_compat.project_task_invoice_flag(
+            request_name=request_name,
+            task_name=task_name,
+        )
 
     request = frappe.get_doc("OMC Service Request", request_name)
     current_status = _text(getattr(request, "status", None))
@@ -350,7 +380,11 @@ def sync_task_status(doc, method=None) -> dict[str, Any]:
             "service_status": "",
         }
 
-    aggregate = service_task_links.completion_state(request_name)
+    aggregate = (
+        service_task_links.completion_state(request_name)
+        if request_state == "Activated"
+        else _legacy_completion_state(task_name, raw_status)
+    )
     if mapped_status == "Completed" and not aggregate["all_required_completed"]:
         mapped_status = _nonterminal_aggregate_status(current_status)
     elif mapped_status == "Cancelled" and aggregate["required_tasks"] > 1:
