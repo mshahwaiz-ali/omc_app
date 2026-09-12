@@ -77,6 +77,17 @@ def settlement_state(
     return state, capped
 
 
+def installment_state(*, requested, accounted) -> tuple[str, str]:
+    """Classify one OMC installment from its own submitted ERP allocation."""
+    requested = max(flt(requested, 6), 0)
+    accounted = max(flt(accounted, 6), 0)
+    if requested <= 0 or accounted <= 0:
+        return "Unmatched", "Under Review"
+    if accounted + 0.000001 >= requested:
+        return "Settled", "Paid"
+    return "Partially Settled", "Partially Paid"
+
+
 def assert_invoice_matches_request(request, invoice) -> None:
     if int(getattr(invoice, "docstatus", 0) or 0) != 1:
         frappe.throw("Only a submitted Sales Invoice can be linked.", frappe.ValidationError)
@@ -482,7 +493,15 @@ def _project_receipt_compatibility(
     rows = frappe.get_all(
         "OMC Service Payment",
         filters={"service_request": request_name, "status": ["!=", "Cancelled"]},
-        fields=["name", "status", "linked_invoice", "linked_payment_entry"],
+        fields=[
+            "name",
+            "status",
+            "amount",
+            "linked_invoice",
+            "linked_payment_entry",
+            "paid_on",
+            "settled_at",
+        ],
         order_by="creation desc",
         limit_page_length=1000,
     )
@@ -500,24 +519,33 @@ def _project_receipt_compatibility(
             }
             if row.linked_invoice:
                 filters["reference_name"] = row.linked_invoice
-            allocated = flt(
-                sum(
-                    frappe.get_all(
-                        "Payment Entry Reference",
-                        filters=filters,
-                        pluck="allocated_amount",
-                        limit_page_length=1000,
-                    )
-                    or []
+            allocated = max(
+                flt(
+                    sum(
+                        frappe.get_all(
+                            "Payment Entry Reference",
+                            filters=filters,
+                            pluck="allocated_amount",
+                            limit_page_length=1000,
+                        )
+                        or []
+                    ),
+                    6,
                 ),
-                6,
+                0,
             )
+            installment_accounting_status, payment_status = installment_state(
+                requested=row.amount,
+                accounted=allocated,
+            )
+            is_paid = payment_status == "Paid"
+            settled_at = row.settled_at or row.paid_on or now_datetime() if is_paid else None
             values = {
-                "accounting_status": "Settled",
-                "status": "Paid",
-                "accounted_amount": max(allocated, 0),
-                "paid_on": now_datetime(),
-                "settled_at": now_datetime(),
+                "accounting_status": installment_accounting_status,
+                "status": payment_status,
+                "accounted_amount": allocated,
+                "paid_on": settled_at if is_paid else None,
+                "settled_at": settled_at if is_paid else None,
             }
         elif docstatus == 2:
             values = {
