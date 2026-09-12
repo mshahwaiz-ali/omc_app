@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -81,19 +82,23 @@ class TestServiceAuthorityContract(FrappeTestCase):
 
     def test_service_request_keeps_canonical_and_bridge_links(self):
         root = self._repo_root()
-        schema = (
-            root
-            / "backend_omc_app/frappe-bench/apps/omc_app/omc_app/"
-            "omc_app/doctype/omc_service_request/"
-            "omc_service_request.json"
-        ).read_text(encoding="utf-8")
+        schema = json.loads(
+            (
+                root
+                / "backend_omc_app/frappe-bench/apps/omc_app/omc_app/"
+                "omc_app/doctype/omc_service_request/"
+                "omc_service_request.json"
+            ).read_text(encoding="utf-8")
+        )
+        fields = {
+            field["fieldname"]: field
+            for field in schema["fields"]
+            if field.get("fieldname")
+        }
 
-        self.assertIn('"fieldname": "service"', schema)
-        self.assertIn('"options": "OMC Service"', schema)
-        self.assertIn('"fieldname": "erp_service"', schema)
-        self.assertIn('"options": "Service"', schema)
-        self.assertIn('"fieldname": "erp_task"', schema)
-        self.assertIn('"options": "Task"', schema)
+        self.assertEqual(fields["service"].get("options"), "OMC Service")
+        self.assertEqual(fields["erp_service"].get("options"), "Service")
+        self.assertEqual(fields["erp_task"].get("options"), "Task")
 
     def test_valid_complete_bridge_remains_idempotent(self):
         root = self._repo_root()

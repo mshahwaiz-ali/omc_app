@@ -123,18 +123,22 @@ def _create_service(request, service, profile, customer: str, task_type: str):
         or _text(frappe.db.get_value("Customer", customer, "customer_name"))
         or customer
     )
-    amount = (
-        getattr(request, "payable_amount", None)
-        if getattr(request, "payable_amount", None) is not None
-        else getattr(request, "final_price", None)
-    )
-    amount = amount if amount is not None else getattr(service, "base_price", None) or 0
+    service_amount = getattr(request, "original_price", None)
+    if service_amount is None:
+        service_amount = getattr(service, "base_price", None) or 0
+
+    discount = getattr(request, "discount_amount", None)
+    discount = discount if discount is not None else 0
+
+    net_service_amount = getattr(request, "final_price", None)
+    if net_service_amount is None:
+        net_service_amount = service_amount - discount
     _set_if_field(doc, "full_name", customer_name)
     _set_if_field(doc, "mobile_no", getattr(request, "contact_phone", None))
     _set_if_field(doc, "cnic", getattr(profile, "cnic", None) if profile else None)
-    _set_if_field(doc, "service_amount", amount)
-    _set_if_field(doc, "net_service_amount", amount)
-    _set_if_field(doc, "discount", 0)
+    _set_if_field(doc, "service_amount", service_amount)
+    _set_if_field(doc, "discount", discount)
+    _set_if_field(doc, "net_service_amount", net_service_amount)
     _set_if_field(doc, "user_link", _customer_user(customer))
     _set_if_field(doc, "custom_status", "In Progress")
     _set_if_field(doc, "custom_customer_type", _text(getattr(profile, "customer_type", None)) or "Customer")
@@ -147,23 +151,198 @@ def _create_service(request, service, profile, customer: str, task_type: str):
     return doc
 
 
-def _create_task(request, service_doc, customer: str, task_type: str):
-    task = frappe.new_doc("Task")
-    task.subject = _text(getattr(request, "title", None)) or f"Task for {request.name}"
-    task.type = task_type
-    task.customer = customer
-    _set_if_field(
-        task,
-        "description",
-        f"OMC Service Request: {request.name}\nERP Service: {service_doc.name}\n{_text(getattr(request, 'description', None))}".strip(),
+def _hydrate_task_from_request(
+    task,
+    request,
+    service_doc,
+    *,
+    preserve_existing=False,
+):
+    """Apply OMC context without replacing legacy ERP Task authority."""
+
+    values = {}
+
+    # ERP Task.type is the canonical ERP Task Type.
+    task_type = _text(getattr(service_doc, "service_type", None))
+    if (
+        task.meta.get_field("type")
+        and task_type
+        and not _text(getattr(task, "type", None))
+    ):
+        values["type"] = task_type
+
+    # task_status is a separate legacy workflow discriminator. Do not
+    # copy Service.service_type into it: the value domains are different.
+    omc_service = _text(getattr(request, "service", None))
+    mapped_task_status = ""
+    if omc_service:
+        mapped_task_status = _text(
+            frappe.db.get_value(
+                "OMC Service",
+                omc_service,
+                "erp_task_status",
+            )
+        )
+
+    task_status_field = task.meta.get_field("task_status")
+    if (
+        task_status_field
+        and mapped_task_status
+        and not _text(getattr(task, "task_status", None))
+    ):
+        allowed = {
+            option.strip()
+            for option in str(
+                getattr(task_status_field, "options", "") or ""
+            ).splitlines()
+            if option.strip()
+        }
+
+        if allowed and mapped_task_status not in allowed:
+            frappe.throw(
+                "OMC Service legacy Task Status mapping "
+                f"{mapped_task_status} is not allowed by "
+                "Task.task_status.",
+                frappe.ValidationError,
+            )
+
+        values["task_status"] = mapped_task_status
+
+    # Completion validation compares Task.tax_id with proof/OCR data.
+    # Fill it from the authoritative ERP Customer only when missing.
+    if (
+        task.meta.get_field("tax_id")
+        and not _text(getattr(task, "tax_id", None))
+    ):
+        customer = _text(getattr(service_doc, "customer", None))
+        if customer:
+            tax_id = _text(
+                frappe.db.get_value(
+                    "Customer",
+                    customer,
+                    "tax_id",
+                )
+            )
+            if tax_id:
+                values["tax_id"] = tax_id
+
+    # Keep the ERP Service's valid User projection when Task has none.
+    if (
+        task.meta.get_field("user_link")
+        and not _text(getattr(task, "user_link", None))
+    ):
+        service_user = _text(
+            getattr(service_doc, "user_link", None)
+        )
+        if service_user:
+            values["user_link"] = service_user
+
+    if (
+        task.meta.get_field("priority")
+        and (
+            not preserve_existing
+            or not _text(getattr(task, "priority", None))
+        )
+    ):
+        values["priority"] = (
+            _text(getattr(request, "priority", None))
+            or "Medium"
+        )
+
+    expected_completion_date = getattr(
+        request,
+        "expected_completion_date",
+        None,
     )
-    _set_if_field(task, "priority", getattr(request, "priority", None) or "Medium")
-    _set_if_field(task, "rate", getattr(service_doc, "service_amount", None) or 0)
-    _set_if_field(task, "user_link", _customer_user(customer))
-    _set_if_field(task, "custom_operation_status", "Open")
-    _set_if_field(task, "exp_end_date", getattr(request, "expected_completion_date", None))
-    task.insert(ignore_permissions=True)
+    if (
+        expected_completion_date
+        and task.meta.get_field("exp_end_date")
+        and (
+            not preserve_existing
+            or not getattr(task, "exp_end_date", None)
+        )
+    ):
+        values["exp_end_date"] = expected_completion_date
+
+    operation_field = task.meta.get_field(
+        "custom_operation_status"
+    )
+    if (
+        operation_field
+        and not _text(
+            getattr(task, "custom_operation_status", None)
+        )
+    ):
+        allowed = {
+            option.strip()
+            for option in str(
+                getattr(operation_field, "options", "") or ""
+            ).splitlines()
+            if option.strip()
+        }
+        if not allowed or "Open" in allowed:
+            values["custom_operation_status"] = "Open"
+
+    if values:
+        frappe.db.set_value(
+            "Task",
+            task.name,
+            values,
+            update_modified=False,
+        )
+        for fieldname, value in values.items():
+            setattr(task, fieldname, value)
+
     return task
+
+
+def _create_task_from_service(request, service_doc):
+    """Use the existing ERP Service -> Task creator instead of duplicating it."""
+
+    linked_task = _text(getattr(service_doc, "task_link", None))
+
+    # Repair-safe reuse: if ERP Service already owns a valid Task, use it.
+    if linked_task and frappe.db.exists("Task", linked_task):
+        task = frappe.get_doc("Task", linked_task)
+        return _hydrate_task_from_request(
+            task,
+            request,
+            service_doc,
+            preserve_existing=True,
+        )
+
+    # Stale Service flags must not block the legacy creator during repair.
+    if getattr(service_doc, "task_created", 0) or linked_task:
+        frappe.db.set_value(
+            "Service",
+            service_doc.name,
+            {
+                "task_created": 0,
+                "task_link": None,
+            },
+            update_modified=False,
+        )
+        service_doc.task_created = 0
+        service_doc.task_link = None
+
+    from erpnext.service import create_task_from_service_dt
+
+    task_name = _text(create_task_from_service_dt(service_doc.name))
+
+    # Legacy method writes task_link itself; use it as a defensive fallback.
+    if not task_name:
+        task_name = _text(
+            frappe.db.get_value("Service", service_doc.name, "task_link")
+        )
+
+    if not task_name or not frappe.db.exists("Task", task_name):
+        frappe.throw(
+            f"ERP Service {service_doc.name} did not create a valid Task.",
+            frappe.ValidationError,
+        )
+
+    task = frappe.get_doc("Task", task_name)
+    return _hydrate_task_from_request(task, request, service_doc)
 
 
 def _link_service_task(service_doc, task) -> None:
@@ -243,6 +422,12 @@ def sync_request(
     if existing and existing["status"] == "Synced" and repair:
         service_doc = frappe.get_doc("Service", existing["erp_service"])
         task = frappe.get_doc("Task", existing["erp_task"])
+        _hydrate_task_from_request(
+            task,
+            request,
+            service_doc,
+            preserve_existing=True,
+        )
         _link_service_task(service_doc, task)
         assignment = _assign_task(
             task,
@@ -324,13 +509,20 @@ def sync_request(
         and frappe.db.exists("Service", existing_service)
         else _create_service(request, service, profile, customer, task_type)
     )
-    task = (
-        frappe.get_doc("Task", existing_task)
-        if repair
+    if (
+        repair
         and existing_task
         and frappe.db.exists("Task", existing_task)
-        else _create_task(request, service_doc, customer, task_type)
-    )
+    ):
+        task = frappe.get_doc("Task", existing_task)
+        task = _hydrate_task_from_request(
+            task,
+            request,
+            service_doc,
+            preserve_existing=True,
+        )
+    else:
+        task = _create_task_from_service(request, service_doc)
     _link_service_task(service_doc, task)
     assignment = _assign_task(
         task,

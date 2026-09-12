@@ -64,7 +64,7 @@ class TestErpServiceFlowIntegration(FrappeTestCase):
             ),
             patch.object(
                 erp_service_task_adapter,
-                "_create_task",
+                "_create_task_from_service",
                 return_value=erp_task,
             ),
             patch.object(
@@ -180,7 +180,7 @@ class TestErpServiceFlowIntegration(FrappeTestCase):
             ) as create_service,
             patch.object(
                 erp_service_task_adapter,
-                "_create_task",
+                "_create_task_from_service",
             ) as create_task,
             patch.object(
                 erp_service_task_adapter,
@@ -220,7 +220,7 @@ class TestErpServiceFlowIntegration(FrappeTestCase):
             ) as create_service,
             patch.object(
                 erp_service_task_adapter,
-                "_create_task",
+                "_create_task_from_service",
             ) as create_task,
             patch.object(
                 erp_service_task_adapter,
@@ -263,7 +263,7 @@ class TestErpServiceFlowIntegration(FrappeTestCase):
             ) as create_service,
             patch.object(
                 erp_service_task_adapter,
-                "_create_task",
+                "_create_task_from_service",
             ) as create_task,
             patch.object(
                 erp_service_task_adapter,

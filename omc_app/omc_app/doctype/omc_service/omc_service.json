@@ -41,6 +41,7 @@
   "erp_invoice_item",
   "erp_sales_taxes_and_charges_template",
   "erp_task_type",
+  "erp_task_status",
   "publishing_section",
   "sort_order",
   "is_featured",
@@ -84,6 +85,7 @@
   {"description": "Non-stock ERPNext sales item used to create the authoritative Sales Invoice after payment verification.", "fieldname": "erp_invoice_item", "fieldtype": "Link", "in_standard_filter": 1, "label": "ERP Invoice Item", "options": "Item", "search_index": 1},
   {"description": "Required for taxed services so the generated ERPNext Sales Invoice reproduces the frozen OMC payable amount.", "fieldname": "erp_sales_taxes_and_charges_template", "fieldtype": "Link", "label": "ERP Sales Taxes and Charges Template", "options": "Sales Taxes and Charges Template", "search_index": 1},
   {"fieldname": "erp_task_type", "fieldtype": "Link", "label": "ERP Task Type", "options": "Task Type", "description": "Canonical ERP Task Type used when this mobile service creates an ERP Service and ERP Task.", "in_standard_filter": 1, "search_index": 1},
+  {"fieldname": "erp_task_status", "fieldtype": "Select", "label": "Legacy Task Status Mapping", "options": "\nMonthly Sales Tax\nAOP Registration\nSECP Registration\nQuarterly WHT Filing", "description": "Optional mapping to the client's legacy Task.task_status workflow discriminator. ERP Task Type remains authoritative in ERP Task Type."},
   {"fieldname": "icon_preview", "fieldtype": "HTML", "label": "Icon Preview"}
  ],
  "index_web_pages_for_search": 1,

@@ -100,6 +100,7 @@ ADMIN_READ_ONLY_DOCTYPES = {
     "OMC Customer Account",
     "OMC Manual Customer",
     "OMC Notification",
+    "OMC Payment Receipt",
     "OMC Profile Change Log",
     "OMC Reconciliation Review",
     "OMC Reconciliation Run",

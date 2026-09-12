@@ -11,6 +11,16 @@ CURRENCY = "PKR"
 ACTIVATION_POLICY = "Full Settlement"
 DEFAULT_ASSIGNMENT_ROLE = "Employee"
 
+# The client's legacy Task.task_status field is not the ERP Task Type.
+# Only services with a known legacy workflow discriminator are mapped.
+# All other services deliberately leave task_status blank.
+ERP_TASK_STATUS_BY_SERVICE_ID = {
+    "aop-firm-registration-service": "AOP Registration",
+    "monthly-gst-filing": "Monthly Sales Tax",
+    "pvt-registration-services": "SECP Registration",
+    "quarterly-wht-filing": "Quarterly WHT Filing",
+}
+
 EXPECTED_CATEGORY_COUNT = 9
 EXPECTED_SERVICE_COUNT = 31
 EXPECTED_ACTIVE_SERVICE_COUNT = 17

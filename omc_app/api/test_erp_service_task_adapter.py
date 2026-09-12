@@ -101,7 +101,7 @@ class TestErpServiceTaskAdapter(FrappeTestCase):
             ) as create_service,
             patch.object(
                 erp_service_task_adapter,
-                "_create_task",
+                "_create_task_from_service",
                 return_value=erp_task,
             ) as create_task,
             patch.object(
@@ -141,8 +141,6 @@ class TestErpServiceTaskAdapter(FrappeTestCase):
         create_task.assert_called_once_with(
             request,
             erp_service,
-            "ERP-CUST-1",
-            "Tax Filing",
         )
         link_service_task.assert_called_once_with(erp_service, erp_task)
         assign_task.assert_called_once_with(
@@ -180,7 +178,7 @@ class TestErpServiceTaskAdapter(FrappeTestCase):
             ) as create_service,
             patch.object(
                 erp_service_task_adapter,
-                "_create_task",
+                "_create_task_from_service",
             ) as create_task,
             patch.object(
                 erp_service_task_adapter,
@@ -229,7 +227,7 @@ class TestErpServiceTaskAdapter(FrappeTestCase):
             ) as create_service,
             patch.object(
                 erp_service_task_adapter,
-                "_create_task",
+                "_create_task_from_service",
             ) as create_task,
             patch.object(
                 erp_service_task_adapter,
@@ -273,7 +271,7 @@ class TestErpServiceTaskAdapter(FrappeTestCase):
             ) as create_service,
             patch.object(
                 erp_service_task_adapter,
-                "_create_task",
+                "_create_task_from_service",
             ) as create_task,
         ):
             result = erp_service_task_adapter.sync_request(
@@ -320,7 +318,7 @@ class TestErpServiceTaskAdapter(FrappeTestCase):
             ) as create_service,
             patch.object(
                 erp_service_task_adapter,
-                "_create_task",
+                "_create_task_from_service",
                 return_value=task,
             ) as create_task,
             patch.object(erp_service_task_adapter, "_link_service_task"),
@@ -362,7 +360,7 @@ class TestErpServiceTaskAdapter(FrappeTestCase):
         with (
             patch.object(erp_service_task_adapter, "_linked_customer", return_value="ERP-CUST-1"),
             patch.object(erp_service_task_adapter, "_create_service", return_value=erp_service),
-            patch.object(erp_service_task_adapter, "_create_task", return_value=erp_task),
+            patch.object(erp_service_task_adapter, "_create_task_from_service", return_value=erp_task),
             patch.object(erp_service_task_adapter, "_link_service_task"),
             patch.object(erp_service_task_adapter, "_assign_task", return_value="TODO-1"),
             patch.object(erp_service_task_adapter, "_set_request_state"),
@@ -391,7 +389,7 @@ class TestErpServiceTaskAdapter(FrappeTestCase):
                 "_create_service",
                 side_effect=RuntimeError("service insert failed"),
             ),
-            patch.object(erp_service_task_adapter, "_create_task") as create_task,
+            patch.object(erp_service_task_adapter, "_create_task_from_service") as create_task,
             patch.object(erp_service_task_adapter, "_link_service_task") as link_service_task,
             patch.object(erp_service_task_adapter, "_assign_task") as assign_task,
             patch.object(erp_service_task_adapter, "_set_request_state") as request_state,
@@ -419,7 +417,7 @@ class TestErpServiceTaskAdapter(FrappeTestCase):
             patch.object(erp_service_task_adapter, "_create_service", return_value=erp_service),
             patch.object(
                 erp_service_task_adapter,
-                "_create_task",
+                "_create_task_from_service",
                 side_effect=RuntimeError("task insert failed"),
             ),
             patch.object(erp_service_task_adapter, "_link_service_task") as link_service_task,
@@ -447,7 +445,7 @@ class TestErpServiceTaskAdapter(FrappeTestCase):
         with (
             patch.object(erp_service_task_adapter, "_linked_customer", return_value="ERP-CUST-1"),
             patch.object(erp_service_task_adapter, "_create_service", return_value=erp_service),
-            patch.object(erp_service_task_adapter, "_create_task", return_value=erp_task),
+            patch.object(erp_service_task_adapter, "_create_task_from_service", return_value=erp_task),
             patch.object(erp_service_task_adapter, "_link_service_task"),
             patch.object(
                 erp_service_task_adapter,

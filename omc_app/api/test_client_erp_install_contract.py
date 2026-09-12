@@ -22,24 +22,19 @@ def _field(fieldtype, options=""):
 
 
 def _compatible_meta():
-    return {
-        "Customer": _Meta({"user_link": _field("Link", "User")}),
-        "Service": _Meta({
-            "customer": _field("Link", "Customer"),
-            "service_type": _field("Link", "Task Type"),
-            "task_created": _field("Check"),
-            "task_link": _field("Link", "Task"),
-            "user_link": _field("Link", "User"),
-        }),
-        "Task": _Meta({
-            "subject": _field("Data"),
-            "type": _field("Link", "Task Type"),
-            "status": _field("Select", "Open\nWorking\nCompleted\nCancelled"),
-            "user_link": _field("Link", "User"),
-            "customer": _field("Link", "Customer"),
-            "custom_operation_status": _field("Select", "Open\nIn Progress\nCompleted"),
-        }),
-    }
+    result = {}
+    for doctype, fields in erp_contract.REQUIRED_FIELDS.items():
+        compatible_fields = {}
+        for fieldname, contract in fields.items():
+            options = contract.options
+            if contract.fieldtype == "Select" and contract.required_select_options:
+                options = "\n".join(contract.required_select_options)
+            compatible_fields[fieldname] = _field(
+                contract.fieldtype,
+                options,
+            )
+        result[doctype] = _Meta(compatible_fields)
+    return result
 
 
 class TestClientErpInstallContract(FrappeTestCase):
@@ -55,6 +50,11 @@ class TestClientErpInstallContract(FrappeTestCase):
                 side_effect=lambda doctype, name: doctype == "DocType" and name in doctypes,
             ),
             patch.object(erp_contract.frappe, "get_meta", side_effect=lambda doctype: meta[doctype]),
+            patch.object(
+                erp_contract.frappe,
+                "get_attr",
+                return_value=lambda service_name: service_name,
+            ),
         ):
             return erp_contract.inspect_client_erp_contract()
 
@@ -102,10 +102,17 @@ class TestClientErpInstallContract(FrappeTestCase):
             self._inspect(meta=meta),
         )
 
-    def test_optional_service_fields_are_not_required(self):
+    def test_service_bridge_fields_are_required(self):
         fields = set(erp_contract.REQUIRED_FIELDS["Service"])
-        for fieldname in ("custom_status", "custom_customer_type", "custom_remarks", "status"):
-            self.assertNotIn(fieldname, fields)
+        for fieldname in (
+            "custom_status",
+            "custom_customer_type",
+            "custom_remarks",
+        ):
+            self.assertIn(fieldname, fields)
+
+        # Generic Service.status is not part of the client's bridge contract.
+        self.assertNotIn("status", fields)
 
     def test_missing_selling_defaults_are_non_blocking_warnings(self):
         with (

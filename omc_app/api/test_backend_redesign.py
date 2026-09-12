@@ -380,17 +380,25 @@ class TestBackendRedesignMigration(TestCase):
 
 
 class TestFlutterRouteContracts(TestCase):
-    def test_all_115_api_config_methods_and_home_route_resolve(self):
+    def test_all_api_config_methods_and_additive_routes_resolve(self):
         repo_root = Path(__file__).resolve().parents[6]
         config = (
             repo_root / "omc_app/lib/core/config/api_config.dart"
         ).read_text(encoding="utf-8")
         routes = sorted(set(re.findall(r"omc_app\.[A-Za-z0-9_.]+", config)))
-        # Direct service detail is the one additive catalogue contract.
-        detail_route = "omc_app.api.public_catalogue.get_service_detail"
-        self.assertIn(detail_route, routes)
-        self.assertEqual(len(set(routes) - {detail_route}), 115)
-        self.assertEqual(len(routes), 116)
+
+        # The original Flutter contract had 115 routes. These two routes were
+        # added later as explicit additive contracts and must also resolve.
+        additive_routes = {
+            "omc_app.api.public_catalogue.get_service_detail",
+            "omc_app.api.payment_accounting.get_review_context",
+        }
+
+        for route in additive_routes:
+            self.assertIn(route, routes)
+
+        self.assertEqual(len(set(routes) - additive_routes), 115)
+        self.assertEqual(len(routes), 117)
 
         for route in routes:
             with self.subTest(route=route):

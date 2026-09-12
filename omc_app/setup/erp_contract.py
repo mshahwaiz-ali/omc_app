@@ -24,13 +24,55 @@ REQUIRED_DOCTYPES = (
 )
 
 REQUIRED_FIELDS = {
-    "Customer": {"user_link": FieldContract("Link", "User")},
+    "Customer": {
+        "user_link": FieldContract("Link", "User"),
+        "source": FieldContract(
+            "Select",
+            required_select_options=(
+                "Consultant",
+                "Business Partner",
+                "Tax Associates",
+                "Employee",
+            ),
+        ),
+        "sales_person": FieldContract("Dynamic Link", "source"),
+        "senior_tax_associates": FieldContract("Link", "Employee"),
+        "consultant_id": FieldContract("Link", "Consultant"),
+        "reference_business_partner": FieldContract("Link", "Business Partner"),
+        "structure_name": FieldContract(
+            "Link",
+            "Sales Team Commission Structure",
+        ),
+        "omc_commission": FieldContract("Percent"),
+        "banker_commission": FieldContract("Percent"),
+        "consultant_commission": FieldContract("Percent"),
+        "ref_commission": FieldContract("Percent"),
+    },
     "Service": {
         "customer": FieldContract("Link", "Customer"),
         "service_type": FieldContract("Link", "Task Type"),
+        "full_name": FieldContract("Data"),
+        "mobile_no": FieldContract("Data"),
+        "cnic": FieldContract("Data"),
+        "service_amount": FieldContract("Currency"),
+        "discount": FieldContract("Currency"),
+        "net_service_amount": FieldContract("Currency"),
+        "user_link": FieldContract("Link", "User"),
+        "custom_status": FieldContract(
+            "Select",
+            required_select_options=(
+                "Available",
+                "In Progress",
+                "Completed",
+            ),
+        ),
+        "custom_customer_type": FieldContract(
+            "Select",
+            required_select_options=("Customer",),
+        ),
+        "custom_remarks": FieldContract("Data"),
         "task_created": FieldContract("Check"),
         "task_link": FieldContract("Link", "Task"),
-        "user_link": FieldContract("Link", "User"),
     },
     "Task": {
         "subject": FieldContract("Data"),
@@ -39,12 +81,49 @@ REQUIRED_FIELDS = {
             "Select",
             required_select_options=("Open", "Completed", "Cancelled"),
         ),
-        "user_link": FieldContract("Link", "User"),
+        "workflow_state": FieldContract("Link", "Workflow State"),
+        "task_status": FieldContract(
+            "Select",
+            required_select_options=(
+                "Monthly Sales Tax",
+                "AOP Registration",
+                "SECP Registration",
+                "Quarterly WHT Filing",
+            ),
+        ),
         "customer": FieldContract("Link", "Customer"),
+        "rate": FieldContract("Currency"),
+        "user_link": FieldContract("Link", "User"),
+        "source": FieldContract(
+            "Select",
+            required_select_options=(
+                "Consultant",
+                "Business Partner",
+                "Tax Associates",
+                "Employee",
+            ),
+        ),
+        "sales_person": FieldContract("Link", "Employee"),
+        "senior_tax_associates": FieldContract("Link", "Employee"),
+        "consultant_id": FieldContract("Link", "Consultant"),
+        "reference_business_partner": FieldContract("Link", "Business Partner"),
+        "omc_commission": FieldContract("Percent"),
+        "banker_commission": FieldContract("Percent"),
+        "consultant_commission": FieldContract("Percent"),
+        "ref_commission": FieldContract("Percent"),
         "custom_operation_status": FieldContract(
             "Select",
             required_select_options=("Open",),
         ),
+        "tax_id": FieldContract("Data"),
+        "custom_tax_period": FieldContract("Link", "Period"),
+        "custom_year": FieldContract("Select"),
+        "custom_proof_image": FieldContract("Attach Image"),
+        "custom_tax_year": FieldContract("Data"),
+        "custom_period": FieldContract("Data"),
+        "custom_registration_no": FieldContract("Data"),
+        "custom_barcode": FieldContract("Data"),
+        "custom_document_date": FieldContract("Data"),
     },
 }
 
@@ -126,6 +205,23 @@ def inspect_client_erp_contract() -> list[str]:
                         problems.append(
                             f"Missing required ERP select option: {qualified} must allow {required_option}"
                         )
+    try:
+        task_creator = frappe.get_attr(
+            "erpnext.service.create_task_from_service_dt"
+        )
+    except Exception as exc:
+        problems.append(
+            "Missing ERP Service -> Task creator: "
+            "erpnext.service.create_task_from_service_dt "
+            f"({type(exc).__name__}: {exc})"
+        )
+    else:
+        if not callable(task_creator):
+            problems.append(
+                "ERP Service -> Task creator is not callable: "
+                "erpnext.service.create_task_from_service_dt"
+            )
+
     return problems
 
 

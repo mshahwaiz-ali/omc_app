@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from frappe.tests.utils import FrappeTestCase
@@ -118,24 +119,37 @@ class TestCustomerAuthorityContract(FrappeTestCase):
 
     def test_service_request_uses_canonical_customer_links(self):
         root = self._repo_root()
-        schema = (
-            root
-            / "backend_omc_app/frappe-bench/apps/omc_app/omc_app/"
-            "omc_app/doctype/omc_service_request/"
-            "omc_service_request.json"
-        ).read_text(encoding="utf-8")
+        schema = json.loads(
+            (
+                root
+                / "backend_omc_app/frappe-bench/apps/omc_app/omc_app/"
+                "omc_app/doctype/omc_service_request/"
+                "omc_service_request.json"
+            ).read_text(encoding="utf-8")
+        )
+        fields = {
+            field["fieldname"]: field
+            for field in schema["fields"]
+            if field.get("fieldname")
+        }
 
-        self.assertIn('"fieldname": "customer_profile"', schema)
-        self.assertIn('"options": "OMC Customer Profile"', schema)
-        self.assertIn('"fieldname": "customer_account"', schema)
-        self.assertIn('"options": "OMC Customer Account"', schema)
-        self.assertIn('"fieldname": "erp_customer"', schema)
+        self.assertEqual(
+            fields["customer_profile"].get("options"),
+            "OMC Customer Profile",
+        )
+        self.assertEqual(
+            fields["customer_account"].get("options"),
+            "OMC Customer Account",
+        )
+        self.assertIn("erp_customer", fields)
 
         # The manual-customer link is retained only as hidden historical
         # evidence until local/prod data reconciliation proves it can be dropped.
-        self.assertIn('"fieldname": "manual_customer"', schema)
-        self.assertIn('"options": "OMC Manual Customer"', schema)
-        self.assertIn(
+        self.assertEqual(
+            fields["manual_customer"].get("options"),
+            "OMC Manual Customer",
+        )
+        self.assertEqual(
+            fields["manual_customer"].get("description"),
             "Legacy walk-in customer reference retained only for historical request reconciliation.",
-            schema,
         )
