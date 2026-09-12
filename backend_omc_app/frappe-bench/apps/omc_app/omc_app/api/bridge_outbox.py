@@ -55,13 +55,11 @@ def _accounting_status(request_name: str) -> str:
 def _payment_evidence(request) -> dict:
     policy = _text(request.payment_policy_snapshot) or "Full Settlement"
     accounting_status = _accounting_status(request.name)
-    if policy == "Verified Payment":
-        valid = accounting_status in {"Partially Settled", "Settled"}
-        return {
-            "valid": valid,
-            "reason": "A positive ERP-reconciled payment is required." if not valid else "",
-        }
-    if policy == "Full Settlement":
+    if policy in {"Verified Payment", "Full Settlement"}:
+        # Verified Payment is retained as a legacy snapshot value, but the
+        # current OMC operating policy requires full ERP settlement before
+        # activation. A future deposit policy must define an explicit
+        # threshold rather than treating any positive payment as sufficient.
         valid = accounting_status == "Settled"
         return {
             "valid": valid,
