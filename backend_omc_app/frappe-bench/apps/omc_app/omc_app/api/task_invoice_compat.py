@@ -12,6 +12,8 @@ import json
 import frappe
 from frappe.utils import flt
 
+from omc_app.api import service_task_links
+
 
 REQUEST_DOCTYPE = "OMC Service Request"
 LINK_DOCTYPE = "OMC Accounting Link"
@@ -23,23 +25,7 @@ def _text(value) -> str:
 
 def _request_for_task(task_name: str) -> str:
     """Return the unique OMC request that owns an ERP Task, if any."""
-    name = _text(task_name)
-    if not name:
-        return ""
-    rows = frappe.get_all(
-        REQUEST_DOCTYPE,
-        filters={"erp_task": name},
-        pluck="name",
-        order_by="creation asc, name asc",
-        limit_page_length=2,
-    )
-    if len(rows) > 1:
-        frappe.throw(
-            f"ERP Task {name} is linked to multiple OMC service requests. "
-            "Repair the OMC task linkage before invoicing.",
-            frappe.ValidationError,
-        )
-    return _text(rows[0]) if rows else ""
+    return service_task_links.request_for_task(_text(task_name))
 
 
 def _base_invoice(request_name: str):
