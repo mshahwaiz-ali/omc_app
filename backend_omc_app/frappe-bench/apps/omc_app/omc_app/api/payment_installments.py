@@ -7,6 +7,7 @@ from omc_app.api import accounting_reconciliation, identity, payments, security
 
 
 OPEN_REQUEST_STATES = {"Pending Payment", "Financial Hold", "Activation Failed"}
+HOLD_ACCOUNTING_STATES = {"Reversed", "Review Required", "Quarantined"}
 
 
 def _text(value) -> str:
@@ -102,12 +103,13 @@ def _read_accounting_summary(request) -> dict:
         currency = _text(invoice.currency) or currency
         if int(invoice.docstatus or 0) != 1:
             accounting_status = "Reversed"
-        elif outstanding <= 0.000001 and invoice_total > 0:
-            accounting_status = "Settled"
-        elif outstanding + 0.000001 < invoice_total:
-            accounting_status = "Partially Settled"
-        elif not accounting_status:
-            accounting_status = "Unmatched"
+        elif accounting_status not in HOLD_ACCOUNTING_STATES:
+            if outstanding <= 0.000001 and invoice_total > 0:
+                accounting_status = "Settled"
+            elif outstanding + 0.000001 < invoice_total:
+                accounting_status = "Partially Settled"
+            else:
+                accounting_status = "Unmatched"
 
     paid_amount = max(flt(invoice_total - outstanding, 6), 0)
     if required > 0:
@@ -164,6 +166,8 @@ def _read_accounting_summary(request) -> dict:
     )
     if accounting_status == "Settled" or outstanding <= 0.000001:
         activation_status = _text(request.request_state) or "Ready for Activation"
+    elif accounting_status in HOLD_ACCOUNTING_STATES:
+        activation_status = "Financial Hold"
     else:
         activation_status = "Awaiting Full Settlement"
 
