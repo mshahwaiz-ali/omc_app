@@ -318,13 +318,10 @@ def apply(
             summary["staff_access_skipped"] += 1
             continue
 
-        values["source_version"] = staff_authority._text(
-            frappe.db.get_value("OMC Staff Access", row.name, "source_version")
-        )
         frappe.db.set_value(
             "OMC Staff Access",
             row.name,
-            {key: value for key, value in values.items() if key != "source_version"},
+            values,
             update_modified=False,
         )
         summary["staff_access_updated"] += 1
