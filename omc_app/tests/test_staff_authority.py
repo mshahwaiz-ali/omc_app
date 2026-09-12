@@ -4,8 +4,13 @@ from unittest.mock import patch
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from omc_app.api import staff_authority, staff_profile
-from omc_app.setup.roles import ADMIN_ROLE, BUSINESS_PARTNER_ROLE, CONSULTANT_ROLE
+from omc_app.api import admin_control, staff_authority, staff_profile
+from omc_app.setup.roles import (
+    ADMIN_ROLE,
+    BUSINESS_PARTNER_ROLE,
+    CONSULTANT_ROLE,
+    EMPLOYEE_ROLE,
+)
 
 
 class TestStaffAuthority(FrappeTestCase):
@@ -82,6 +87,13 @@ class TestStaffAuthority(FrappeTestCase):
     def test_operational_only_single_role_remains_supported(self):
         persona = staff_authority.reviewed_persona_for_roles([ADMIN_ROLE])
         self.assertEqual(persona, ADMIN_ROLE)
+
+    def test_employee_persona_is_available_to_staff_admin(self):
+        selected, codes = admin_control._capability_codes([EMPLOYEE_ROLE])
+
+        self.assertEqual(selected, [EMPLOYEE_ROLE])
+        self.assertTrue(codes)
+        self.assertIn("can_access_internal_workspace", codes)
 
     def test_canonical_links_use_employee_and_profile_helpers(self):
         with patch.object(
