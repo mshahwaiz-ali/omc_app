@@ -7,6 +7,7 @@ from omc_app.api import (
     customer_lifecycle,
     secured_mobile,
     service_case_read,
+    service_task_links,
 )
 
 
@@ -162,9 +163,6 @@ def _bulk_contract(request_names: list[str]) -> dict[str, dict]:
         no_charge = policy == "No Charge" and payable <= 0
 
         if historical:
-            # Historical ERP records pre-date the canonical payment workflow.
-            # Never describe missing canonical accounting evidence as unpaid,
-            # unmatched, rejected, or not-required.
             receipt_status = "Historical"
             payment_status = "Historical"
             accounting_status = "Historical"
@@ -275,6 +273,32 @@ def _bulk_contract(request_names: list[str]) -> dict[str, dict]:
 
 def _apply_contract(payload: dict, contract: dict) -> dict:
     payload.update(contract)
+    return payload
+
+
+def _apply_task_progress(payload: dict, request_name: str) -> dict:
+    progress = service_task_links.completion_state(request_name)
+    required = int(progress.get("required_tasks") or 0)
+    completed = int(progress.get("completed_tasks") or 0)
+    payload["operational_work_complete"] = bool(
+        required and progress.get("all_required_completed")
+    )
+    payload["task_progress"] = {
+        "required": required,
+        "completed": completed,
+        "remaining": max(required - completed, 0),
+    }
+    return payload
+
+
+def _redact_customer_task_internals(payload: dict) -> dict:
+    user = str(getattr(getattr(frappe, "session", None), "user", None) or "Guest")
+    if access.is_internal_user(user):
+        return payload
+
+    # Customer contracts expose service progress, never ERP Task identifiers.
+    for key in ("erp_task", "erp_tasks", "task_id", "task_ids"):
+        payload.pop(key, None)
     return payload
 
 
@@ -392,5 +416,7 @@ def get_service_case(case_id=None, request_id=None, name=None, service_request=N
     )
     contract = _bulk_contract([request_name]).get(request_name, {})
     _apply_contract(payload, contract)
+    _apply_task_progress(payload, request_name)
+    _redact_customer_task_internals(payload)
     _attach_customer_presentation(payload)
     return response
