@@ -3,7 +3,7 @@ from __future__ import annotations
 import frappe
 from frappe.utils import add_days, add_to_date, getdate, now_datetime
 
-from omc_app.api import mobile
+from omc_app.api import mobile, service_task_links
 
 OPEN_CASE_STATUSES = [
     "Open",
@@ -273,31 +273,11 @@ def completion_blockers(service_case):
     )
     document_payload = [
         {
-            "document_key": getattr(
-                row,
-                "document_key",
-                "",
-            )
-            or "",
-            "document_title": getattr(
-                row,
-                "document_title",
-                "",
-            )
-            or "",
-            "document_type": getattr(
-                row,
-                "document_type",
-                "",
-            )
-            or "",
+            "document_key": getattr(row, "document_key", "") or "",
+            "document_title": getattr(row, "document_title", "") or "",
+            "document_type": getattr(row, "document_type", "") or "",
             "status": getattr(row, "status", "") or "",
-            "attachment": getattr(
-                row,
-                "attachment",
-                "",
-            )
-            or "",
+            "attachment": getattr(row, "attachment", "") or "",
         }
         for row in documents
     ]
@@ -306,9 +286,7 @@ def completion_blockers(service_case):
         required_templates,
         document_payload,
     ):
-        blockers.append(
-            "Required documents are not fully approved."
-        )
+        blockers.append("Required documents are not fully approved.")
 
     active_payments = frappe.get_all(
         "OMC Service Payment",
@@ -318,31 +296,14 @@ def completion_blockers(service_case):
         },
         fields=["status"],
     )
-    if not _payment_completion_satisfied(
-        service_case,
-        active_payments,
-    ):
-        blockers.append(
-            "Required payment has not been confirmed."
-        )
+    if not _payment_completion_satisfied(service_case, active_payments):
+        blockers.append("Required payment has not been confirmed.")
 
-    erp_task = str(
-        getattr(service_case, "erp_task", None) or ""
-    ).strip()
-    if erp_task:
-        task_status = frappe.db.get_value(
-            "Task",
-            erp_task,
-            "status",
-        )
-        if (task_status or "").strip() != "Completed":
-            blockers.append(
-                "Operational ERP Task is not complete."
-            )
+    task_state = service_task_links.completion_state(service_case.name)
+    if task_state["required_tasks"] and not task_state["all_required_completed"]:
+        blockers.append("Required operational ERP Tasks are not complete.")
 
     return blockers
-
-
 
 
 def record_completion_attribution(
@@ -405,11 +366,13 @@ def record_completion_attribution(
         "completion_source": values.get("completion_source", ""),
     }
 
+
 def _set_case_todos_terminal(service_case, status):
     references = [("OMC Service Request", service_case.name)]
-    erp_task = str(getattr(service_case, "erp_task", None) or "").strip()
-    if erp_task:
-        references.append(("Task", erp_task))
+    references.extend(
+        ("Task", task_name)
+        for task_name in service_task_links.task_names(service_case.name)
+    )
 
     for reference_type, reference_name in references:
         frappe.db.set_value(
