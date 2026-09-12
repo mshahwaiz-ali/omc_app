@@ -52,7 +52,13 @@ def _text(value: Any) -> str:
 
 
 def customer_status(task_status: Any, operation_status: Any = None) -> str:
-    for value in (operation_status, task_status):
+    """Project customer status from canonical ERP Task.status first.
+
+    ``custom_operation_status`` is supplemental workflow metadata. It may
+    refine a status only when canonical Task.status has no recognized mapping;
+    it must never override a terminal/computable ERP Task state.
+    """
+    for value in (task_status, operation_status):
         normalized = _text(value).lower()
         if normalized in CUSTOMER_STATUS_MAP:
             return CUSTOMER_STATUS_MAP[normalized]
