@@ -6,6 +6,8 @@ from typing import Any
 
 import frappe
 
+from omc_app.api import service_task_links
+
 
 CUSTOMER_STATUS_MAP = {
     "open": "Open",
@@ -90,40 +92,55 @@ def _service_status_value(mapped_status: str, raw_status: str) -> str | None:
 
 
 def cancel_linked_erp_records(request) -> dict[str, Any]:
-    """Cancel the linked ERP work without firing the Task hook recursively."""
+    """Cancel all linked ERP work without firing the Task hook recursively."""
 
-    task_name = _text(getattr(request, "erp_task", None))
+    request_name = _text(getattr(request, "name", None))
+    task_names = (
+        service_task_links.task_names(request_name)
+        if request_name
+        else []
+    )
+    primary_task = _text(getattr(request, "erp_task", None))
+    if primary_task and primary_task not in task_names:
+        task_names.insert(0, primary_task)
+
     service_name = _text(getattr(request, "erp_service", None))
     result = {
-        "erp_task": task_name,
+        "erp_task": primary_task,
+        "erp_tasks": list(task_names),
         "erp_service": service_name,
         "task_cancelled": False,
+        "tasks_cancelled": 0,
         "service_cancelled": False,
     }
 
-    if task_name:
-        if not frappe.db.exists("Task", task_name):
-            frappe.throw(
-                f"Linked ERP Task {task_name} does not exist. Contact OMC support.",
-                frappe.ValidationError,
-            )
+    if task_names:
         allowed_task_statuses = _allowed_options("Task", "status")
         if allowed_task_statuses and "Cancelled" not in allowed_task_statuses:
             frappe.throw(
-                "Linked ERP Task cannot be moved to Cancelled with the current configuration.",
+                "Linked ERP Tasks cannot be moved to Cancelled with the current configuration.",
                 frappe.ValidationError,
             )
-        values = {"status": "Cancelled"}
         operation_statuses = _allowed_options("Task", "custom_operation_status")
-        if "Cancelled" in operation_statuses:
-            values["custom_operation_status"] = "Cancelled"
-        frappe.db.set_value(
-            "Task",
-            task_name,
-            values,
-            update_modified=True,
-        )
-        result["task_cancelled"] = True
+
+        for task_name in task_names:
+            if not frappe.db.exists("Task", task_name):
+                frappe.throw(
+                    f"Linked ERP Task {task_name} does not exist. Contact OMC support.",
+                    frappe.ValidationError,
+                )
+            values = {"status": "Cancelled"}
+            if "Cancelled" in operation_statuses:
+                values["custom_operation_status"] = "Cancelled"
+            frappe.db.set_value(
+                "Task",
+                task_name,
+                values,
+                update_modified=True,
+            )
+            result["tasks_cancelled"] += 1
+
+        result["task_cancelled"] = bool(result["tasks_cancelled"])
 
     if service_name:
         if not frappe.db.exists("Service", service_name):
@@ -233,16 +250,24 @@ def _notify_task_recipients(doc, request) -> int:
     return created
 
 
+def _nonterminal_aggregate_status(current_status: str) -> str:
+    if current_status in {
+        "In Progress",
+        "In Review",
+        "Overdue",
+        "Waiting for Customer",
+        "Waiting for Payment",
+    }:
+        return current_status
+    return "In Progress"
+
+
 def sync_task_status(doc, method=None) -> dict[str, Any]:
     task_name = _text(getattr(doc, "name", None))
     if not task_name:
         return {"updated": False, "reason": "missing task name"}
 
-    request_name = frappe.db.get_value(
-        "OMC Service Request",
-        {"erp_task": task_name},
-        "name",
-    )
+    request_name = service_task_links.request_for_task(task_name)
     if not request_name:
         return {
             "updated": False,
@@ -319,6 +344,14 @@ def sync_task_status(doc, method=None) -> dict[str, Any]:
             "service_status": "",
         }
 
+    aggregate = service_task_links.completion_state(request_name)
+    if mapped_status == "Completed" and not aggregate["all_required_completed"]:
+        mapped_status = _nonterminal_aggregate_status(current_status)
+    elif mapped_status == "Cancelled" and aggregate["required_tasks"] > 1:
+        # One cancelled task must not cancel a multi-task customer request.
+        # It remains incomplete until internal work/linkage is repaired.
+        mapped_status = _nonterminal_aggregate_status(current_status)
+
     if current_status in {"Completed", "Cancelled"} and mapped_status != current_status:
         return {
             "updated": False,
@@ -341,6 +374,7 @@ def sync_task_status(doc, method=None) -> dict[str, Any]:
                 "request": request_name,
                 "customer_status": current_status,
                 "requested_status": mapped_status,
+                "task_progress": aggregate,
             }
 
     request_values = {"status": mapped_status}
@@ -411,5 +445,6 @@ def sync_task_status(doc, method=None) -> dict[str, Any]:
         "operation_status": operation_status,
         "customer_status": mapped_status,
         "service_status": service_status or "",
+        "task_progress": aggregate,
         "notifications_created": notifications_created,
     }
