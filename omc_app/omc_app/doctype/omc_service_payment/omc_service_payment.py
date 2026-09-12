@@ -37,7 +37,7 @@ class OMCServicePayment(Document):
             self.currency = "PKR"
         self._assert_parent_is_mutable()
         self._assert_financial_integrity()
-        self._assert_single_active_payment()
+        self._assert_single_open_payment()
         self.receipt_status = self.receipt_status or "Not Submitted"
         self.accounting_status = self.accounting_status or "Unmatched"
         self.quarantine_status = self.quarantine_status or "Not Required"
@@ -84,22 +84,39 @@ class OMCServicePayment(Document):
                 f"as {self.status}."
             )
 
-    def _assert_single_active_payment(self):
+    def _assert_single_open_payment(self):
+        """Allow payment history while preventing duplicate live attempts.
+
+        A submitted ERP Payment Entry closes an installment attempt even when
+        older compatibility projections did not mark the row Paid. This lets a
+        request collect another installment without allowing two unresolved
+        receipts to race against the same outstanding balance.
+        """
         if not self.service_request or self.status == "Cancelled":
             return
 
-        existing = frappe.db.exists(
+        existing = frappe.get_all(
             "OMC Service Payment",
-            {
+            filters={
                 "service_request": self.service_request,
                 "visible_to_customer": 1,
                 "status": ["!=", "Cancelled"],
             },
+            fields=["name", "status", "linked_payment_entry"],
+            limit_page_length=100,
         )
-        if existing:
+        for row in existing:
+            status = _clean_status(row.status)
+            if status in TERMINAL_PAYMENT_STATUSES:
+                continue
+            payment_entry = (row.linked_payment_entry or "").strip()
+            if payment_entry and frappe.db.get_value(
+                "Payment Entry", payment_entry, "docstatus"
+            ) == 1:
+                continue
             frappe.throw(
-                f"An active payment already exists for service request "
-                f"{self.service_request}."
+                f"An open payment already exists for service request "
+                f"{self.service_request}: {row.name}."
             )
 
     def _assert_parent_is_mutable(self):
