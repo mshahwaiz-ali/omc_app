@@ -21,7 +21,7 @@ doc_events = {
         'after_insert': 'omc_app.referral_automation.sync_user_referral_code',
         'on_update': 'omc_app.referral_automation.sync_user_referral_code',
     },
-    'Task': {'on_update': 'omc_app.api.erp_task_status_sync.sync_task_status'},
+    'Task': {'on_update': 'omc_app.api.task_invoice_compat.sync_task_status'},
     'Payment Entry': {
         'before_submit': 'omc_app.api.commission_projection.suppress_legacy_commission_writer',
         'on_submit': 'omc_app.api.payment_accounting_hooks.payment_entry_submitted',
