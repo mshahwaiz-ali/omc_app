@@ -205,7 +205,7 @@ class TestAccountingReconciliationSweep(FrappeTestCase):
             [call.args[0] for call in reconcile.call_args_list],
             ["OMC-SR-TEST-00001", "OMC-SR-TEST-00002"],
         )
-        self.assertEqual(result["checked"], 3)
+        self.assertEqual(result["checked"], 2)
         self.assertEqual(result["completed"], 2)
         self.assertEqual(result["failed"], 0)
 
