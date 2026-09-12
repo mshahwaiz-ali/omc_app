@@ -8,6 +8,7 @@ from omc_app.api import accounting_reconciliation, identity, payments, security
 
 OPEN_REQUEST_STATES = {"Pending Payment", "Financial Hold", "Activation Failed"}
 HOLD_ACCOUNTING_STATES = {"Reversed", "Review Required", "Quarantined"}
+BLOCKED_NEW_PAYMENT_ACCOUNTING_STATES = {"Review Required", "Quarantined"}
 
 
 def _text(value) -> str:
@@ -47,6 +48,28 @@ def _authoritative_remaining(request) -> tuple[float, str, str]:
         _text(result.get("accounting_status")) or "Unmatched",
         invoice,
     )
+
+
+def _invoice_is_submitted(invoice_name: str) -> bool:
+    name = _text(invoice_name)
+    if not name or not frappe.db.exists("Sales Invoice", name):
+        return False
+    return int(frappe.db.get_value("Sales Invoice", name, "docstatus") or 0) == 1
+
+
+def _new_payment_block_reason(accounting_status: str, invoice_name: str) -> str:
+    state = _text(accounting_status)
+    if state in BLOCKED_NEW_PAYMENT_ACCOUNTING_STATES:
+        return (
+            "Finance reconciliation must resolve the current accounting hold "
+            "before another installment can be opened."
+        )
+    if state == "Reversed" and not _invoice_is_submitted(invoice_name):
+        return (
+            "The canonical Sales Invoice is cancelled or unavailable. Finance "
+            "must repair the accounting source before another installment can be opened."
+        )
+    return ""
 
 
 def _open_payment(request_name: str):
@@ -158,11 +181,13 @@ def _read_accounting_summary(request) -> dict:
     ]
 
     open_payment = _open_payment(request.name)
+    block_reason = _new_payment_block_reason(accounting_status, invoice_name)
     can_make_payment = bool(
         outstanding > 0.000001
         and _text(request.request_state) in OPEN_REQUEST_STATES
         and _text(request.status) not in {"Completed", "Cancelled"}
         and not open_payment
+        and not block_reason
     )
     if accounting_status == "Settled" or outstanding <= 0.000001:
         activation_status = _text(request.request_state) or "Ready for Activation"
@@ -183,6 +208,7 @@ def _read_accounting_summary(request) -> dict:
         "request_state": _text(request.request_state),
         "can_make_payment": can_make_payment,
         "maximum_payment_amount": outstanding if can_make_payment else 0,
+        "payment_block_reason": block_reason,
         "open_payment": open_payment.name if open_payment else "",
         "payments": payment_history,
     }
@@ -245,6 +271,10 @@ def create_installment(service_request=None, amount=None):
     remaining, accounting_status, invoice = _authoritative_remaining(request)
     if accounting_status == "Settled" or remaining <= 0:
         frappe.throw("This request is already fully settled.", frappe.ValidationError)
+
+    block_reason = _new_payment_block_reason(accounting_status, invoice)
+    if block_reason:
+        frappe.throw(block_reason, frappe.ValidationError)
 
     installment_amount = flt(amount if amount is not None else remaining, 6)
     if installment_amount <= 0:
