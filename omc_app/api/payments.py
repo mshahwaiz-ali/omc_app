@@ -1335,11 +1335,9 @@ def review_payment_receipt(
         "Rejected": "Rejected",
         "Cancelled": payment.receipt_status or "Not Submitted",
     }[status]
-    payment.status = (
-        "Paid"
-        if status == "Paid" and payment.accounting_status == "Settled"
-        else "Under Review" if status == "Paid" else status
-    )
+    # Receipt acceptance verifies evidence only. Fresh ERP reconciliation is
+    # the sole authority allowed to promote an OMC payment to Paid.
+    payment.status = "Under Review" if status == "Paid" else status
     payment.receipt_status = receipt_status
     if status == "Paid":
         payment.quarantine_status = "Clean"
