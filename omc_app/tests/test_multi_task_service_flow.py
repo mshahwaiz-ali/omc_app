@@ -37,6 +37,16 @@ class TestMultiTaskServiceFlow(FrappeTestCase):
             modified=None,
         )
 
+    def test_canonical_task_status_beats_supplemental_operation_status(self):
+        self.assertEqual(
+            erp_task_status_sync.customer_status("Completed", "Open"),
+            "Completed",
+        )
+        self.assertEqual(
+            erp_task_status_sync.customer_status("Cancelled", "Working"),
+            "Cancelled",
+        )
+
     def test_one_completed_task_does_not_complete_multi_task_request(self):
         request = self._request()
         task = self._task()
