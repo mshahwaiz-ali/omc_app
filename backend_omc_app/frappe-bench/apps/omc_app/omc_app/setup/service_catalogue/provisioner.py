@@ -10,6 +10,7 @@ from omc_app.setup.service_catalogue.manifest import (
     AUTHORITATIVE_COMPANY,
     CATEGORIES,
     CURRENCY,
+    ERP_TASK_STATUS_BY_SERVICE_ID,
     MANIFEST_VERSION,
     SERVICES,
     category_by_name,
@@ -202,6 +203,10 @@ def _desired_service_values(
         "sort_order": spec.sort_order,
         "is_active": int(spec.is_active),
         "erp_task_type": spec.erp_task_type,
+        "erp_task_status": ERP_TASK_STATUS_BY_SERVICE_ID.get(
+            spec.service_id,
+            "",
+        ),
     }
 
 
@@ -274,6 +279,7 @@ def _service_rows() -> dict[str, dict[str, Any]]:
             "sort_order",
             "is_active",
             "erp_task_type",
+            "erp_task_status",
             "default_assignee",
             "default_assignment_role",
         ],

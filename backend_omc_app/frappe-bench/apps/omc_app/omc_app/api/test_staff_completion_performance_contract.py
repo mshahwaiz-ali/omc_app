@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 import unittest
 
@@ -16,12 +17,23 @@ DOCTYPE = (
 
 class TestStaffCompletionPerformanceContract(unittest.TestCase):
     def test_completion_fields_exist(self):
-        source = DOCTYPE.read_text(encoding="utf-8")
-        self.assertIn('"fieldname": "completed_by"', source)
-        self.assertIn('"options": "User"', source)
-        self.assertIn('"fieldname": "completion_source"', source)
-        self.assertIn("Mobile / Desk", source)
-        self.assertIn("ERP Task", source)
+        schema = json.loads(DOCTYPE.read_text(encoding="utf-8"))
+        fields = {
+            field["fieldname"]: field
+            for field in schema["fields"]
+            if field.get("fieldname")
+        }
+
+        self.assertEqual(fields["completed_by"].get("options"), "User")
+
+        completion_source = fields["completion_source"]
+        options = {
+            option.strip()
+            for option in completion_source.get("options", "").splitlines()
+            if option.strip()
+        }
+        self.assertIn("Mobile / Desk", options)
+        self.assertIn("ERP Task", options)
 
     def test_shared_attribution_is_immutable(self):
         source = (
