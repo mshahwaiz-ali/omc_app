@@ -110,6 +110,21 @@ def project_task_invoice_flag(*, request_name: str = "", task_name: str = "") ->
     }
 
 
+def sync_task_status(doc, method=None):
+    """Project invoice compatibility, then preserve the existing status sync."""
+    task_name = _text(getattr(doc, "name", None))
+    request_name = _request_for_task(task_name) if task_name else ""
+    if request_name:
+        project_task_invoice_flag(
+            request_name=request_name,
+            task_name=task_name,
+        )
+
+    from omc_app.api.erp_task_status_sync import sync_task_status as legacy_sync
+
+    return legacy_sync(doc, method)
+
+
 def _canonical_invoice_or_throw(task_name: str, request_name: str) -> str:
     projection = project_task_invoice_flag(
         request_name=request_name,
