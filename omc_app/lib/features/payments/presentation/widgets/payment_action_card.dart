@@ -4,6 +4,7 @@ import '../../../../app/theme.dart';
 import '../../../../core/diagnostics/omc_widget_keys.dart';
 import '../../../../core/widgets/premium_card.dart';
 import '../../data/payment_item.dart';
+import 'request_accounting_panel.dart';
 
 class PaymentActionCard extends StatelessWidget {
   const PaymentActionCard({
@@ -43,6 +44,8 @@ class PaymentActionCard extends StatelessWidget {
         onUploadReceipt != null;
     final instructions = payment.paymentInstructions?.trim();
     final bankDetails = payment.bankAccountDetails?.trim();
+    final serviceRequest = payment.serviceReference?.trim() ?? '';
+    final showRequestAccounting = payment.isOwnPayment && serviceRequest.isNotEmpty;
 
     return PremiumCard(
       padding: const EdgeInsets.all(18),
@@ -171,6 +174,8 @@ class PaymentActionCard extends StatelessWidget {
                   : 'Payment proof not submitted yet',
             ),
           ),
+          if (showRequestAccounting)
+            RequestAccountingPanel(serviceRequest: serviceRequest),
         ],
       ),
     );
