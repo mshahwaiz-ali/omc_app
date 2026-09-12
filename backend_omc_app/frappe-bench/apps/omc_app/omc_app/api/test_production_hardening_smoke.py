@@ -55,6 +55,7 @@ class TestProductionHardeningSmoke(FrappeTestCase):
                 "run_unassigned_recovery",
                 "run_automatic_erp_sync_recovery",
                 "run_customer_account_reconciliation",
+                "run_accounting_reconciliation_sweep",
                 "run_review_assignment_checks",
                 "run_integrity_rescore",
                 "cleanup_pending_registrations",
