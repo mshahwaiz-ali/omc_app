@@ -10,7 +10,7 @@ from typing import Any
 
 import frappe
 
-from omc_app.api import customer_authority
+from omc_app.api import customer_authority, service_task_links
 
 
 def _text(value: Any) -> str:
@@ -46,6 +46,16 @@ def _set_request_state(request, *, status: str, customer="", service="", task=""
                 value,
                 update_modified=False,
             )
+
+    if status == "Synced" and task and request.name:
+        service_task_links.ensure_link(
+            request_name=request.name,
+            task_name=task,
+            erp_service=service,
+            is_primary=True,
+            required_for_completion=True,
+            source="Activation",
+        )
 
 
 def _linked_customer(request, profile) -> str:
