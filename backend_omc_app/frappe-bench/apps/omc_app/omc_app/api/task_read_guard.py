@@ -4,7 +4,7 @@ from typing import Any
 
 import frappe
 
-from omc_app.api import mobile
+from omc_app.api import mobile, service_task_links
 
 
 DEFAULT_PAGE_LENGTH = 100
@@ -64,18 +64,76 @@ def _request_links(
 ) -> list[dict[str, Any]]:
     """Optional OMC enrichment for ERP Tasks.
 
-    An ERP Task does not need an OMC Service Request link to be visible.
+    The one-to-many OMC Service Task Link is authoritative for current task
+    ownership. The legacy ``OMC Service Request.erp_task`` pointer remains a
+    read fallback so pre-backfill records retain the same enrichment.
     """
     if task_names is not None and not task_names:
         return []
 
-    filters: dict[str, Any] = {"erp_task": ["is", "set"]}
-    if task_names is not None:
-        filters["erp_task"] = ["in", sorted(task_names)]
+    clean_task_names = (
+        {_text(name) for name in task_names if _text(name)}
+        if task_names is not None
+        else None
+    )
+    result: list[dict[str, Any]] = []
+    linked_tasks: set[str] = set()
 
-    return frappe.get_all(
+    if clean_task_names is not None and service_task_links._link_doctype_available():
+        relation_rows = frappe.get_all(
+            service_task_links.LINK_DOCTYPE,
+            filters={"erp_task": ["in", sorted(clean_task_names)]},
+            fields=["erp_task", "service_request"],
+            order_by="creation asc, name asc",
+            limit_page_length=max(limit_page_length, len(clean_task_names)),
+        )
+        request_names = sorted(
+            {
+                _text(row.get("service_request"))
+                for row in relation_rows
+                if _text(row.get("service_request"))
+            }
+        )
+        request_map: dict[str, dict[str, Any]] = {}
+        if request_names:
+            request_rows = frappe.get_all(
+                "OMC Service Request",
+                filters={"name": ["in", request_names]},
+                fields=[
+                    "name",
+                    "erp_service",
+                    "customer_profile",
+                    "assigned_staff",
+                ],
+                limit_page_length=len(request_names),
+            )
+            request_map = {
+                _text(row.get("name")): dict(row)
+                for row in request_rows
+                if _text(row.get("name"))
+            }
+
+        for relation in relation_rows:
+            task_name = _text(relation.get("erp_task"))
+            request_name = _text(relation.get("service_request"))
+            request_row = request_map.get(request_name)
+            if not task_name or not request_row:
+                continue
+            result.append({**request_row, "erp_task": task_name})
+            linked_tasks.add(task_name)
+
+    # Compatibility fallback for the primary pointer until existing records
+    # are explicitly backfilled into OMC Service Task Link.
+    legacy_filters: dict[str, Any] = {"erp_task": ["is", "set"]}
+    if clean_task_names is not None:
+        remaining = clean_task_names.difference(linked_tasks)
+        if not remaining:
+            return result
+        legacy_filters["erp_task"] = ["in", sorted(remaining)]
+
+    legacy_rows = frappe.get_all(
         "OMC Service Request",
-        filters=filters,
+        filters=legacy_filters,
         fields=[
             "name",
             "erp_task",
@@ -87,6 +145,8 @@ def _request_links(
         limit_start=limit_start,
         limit_page_length=limit_page_length,
     )
+    result.extend(dict(row) for row in legacy_rows)
+    return result
 
 
 def _request_link_map(
@@ -94,8 +154,7 @@ def _request_link_map(
 ) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
 
-    # Rows are newest first. Preserve the first link only if legacy data
-    # contains more than one request pointing at the same ERP Task.
+    # Preserve the first link only if legacy data contains duplicate ownership.
     for row in rows:
         task_name = _text(row.get("erp_task"))
         if task_name and task_name not in result:
