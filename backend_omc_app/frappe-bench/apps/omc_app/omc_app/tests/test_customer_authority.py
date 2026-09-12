@@ -154,3 +154,31 @@ class TestCustomerAuthority(FrappeTestCase):
 
         self.assertEqual(customer, "CUST-0001")
         resolve.assert_called_once_with(request, profile=profile)
+
+    def test_existing_bridge_links_still_validate_customer_authority(self):
+        request = SimpleNamespace(
+            customer_account="ACC-0001",
+            erp_customer="CUST-0001",
+            erp_service="ERP-SVC-0001",
+            erp_task="TASK-0001",
+        )
+
+        def exists(doctype, name):
+            return (doctype, name) in {
+                ("Service", "ERP-SVC-0001"),
+                ("Task", "TASK-0001"),
+            }
+
+        with patch.object(
+            customer_authority,
+            "resolve_request_customer",
+            return_value="CUST-0001",
+        ) as resolve, patch.object(
+            erp_service_task_adapter.frappe.db,
+            "exists",
+            side_effect=exists,
+        ):
+            result = erp_service_task_adapter._existing_result(request)
+
+        self.assertEqual(result["status"], "Synced")
+        resolve.assert_called_once_with(request)
