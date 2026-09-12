@@ -1,8 +1,8 @@
 """Compatibility guard for the client's legacy Task invoice actions.
 
-ERPNext accounting remains authoritative for OMC requests.  OMC-originated
+ERPNext accounting remains authoritative for OMC requests. OMC-originated
 Tasks therefore reuse the canonical Sales Invoice linked to the request and
-must never originate a second invoice from Task.rate.  Non-OMC Tasks delegate
+must never originate a second invoice from Task.rate. Non-OMC Tasks delegate
 to the client's existing ERPNext implementation unchanged.
 """
 from __future__ import annotations
@@ -53,7 +53,7 @@ def _base_invoice(request_name: str):
 def project_task_invoice_flag(*, request_name: str = "", task_name: str = "") -> dict:
     """Project canonical OMC invoicing into legacy ``Task.invoiced``.
 
-    The flag is compatibility/UI state only.  Once an OMC accounting link owns
+    The flag is compatibility/UI state only. Once an OMC accounting link owns
     a canonical invoice, the legacy Task must remain marked invoiced even if
     that invoice is later cancelled; finance reconciliation, not Task, owns
     repair of the accounting source.
@@ -108,6 +108,105 @@ def project_task_invoice_flag(*, request_name: str = "", task_name: str = "") ->
         "task": task_name,
         "invoice": invoice_name,
     }
+
+
+def backfill_task_invoice_flags(limit: int = 500, dry_run: bool = True) -> dict:
+    """Backfill legacy ``Task.invoiced`` from canonical OMC accounting links.
+
+    Safe to run repeatedly. This function never creates, submits, repairs, or
+    relinks accounting documents; it only projects an existing canonical OMC
+    Sales Invoice into the legacy Task compatibility flag.
+    """
+    limit = min(max(int(limit or 500), 1), 5000)
+    dry_run = bool(int(dry_run)) if isinstance(dry_run, (str, int)) else bool(dry_run)
+    rows = frappe.get_all(
+        REQUEST_DOCTYPE,
+        filters={"erp_task": ["is", "set"]},
+        fields=["name", "erp_task"],
+        order_by="creation asc, name asc",
+        limit_page_length=limit,
+    )
+
+    summary = {
+        "dry_run": dry_run,
+        "scanned": 0,
+        "would_update": 0,
+        "updated": 0,
+        "already_projected": 0,
+        "missing_task": 0,
+        "missing_canonical_invoice": 0,
+        "task_field_missing": 0,
+        "samples": {
+            "would_update": [],
+            "updated": [],
+            "missing_task": [],
+            "missing_canonical_invoice": [],
+        },
+    }
+    task_meta = frappe.get_meta("Task")
+    has_invoiced = bool(task_meta.get_field("invoiced"))
+
+    for row in rows:
+        summary["scanned"] += 1
+        request_name = _text(row.name)
+        task_name = _text(row.erp_task)
+        if not task_name or not frappe.db.exists("Task", task_name):
+            summary["missing_task"] += 1
+            if len(summary["samples"]["missing_task"]) < 25:
+                summary["samples"]["missing_task"].append(
+                    {"request": request_name, "task": task_name}
+                )
+            continue
+
+        link = _base_invoice(request_name)
+        invoice_name = _text(getattr(link, "sales_invoice", None)) if link else ""
+        if not invoice_name:
+            summary["missing_canonical_invoice"] += 1
+            if len(summary["samples"]["missing_canonical_invoice"]) < 25:
+                summary["samples"]["missing_canonical_invoice"].append(
+                    {"request": request_name, "task": task_name}
+                )
+            continue
+
+        if not has_invoiced:
+            summary["task_field_missing"] += 1
+            continue
+
+        current = int(frappe.db.get_value("Task", task_name, "invoiced") or 0)
+        if current == 1:
+            summary["already_projected"] += 1
+            continue
+
+        if dry_run:
+            summary["would_update"] += 1
+            if len(summary["samples"]["would_update"]) < 25:
+                summary["samples"]["would_update"].append(
+                    {
+                        "request": request_name,
+                        "task": task_name,
+                        "invoice": invoice_name,
+                    }
+                )
+            continue
+
+        result = project_task_invoice_flag(
+            request_name=request_name,
+            task_name=task_name,
+        )
+        if result.get("updated"):
+            summary["updated"] += 1
+            if len(summary["samples"]["updated"]) < 25:
+                summary["samples"]["updated"].append(
+                    {
+                        "request": request_name,
+                        "task": task_name,
+                        "invoice": invoice_name,
+                    }
+                )
+        else:
+            summary["already_projected"] += 1
+
+    return summary
 
 
 def sync_task_status(doc, method=None):
