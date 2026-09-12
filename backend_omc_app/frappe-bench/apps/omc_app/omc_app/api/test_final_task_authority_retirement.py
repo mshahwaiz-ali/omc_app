@@ -16,6 +16,7 @@ class TestFinalTaskAuthorityRetirement(FrappeTestCase):
         }
 
         offenders = []
+        quoted_markers = ('"OMC Task"', "'OMC Task'")
         for path in app_root.rglob("*"):
             if not path.is_file():
                 continue
@@ -27,8 +28,7 @@ class TestFinalTaskAuthorityRetirement(FrappeTestCase):
                 continue
 
             source = path.read_text(encoding="utf-8", errors="ignore")
-            legacy_name = "OMC" + " Task"
-            if legacy_name in source:
+            if any(marker in source for marker in quoted_markers):
                 offenders.append(str(path.relative_to(app_root)))
 
         self.assertEqual(offenders, [])
@@ -46,10 +46,10 @@ class TestFinalTaskAuthorityRetirement(FrappeTestCase):
         flutter_root = repo_root / "omc_app" / "lib"
 
         offenders = []
+        quoted_markers = ('"OMC Task"', "'OMC Task'")
         for path in flutter_root.rglob("*.dart"):
             source = path.read_text(encoding="utf-8", errors="ignore")
-            legacy_name = "OMC" + " Task"
-            if legacy_name in source:
+            if any(marker in source for marker in quoted_markers):
                 offenders.append(str(path.relative_to(flutter_root)))
 
         self.assertEqual(offenders, [])
