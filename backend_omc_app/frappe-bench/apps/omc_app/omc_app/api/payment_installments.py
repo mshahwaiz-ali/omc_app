@@ -71,6 +71,129 @@ def _open_payment(request_name: str):
     return None
 
 
+def _assert_customer_owns_request(request):
+    context = identity.require_customer_context()
+    if not identity.request_is_owned(request, context):
+        frappe.throw(
+            "You do not have permission to access payments for this request.",
+            frappe.PermissionError,
+        )
+    return context
+
+
+def _read_accounting_summary(request) -> dict:
+    required = max(flt(request.payable_amount or 0, 6), 0)
+    currency = _text(request.pricing_currency) or "PKR"
+    link = _canonical_link(request.name)
+    invoice_name = _text(getattr(link, "sales_invoice", None)) if link else ""
+    accounting_status = _text(getattr(link, "accounting_status", None)) if link else "Unmatched"
+    invoice_total = required
+    outstanding = required
+
+    if invoice_name and frappe.db.exists("Sales Invoice", invoice_name):
+        invoice = frappe.db.get_value(
+            "Sales Invoice",
+            invoice_name,
+            ["docstatus", "grand_total", "outstanding_amount", "currency"],
+            as_dict=True,
+        )
+        invoice_total = max(flt(invoice.grand_total or 0, 6), 0)
+        outstanding = max(flt(invoice.outstanding_amount or 0, 6), 0)
+        currency = _text(invoice.currency) or currency
+        if int(invoice.docstatus or 0) != 1:
+            accounting_status = "Reversed"
+        elif outstanding <= 0.000001 and invoice_total > 0:
+            accounting_status = "Settled"
+        elif outstanding + 0.000001 < invoice_total:
+            accounting_status = "Partially Settled"
+        elif not accounting_status:
+            accounting_status = "Unmatched"
+
+    paid_amount = max(flt(invoice_total - outstanding, 6), 0)
+    if required > 0:
+        paid_amount = min(paid_amount, required)
+        outstanding = min(outstanding, required)
+
+    history = frappe.get_all(
+        payments.PAYMENT_DOCTYPE,
+        filters={
+            "service_request": request.name,
+            "visible_to_customer": 1,
+        },
+        fields=[
+            "name",
+            "payment_title",
+            "amount",
+            "accounted_amount",
+            "currency",
+            "status",
+            "receipt_status",
+            "accounting_status",
+            "linked_invoice",
+            "linked_payment_entry",
+            "paid_on",
+            "creation",
+        ],
+        order_by="creation desc",
+        limit_page_length=100,
+    )
+    payment_history = [
+        {
+            "payment": row.name,
+            "title": row.payment_title or "Service Payment",
+            "amount": flt(row.amount or 0, 6),
+            "accounted_amount": flt(row.accounted_amount or 0, 6),
+            "currency": row.currency or currency,
+            "status": row.status or "Pending",
+            "receipt_status": row.receipt_status or "Not Submitted",
+            "accounting_status": row.accounting_status or "Unmatched",
+            "linked_invoice": row.linked_invoice or "",
+            "linked_payment_entry": row.linked_payment_entry or "",
+            "paid_on": str(row.paid_on) if row.paid_on else "",
+            "created_at": str(row.creation) if row.creation else "",
+        }
+        for row in history
+    ]
+
+    open_payment = _open_payment(request.name)
+    can_make_payment = bool(
+        outstanding > 0.000001
+        and _text(request.request_state) in OPEN_REQUEST_STATES
+        and _text(request.status) not in {"Completed", "Cancelled"}
+        and not open_payment
+    )
+    if accounting_status == "Settled" or outstanding <= 0.000001:
+        activation_status = _text(request.request_state) or "Ready for Activation"
+    else:
+        activation_status = "Awaiting Full Settlement"
+
+    return {
+        "request": request.name,
+        "canonical_invoice": invoice_name,
+        "currency": currency,
+        "invoice_total": invoice_total,
+        "paid_amount": paid_amount,
+        "outstanding_amount": outstanding,
+        "accounting_status": accounting_status or "Unmatched",
+        "activation_status": activation_status,
+        "request_state": _text(request.request_state),
+        "can_make_payment": can_make_payment,
+        "maximum_payment_amount": outstanding if can_make_payment else 0,
+        "open_payment": open_payment.name if open_payment else "",
+        "payments": payment_history,
+    }
+
+
+@frappe.whitelist()
+def get_accounting_summary(service_request=None):
+    request_name = _text(service_request)
+    if not request_name or not frappe.db.exists("OMC Service Request", request_name):
+        frappe.throw("Service request was not found.", frappe.DoesNotExistError)
+    request = frappe.get_doc("OMC Service Request", request_name)
+    _assert_customer_owns_request(request)
+    return _read_accounting_summary(request)
+
+
 @frappe.whitelist(methods=["POST"])
 def create_installment(service_request=None, amount=None):
     actor = _current_user()
@@ -92,12 +215,7 @@ def create_installment(service_request=None, amount=None):
         frappe.throw("Service request was not found.", frappe.DoesNotExistError)
 
     request = frappe.get_doc("OMC Service Request", locked)
-    context = identity.require_customer_context()
-    if not identity.request_is_owned(request, context):
-        frappe.throw(
-            "You do not have permission to create a payment for this request.",
-            frappe.PermissionError,
-        )
+    _assert_customer_owns_request(request)
     if _text(request.status) in {"Completed", "Cancelled"}:
         frappe.throw(
             "A new payment cannot be created for a closed service request.",
