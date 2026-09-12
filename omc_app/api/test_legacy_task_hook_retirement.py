@@ -36,8 +36,8 @@ class TestLegacyTaskHookRetirement(FrappeTestCase):
             "omc_app.api.task_read_guard.get_task",
         )
 
-    def test_erp_task_status_sync_remains_active(self):
+    def test_erp_task_status_sync_remains_active_through_compatibility_hook(self):
         self.assertEqual(
             hooks.doc_events["Task"]["on_update"],
-            "omc_app.api.erp_task_status_sync.sync_task_status",
+            "omc_app.api.task_invoice_compat.sync_task_status",
         )
