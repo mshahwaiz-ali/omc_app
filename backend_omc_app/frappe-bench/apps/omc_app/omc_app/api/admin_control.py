@@ -7,7 +7,7 @@ import json
 import frappe
 from frappe.utils import cint, flt, validate_email_address
 
-from omc_app.api import access, capabilities, erp_customer_resolver, erp_sync_recovery, identity, pricing_guard, security, service_assignment
+from omc_app.api import access, capabilities, erp_customer_resolver, erp_sync_recovery, identity, pricing_guard, security, service_assignment, staff_authority
 from omc_app.setup.roles import (
     ADMIN_ROLE,
     BUSINESS_PARTNER_ROLE,
@@ -142,15 +142,24 @@ def _upsert_staff_access(user_id, roles, *, access_status="Approved"):
     if identity.user_type(user_id) != "System User":
         frappe.throw("Staff Access can only be assigned to an existing System User.", frappe.ValidationError)
     selected_roles, capability_codes = _capability_codes(roles)
-    persona = selected_roles[0] if len(selected_roles) == 1 else "Reviewed"
+    persona = staff_authority.reviewed_persona_for_roles(selected_roles)
+    canonical_links = staff_authority.canonical_links(user_id)
     name = frappe.db.get_value("OMC Staff Access", {"user": user_id}, "name")
     doc = frappe.get_doc("OMC Staff Access", name) if name else frappe.new_doc("OMC Staff Access")
     before = _text(doc.get("access_status"))
     doc.user = user_id
+    doc.employee = canonical_links.get("employee") or None
+    doc.legacy_staff_profile = canonical_links.get("legacy_staff_profile") or None
     doc.access_status = access_status
     doc.persona_snapshot = persona
     doc.persona_source = "Reviewed"
-    doc.source_version = identity.source_version(user_id, persona, ",".join(capability_codes))
+    doc.source_version = identity.source_version(
+        user_id,
+        doc.employee,
+        doc.legacy_staff_profile,
+        persona,
+        ",".join(capability_codes),
+    )
     doc.reconciliation_status = "Current"
     doc.set("capabilities", [{"capability": code} for code in capability_codes])
     if access_status == "Approved":
