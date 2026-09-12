@@ -3,7 +3,12 @@ from unittest.mock import patch
 
 from frappe.tests.utils import FrappeTestCase
 
-from omc_app.api import accounting_reconciliation, bridge_outbox, payment_installments
+from omc_app.api import (
+    accounting_reconciliation,
+    bridge_outbox,
+    payment_installments,
+    scheduler_jobs,
+)
 
 
 class TestAccountingSettlementState(FrappeTestCase):
@@ -173,3 +178,61 @@ class TestActivationPaymentEvidence(FrappeTestCase):
 
         self.assertTrue(evidence["valid"])
         self.assertEqual(evidence["reason"], "")
+
+
+class TestAccountingReconciliationSweep(FrappeTestCase):
+    def test_sweep_reconciles_each_linked_request_once(self):
+        with (
+            patch.object(
+                scheduler_jobs.frappe,
+                "get_all",
+                return_value=[
+                    "OMC-SR-TEST-00002",
+                    "OMC-SR-TEST-00001",
+                    "OMC-SR-TEST-00002",
+                    "",
+                ],
+            ),
+            patch.object(
+                scheduler_jobs.accounting_reconciliation,
+                "reconcile_request",
+            ) as reconcile,
+            patch.object(scheduler_jobs.frappe.db, "commit"),
+        ):
+            result = scheduler_jobs.run_accounting_reconciliation_sweep()
+
+        self.assertEqual(
+            [call.args[0] for call in reconcile.call_args_list],
+            ["OMC-SR-TEST-00001", "OMC-SR-TEST-00002"],
+        )
+        self.assertEqual(result["checked"], 3)
+        self.assertEqual(result["completed"], 2)
+        self.assertEqual(result["failed"], 0)
+
+    def test_sweep_isolates_one_request_failure(self):
+        def reconcile(request_name):
+            if request_name == "OMC-SR-TEST-00001":
+                raise RuntimeError("boom")
+
+        with (
+            patch.object(
+                scheduler_jobs.frappe,
+                "get_all",
+                return_value=["OMC-SR-TEST-00001", "OMC-SR-TEST-00002"],
+            ),
+            patch.object(
+                scheduler_jobs.accounting_reconciliation,
+                "reconcile_request",
+                side_effect=reconcile,
+            ) as reconcile_request,
+            patch.object(scheduler_jobs.frappe.db, "commit"),
+            patch.object(scheduler_jobs.frappe.db, "rollback") as rollback,
+            patch.object(scheduler_jobs.frappe, "log_error"),
+        ):
+            result = scheduler_jobs.run_accounting_reconciliation_sweep()
+
+        self.assertEqual(reconcile_request.call_count, 2)
+        rollback.assert_called_once()
+        self.assertEqual(result["completed"], 1)
+        self.assertEqual(result["failed"], 1)
+        self.assertEqual(result["failed_requests"], ["OMC-SR-TEST-00001"])
