@@ -13,6 +13,7 @@ override_whitelisted_methods = {'omc_app.api.mobile.sign_up': 'omc_app.api.signu
 override_whitelisted_methods.update({
     'erpnext.projects.doctype.task.task.mk_inv': 'omc_app.api.task_invoice_compat.mk_inv',
     'erpnext.projects.doctype.task.task.bulk_generate_invoices': 'omc_app.api.task_invoice_compat.bulk_generate_invoices',
+    'omc_app.api.payment_accounting.get_review_context': 'omc_app.api.payment_review_context_guard.get_review_context',
 })
 permission_query_conditions = {'OMC Service Request': 'omc_app.permissions.service_request_query', 'OMC Customer Profile': 'omc_app.permissions.customer_profile_query', 'OMC Referral': 'omc_app.permissions.referral_query', 'OMC Service Document': 'omc_app.permissions.service_document_query', 'OMC Service Payment': 'omc_app.permissions.service_payment_query', 'OMC Support Ticket': 'omc_app.permissions.support_ticket_query'}
 has_permission = {'OMC Service Request': 'omc_app.permissions.service_request_has_permission', 'OMC Customer Profile': 'omc_app.permissions.customer_profile_has_permission', 'OMC Referral': 'omc_app.permissions.referral_has_permission', 'OMC Service Document': 'omc_app.permissions.service_document_has_permission', 'OMC Service Payment': 'omc_app.permissions.service_payment_has_permission', 'OMC Support Ticket': 'omc_app.permissions.support_ticket_has_permission'}
