@@ -299,9 +299,27 @@ def completion_blockers(service_case):
     if not _payment_completion_satisfied(service_case, active_payments):
         blockers.append("Required payment has not been confirmed.")
 
-    task_state = service_task_links.completion_state(service_case.name)
-    if task_state["required_tasks"] and not task_state["all_required_completed"]:
-        blockers.append("Required operational ERP Tasks are not complete.")
+    primary_task = str(getattr(service_case, "erp_task", None) or "").strip()
+    if primary_task:
+        request_state = str(
+            getattr(service_case, "request_state", None) or ""
+        ).strip()
+        if request_state == "Activated":
+            task_state = service_task_links.completion_state(service_case.name)
+            if task_state["required_tasks"]:
+                if not task_state["all_required_completed"]:
+                    blockers.append("Required operational ERP Tasks are not complete.")
+            else:
+                task_status = frappe.db.get_value("Task", primary_task, "status")
+                if str(task_status or "").strip() != "Completed":
+                    blockers.append("Operational ERP Task is not complete.")
+        else:
+            # Pre-redesign requests are single-task records. Keep their legacy
+            # primary pointer authoritative until they enter the canonical
+            # Activated lifecycle; multi-task links require Activated state.
+            task_status = frappe.db.get_value("Task", primary_task, "status")
+            if str(task_status or "").strip() != "Completed":
+                blockers.append("Operational ERP Task is not complete.")
 
     return blockers
 
@@ -368,11 +386,13 @@ def record_completion_attribution(
 
 
 def _set_case_todos_terminal(service_case, status):
+    task_names = service_task_links.task_names(service_case.name)
+    primary_task = str(getattr(service_case, "erp_task", None) or "").strip()
+    if primary_task and primary_task not in task_names:
+        task_names.insert(0, primary_task)
+
     references = [("OMC Service Request", service_case.name)]
-    references.extend(
-        ("Task", task_name)
-        for task_name in service_task_links.task_names(service_case.name)
-    )
+    references.extend(("Task", task_name) for task_name in task_names)
 
     for reference_type, reference_name in references:
         frappe.db.set_value(
