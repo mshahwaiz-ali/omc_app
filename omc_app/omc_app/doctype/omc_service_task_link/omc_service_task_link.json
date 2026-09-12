@@ -1,0 +1,44 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:erp_task",
+ "creation": "2026-09-13 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "service_request",
+  "erp_task",
+  "erp_service",
+  "is_primary",
+  "required_for_completion",
+  "source",
+  "linked_at",
+  "linked_by"
+ ],
+ "fields": [
+  {"fieldname": "service_request", "fieldtype": "Link", "in_list_view": 1, "in_standard_filter": 1, "label": "Service Request", "options": "OMC Service Request", "reqd": 1, "search_index": 1},
+  {"fieldname": "erp_task", "fieldtype": "Link", "in_list_view": 1, "in_standard_filter": 1, "label": "ERP Task", "options": "Task", "reqd": 1, "search_index": 1, "unique": 1},
+  {"fieldname": "erp_service", "fieldtype": "Link", "in_standard_filter": 1, "label": "ERP Service", "options": "Service", "read_only": 1, "search_index": 1},
+  {"default": "0", "description": "Compatibility primary task mirrored by OMC Service Request.erp_task.", "fieldname": "is_primary", "fieldtype": "Check", "in_list_view": 1, "label": "Primary Task", "read_only": 1},
+  {"default": "1", "description": "Required tasks must all be completed before the customer service request can complete.", "fieldname": "required_for_completion", "fieldtype": "Check", "in_list_view": 1, "label": "Required For Completion", "reqd": 1},
+  {"default": "Activation", "fieldname": "source", "fieldtype": "Select", "in_standard_filter": 1, "label": "Link Source", "options": "Activation\nStaff Linked\nHistorical Import\nLegacy Backfill", "read_only": 1, "reqd": 1},
+  {"fieldname": "linked_at", "fieldtype": "Datetime", "label": "Linked At", "read_only": 1, "reqd": 1},
+  {"fieldname": "linked_by", "fieldtype": "Link", "label": "Linked By", "options": "User", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-13 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OMC App",
+ "name": "OMC Service Task Link",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {"export": 1, "read": 1, "report": 1, "role": "OMC Admin"},
+  {"read": 1, "report": 1, "role": "OMC Manager"}
+ ],
+ "sort_field": "creation",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 1
+}
