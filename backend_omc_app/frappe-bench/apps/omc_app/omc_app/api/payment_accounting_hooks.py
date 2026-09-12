@@ -26,39 +26,13 @@ def _request_names(payment_entry) -> set[str]:
 
 
 def project_request_payment_state(request_name: str) -> dict:
+    """Refresh aggregate request accounting without overwriting installments."""
     result = accounting_reconciliation.reconcile_request(request_name)
     state = str(result.get("accounting_status") or "").strip()
-    payment_names = frappe.get_all(
-        "OMC Service Payment",
-        filters={"service_request": request_name, "status": ["!=", "Cancelled"]},
-        pluck="name",
-        order_by="creation desc",
-        limit_page_length=10,
-    )
-    for name in payment_names:
-        current = str(
-            frappe.db.get_value("OMC Service Payment", name, "status") or ""
-        ).strip()
-        values = {"accounting_status": state}
-        if state == "Partially Settled":
-            values.update(
-                {"status": "Partially Paid", "paid_on": None, "settled_at": None}
-            )
-        elif state == "Settled":
-            # reconcile_request already projects Paid; keep this explicit so
-            # manual and automated ERP Payment Entries share one result.
-            values.update({"status": "Paid"})
-        elif current in {"Paid", "Partially Paid"}:
-            values.update(
-                {"status": "Under Review", "paid_on": None, "settled_at": None}
-            )
-        frappe.db.set_value(
-            "OMC Service Payment",
-            name,
-            values,
-            update_modified=False,
-        )
 
+    # Installment rows are projected by accounting_reconciliation from their
+    # own linked Payment Entry. The request-level state below is only used for
+    # activation/completion orchestration.
     if state in {"Partially Settled", "Settled"}:
         bridge_outbox.enqueue_if_eligible(request_name)
     if state == "Settled":
