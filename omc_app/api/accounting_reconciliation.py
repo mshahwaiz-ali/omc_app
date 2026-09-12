@@ -473,33 +473,64 @@ def _project_receipt_compatibility(
     state: str,
     payment_entry: str = "",
 ) -> None:
+    """Project each installment from its own ERP Payment Entry.
+
+    Request-level accounting state belongs to the canonical invoice and must
+    never be copied onto every OMC Service Payment row. One posted installment
+    can therefore be Paid while the request itself remains Partially Settled.
+    """
     rows = frappe.get_all(
         "OMC Service Payment",
         filters={"service_request": request_name, "status": ["!=", "Cancelled"]},
-        pluck="name",
+        fields=["name", "status", "linked_invoice", "linked_payment_entry"],
         order_by="creation desc",
-        limit_page_length=10,
+        limit_page_length=1000,
     )
-    for name in rows:
-        values = {
-            "accounting_status": state,
-            "linked_payment_entry": payment_entry or None,
-        }
-        if state == "Settled":
-            values.update(
-                {
-                    "status": "Paid",
-                    "paid_on": now_datetime(),
-                    "settled_at": now_datetime(),
-                }
+    for row in rows:
+        entry_name = _text(row.linked_payment_entry)
+        if not entry_name or not frappe.db.exists("Payment Entry", entry_name):
+            continue
+
+        docstatus = int(frappe.db.get_value("Payment Entry", entry_name, "docstatus") or 0)
+        values = {}
+        if docstatus == 1:
+            filters = {
+                "parent": entry_name,
+                "reference_doctype": "Sales Invoice",
+            }
+            if row.linked_invoice:
+                filters["reference_name"] = row.linked_invoice
+            allocated = flt(
+                sum(
+                    frappe.get_all(
+                        "Payment Entry Reference",
+                        filters=filters,
+                        pluck="allocated_amount",
+                        limit_page_length=1000,
+                    )
+                    or []
+                ),
+                6,
             )
-        elif frappe.db.get_value("OMC Service Payment", name, "status") == "Paid":
-            values.update(
-                {"status": "Under Review", "paid_on": None, "settled_at": None}
+            values = {
+                "accounting_status": "Settled",
+                "status": "Paid",
+                "accounted_amount": max(allocated, 0),
+                "paid_on": now_datetime(),
+                "settled_at": now_datetime(),
+            }
+        elif docstatus == 2:
+            values = {
+                "accounting_status": "Reversed",
+                "status": "Under Review",
+                "accounted_amount": 0,
+                "paid_on": None,
+                "settled_at": None,
+            }
+        if values:
+            frappe.db.set_value(
+                "OMC Service Payment", row.name, values, update_modified=False
             )
-        frappe.db.set_value(
-            "OMC Service Payment", name, values, update_modified=False
-        )
 
 
 def _set_hold_reason(request, reason: str) -> None:
