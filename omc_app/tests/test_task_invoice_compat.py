@@ -112,6 +112,10 @@ class TestTaskInvoiceCompatibility(FrappeTestCase):
             "_base_invoice",
             return_value=link,
         ), patch.object(
+            task_invoice_compat,
+            "_project_task_rate",
+            return_value=False,
+        ), patch.object(
             task_invoice_compat.frappe,
             "get_meta",
             return_value=meta,
@@ -129,12 +133,87 @@ class TestTaskInvoiceCompatibility(FrappeTestCase):
             )
 
         self.assertTrue(result["updated"])
+        self.assertFalse(result["rate_updated"])
         self.assertEqual(result["invoice"], "SINV-OMC-00001")
         set_value.assert_called_once_with(
             "Task",
             "TASK-OMC-00001",
             "invoiced",
             1,
+            update_modified=False,
+        )
+
+    def test_rate_projection_uses_authoritative_payable_amount(self):
+        meta = Mock()
+        meta.get_field.return_value = SimpleNamespace(fieldname="rate")
+
+        def get_value(doctype, name, fieldname, *args, **kwargs):
+            if doctype == task_invoice_compat.REQUEST_DOCTYPE:
+                return SimpleNamespace(payable_amount=50000, final_price=45000)
+            if doctype == "Task" and fieldname == "rate":
+                return 35000
+            return None
+
+        with patch.object(
+            task_invoice_compat.frappe,
+            "get_meta",
+            return_value=meta,
+        ), patch.object(
+            task_invoice_compat.frappe.db,
+            "get_value",
+            side_effect=get_value,
+        ), patch.object(
+            task_invoice_compat.frappe.db,
+            "set_value",
+        ) as set_value:
+            updated = task_invoice_compat._project_task_rate(
+                "OMC-SR-TEST-00001",
+                "TASK-OMC-00001",
+            )
+
+        self.assertTrue(updated)
+        set_value.assert_called_once_with(
+            "Task",
+            "TASK-OMC-00001",
+            "rate",
+            50000.0,
+            update_modified=False,
+        )
+
+    def test_rate_projection_falls_back_to_final_price(self):
+        meta = Mock()
+        meta.get_field.return_value = SimpleNamespace(fieldname="rate")
+
+        def get_value(doctype, name, fieldname, *args, **kwargs):
+            if doctype == task_invoice_compat.REQUEST_DOCTYPE:
+                return SimpleNamespace(payable_amount=None, final_price=50000)
+            if doctype == "Task" and fieldname == "rate":
+                return 35000
+            return None
+
+        with patch.object(
+            task_invoice_compat.frappe,
+            "get_meta",
+            return_value=meta,
+        ), patch.object(
+            task_invoice_compat.frappe.db,
+            "get_value",
+            side_effect=get_value,
+        ), patch.object(
+            task_invoice_compat.frappe.db,
+            "set_value",
+        ) as set_value:
+            updated = task_invoice_compat._project_task_rate(
+                "OMC-SR-TEST-00001",
+                "TASK-OMC-00001",
+            )
+
+        self.assertTrue(updated)
+        set_value.assert_called_once_with(
+            "Task",
+            "TASK-OMC-00001",
+            "rate",
+            50000.0,
             update_modified=False,
         )
 
