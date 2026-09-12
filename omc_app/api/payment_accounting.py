@@ -523,13 +523,43 @@ def process_receipt(receipt_name: str) -> dict:
             invoice,
             config["payment_account"],
         )
+        # Link the installment before reconciliation so the central projection
+        # can derive this row from its own submitted ERP Payment Entry.
+        frappe.db.set_value(
+            payments.PAYMENT_DOCTYPE,
+            payment.name,
+            {
+                "linked_invoice": invoice.name,
+                "linked_payment_entry": payment_entry.name,
+            },
+            update_modified=False,
+        )
         result = accounting_reconciliation.reconcile_request(request.name)
-        if result.get("accounting_status") not in {"Partially Settled", "Settled"}:
+        installment = frappe.db.get_value(
+            payments.PAYMENT_DOCTYPE,
+            payment.name,
+            [
+                "accounting_status",
+                "status",
+                "accounted_amount",
+                "paid_on",
+                "settled_at",
+            ],
+            as_dict=True,
+        )
+        if not installment or installment.accounting_status not in {
+            "Partially Settled",
+            "Settled",
+        }:
             frappe.throw(
-                "ERP Payment Entry did not reconcile to a paid state.",
+                "ERP Payment Entry did not reconcile to this installment.",
                 frappe.ValidationError,
             )
-        settled_at = now_datetime()
+        if flt(installment.accounted_amount or 0, 6) <= 0:
+            frappe.throw(
+                "ERP Payment Entry did not allocate a positive amount to the canonical invoice.",
+                frappe.ValidationError,
+            )
         frappe.db.set_value(
             RECEIPT_DOCTYPE,
             receipt.name,
@@ -539,20 +569,6 @@ def process_receipt(receipt_name: str) -> dict:
                 "payment_entry": payment_entry.name,
                 "next_attempt_at": None,
                 "last_error": None,
-            },
-            update_modified=False,
-        )
-        frappe.db.set_value(
-            payments.PAYMENT_DOCTYPE,
-            payment.name,
-            {
-                "linked_invoice": invoice.name,
-                "linked_payment_entry": payment_entry.name,
-                "accounted_amount": amount,
-                "accounting_status": "Settled",
-                "status": "Paid",
-                "paid_on": settled_at,
-                "settled_at": settled_at,
             },
             update_modified=False,
         )
@@ -566,10 +582,11 @@ def process_receipt(receipt_name: str) -> dict:
         return {
             "status": "completed",
             "accounting_status": result.get("accounting_status"),
-            "installment_accounting_status": "Settled",
+            "installment_accounting_status": installment.accounting_status,
+            "installment_status": installment.status,
             "sales_invoice": invoice.name,
             "payment_entry": payment_entry.name,
-            "accounted_amount": amount,
+            "accounted_amount": flt(installment.accounted_amount or 0, 6),
             "remaining_amount": result.get("remaining_amount"),
         }
     except Exception:
