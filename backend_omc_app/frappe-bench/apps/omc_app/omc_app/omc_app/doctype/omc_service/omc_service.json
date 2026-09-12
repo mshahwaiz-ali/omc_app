@@ -64,7 +64,7 @@
   {"fieldname": "pricing_version", "fieldtype": "Data", "hidden": 1, "label": "Pricing Version", "read_only": 1, "search_index": 1},
   {"default": "No Tax", "fieldname": "tax_policy", "fieldtype": "Select", "label": "Tax Policy", "options": "No Tax\nTax Included\nTax Exclusive", "reqd": 1},
   {"default": "0", "fieldname": "tax_rate", "fieldtype": "Percent", "label": "Tax Rate"},
-  {"default": "Verified Payment", "description": "Verified Payment starts service after any positive ERP-reconciled payment. Full Settlement waits until the invoice is fully settled.", "fieldname": "activation_policy", "fieldtype": "Select", "label": "Activation Policy", "options": "Verified Payment\nFull Settlement\nNo Charge\nPost-paid Approval", "reqd": 1},
+  {"default": "Full Settlement", "description": "Full Settlement is the current payment-first activation policy. Verified Payment is retained only as a legacy snapshot value and also requires full ERP settlement until an explicit deposit threshold policy is introduced.", "fieldname": "activation_policy", "fieldtype": "Select", "label": "Activation Policy", "options": "Verified Payment\nFull Settlement\nNo Charge\nPost-paid Approval", "reqd": 1},
   {"default": "72", "fieldname": "pending_payment_expiry_hours", "fieldtype": "Int", "label": "Pending Payment Expiry Hours", "reqd": 1},
   {"default": "24", "fieldname": "duplicate_window_hours", "fieldtype": "Int", "label": "Duplicate Window Hours", "reqd": 1},
   {"default": "0", "fieldname": "sort_order", "fieldtype": "Int", "label": "Sort Order"},
