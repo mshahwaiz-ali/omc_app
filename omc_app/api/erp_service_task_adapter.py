@@ -10,6 +10,9 @@ from typing import Any
 
 import frappe
 
+from omc_app.api import customer_authority
+
+
 def _text(value: Any) -> str:
     return str(value or "").strip()
 
@@ -46,16 +49,10 @@ def _set_request_state(request, *, status: str, customer="", service="", task=""
 
 
 def _linked_customer(request, profile) -> str:
-    existing = _text(getattr(request, "erp_customer", None))
-    if existing and frappe.db.exists("Customer", existing):
-        return existing
-    account_name = _text(getattr(request, "customer_account", None))
-    if account_name and frappe.db.exists("OMC Customer Account", account_name):
-        customer = _text(frappe.db.get_value("OMC Customer Account", account_name, "erp_customer"))
-        if customer and frappe.db.exists("Customer", customer):
-            return customer
-    customer = _text(getattr(profile, "linked_erpnext_customer", None)) if profile else ""
-    return customer if customer and frappe.db.exists("Customer", customer) else ""
+    return customer_authority.resolve_request_customer(
+        request,
+        profile=profile,
+    )
 
 
 def _customer_user(customer: str) -> str:
