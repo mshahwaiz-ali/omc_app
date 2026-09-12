@@ -52,12 +52,16 @@ class TestCustomerAuthorityContract(FrappeTestCase):
         resolver = (api / "erp_customer_resolver.py").read_text(
             encoding="utf-8"
         )
+        authority = (api / "customer_authority.py").read_text(
+            encoding="utf-8"
+        )
         adapter = (api / "erp_service_task_adapter.py").read_text(
             encoding="utf-8"
         )
 
         self.assertIn('frappe.new_doc("Customer")', resolver)
-        self.assertIn('"OMC Customer Account"', adapter)
+        self.assertIn('"OMC Customer Account"', authority)
+        self.assertIn("customer_authority.resolve_request_customer", adapter)
         self.assertNotIn('frappe.new_doc("Customer")', adapter)
         self.assertNotIn(
             'frappe.new_doc("OMC Customer Profile")',
