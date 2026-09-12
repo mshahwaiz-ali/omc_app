@@ -175,6 +175,10 @@ class TestErpServiceFlowIntegration(FrappeTestCase):
                 return_value=True,
             ),
             patch.object(
+                erp_service_task_adapter.service_task_links,
+                "ensure_link",
+            ),
+            patch.object(
                 erp_service_task_adapter,
                 "_create_service",
             ) as create_service,
@@ -286,5 +290,5 @@ class TestErpServiceFlowIntegration(FrappeTestCase):
         self.assertIn("Task", app_hooks.doc_events)
         self.assertEqual(
             app_hooks.doc_events["Task"]["on_update"],
-            "omc_app.api.erp_task_status_sync.sync_task_status",
+            "omc_app.api.task_invoice_compat.sync_task_status",
         )
