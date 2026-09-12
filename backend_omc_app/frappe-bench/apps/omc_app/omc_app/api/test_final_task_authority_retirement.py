@@ -16,7 +16,8 @@ class TestFinalTaskAuthorityRetirement(FrappeTestCase):
         }
 
         offenders = []
-        quoted_markers = ('"OMC Task"', "'OMC Task'")
+        legacy_name = "OMC" + " Task"
+        quoted_markers = (f'"{legacy_name}"', f"'{legacy_name}'")
         for path in app_root.rglob("*"):
             if not path.is_file():
                 continue
@@ -46,7 +47,8 @@ class TestFinalTaskAuthorityRetirement(FrappeTestCase):
         flutter_root = repo_root / "omc_app" / "lib"
 
         offenders = []
-        quoted_markers = ('"OMC Task"', "'OMC Task'")
+        legacy_name = "OMC" + " Task"
+        quoted_markers = (f'"{legacy_name}"', f"'{legacy_name}'")
         for path in flutter_root.rglob("*.dart"):
             source = path.read_text(encoding="utf-8", errors="ignore")
             if any(marker in source for marker in quoted_markers):
