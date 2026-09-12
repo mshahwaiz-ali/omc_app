@@ -62,6 +62,11 @@ def _customer_user(customer: str) -> str:
 
 
 def _existing_result(request):
+    # Validate the canonical account/customer relationship before every bridge
+    # path, including already-synced repair/retry paths that may return early.
+    if _text(getattr(request, "customer_account", None)):
+        customer_authority.resolve_request_customer(request)
+
     erp_service = _text(getattr(request, "erp_service", None))
     erp_task = _text(getattr(request, "erp_task", None))
 
