@@ -20,14 +20,14 @@ class TestVerifiedPaymentActivation(FrappeTestCase):
             post_paid_approved_at=None,
         )
 
-    def test_verified_payment_policy_accepts_partial_or_full_settlement(self):
+    def test_legacy_verified_payment_requires_full_settlement(self):
         request = self._request("Verified Payment")
         with patch.object(
             bridge_outbox,
             "_accounting_status",
             return_value="Partially Settled",
         ):
-            self.assertTrue(bridge_outbox.eligibility(request)["eligible"])
+            self.assertFalse(bridge_outbox.eligibility(request)["eligible"])
         with patch.object(
             bridge_outbox,
             "_accounting_status",
@@ -56,22 +56,12 @@ class TestVerifiedPaymentActivation(FrappeTestCase):
             ALLOWED_PAYMENT_STATUS_TRANSITIONS["Partially Paid"],
         )
 
-    def test_payment_projection_uses_partially_paid_status(self):
+    def test_request_projection_does_not_overwrite_installment_state(self):
         with (
             patch.object(
                 payment_accounting_hooks.accounting_reconciliation,
                 "reconcile_request",
                 return_value={"accounting_status": "Partially Settled"},
-            ),
-            patch.object(
-                payment_accounting_hooks.frappe,
-                "get_all",
-                return_value=["OMC-PAY-1"],
-            ),
-            patch.object(
-                payment_accounting_hooks.frappe.db,
-                "get_value",
-                return_value="Under Review",
             ),
             patch.object(
                 payment_accounting_hooks.frappe.db,
@@ -87,6 +77,5 @@ class TestVerifiedPaymentActivation(FrappeTestCase):
             )
 
         self.assertEqual(result["accounting_status"], "Partially Settled")
-        set_value.assert_called_once()
-        self.assertEqual(set_value.call_args.args[2]["status"], "Partially Paid")
+        set_value.assert_not_called()
         enqueue.assert_called_once_with("OMC-SR-1")
