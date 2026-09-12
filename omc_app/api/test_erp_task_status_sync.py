@@ -44,10 +44,10 @@ class TestErpTaskStatusSync(FrappeTestCase):
         )
         with (
             patch.object(
-                erp_task_status_sync.frappe.db,
-                "get_value",
-                return_value=None,
-            ),
+                erp_task_status_sync.service_task_links,
+                "request_for_task",
+                return_value="",
+            ) as request_for_task,
             patch.object(
                 erp_task_status_sync.frappe.db,
                 "set_value",
@@ -56,6 +56,7 @@ class TestErpTaskStatusSync(FrappeTestCase):
             result = erp_task_status_sync.sync_task_status(task)
 
         self.assertFalse(result["updated"])
+        request_for_task.assert_called_once_with("TASK-UNLINKED")
         set_value.assert_not_called()
 
     def test_linked_task_updates_request_and_service(self):
