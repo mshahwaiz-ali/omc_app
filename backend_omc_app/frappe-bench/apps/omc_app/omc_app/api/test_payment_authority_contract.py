@@ -66,22 +66,28 @@ class TestPaymentAuthorityContract(FrappeTestCase):
 
         with patch(
             "omc_app.omc_app.doctype.omc_service_payment."
-            "omc_service_payment.frappe.db.exists",
-            return_value="PAY-EXISTING",
+            "omc_service_payment.frappe.get_all",
+            return_value=[
+                SimpleNamespace(
+                    name="PAY-EXISTING",
+                    status="Pending",
+                    linked_payment_entry="",
+                )
+            ],
         ):
             with self.assertRaises(Exception):
-                payment._assert_single_active_payment()
+                payment._assert_single_open_payment()
 
     def test_cancelled_payment_skips_active_duplicate_check(self):
         payment = self._payment(status="Cancelled")
 
         with patch(
             "omc_app.omc_app.doctype.omc_service_payment."
-            "omc_service_payment.frappe.db.exists",
-        ) as exists:
-            payment._assert_single_active_payment()
+            "omc_service_payment.frappe.get_all",
+        ) as get_all:
+            payment._assert_single_open_payment()
 
-        exists.assert_not_called()
+        get_all.assert_not_called()
 
     def test_legacy_mobile_upload_keeps_canonical_workflow_calls(self):
         from pathlib import Path
