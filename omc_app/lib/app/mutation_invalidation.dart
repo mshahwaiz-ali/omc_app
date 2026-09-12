@@ -5,6 +5,7 @@ import '../features/admin_control/data/admin_control_repository.dart';
 import '../features/home/data/home_dashboard_repository.dart';
 import '../features/internal_workspace/presentation/internal_workspace_providers.dart';
 import '../features/notifications/data/notifications_repository.dart';
+import '../features/payments/data/payment_accounting_repository.dart';
 import '../features/payments/data/payments_repository.dart';
 import '../features/service_requests/data/service_case_repository.dart';
 import '../features/tasks/data/tasks_repository.dart';
@@ -40,6 +41,9 @@ void invalidatePaymentMutation(
   if (paymentId?.trim().isNotEmpty ?? false) {
     ref.invalidate(paymentDetailProvider(paymentId!.trim()));
   }
+  if (caseId?.trim().isNotEmpty ?? false) {
+    ref.invalidate(paymentAccountingSummaryProvider(caseId!.trim()));
+  }
   invalidateServiceMutation(ref, caseId: caseId);
 }
 
@@ -54,7 +58,8 @@ void invalidateAdministrativeCaseMutation(
     ..invalidate(homeDashboardSummaryProvider)
     ..invalidate(tasksProvider)
     ..invalidate(documentsProvider)
-    ..invalidate(paymentsProvider);
+    ..invalidate(paymentsProvider)
+    ..invalidate(paymentAccountingSummaryProvider(caseId));
   invalidateServiceMutation(ref, caseId: caseId);
 }
 
