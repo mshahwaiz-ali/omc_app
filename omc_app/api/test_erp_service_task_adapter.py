@@ -266,6 +266,10 @@ class TestErpServiceTaskAdapter(FrappeTestCase):
                 return_value=True,
             ),
             patch.object(
+                erp_service_task_adapter.service_task_links,
+                "ensure_link",
+            ) as ensure_link,
+            patch.object(
                 erp_service_task_adapter,
                 "_create_service",
             ) as create_service,
@@ -283,6 +287,14 @@ class TestErpServiceTaskAdapter(FrappeTestCase):
         self.assertFalse(result["created"])
         create_service.assert_not_called()
         create_task.assert_not_called()
+        ensure_link.assert_called_once_with(
+            request_name=request.name,
+            task_name="ERP-TASK-1",
+            erp_service="ERP-SERVICE-1",
+            is_primary=True,
+            required_for_completion=True,
+            source="Activation",
+        )
 
     def test_repair_reuses_valid_service_and_recreates_only_missing_task(self):
         request = self._request()
