@@ -2,6 +2,7 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import now_datetime
 
+from omc_app.api import customer_authority
 from omc_app.api.request_lifecycle import REQUEST_STATE_TRANSITIONS, compatibility_status
 
 
@@ -53,6 +54,7 @@ class OMCServiceRequest(Document):
             self.requested_by = frappe.session.user
 
         self.activation_version = self.activation_version or 1
+        self._enforce_customer_authority()
 
         if self.meta.get_field("company_snapshot") and not historical_import:
             company = ""
@@ -67,6 +69,7 @@ class OMCServiceRequest(Document):
 
     def before_save(self):
         previous = self.get_doc_before_save()
+        self._enforce_customer_authority()
         self._validate_request_state(previous)
         self._protect_snapshots(previous)
         self._project_compatibility_status()
@@ -82,6 +85,13 @@ class OMCServiceRequest(Document):
             # Terminal cleanup must be transactional. If archival fails, the save
             # must fail too instead of committing a partially terminal request.
             archive_service_documents_for_status(self.name, self.status)
+
+    def _enforce_customer_authority(self):
+        # Historical/account-less requests pre-date the canonical Customer
+        # Account boundary and remain covered by the bridge's legacy fallback.
+        if not getattr(self, "customer_account", None):
+            return ""
+        return customer_authority.enforce_request_customer(self)
 
     def _validate_request_state(self, previous):
         if not previous or previous.request_state == self.request_state:
