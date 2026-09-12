@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 
 import frappe
+from frappe.utils import flt
 
 
 REQUEST_DOCTYPE = "OMC Service Request"
@@ -50,6 +51,47 @@ def _base_invoice(request_name: str):
     )
 
 
+def _project_task_rate(request_name: str, task_name: str) -> bool:
+    """Project the immutable OMC payable amount onto legacy ``Task.rate``.
+
+    ``Task.rate`` is compatibility/operational metadata for OMC Tasks only. It
+    must never become accounting authority; the canonical ERP Sales Invoice
+    remains the financial source of truth.
+    """
+    meta = frappe.get_meta("Task")
+    if not meta.get_field("rate"):
+        return False
+
+    pricing = frappe.db.get_value(
+        REQUEST_DOCTYPE,
+        request_name,
+        ["payable_amount", "final_price"],
+        as_dict=True,
+    )
+    if not pricing:
+        return False
+
+    payable = getattr(pricing, "payable_amount", None)
+    if payable is None:
+        payable = getattr(pricing, "final_price", None)
+    expected = max(flt(payable or 0, 6), 0)
+    if expected <= 0:
+        return False
+
+    current = flt(frappe.db.get_value("Task", task_name, "rate") or 0, 6)
+    if abs(current - expected) <= 0.000001:
+        return False
+
+    frappe.db.set_value(
+        "Task",
+        task_name,
+        "rate",
+        expected,
+        update_modified=False,
+    )
+    return True
+
+
 def project_task_invoice_flag(*, request_name: str = "", task_name: str = "") -> dict:
     """Project canonical OMC invoicing into legacy ``Task.invoiced``.
 
@@ -69,6 +111,7 @@ def project_task_invoice_flag(*, request_name: str = "", task_name: str = "") ->
     if not request_name or not task_name or not frappe.db.exists("Task", task_name):
         return {
             "updated": False,
+            "rate_updated": False,
             "request": request_name,
             "task": task_name,
             "invoice": "",
@@ -79,15 +122,18 @@ def project_task_invoice_flag(*, request_name: str = "", task_name: str = "") ->
     if not invoice_name:
         return {
             "updated": False,
+            "rate_updated": False,
             "request": request_name,
             "task": task_name,
             "invoice": "",
         }
 
+    rate_updated = _project_task_rate(request_name, task_name)
     meta = frappe.get_meta("Task")
     if not meta.get_field("invoiced"):
         return {
             "updated": False,
+            "rate_updated": rate_updated,
             "request": request_name,
             "task": task_name,
             "invoice": invoice_name,
@@ -104,6 +150,7 @@ def project_task_invoice_flag(*, request_name: str = "", task_name: str = "") ->
         )
     return {
         "updated": current != 1,
+        "rate_updated": rate_updated,
         "request": request_name,
         "task": task_name,
         "invoice": invoice_name,
@@ -115,7 +162,7 @@ def backfill_task_invoice_flags(limit: int = 500, dry_run: bool = True) -> dict:
 
     Safe to run repeatedly. This function never creates, submits, repairs, or
     relinks accounting documents; it only projects an existing canonical OMC
-    Sales Invoice into the legacy Task compatibility flag.
+    Sales Invoice into legacy Task compatibility fields.
     """
     limit = min(max(int(limit or 500), 1), 5000)
     dry_run = bool(int(dry_run)) if isinstance(dry_run, (str, int)) else bool(dry_run)
@@ -175,6 +222,8 @@ def backfill_task_invoice_flags(limit: int = 500, dry_run: bool = True) -> dict:
         current = int(frappe.db.get_value("Task", task_name, "invoiced") or 0)
         if current == 1:
             summary["already_projected"] += 1
+            if not dry_run:
+                _project_task_rate(request_name, task_name)
             continue
 
         if dry_run:
