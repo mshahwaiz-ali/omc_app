@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from frappe.tests.utils import FrappeTestCase
 
-from omc_app.api import accounting_reconciliation, bridge_outbox
+from omc_app.api import accounting_reconciliation, bridge_outbox, payment_installments
 
 
 class TestAccountingSettlementState(FrappeTestCase):
@@ -60,6 +60,71 @@ class TestAccountingSettlementState(FrappeTestCase):
         )
 
         self.assertEqual(state, "Review Required")
+
+
+class TestInstallmentSettlementState(FrappeTestCase):
+    def test_full_installment_allocation_is_paid(self):
+        accounting_status, payment_status = accounting_reconciliation.installment_state(
+            requested=20000,
+            accounted=20000,
+        )
+
+        self.assertEqual(accounting_status, "Settled")
+        self.assertEqual(payment_status, "Paid")
+
+    def test_partial_installment_allocation_is_not_fully_paid(self):
+        accounting_status, payment_status = accounting_reconciliation.installment_state(
+            requested=20000,
+            accounted=10000,
+        )
+
+        self.assertEqual(accounting_status, "Partially Settled")
+        self.assertEqual(payment_status, "Partially Paid")
+
+    def test_zero_installment_allocation_remains_unmatched(self):
+        accounting_status, payment_status = accounting_reconciliation.installment_state(
+            requested=20000,
+            accounted=0,
+        )
+
+        self.assertEqual(accounting_status, "Unmatched")
+        self.assertEqual(payment_status, "Under Review")
+
+
+class TestInstallmentCreationHoldGate(FrappeTestCase):
+    def test_review_required_blocks_new_payment(self):
+        reason = payment_installments._new_payment_block_reason(
+            "Review Required",
+            "SINV-TEST-00001",
+        )
+
+        self.assertTrue(reason)
+
+    def test_quarantine_blocks_new_payment(self):
+        reason = payment_installments._new_payment_block_reason(
+            "Quarantined",
+            "SINV-TEST-00001",
+        )
+
+        self.assertTrue(reason)
+
+    def test_reversal_allows_recovery_when_invoice_is_still_submitted(self):
+        with patch.object(payment_installments, "_invoice_is_submitted", return_value=True):
+            reason = payment_installments._new_payment_block_reason(
+                "Reversed",
+                "SINV-TEST-00001",
+            )
+
+        self.assertEqual(reason, "")
+
+    def test_reversal_blocks_payment_when_invoice_is_cancelled(self):
+        with patch.object(payment_installments, "_invoice_is_submitted", return_value=False):
+            reason = payment_installments._new_payment_block_reason(
+                "Reversed",
+                "SINV-TEST-00001",
+            )
+
+        self.assertTrue(reason)
 
 
 class TestActivationPaymentEvidence(FrappeTestCase):
