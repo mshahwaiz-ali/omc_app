@@ -477,6 +477,15 @@ def process_receipt(receipt_name: str) -> dict:
     frappe.db.savepoint(savepoint)
     try:
         payment = frappe.get_doc(payments.PAYMENT_DOCTYPE, receipt.service_payment)
+        request_name = _text(payment.service_request)
+        locked_request = frappe.db.get_value(
+            "OMC Service Request",
+            request_name,
+            "name",
+            for_update=True,
+        )
+        if not locked_request:
+            frappe.throw("Service request not found.", frappe.DoesNotExistError)
         config = _preflight(payment, payment_account=receipt.payment_account)
         request = config["request"]
         invoice = _ensure_invoice(
@@ -485,6 +494,18 @@ def process_receipt(receipt_name: str) -> dict:
             config["invoice_item"],
             config["tax_template"],
         )
+        current = accounting_reconciliation.reconcile_request(request.name)
+        remaining = max(flt(current.get("remaining_amount") or 0, 6), 0)
+        amount = flt(receipt.verified_amount or 0, 6)
+        if remaining <= 0:
+            frappe.throw("This request is already fully settled.", frappe.ValidationError)
+        if amount <= 0:
+            frappe.throw("Verified amount must be greater than zero.", frappe.ValidationError)
+        if amount > remaining + 0.000001:
+            frappe.throw(
+                f"Verified amount {amount:g} exceeds the current ERP remaining amount {remaining:g}.",
+                frappe.ValidationError,
+            )
         payment_entry = _create_payment_entry(
             receipt,
             invoice,
