@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import frappe
 
+from omc_app.api import staff_authority
 from omc_app.setup.roles import ACTIVE_STAFF_ROLES, MANAGED_OMC_STAFF_ROLES
 
 
@@ -20,10 +21,20 @@ def _has_doctype(doctype: str) -> bool:
 
 
 def get_staff_role(user: str, profile=None) -> str:
+    """Return canonical Staff Access persona with legacy Profile fallback.
+
+    Once an OMC Staff Access record exists it is authoritative, including when
+    access is pending/conflicted. Staff Profile may provide a persona only for
+    legacy users that have not yet been reconciled into Staff Access.
+    """
     user = _text(user)
 
     if not user or user == "Guest":
         return ""
+
+    has_access, persona = staff_authority.access_persona(user)
+    if has_access:
+        return persona
 
     profile = profile or get_staff_profile(user)
     if not profile or not profile.meta.has_field("staff_role"):
@@ -34,19 +45,22 @@ def get_staff_role(user: str, profile=None) -> str:
 
 
 def get_effective_staff_roles(user: str, profile=None) -> set[str]:
-    """Return OMC-owned roles plus the Staff Profile's authoritative persona."""
+    """Return OMC duties plus the canonical Staff Access persona.
+
+    OMC-owned Frappe roles remain compatibility/Desk duty signals. Business
+    persona authority comes from Staff Access when present; Staff Profile is a
+    legacy fallback only until reconciliation creates that access record.
+    """
     user = _text(user)
 
     if not user or user == "Guest":
         return set()
 
-    # ERP Has Role / Role Profile values are not reliable persona classifiers.
-    # Only OMC-owned operational roles may come from Frappe role assignments.
     roles = set(frappe.get_roles(user) or []).intersection(MANAGED_OMC_STAFF_ROLES)
 
-    profile_role = get_staff_role(user, profile=profile)
-    if profile_role:
-        roles.add(profile_role)
+    persona = get_staff_role(user, profile=profile)
+    if persona:
+        roles.add(persona)
 
     return roles
 
@@ -70,16 +84,7 @@ def get_staff_profile(user: str):
 
 
 def _employee_for_user(user: str) -> str:
-    if not _has_doctype("Employee"):
-        return ""
-
-    return _text(
-        frappe.db.get_value(
-            "Employee",
-            {"user_id": user},
-            "name",
-        )
-    )
+    return staff_authority.employee_for_user(user)
 
 
 def is_staff_identity(user: str) -> bool:
@@ -98,6 +103,9 @@ def is_staff_identity(user: str) -> bool:
     if user_type == "System User":
         return True
 
+    if staff_authority.access_record(user):
+        return True
+
     if get_staff_profile(user):
         return True
 
@@ -105,7 +113,11 @@ def is_staff_identity(user: str) -> bool:
 
 
 def is_staff_profile_approved(user: str, profile=None) -> bool:
-    """Return whether the staff profile is eligible for internal access."""
+    """Legacy profile eligibility helper; Staff Access owns authorization.
+
+    Retained for compatibility callers that still inspect historical profile
+    lifecycle state. New authorization code must use OMC Staff Access.
+    """
     user = _text(user)
 
     if not user or user == "Guest":
@@ -149,6 +161,12 @@ def ensure_staff_profile(
     *,
     commit: bool = True,
 ):
+    """Maintain the professional/referral extension from ERP identity sources.
+
+    User and Employee values are projected into compatibility fields. This
+    helper never grants Staff Access and never treats Staff Profile as the
+    canonical authorization source.
+    """
     user = _text(user)
 
     if not user or user == "Guest":
@@ -200,6 +218,7 @@ def ensure_staff_profile(
         profile.staff_status = "Pending"
         profile.approval_status = "Pending Review"
 
+        # Legacy compatibility only. Current persona authority is Staff Access.
         existing_omc_roles = set(
             frappe.get_roles(user) or []
         ).intersection(MANAGED_OMC_STAFF_ROLES)
