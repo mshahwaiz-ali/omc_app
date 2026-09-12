@@ -7,6 +7,7 @@ from typing import Any
 import frappe
 
 from omc_app.api import (
+    accounting_reconciliation,
     auth_cleanup,
     customer_reconciliation,
     erp_sync_recovery,
@@ -112,6 +113,42 @@ def _run_jobs(
     return summary
 
 
+def run_accounting_reconciliation_sweep() -> dict[str, Any]:
+    """Reconcile every request with durable accounting links from ERP truth."""
+    request_names = sorted(
+        set(
+            frappe.get_all(
+                "OMC Accounting Link",
+                pluck="service_request",
+                limit_page_length=10000,
+            )
+            or []
+        )
+    )
+    completed = 0
+    failed: list[str] = []
+    for request_name in request_names:
+        if not request_name:
+            continue
+        try:
+            accounting_reconciliation.reconcile_request(request_name)
+            frappe.db.commit()
+            completed += 1
+        except Exception as error:
+            frappe.db.rollback()
+            failed.append(request_name)
+            frappe.log_error(
+                title=f"OMC accounting reconciliation failed: {request_name}",
+                message=f"{error.__class__.__name__}: {str(error).strip()}"[:1000],
+            )
+    return {
+        "checked": len(request_names),
+        "completed": completed,
+        "failed": len(failed),
+        "failed_requests": failed,
+    }
+
+
 def run_hourly_jobs() -> dict[str, Any]:
     """Run hourly OMC maintenance tasks without cross-job failure propagation."""
     return _run_jobs(
@@ -120,6 +157,7 @@ def run_hourly_jobs() -> dict[str, Any]:
             service_assignment.run_unassigned_recovery,
             erp_sync_recovery.run_automatic_erp_sync_recovery,
             customer_reconciliation.run_customer_account_reconciliation,
+            run_accounting_reconciliation_sweep,
             review_routing.run_review_assignment_checks,
             submission_integrity.run_integrity_rescore,
             auth_cleanup.cleanup_pending_registrations,
