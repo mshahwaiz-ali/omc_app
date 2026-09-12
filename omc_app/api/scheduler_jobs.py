@@ -116,20 +116,22 @@ def _run_jobs(
 def run_accounting_reconciliation_sweep() -> dict[str, Any]:
     """Reconcile every request with durable accounting links from ERP truth."""
     request_names = sorted(
-        set(
-            frappe.get_all(
-                "OMC Accounting Link",
-                pluck="service_request",
-                limit_page_length=10000,
+        {
+            str(name).strip()
+            for name in (
+                frappe.get_all(
+                    "OMC Accounting Link",
+                    pluck="service_request",
+                    limit_page_length=10000,
+                )
+                or []
             )
-            or []
-        )
+            if str(name or "").strip()
+        }
     )
     completed = 0
     failed: list[str] = []
     for request_name in request_names:
-        if not request_name:
-            continue
         try:
             accounting_reconciliation.reconcile_request(request_name)
             frappe.db.commit()
