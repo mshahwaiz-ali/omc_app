@@ -23,13 +23,25 @@ def _load_readable_payment(payment_id):
     return payment
 
 
+def _with_invoice_alias(payload):
+    """Keep existing mobile clients compatible with the canonical OMC invoice."""
+    if not payload:
+        return payload
+    result = dict(payload)
+    linked_invoice = (result.get("linked_invoice") or "").strip()
+    result["invoice_number"] = linked_invoice
+    return result
+
+
 def _safe_payment_payload(name, *, capabilities, customer_view):
     try:
         payment = _load_readable_payment(name)
-        return payments._payment_dict(
-            payment,
-            capabilities=capabilities,
-            customer_view=customer_view,
+        return _with_invoice_alias(
+            payments._payment_dict(
+                payment,
+                capabilities=capabilities,
+                customer_view=customer_view,
+            )
         )
     except frappe.DoesNotExistError:
         return None
@@ -192,10 +204,12 @@ def get_payment(payment_id=None, name=None):
             frappe.PermissionError,
         )
 
-    return payments._payment_dict(
-        payment,
-        capabilities=capabilities,
-        customer_view=profile is not None,
+    return _with_invoice_alias(
+        payments._payment_dict(
+            payment,
+            capabilities=capabilities,
+            customer_view=profile is not None,
+        )
     )
 
 
@@ -227,7 +241,13 @@ def download_invoice_pdf(payment_id=None, invoice_id=None):
         order_by="creation asc, name asc",
         limit_page_length=100,
     )
-    eligible = sorted({name for name in links if name and frappe.db.get_value("Sales Invoice", name, "docstatus") == 1})
+    eligible = sorted(
+        {
+            name
+            for name in links
+            if name and frappe.db.get_value("Sales Invoice", name, "docstatus") == 1
+        }
+    )
     if invoice_id:
         if invoice_id not in eligible:
             _payment_not_found()
@@ -236,7 +256,8 @@ def download_invoice_pdf(payment_id=None, invoice_id=None):
         if len(eligible) != 1:
             frappe.throw(
                 "Select an invoice when the request has multiple eligible invoices."
-                if eligible else "Invoice is not available.",
+                if eligible
+                else "Invoice is not available.",
                 frappe.ValidationError if eligible else frappe.DoesNotExistError,
             )
         resolved = eligible[0]
