@@ -276,3 +276,118 @@ def completion_state(request_name: str) -> dict[str, Any]:
         "cancelled_tasks": cancelled,
         "all_required_completed": not incomplete,
     }
+
+
+def _validate_staff_link_target(request, task_name: str) -> None:
+    if _text(getattr(request, "request_state", None)) != "Activated":
+        frappe.throw(
+            "Additional ERP Tasks can only be linked after service activation.",
+            frappe.ValidationError,
+        )
+    if _text(getattr(request, "status", None)) in {"Completed", "Cancelled"}:
+        frappe.throw(
+            "Terminal Service Requests cannot accept additional ERP Tasks.",
+            frappe.ValidationError,
+        )
+
+    task_meta = frappe.get_meta("Task")
+    request_customer = _text(getattr(request, "erp_customer", None))
+    if request_customer and task_meta.get_field("customer"):
+        task_customer = _text(
+            frappe.db.get_value("Task", task_name, "customer")
+        )
+        if task_customer and task_customer != request_customer:
+            frappe.throw(
+                "ERP Task Customer does not match the Service Request ERP Customer.",
+                frappe.ValidationError,
+            )
+
+
+@frappe.whitelist(methods=["POST"])
+def link_existing_task(
+    service_request=None,
+    task=None,
+    required_for_completion=1,
+):
+    """Manager/admin bridge for attaching additional ERP Tasks to a request."""
+
+    from omc_app.api import capabilities
+
+    capabilities.require("can_manage_tasks")
+    request_name = _text(service_request)
+    task_name = _text(task)
+    if not request_name or not frappe.db.exists(REQUEST_DOCTYPE, request_name):
+        frappe.throw("Service Request does not exist.", frappe.DoesNotExistError)
+    if not task_name or not frappe.db.exists("Task", task_name):
+        frappe.throw("ERP Task does not exist.", frappe.DoesNotExistError)
+
+    request = frappe.get_doc(REQUEST_DOCTYPE, request_name)
+    _validate_staff_link_target(request, task_name)
+    link = ensure_link(
+        request_name=request.name,
+        task_name=task_name,
+        erp_service=_text(getattr(request, "erp_service", None)),
+        is_primary=False,
+        required_for_completion=bool(int(required_for_completion or 0)),
+        source="Staff Linked",
+    )
+    progress = completion_state(request.name)
+    return {
+        "service_request": request.name,
+        "task": task_name,
+        "link": link.name,
+        "required_for_completion": int(link.required_for_completion or 0),
+        "task_progress": {
+            "required": progress["required_tasks"],
+            "completed": progress["completed_tasks"],
+            "remaining": len(progress["incomplete_tasks"]),
+        },
+    }
+
+
+@frappe.whitelist(methods=["POST"])
+def unlink_secondary_task(service_request=None, task=None):
+    """Manager/admin repair path; primary compatibility Task cannot be unlinked."""
+
+    from omc_app.api import capabilities
+
+    capabilities.require("can_manage_tasks")
+    request_name = _text(service_request)
+    task_name = _text(task)
+    if not request_name or not task_name:
+        frappe.throw("service_request and task are required.", frappe.ValidationError)
+
+    link_name = frappe.db.get_value(
+        LINK_DOCTYPE,
+        {"service_request": request_name, "erp_task": task_name},
+        "name",
+    )
+    if not link_name:
+        frappe.throw("Service Task Link does not exist.", frappe.DoesNotExistError)
+
+    link = frappe.get_doc(LINK_DOCTYPE, link_name)
+    if int(link.is_primary or 0):
+        frappe.throw(
+            "The primary compatibility ERP Task cannot be unlinked here.",
+            frappe.ValidationError,
+        )
+
+    request = frappe.get_doc(REQUEST_DOCTYPE, request_name)
+    if _text(getattr(request, "status", None)) in {"Completed", "Cancelled"}:
+        frappe.throw(
+            "Terminal Service Request task links cannot be changed.",
+            frappe.ValidationError,
+        )
+
+    frappe.delete_doc(LINK_DOCTYPE, link.name, ignore_permissions=True)
+    progress = completion_state(request_name)
+    return {
+        "service_request": request_name,
+        "task": task_name,
+        "unlinked": True,
+        "task_progress": {
+            "required": progress["required_tasks"],
+            "completed": progress["completed_tasks"],
+            "remaining": len(progress["incomplete_tasks"]),
+        },
+    }
