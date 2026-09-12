@@ -305,11 +305,17 @@ def review_receipt(
 
     config = _preflight(payment, payment_account=payment_account)
     remaining = _remaining_amount(payment)
-    amount = flt(verified_amount if verified_amount is not None else remaining, 6)
+    requested = max(flt(payment.amount or 0, 6), 0)
+    amount = flt(verified_amount if verified_amount is not None else requested, 6)
     if remaining <= 0:
         frappe.throw("This payment is already fully settled.", frappe.ValidationError)
     if amount <= 0:
         frappe.throw("Verified amount must be greater than zero.", frappe.ValidationError)
+    if amount > requested + 0.000001:
+        frappe.throw(
+            f"Verified amount cannot exceed this installment amount of {config['currency']} {requested:g}.",
+            frappe.ValidationError,
+        )
     if amount > remaining + 0.000001:
         frappe.throw(
             f"Verified amount cannot exceed the remaining amount of {config['currency']} {remaining:g}.",
@@ -496,11 +502,17 @@ def process_receipt(receipt_name: str) -> dict:
         )
         current = accounting_reconciliation.reconcile_request(request.name)
         remaining = max(flt(current.get("remaining_amount") or 0, 6), 0)
+        requested = max(flt(payment.amount or 0, 6), 0)
         amount = flt(receipt.verified_amount or 0, 6)
         if remaining <= 0:
             frappe.throw("This request is already fully settled.", frappe.ValidationError)
         if amount <= 0:
             frappe.throw("Verified amount must be greater than zero.", frappe.ValidationError)
+        if amount > requested + 0.000001:
+            frappe.throw(
+                f"Verified amount {amount:g} exceeds this installment amount {requested:g}.",
+                frappe.ValidationError,
+            )
         if amount > remaining + 0.000001:
             frappe.throw(
                 f"Verified amount {amount:g} exceeds the current ERP remaining amount {remaining:g}.",
@@ -517,6 +529,7 @@ def process_receipt(receipt_name: str) -> dict:
                 "ERP Payment Entry did not reconcile to a paid state.",
                 frappe.ValidationError,
             )
+        settled_at = now_datetime()
         frappe.db.set_value(
             RECEIPT_DOCTYPE,
             receipt.name,
@@ -535,6 +548,11 @@ def process_receipt(receipt_name: str) -> dict:
             {
                 "linked_invoice": invoice.name,
                 "linked_payment_entry": payment_entry.name,
+                "accounted_amount": amount,
+                "accounting_status": "Settled",
+                "status": "Paid",
+                "paid_on": settled_at,
+                "settled_at": settled_at,
             },
             update_modified=False,
         )
@@ -548,8 +566,10 @@ def process_receipt(receipt_name: str) -> dict:
         return {
             "status": "completed",
             "accounting_status": result.get("accounting_status"),
+            "installment_accounting_status": "Settled",
             "sales_invoice": invoice.name,
             "payment_entry": payment_entry.name,
+            "accounted_amount": amount,
             "remaining_amount": result.get("remaining_amount"),
         }
     except Exception:
