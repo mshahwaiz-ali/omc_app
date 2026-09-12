@@ -61,12 +61,15 @@ def settlement_state(
         state = "Quarantined"
     elif invalid_reason:
         state = "Review Required"
+    elif required and capped + 0.000001 >= required:
+        # Current submitted ERP allocations are authoritative. A historical
+        # cancellation must not keep a fully restored request permanently
+        # reversed after replacement settlement has made the invoice whole.
+        state = "Settled"
     elif reversed_exists:
         state = "Reversed"
     elif not invoice_basis:
         state = "Unmatched"
-    elif required and capped + 0.000001 >= required:
-        state = "Settled"
     elif allocated > 0:
         state = "Partially Settled"
     else:
@@ -717,15 +720,17 @@ def reconcile_request(request_name: str) -> dict:
         ),
         6,
     )
-    reversed_exists = bool(reversal_issues) or bool(
+    cancelled_payment_exists = bool(
         frappe.db.exists(
             "OMC Accounting Link",
             {
                 "service_request": request.name,
-                "accounting_status": "Reversed",
+                "payment_entry": ["is", "set"],
+                "payment_docstatus": 2,
             },
         )
     )
+    reversed_exists = bool(reversal_issues) or cancelled_payment_exists
     state, capped = settlement_state(
         required=required,
         invoice_basis=invoice_basis,
@@ -746,6 +751,8 @@ def reconcile_request(request_name: str) -> dict:
     reason = technical_reason or human_reason
     if not reason and reversal_issues:
         reason = reversal_issues[0]["message"]
+    elif not reason and cancelled_payment_exists and state == "Reversed":
+        reason = "A previously allocated Payment Entry was cancelled."
 
     _project_link_state(request.name, state, reason)
     _project_receipt_compatibility(request.name, state, latest_payment)
