@@ -84,7 +84,11 @@ def preview_service_catalogue() -> dict[str, object]:
     accounting = preview_service_accounting_mappings()
     return {
         **result,
-        "ready_to_sync": bool(result.get("ready_to_sync") and presentation.get("ok")),
+        "ready_to_sync": bool(
+            result.get("ready_to_sync")
+            and presentation.get("ok")
+            and accounting.get("ready_to_sync")
+        ),
         "presentation": presentation,
         "accounting": accounting,
     }
@@ -128,16 +132,27 @@ def sync_service_catalogue(*, commit: bool = True) -> dict[str, object]:
         accounting = sync_service_accounting_mappings(commit=False)
         presentation = sync_service_presentation(commit=False)
         base_validation = result.get("validation") or {}
+        accounting_validation = accounting.get("validation") or {}
+        presentation_validation = presentation.get("validation") or {}
         combined_validation = {
             **base_validation,
             "valid": bool(
                 base_validation.get("valid")
-                and (accounting.get("validation") or {}).get("valid")
+                and accounting_validation.get("valid")
+                and presentation_validation.get("valid")
             ),
             "accounting_valid": bool(
-                (accounting.get("validation") or {}).get("valid")
+                accounting_validation.get("valid")
+            ),
+            "presentation_valid": bool(
+                presentation_validation.get("valid")
             ),
         }
+        if not combined_validation["valid"]:
+            frappe.throw(
+                "Combined service catalogue validation failed before commit.",
+                frappe.ValidationError,
+            )
         if commit:
             frappe.db.commit()
         return {
