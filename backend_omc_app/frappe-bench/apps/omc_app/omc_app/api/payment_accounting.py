@@ -423,6 +423,82 @@ def _ensure_invoice(request, service, invoice_item: str, tax_template: str):
     return invoice
 
 
+def _apply_payment_entry_commission_snapshot(payment_entry, invoice):
+    """Copy the current customer commission identity onto a new Payment Entry.
+
+    This is an optional immutable snapshot for downstream commission projection.
+    Invalid or incomplete commission configuration must not block accounting.
+    """
+    meta = getattr(payment_entry, "meta", None)
+    if not meta:
+        return False
+
+    required_fields = (
+        "custom_structure_name",
+        "custom_source",
+        "custom_sales_person",
+        "custom_omc_percentage",
+        "custom_sales_person_percentage",
+    )
+    if any(not meta.get_field(fieldname) for fieldname in required_fields):
+        return False
+
+    if _text(getattr(payment_entry, "party_type", None)) != "Customer":
+        return False
+
+    customer_name = _text(getattr(payment_entry, "party", None))
+    invoice_customer = _text(getattr(invoice, "customer", None))
+    if not customer_name or not invoice_customer or customer_name != invoice_customer:
+        return False
+
+    customer = frappe.db.get_value(
+        "Customer",
+        customer_name,
+        ["structure_name", "source", "sales_person"],
+        as_dict=True,
+    )
+    if not customer:
+        return False
+
+    structure_name = _text(customer.get("structure_name"))
+    source = _text(customer.get("source"))
+    sales_person = _text(customer.get("sales_person"))
+    if not structure_name or not source or not sales_person:
+        return False
+
+    source_field = meta.get_field("custom_source")
+    allowed_sources = {
+        option.strip()
+        for option in _text(source_field.options).splitlines()
+        if option.strip()
+    }
+    if allowed_sources and source not in allowed_sources:
+        return False
+
+    if not frappe.db.exists("DocType", source):
+        return False
+    if not frappe.db.exists(source, sales_person):
+        return False
+
+    structure = frappe.db.get_value(
+        "Sales Team Commission Structure",
+        structure_name,
+        ["omc", "sales_person"],
+        as_dict=True,
+    )
+    if not structure:
+        return False
+
+    payment_entry.custom_structure_name = structure_name
+    payment_entry.custom_source = source
+    payment_entry.custom_sales_person = sales_person
+    payment_entry.custom_omc_percentage = flt(structure.get("omc") or 0)
+    payment_entry.custom_sales_person_percentage = flt(
+        structure.get("sales_person") or 0
+    )
+    return True
+
+
 def _create_payment_entry(receipt, invoice, account):
     from erpnext.accounts.doctype.payment_entry.payment_entry import get_payment_entry
 
@@ -443,6 +519,9 @@ def _create_payment_entry(receipt, invoice, account):
     payment_entry.reference_date = nowdate()
     if payment_entry.meta.get_field("custom_remarks"):
         payment_entry.custom_remarks = f"OMC verified receipt {receipt.name} for {receipt.service_request}."
+
+    _apply_payment_entry_commission_snapshot(payment_entry, invoice)
+
     payment_entry.flags.ignore_permissions = True
     payment_entry.insert(ignore_permissions=True)
     payment_entry.flags.ignore_permissions = True
