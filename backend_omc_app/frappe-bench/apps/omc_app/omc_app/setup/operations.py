@@ -127,11 +127,23 @@ def sync_service_catalogue(*, commit: bool = True) -> dict[str, object]:
         result = sync(commit=False)
         accounting = sync_service_accounting_mappings(commit=False)
         presentation = sync_service_presentation(commit=False)
+        base_validation = result.get("validation") or {}
+        combined_validation = {
+            **base_validation,
+            "valid": bool(
+                base_validation.get("valid")
+                and (accounting.get("validation") or {}).get("valid")
+            ),
+            "accounting_valid": bool(
+                (accounting.get("validation") or {}).get("valid")
+            ),
+        }
         if commit:
             frappe.db.commit()
         return {
             **result,
             "committed": bool(commit),
+            "validation": combined_validation,
             "presentation": presentation,
             "accounting": accounting,
         }
