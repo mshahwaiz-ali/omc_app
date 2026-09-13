@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import frappe
 
+from omc_app.setup import operations
 from omc_app.setup.service_catalogue import accounting_mapping
 
 
@@ -270,3 +271,53 @@ class TestServiceAccountingMapping(unittest.TestCase):
                 }
             ],
         )
+
+
+class TestCatalogueAccountingIntegration(unittest.TestCase):
+    def test_combined_preview_blocks_unsafe_accounting(self):
+        with (
+            patch(
+                "omc_app.setup.service_catalogue.provisioner.preview_service_catalogue",
+                return_value={"ok": True, "ready_to_sync": True},
+            ),
+            patch(
+                "omc_app.setup.service_catalogue.presentation.preview_service_presentation",
+                return_value={"ok": True},
+            ),
+            patch(
+                "omc_app.setup.service_catalogue.accounting_mapping.preview_service_accounting_mappings",
+                return_value={
+                    "ok": True,
+                    "ready_to_sync": False,
+                    "invalid": [{"service_id": "house-wife-filing"}],
+                },
+            ),
+        ):
+            result = operations.preview_service_catalogue()
+
+        self.assertFalse(result["ready_to_sync"])
+        self.assertFalse(result["accounting"]["ready_to_sync"])
+
+    def test_combined_sync_rolls_back_before_commit_when_validation_is_not_green(self):
+        with (
+            patch(
+                "omc_app.setup.service_catalogue.provisioner.sync_service_catalogue",
+                return_value={"validation": {"valid": True}},
+            ),
+            patch(
+                "omc_app.setup.service_catalogue.accounting_mapping.sync_service_accounting_mappings",
+                return_value={"validation": {"valid": True}},
+            ),
+            patch(
+                "omc_app.setup.service_catalogue.presentation.sync_service_presentation",
+                return_value={"validation": {"valid": False}},
+            ),
+            patch.object(frappe.db, "savepoint"),
+            patch.object(frappe.db, "rollback") as rollback,
+            patch.object(frappe.db, "commit") as commit,
+        ):
+            with self.assertRaises(frappe.ValidationError):
+                operations.sync_service_catalogue()
+
+        rollback.assert_called_once_with(save_point="omc_catalogue_and_presentation_sync")
+        commit.assert_not_called()
