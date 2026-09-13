@@ -339,6 +339,36 @@ def sync_task_status(doc, method=None) -> dict[str, Any]:
             "request": request_name,
             "customer_status": current_status,
         }
+    # Canonical activated requests have exactly one operational ERP Task.
+    # Secondary/historical links remain readable for compatibility, but only
+    # OMC Service Request.erp_task can control customer-facing request status.
+    if request_state == "Activated":
+        primary_task = _text(getattr(request, "erp_task", None))
+        if not primary_task:
+            return {
+                "updated": False,
+                "reason": "activated request has no authoritative ERP Task",
+                "request": request_name,
+                "customer_status": current_status,
+            }
+
+        if task_name != primary_task:
+            notifications_created = 0
+            if _task_notification_changed(doc):
+                notifications_created = _notify_task_recipients(doc, request)
+
+            return {
+                "updated": False,
+                "reason": (
+                    "secondary ERP Task does not control "
+                    "Service Request status"
+                ),
+                "request": request_name,
+                "erp_task": primary_task,
+                "customer_status": current_status,
+                "notifications_created": notifications_created,
+            }
+
     raw_status = _text(getattr(doc, "status", None))
     operation_status = _text(getattr(doc, "custom_operation_status", None))
     mapped_status = (
@@ -380,16 +410,10 @@ def sync_task_status(doc, method=None) -> dict[str, Any]:
             "service_status": "",
         }
 
-    aggregate = (
-        service_task_links.completion_state(request_name)
-        if request_state == "Activated"
-        else _legacy_completion_state(task_name, raw_status)
-    )
+    # One Service Request has one authoritative ERP Task. Historical secondary
+    # links must never gate completion or cancellation of the canonical Task.
+    aggregate = _legacy_completion_state(task_name, raw_status)
     if mapped_status == "Completed" and not aggregate["all_required_completed"]:
-        mapped_status = _nonterminal_aggregate_status(current_status)
-    elif mapped_status == "Cancelled" and aggregate["required_tasks"] > 1:
-        # One cancelled task must not cancel a multi-task customer request.
-        # It remains incomplete until internal work/linkage is repaired.
         mapped_status = _nonterminal_aggregate_status(current_status)
 
     if current_status in {"Completed", "Cancelled"} and mapped_status != current_status:
