@@ -369,6 +369,134 @@ def _link_profile(profile, customer: str) -> None:
     )
 
 
+def _erp_persona_record_for_user(persona: str, user: str) -> str:
+    """Resolve a User to a real ERP record for a Dynamic Link."""
+    persona = _text(persona)
+    user = _text(user)
+
+    if (
+        not persona
+        or not user
+        or not frappe.db.exists("DocType", persona)
+    ):
+        return ""
+
+    from omc_app.setup.roles import ERP_EMPLOYEE_PERSONA
+
+    if persona == ERP_EMPLOYEE_PERSONA:
+        from omc_app.api import staff_authority
+
+        return _text(staff_authority.employee_for_user(user))
+
+    meta = frappe.get_meta(persona)
+
+    # Consultant, Business Partner and Tax Associates may have document names
+    # based directly on email/User identity. Only accept an actual ERP record.
+    if frappe.db.exists(persona, user):
+        if meta.get_field("user_link"):
+            linked_user = _text(
+                frappe.db.get_value(persona, user, "user_link")
+            )
+            if linked_user and linked_user != user:
+                return ""
+        return user
+
+    # Otherwise resolve through an explicit User link. Ambiguity fails closed.
+    for fieldname in ("user_link", "user_id", "user"):
+        if not meta.get_field(fieldname):
+            continue
+
+        matches = frappe.get_all(
+            persona,
+            filters={fieldname: user},
+            pluck="name",
+            limit_page_length=2,
+        )
+
+        if len(matches) == 1:
+            return _text(matches[0])
+
+        if len(matches) > 1:
+            return ""
+
+    return ""
+
+
+def _validated_referral_for_profile(profile):
+    """Return active canonical referral evidence for this profile."""
+    referral_name = _text(
+        getattr(profile, "referral_record", None)
+    )
+
+    if (
+        not referral_name
+        or _text(getattr(profile, "acquisition_source", None))
+        != "Referral"
+        or not frappe.db.exists("OMC Referral", referral_name)
+    ):
+        return None
+
+    from omc_app.api import referrals
+    from omc_app.referral_capabilities import REFERRAL_OWNER_ROLES
+
+    stored = frappe.get_doc("OMC Referral", referral_name)
+
+    active = referrals.resolve_active_referral(
+        getattr(stored, "referral_code", None)
+    )
+
+    if not active or _text(active.name) != referral_name:
+        return None
+
+    referrer_user = _text(
+        getattr(active, "referrer_user", None)
+    )
+    persona = _text(
+        getattr(active, "owner_persona_snapshot", None)
+    )
+
+    if (
+        not referrer_user
+        or persona not in REFERRAL_OWNER_ROLES
+        or _text(getattr(profile, "referred_by", None))
+        != referrer_user
+        or referrals.normalize_referral_code(
+            getattr(profile, "referral_code_used", None)
+        )
+        != _text(getattr(active, "referral_code", None))
+    ):
+        return None
+
+    return active
+
+
+def _set_new_customer_referral_identity(customer, profile) -> bool:
+    """Project proven referral identity onto a newly created ERP Customer."""
+    referral = _validated_referral_for_profile(profile)
+
+    if not referral:
+        return False
+
+    persona = _text(referral.owner_persona_snapshot)
+
+    sales_person = _erp_persona_record_for_user(
+        persona,
+        referral.referrer_user,
+    )
+
+    if (
+        not sales_person
+        or not customer.meta.get_field("source")
+        or not customer.meta.get_field("sales_person")
+    ):
+        return False
+
+    customer.set("source", persona)
+    customer.set("sales_person", sales_person)
+
+    return True
+
+
 def _create_customer(profile, user: str):
     full_name = _text(getattr(profile, "full_name", None))
     if not full_name:
@@ -389,6 +517,7 @@ def _create_customer(profile, user: str):
     _set_if_field(customer, "mobile_no", getattr(profile, "phone", None))
     _set_if_field(customer, "email_id", getattr(profile, "email", None))
     _set_customer_identity(customer, profile)
+    _set_new_customer_referral_identity(customer, profile)
 
     customer.insert(ignore_permissions=True)
     return customer, ""
