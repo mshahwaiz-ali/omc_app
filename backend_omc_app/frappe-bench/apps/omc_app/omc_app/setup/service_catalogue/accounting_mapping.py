@@ -169,11 +169,15 @@ def preview_service_accounting_mappings() -> dict[str, Any]:
         else:
             invalid.append(entry)
 
+    ready_to_sync = not unresolved and not invalid
+    valid = ready_to_sync and not auto_map_ready
+
     return {
         "ok": True,
         "read_only": True,
         "operation": "preview_service_accounting_mappings",
-        "valid": not unresolved and not invalid and not auto_map_ready,
+        "ready_to_sync": ready_to_sync,
+        "valid": valid,
         "configured": configured,
         "auto_map_ready": auto_map_ready,
         "unresolved": unresolved,
@@ -196,9 +200,8 @@ def preview_service_accounting_mappings() -> dict[str, Any]:
 def validate_service_accounting_mappings() -> dict[str, Any]:
     preview = preview_service_accounting_mappings()
     valid = (
-        not preview["auto_map_ready"]
-        and not preview["unresolved"]
-        and not preview["invalid"]
+        preview["ready_to_sync"]
+        and not preview["auto_map_ready"]
     )
     return {
         **preview,
@@ -212,59 +215,85 @@ def sync_service_accounting_mappings(*, commit: bool = True) -> dict[str, Any]:
 
     ERP Item masters remain client-owned. Missing, stock, disabled or non-sales
     Items are reported and never created, changed or guessed by this operation.
+    The complete accounting mapping preflight must be safe before the first
+    service mapping is written.
     """
-    rows = _managed_service_rows()
-    updated: list[dict[str, str]] = []
-    preserved: list[dict[str, str]] = []
-    skipped: list[dict[str, str]] = []
-
-    for spec in _active_specs():
-        row = rows.get(spec.service_id)
-        if not row:
-            skipped.append({"service_id": spec.service_id, "reason": "service_not_found"})
-            continue
-
-        current = _text(_row_value(row, "erp_invoice_item"))
-        if current:
-            preserved.append({"service_id": spec.service_id, "item": current})
-            continue
-
-        preferred = _text(ERP_INVOICE_ITEM_BY_SERVICE_ID.get(spec.service_id))
-        assessment = assess_invoice_item(preferred)
-        if not assessment["valid"]:
-            skipped.append(
-                {
-                    "service_id": spec.service_id,
-                    "item": preferred,
-                    "reason": assessment["reason"],
-                }
-            )
-            continue
-
-        frappe.db.set_value(
-            "OMC Service",
-            row["name"],
-            "erp_invoice_item",
-            preferred,
-            update_modified=False,
+    preflight = preview_service_accounting_mappings()
+    if not preflight["ready_to_sync"]:
+        frappe.throw(
+            (
+                "Service accounting mappings are not safe to synchronize. "
+                "Resolve all unresolved or invalid ERP Invoice Items reported "
+                "by preview_service_accounting_mappings first."
+            ),
+            frappe.ValidationError,
         )
-        updated.append({"service_id": spec.service_id, "item": preferred})
 
-    if commit:
-        frappe.db.commit()
+    savepoint = "omc_service_accounting_mapping_sync"
+    frappe.db.savepoint(savepoint)
 
-    validation = validate_service_accounting_mappings()
-    return {
-        "ok": True,
-        "operation": "sync_service_accounting_mappings",
-        "committed": bool(commit),
-        "updated": updated,
-        "preserved": preserved,
-        "skipped": skipped,
-        "validation": validation,
-        "ownership": {
-            "creates_erp_items": False,
-            "updates_erp_items": False,
-            "overwrites_existing_service_mapping": False,
-        },
-    }
+    try:
+        rows = _managed_service_rows()
+        updated: list[dict[str, str]] = []
+        preserved: list[dict[str, str]] = []
+        skipped: list[dict[str, str]] = []
+
+        for spec in _active_specs():
+            row = rows.get(spec.service_id)
+            if not row:
+                skipped.append({"service_id": spec.service_id, "reason": "service_not_found"})
+                continue
+
+            current = _text(_row_value(row, "erp_invoice_item"))
+            if current:
+                preserved.append({"service_id": spec.service_id, "item": current})
+                continue
+
+            preferred = _text(ERP_INVOICE_ITEM_BY_SERVICE_ID.get(spec.service_id))
+            assessment = assess_invoice_item(preferred)
+            if not assessment["valid"]:
+                skipped.append(
+                    {
+                        "service_id": spec.service_id,
+                        "item": preferred,
+                        "reason": assessment["reason"],
+                    }
+                )
+                continue
+
+            frappe.db.set_value(
+                "OMC Service",
+                row["name"],
+                "erp_invoice_item",
+                preferred,
+                update_modified=False,
+            )
+            updated.append({"service_id": spec.service_id, "item": preferred})
+
+        validation = validate_service_accounting_mappings()
+        if not validation["valid"]:
+            frappe.throw(
+                "Service accounting mapping validation failed after synchronization.",
+                frappe.ValidationError,
+            )
+
+        if commit:
+            frappe.db.commit()
+
+        return {
+            "ok": True,
+            "operation": "sync_service_accounting_mappings",
+            "committed": bool(commit),
+            "updated": updated,
+            "preserved": preserved,
+            "skipped": skipped,
+            "validation": validation,
+            "ownership": {
+                "creates_erp_items": False,
+                "updates_erp_items": False,
+                "overwrites_existing_service_mapping": False,
+            },
+        }
+    except Exception:
+        frappe.db.rollback(save_point=savepoint)
+        raise
