@@ -21,6 +21,11 @@ class _PaymentEntryMeta:
             "custom_sales_person": _Field(),
             "custom_omc_percentage": _Field(),
             "custom_sales_person_percentage": _Field(),
+            "custom_business_partner_consultant": _Field(),
+            "custom_business_partner_consultant_percentage": _Field(),
+            "custom_reference_business_partner": _Field(),
+            "custom_reference_business_partner_percentage": _Field(),
+            "custom_omc_customer": _Field(),
             "custom_remarks": _Field(),
         }
 
@@ -47,6 +52,27 @@ class _FakePaymentEntry:
             "sales_person_percentage": getattr(
                 self, "custom_sales_person_percentage", None
             ),
+            "business_partner_consultant": getattr(
+                self, "custom_business_partner_consultant", None
+            ),
+            "business_partner_consultant_percentage": getattr(
+                self,
+                "custom_business_partner_consultant_percentage",
+                None,
+            ),
+            "reference_business_partner": getattr(
+                self, "custom_reference_business_partner", None
+            ),
+            "reference_business_partner_percentage": getattr(
+                self,
+                "custom_reference_business_partner_percentage",
+                None,
+            ),
+            "omc_customer": getattr(
+                self,
+                "custom_omc_customer",
+                None,
+            ),
         }
         self.inserted = True
         return self
@@ -57,6 +83,16 @@ class _FakePaymentEntry:
 
 
 class TestPaymentEntryCommissionSnapshot(FrappeTestCase):
+    def setUp(self):
+        super().setUp()
+        self._nowdate_patch = patch.object(
+            payment_accounting,
+            "nowdate",
+            return_value="2026-09-14",
+        )
+        self._nowdate_patch.start()
+        self.addCleanup(self._nowdate_patch.stop)
+
     @staticmethod
     def _receipt(amount):
         return SimpleNamespace(
@@ -100,12 +136,17 @@ class TestPaymentEntryCommissionSnapshot(FrappeTestCase):
                     "structure_name": "80 / 20",
                     "source": "Consultant",
                     "sales_person": "asif@omchouse.com",
+                    "business_partner_consultant": "BPC-TEST-00001",
+                    "reference_business_partner": "RBP-TEST-00001",
+                    "omc_customer": 1,
                 }
             if doctype == "Sales Team Commission Structure":
                 self.assertEqual(name, "80 / 20")
                 return {
                     "omc": 50,
-                    "sales_person": 50,
+                    "sales_person": 20,
+                    "franchise": 20,
+                    "reference": 10,
                 }
             self.fail(f"Unexpected get_value call: {doctype} {name}")
 
@@ -142,14 +183,19 @@ class TestPaymentEntryCommissionSnapshot(FrappeTestCase):
                 "source": "Consultant",
                 "sales_person": "asif@omchouse.com",
                 "omc_percentage": 50.0,
-                "sales_person_percentage": 50.0,
+                "sales_person_percentage": 20.0,
+                "business_partner_consultant": "BPC-TEST-00001",
+                "business_partner_consultant_percentage": 20.0,
+                "reference_business_partner": "RBP-TEST-00001",
+                "reference_business_partner_percentage": 10.0,
+                "omc_customer": 1,
             },
         )
 
         # The structure name must never be parsed for percentages.
         self.assertEqual(payment_entry.custom_structure_name, "80 / 20")
         self.assertEqual(payment_entry.custom_omc_percentage, 50.0)
-        self.assertEqual(payment_entry.custom_sales_person_percentage, 50.0)
+        self.assertEqual(payment_entry.custom_sales_person_percentage, 20.0)
 
         # Accounting amount remains the individual verified installment.
         _, kwargs = get_payment_entry.call_args
@@ -173,6 +219,7 @@ class TestPaymentEntryCommissionSnapshot(FrappeTestCase):
                     "structure_name": "",
                     "source": "Consultant",
                     "sales_person": "asif@omchouse.com",
+                    "omc_customer": 1,
                 },
             ),
             patch.object(payment_accounting.frappe.db, "exists") as exists,
@@ -189,6 +236,10 @@ class TestPaymentEntryCommissionSnapshot(FrappeTestCase):
         self.assertIsNone(payment_entry.snapshot_at_insert["structure"])
         self.assertIsNone(payment_entry.snapshot_at_insert["source"])
         self.assertIsNone(payment_entry.snapshot_at_insert["sales_person"])
+        self.assertEqual(
+            payment_entry.snapshot_at_insert["omc_customer"],
+            1,
+        )
         exists.assert_not_called()
 
     def test_later_installment_gets_its_own_current_snapshot(self):
@@ -202,11 +253,13 @@ class TestPaymentEntryCommissionSnapshot(FrappeTestCase):
                     "structure_name": "50 / 50",
                     "source": "Consultant",
                     "sales_person": "asif@omchouse.com",
+                    "omc_customer": 1,
                 },
                 {
                     "structure_name": "70 / 30",
                     "source": "Consultant",
                     "sales_person": "asif@omchouse.com",
+                    "omc_customer": 1,
                 },
             ]
         )

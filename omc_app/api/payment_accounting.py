@@ -17,6 +17,11 @@ def _text(value) -> str:
     return str(value or "").strip()
 
 
+def _amount(value) -> float:
+    """Normalize OMC monetary values without Frappe precision side effects."""
+    return round(flt(value or 0), 6)
+
+
 def _current_user() -> str:
     return _text(getattr(getattr(frappe, "session", None), "user", None)) or "Guest"
 
@@ -63,9 +68,9 @@ def _base_link(request_name: str):
 def _remaining_amount(payment) -> float:
     link = _base_link(payment.service_request)
     if not link:
-        return max(flt(payment.amount or 0, 6), 0)
+        return max(_amount(payment.amount), 0)
     result = accounting_reconciliation.reconcile_request(payment.service_request)
-    return max(flt(result.get("remaining_amount") or 0, 6), 0)
+    return max(_amount(result.get("remaining_amount")), 0)
 
 
 def _mapped_payment_accounts(*, company: str, currency: str) -> list[dict]:
@@ -125,7 +130,7 @@ def _service_accounting_config(request):
             frappe.ValidationError,
         )
     assert_valid_invoice_item(invoice_item)
-    tax_amount = flt(getattr(request, "tax_amount", 0) or 0, 6)
+    tax_amount = _amount(getattr(request, "tax_amount", 0))
     tax_template = _text(getattr(service, "erp_sales_taxes_and_charges_template", None))
     if tax_amount > 0 and (
         not tax_template
@@ -305,8 +310,8 @@ def review_receipt(
 
     config = _preflight(payment, payment_account=payment_account)
     remaining = _remaining_amount(payment)
-    requested = max(flt(payment.amount or 0, 6), 0)
-    amount = flt(verified_amount if verified_amount is not None else requested, 6)
+    requested = max(_amount(payment.amount), 0)
+    amount = _amount(verified_amount if verified_amount is not None else requested)
     if remaining <= 0:
         frappe.throw("This payment is already fully settled.", frappe.ValidationError)
     if amount <= 0:
@@ -375,7 +380,7 @@ def _ensure_invoice(request, service, invoice_item: str, tax_template: str):
     invoice.posting_date = nowdate()
     invoice.due_date = nowdate()
     invoice.currency = request.pricing_currency
-    line_rate = flt(request.final_price if request.final_price is not None else request.payable_amount, 6)
+    line_rate = _amount(request.final_price if request.final_price is not None else request.payable_amount)
     invoice.append("items", {"item_code": invoice_item, "qty": 1, "rate": line_rate})
     if tax_template:
         invoice.taxes_and_charges = tax_template
@@ -383,8 +388,8 @@ def _ensure_invoice(request, service, invoice_item: str, tax_template: str):
             invoice.append("taxes", tax)
     invoice.flags.ignore_permissions = True
     invoice.insert(ignore_permissions=True)
-    expected = flt(request.payable_amount or 0, 6)
-    actual = flt(invoice.grand_total or 0, 6)
+    expected = _amount(request.payable_amount)
+    actual = _amount(invoice.grand_total)
     if abs(actual - expected) > 0.01:
         frappe.throw(
             f"ERP Sales Invoice total {actual:g} does not match the OMC payable amount {expected:g}. Check the service item/tax mapping.",
@@ -424,10 +429,11 @@ def _ensure_invoice(request, service, invoice_item: str, tax_template: str):
 
 
 def _apply_payment_entry_commission_snapshot(payment_entry, invoice):
-    """Copy the current customer commission identity onto a new Payment Entry.
+    """Copy the client's ERP commission configuration onto a new Payment Entry.
 
-    This is an optional immutable snapshot for downstream commission projection.
-    Invalid or incomplete commission configuration must not block accounting.
+    ERPNext remains commission-accounting authority. This function only ensures
+    the automatically-created Payment Entry carries the same beneficiary and
+    structure fields as the client's normal ERP Payment Entry flow.
     """
     meta = getattr(payment_entry, "meta", None)
     if not meta:
@@ -448,21 +454,40 @@ def _apply_payment_entry_commission_snapshot(payment_entry, invoice):
 
     customer_name = _text(getattr(payment_entry, "party", None))
     invoice_customer = _text(getattr(invoice, "customer", None))
-    if not customer_name or not invoice_customer or customer_name != invoice_customer:
+    if (
+        not customer_name
+        or not invoice_customer
+        or customer_name != invoice_customer
+    ):
         return False
 
     customer = frappe.db.get_value(
         "Customer",
         customer_name,
-        ["structure_name", "source", "sales_person"],
+        [
+            "structure_name",
+            "source",
+            "sales_person",
+            "business_partner_consultant",
+            "reference_business_partner",
+            "omc_customer",
+        ],
         as_dict=True,
     )
     if not customer:
         return False
 
+    # Mirror the client's existing Payment Entry Client Script server-side.
+    # Backend-created Payment Entries do not execute browser Client Scripts.
+    if meta.get_field("custom_omc_customer"):
+        payment_entry.custom_omc_customer = int(
+            customer.get("omc_customer") or 0
+        )
+
     structure_name = _text(customer.get("structure_name"))
     source = _text(customer.get("source"))
     sales_person = _text(customer.get("sales_person"))
+
     if not structure_name or not source or not sales_person:
         return False
 
@@ -483,19 +508,57 @@ def _apply_payment_entry_commission_snapshot(payment_entry, invoice):
     structure = frappe.db.get_value(
         "Sales Team Commission Structure",
         structure_name,
-        ["omc", "sales_person"],
+        [
+            "omc",
+            "sales_person",
+            "franchise",
+            "reference",
+        ],
         as_dict=True,
     )
     if not structure:
         return False
 
+    # Core sales-person identity.
     payment_entry.custom_structure_name = structure_name
     payment_entry.custom_source = source
     payment_entry.custom_sales_person = sales_person
-    payment_entry.custom_omc_percentage = flt(structure.get("omc") or 0)
+
+    # Frozen percentages come from actual structure fields; never parse names.
+    payment_entry.custom_omc_percentage = flt(
+        structure.get("omc") or 0
+    )
     payment_entry.custom_sales_person_percentage = flt(
         structure.get("sales_person") or 0
     )
+
+    # Existing client ERP supports these two additional beneficiaries.
+    # Populate them before insert so the existing Payment Entry.before_save /
+    # on_submit logic calculates amounts and creates its normal commission JE.
+    if meta.get_field("custom_business_partner_consultant"):
+        payment_entry.custom_business_partner_consultant = _text(
+            customer.get("business_partner_consultant")
+        )
+
+    if meta.get_field(
+        "custom_business_partner_consultant_percentage"
+    ):
+        payment_entry.custom_business_partner_consultant_percentage = flt(
+            structure.get("franchise") or 0
+        )
+
+    if meta.get_field("custom_reference_business_partner"):
+        payment_entry.custom_reference_business_partner = _text(
+            customer.get("reference_business_partner")
+        )
+
+    if meta.get_field(
+        "custom_reference_business_partner_percentage"
+    ):
+        payment_entry.custom_reference_business_partner_percentage = flt(
+            structure.get("reference") or 0
+        )
+
     return True
 
 
@@ -505,7 +568,7 @@ def _create_payment_entry(receipt, invoice, account):
     payment_entry = get_payment_entry(
         "Sales Invoice",
         invoice.name,
-        party_amount=flt(receipt.verified_amount or 0, 6),
+        party_amount=_amount(receipt.verified_amount),
         bank_account=account["erp_account"],
     )
     payment_entry.paid_to = account["erp_account"]
@@ -580,9 +643,9 @@ def process_receipt(receipt_name: str) -> dict:
             config["tax_template"],
         )
         current = accounting_reconciliation.reconcile_request(request.name)
-        remaining = max(flt(current.get("remaining_amount") or 0, 6), 0)
-        requested = max(flt(payment.amount or 0, 6), 0)
-        amount = flt(receipt.verified_amount or 0, 6)
+        remaining = max(_amount(current.get("remaining_amount")), 0)
+        requested = max(_amount(payment.amount), 0)
+        amount = _amount(receipt.verified_amount)
         if remaining <= 0:
             frappe.throw("This request is already fully settled.", frappe.ValidationError)
         if amount <= 0:
@@ -634,7 +697,7 @@ def process_receipt(receipt_name: str) -> dict:
                 "ERP Payment Entry did not reconcile to this installment.",
                 frappe.ValidationError,
             )
-        if flt(installment.accounted_amount or 0, 6) <= 0:
+        if _amount(installment.accounted_amount) <= 0:
             frappe.throw(
                 "ERP Payment Entry did not allocate a positive amount to the canonical invoice.",
                 frappe.ValidationError,
@@ -665,7 +728,7 @@ def process_receipt(receipt_name: str) -> dict:
             "installment_status": installment.status,
             "sales_invoice": invoice.name,
             "payment_entry": payment_entry.name,
-            "accounted_amount": flt(installment.accounted_amount or 0, 6),
+            "accounted_amount": _amount(installment.accounted_amount),
             "remaining_amount": result.get("remaining_amount"),
         }
     except Exception:
