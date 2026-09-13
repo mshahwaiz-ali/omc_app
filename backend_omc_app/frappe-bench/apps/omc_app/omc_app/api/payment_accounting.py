@@ -6,6 +6,7 @@ import frappe
 from frappe.utils import add_to_date, flt, now_datetime, nowdate
 
 from omc_app.api import accounting_reconciliation, access, payments, security
+from omc_app.setup.service_catalogue.accounting_mapping import assert_valid_invoice_item
 
 
 RECEIPT_DOCTYPE = "OMC Payment Receipt"
@@ -123,8 +124,7 @@ def _service_accounting_config(request):
             "Configure an ERP Invoice Item on this OMC Service before verifying payment.",
             frappe.ValidationError,
         )
-    if not int(frappe.db.get_value("Item", invoice_item, "is_sales_item") or 0):
-        frappe.throw("The configured ERP Invoice Item is not a sales item.", frappe.ValidationError)
+    assert_valid_invoice_item(invoice_item)
     tax_amount = flt(getattr(request, "tax_amount", 0) or 0, 6)
     tax_template = _text(getattr(service, "erp_sales_taxes_and_charges_template", None))
     if tax_amount > 0 and (
