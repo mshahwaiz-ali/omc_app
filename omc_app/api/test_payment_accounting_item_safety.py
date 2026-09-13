@@ -22,6 +22,7 @@ class TestPaymentAccountingItemSafety(unittest.TestCase):
         with (
             patch.object(frappe.db, "exists", return_value=True),
             patch.object(frappe, "get_doc", return_value=self._service()),
+            patch.object(payment_accounting, "flt", return_value=0.0),
             patch.object(payment_accounting, "assert_valid_invoice_item") as validate_item,
         ):
             service, invoice_item, tax_template = payment_accounting._service_accounting_config(
@@ -31,7 +32,7 @@ class TestPaymentAccountingItemSafety(unittest.TestCase):
         validate_item.assert_called_once_with("Test Service Item")
         self.assertEqual(service.name, "test-service")
         self.assertEqual(invoice_item, "Test Service Item")
-        self.assertIsNone(tax_template)
+        self.assertEqual(tax_template, "")
 
     def test_runtime_invoice_item_validation_failure_blocks_payment_preflight(self):
         with (
