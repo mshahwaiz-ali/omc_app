@@ -4,6 +4,8 @@ import json
 import frappe
 from frappe.utils import cint, flt
 
+from omc_app.setup.service_catalogue.accounting_mapping import assert_valid_invoice_item
+
 
 def pricing_version_for(service):
 	payload = {
@@ -46,6 +48,7 @@ class OMCService(Document):
 		if not self.service_id:
 			self.service_id = self.name or frappe.scrub(self.title or "").replace("_", "-").strip("-")
 		self._validate_commercial_policy()
+		self._validate_accounting_mapping()
 		self.pricing_version = self._pricing_version()
 
 	def _validate_commercial_policy(self):
@@ -60,6 +63,11 @@ class OMCService(Document):
 			frappe.throw("No Tax services must use a zero tax rate.")
 		if self.activation_policy == "No Charge" and flt(self.base_price or 0, 6) != 0:
 			frappe.throw("No Charge activation requires a zero base price.")
+
+	def _validate_accounting_mapping(self):
+		item_name = str(getattr(self, "erp_invoice_item", None) or "").strip()
+		if item_name:
+			assert_valid_invoice_item(item_name)
 
 	def _pricing_version(self):
 		return pricing_version_for(self)
