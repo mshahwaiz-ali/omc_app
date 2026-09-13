@@ -21,6 +21,20 @@ class TestServiceAccountingMapping(unittest.TestCase):
             active_ids,
         )
 
+    def test_stock_legacy_items_are_replaced_by_dedicated_service_item_names(self):
+        self.assertEqual(
+            accounting_mapping.ERP_INVOICE_ITEM_BY_SERVICE_ID[
+                "house-wife-filing"
+            ],
+            "House Wife Filing Service",
+        )
+        self.assertEqual(
+            accounting_mapping.ERP_INVOICE_ITEM_BY_SERVICE_ID[
+                "password-reset"
+            ],
+            "Password Reset Service",
+        )
+
     def test_non_stock_sales_item_is_valid(self):
         with (
             patch.object(frappe.db, "exists", return_value="Business Tax Filing"),
