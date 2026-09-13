@@ -73,26 +73,51 @@ def sync_service_task_type_mappings(*, commit: bool = True) -> dict[str, object]
 
 def preview_service_catalogue() -> dict[str, object]:
     """Read-only preview of the complete source-controlled OMC catalogue."""
+    from omc_app.setup.service_catalogue.accounting_mapping import (
+        preview_service_accounting_mappings,
+    )
     from omc_app.setup.service_catalogue.presentation import preview_service_presentation
     from omc_app.setup.service_catalogue.provisioner import preview_service_catalogue as preview
 
     result = preview()
     presentation = preview_service_presentation()
-    return {**result, "ready_to_sync": bool(result.get("ready_to_sync") and presentation.get("ok")), "presentation": presentation}
+    accounting = preview_service_accounting_mappings()
+    return {
+        **result,
+        "ready_to_sync": bool(result.get("ready_to_sync") and presentation.get("ok")),
+        "presentation": presentation,
+        "accounting": accounting,
+    }
 
 
 def validate_service_catalogue() -> dict[str, object]:
-    """Read-only exact-state validation of catalogue rows and service copy."""
+    """Read-only exact-state validation of catalogue rows, copy and accounting mappings."""
+    from omc_app.setup.service_catalogue.accounting_mapping import (
+        validate_service_accounting_mappings,
+    )
     from omc_app.setup.service_catalogue.presentation import validate_service_presentation
     from omc_app.setup.service_catalogue.provisioner import validate_service_catalogue as validate
 
     result = validate()
     presentation = validate_service_presentation()
-    return {**result, "valid": bool(result.get("valid") and presentation.get("valid")), "presentation": presentation}
+    accounting = validate_service_accounting_mappings()
+    return {
+        **result,
+        "valid": bool(
+            result.get("valid")
+            and presentation.get("valid")
+            and accounting.get("valid")
+        ),
+        "presentation": presentation,
+        "accounting": accounting,
+    }
 
 
 def sync_service_catalogue(*, commit: bool = True) -> dict[str, object]:
-    """Atomically sync catalogue rows, customer copy and Employee defaults."""
+    """Atomically sync catalogue rows, copy, Employee defaults and safe ERP item links."""
+    from omc_app.setup.service_catalogue.accounting_mapping import (
+        sync_service_accounting_mappings,
+    )
     from omc_app.setup.service_catalogue.presentation import sync_service_presentation
     from omc_app.setup.service_catalogue.provisioner import sync_service_catalogue as sync
 
@@ -100,10 +125,16 @@ def sync_service_catalogue(*, commit: bool = True) -> dict[str, object]:
     frappe.db.savepoint(savepoint)
     try:
         result = sync(commit=False)
+        accounting = sync_service_accounting_mappings(commit=False)
         presentation = sync_service_presentation(commit=False)
         if commit:
             frappe.db.commit()
-        return {**result, "committed": bool(commit), "presentation": presentation}
+        return {
+            **result,
+            "committed": bool(commit),
+            "presentation": presentation,
+            "accounting": accounting,
+        }
     except Exception:
         frappe.db.rollback(save_point=savepoint)
         raise
