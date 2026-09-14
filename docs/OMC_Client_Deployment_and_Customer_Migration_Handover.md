@@ -1,81 +1,51 @@
 # OMC App — Client Deployment & Existing-Customer Migration Handover
 
-Source cross-check: **25 August 2026**, branch `main`.
+Source cross-check: **14 September 2026**, branch `main`.
 
-This document is the operator handover for installing the supplied `omc_app` on the client's existing **Frappe / ERPNext v14** environment and converting the existing ERP customer/staff data into the OMC application model safely.
+This is the current operator handover for installing or updating the custom `omc_app` on the client's existing **Frappe / ERPNext v14** environment and running the guarded OMC post-install reconciliation safely.
 
-The preferred production path is intentionally simple:
+> **Deployment rule:** preserve the existing ERPNext site, install/update only the custom OMC app, take backups before risk boundaries, run the guarded configuration workflow, and do not patch ERPNext/Frappe core.
+
+---
+
+# 1. Source and deployment model
+
+The development source of truth is the repository `main` branch.
+
+The backend app lives under:
 
 ```text
-Copy/register omc_app
-    -> install omc_app on the correct site
-    -> run apps/omc_app/scripts/configuration.sh
-    -> review the completion summary
-    -> perform controlled production smoke tests
+backend_omc_app/frappe-bench/apps/omc_app/
 ```
 
-The configuration script is the executable version of the post-install process described below. It is designed to be rerunnable and fail closed instead of asking the operator to execute a long list of migration commands manually.
+GitHub Actions publishes that backend subtree automatically to the generated deployment branch:
+
+```text
+frappe-app
+```
+
+The generated branch contains the Frappe app at repository root and is intended for normal Bench installation/update.
+
+Do not manually edit `frappe-app`; changes belong on `main`.
 
 ---
 
-# Part A — Clean Client Steps
+# 2. Preferred fresh-install path
 
-## 1. Open the existing client Bench
-
-```bash
-cd /path/to/frappe-bench
-
-bench list-sites
-bench version
-```
-
-Confirm:
-
-- this is the correct production Bench;
-- the intended client site is present;
-- the environment is the existing ERPNext v14 installation;
-- you are **not** creating a replacement site or database.
-
----
-
-## 2. Take a full backup before installing OMC
+From the client's existing Bench:
 
 ```bash
+cd /home/frappe/frappe-bench
+
 bench --site <site> backup --with-files
-```
 
-Record the generated backup paths. This is the recovery point before the OMC app is installed.
+bench get-app --branch frappe-app \
+  https://github.com/mshahwaiz-ali/omc_app.git
 
----
-
-## 3. Place and register the supplied OMC app
-
-Place the supplied app folder at:
-
-```text
-frappe-bench/apps/omc_app
-```
-
-Then from the Bench root:
-
-```bash
-./env/bin/pip install -e apps/omc_app
-./env/bin/python -c "import omc_app; print('OMC App import: OK')"
-
-grep -qxF 'omc_app' sites/apps.txt || echo 'omc_app' >> sites/apps.txt
-```
-
----
-
-## 4. Install OMC on the site
-
-For a first installation:
-
-```bash
 bench --site <site> install-app omc_app
 ```
 
-Confirm:
+Verify:
 
 ```bash
 bench --site <site> list-apps
@@ -83,238 +53,151 @@ bench --site <site> list-apps
 
 `omc_app` must appear in the installed-app list.
 
-If this is only a code update and `omc_app` is already installed, do **not** reinstall it.
+For the current client environment, `<site>` may be `erp.omchouse.com`; always confirm the actual production site before running commands.
+
+Do not create a replacement site or database just to install OMC.
 
 ---
 
-## 5. Run the guarded OMC configuration script
+# 3. Existing installed-app update
 
-The production script ships inside the OMC app folder:
+If `omc_app` is already installed, do not reinstall it.
 
-```bash
-cd /path/to/frappe-bench/apps/omc_app
-bash scripts/configuration.sh
-```
-
-That is the preferred client command after installation.
-
-### Site selection
-
-The script handles the site name safely:
-
-- one site in the Bench -> selected automatically;
-- multiple sites -> numbered site selector;
-- explicit site is also supported:
+Update the generated backend branch in the existing app checkout:
 
 ```bash
-bash scripts/configuration.sh --site your.site.name
+cd /home/frappe/frappe-bench/apps/omc_app
+git pull --ff-only origin frappe-app
+
+cd /home/frappe/frappe-bench
+bench --site <site> backup --with-files
+bench --site <site> migrate
+bench build --app omc_app
+bench --site <site> clear-cache
+bench restart
 ```
 
-Before any configuration write, the script shows the selected Bench/site and requires:
+Use the site's actual production process-manager procedure if `bench restart` is not the correct runtime command for that host.
+
+---
+
+# 4. Guarded post-install configuration
+
+The backend app ships the production post-install helper:
+
+```text
+apps/omc_app/scripts/configuration.sh
+```
+
+Current script version at this documentation cross-check:
+
+```text
+1.3.0
+```
+
+Preferred invocation:
+
+```bash
+cd /home/frappe/frappe-bench/apps/omc_app
+bash scripts/configuration.sh --site <site>
+```
+
+The script can auto-detect a Bench/site when safe, but an explicit site is preferred on production systems.
+
+Supported operator options include:
+
+```text
+--bench PATH
+--site SITE
+--legacy-app APP
+--skip-legacy-app
+--yes
+--no-restart
+```
+
+Interactive production runs require explicit confirmation:
 
 ```text
 CONFIGURE <site>
 ```
 
-### Known legacy app
-
-Do **not** remove the old/legacy app before OMC historical migration has finished.
-
-If the exact legacy app name has already been reviewed:
-
-```bash
-bash scripts/configuration.sh \
-  --site your.site.name \
-  --legacy-app OLD_APP_NAME
-```
-
-To leave legacy-app retirement for later:
-
-```bash
-bash scripts/configuration.sh \
-  --site your.site.name \
-  --skip-legacy-app
-```
-
-The script never treats `frappe`, `erpnext`, or `omc_app` as removable legacy apps.
+The script is designed to be rerunnable and fail closed.
 
 ---
 
-## 6. Review the final script result
+# 5. What `configuration.sh` currently performs
 
-Successful completion ends with:
+The current script performs these guarded phases in order.
 
-```text
-OMC POST-INSTALL CONFIGURATION COMPLETED
-```
+## 5.1 Target validation
 
-The script prints two paths:
+It verifies:
 
-```text
-Log:          .../logs/omc-configuration-<site>-<timestamp>.log
-Raw evidence: .../logs/omc-configuration-<site>-<timestamp>-evidence/
-```
-
-The **main log is human-readable**. Large machine JSON is not dumped into the operator log anymore.
-
-The **raw evidence directory** retains the actual complete outputs of migration, catalogue and validation commands for audit/debugging. The script creates that directory with restricted permissions.
-
----
-
-## 7. Perform the production smoke test
-
-After the script succeeds and the runtime has been restarted, verify at minimum:
-
-- ERP/Frappe site opens normally;
-- customer login/activation works;
-- service catalogue loads;
-- service short and detailed descriptions display correctly;
-- service support guidance displays correctly;
-- service requests can be submitted;
-- required-document upload works;
-- payment/receipt workflow works;
-- accounting settlement gates activation correctly;
-- an activated service request can be assigned to an eligible **Employee**;
-- staff workspace/case visibility follows Staff Access capabilities;
-- support and notification flows work;
-- production URL, HTTPS and email/deep links are correct.
-
----
-
-# Part B — What `configuration.sh` Performs
-
-The following is the exact post-install workflow automated by the script.
-
-## 1. Target validation
-
-The script verifies:
-
-- a valid Frappe Bench was found;
-- the target site exists;
+- valid Frappe Bench;
+- target site exists;
 - `frappe` is installed;
 - `erpnext` is installed;
 - `omc_app` is installed.
 
-It then requires the explicit `CONFIGURE <site>` confirmation unless the operator deliberately uses `--yes`.
+It refuses to continue on an invalid target.
 
----
-
-## 2. Full post-install backup
-
-Before the post-install mutation sequence:
+## 5.2 Backup before configuration
 
 ```bash
 bench --site <site> backup --with-files
 ```
 
-Failure to create this backup stops the run.
+Failure to create the backup stops the run.
 
----
-
-## 3. Schema migration and cache clear
+## 5.3 Schema migration and cache clear
 
 ```bash
 bench --site <site> migrate
 bench --site <site> clear-cache
 ```
 
-This applies OMC DocTypes/schema/registered patches. It is **not** the historical customer migration and does **not** by itself publish the production service catalogue.
+This applies OMC schema/patches. It does not by itself perform the historical customer migration or silently publish the service catalogue.
 
----
-
-## 4. ERP compatibility contract
-
-The script executes:
+## 5.4 ERP compatibility validation
 
 ```bash
 bench --site <site> execute \
   omc_app.setup.erp_contract.validate_client_erp_contract
 ```
 
-OMC validates the ERP integration points it relies on, including Customer, Service, Task, Task Type, Sales Invoice and Payment Entry contracts.
+OMC validates the ERP integration contract it depends on. Compatibility failure stops the run; the script does not patch ERPNext core to force compatibility.
 
-A compatibility failure stops the run. OMC does not patch ERPNext source to force compatibility.
-
-Warnings are shown in the formatted report and should be reviewed; they are not silently converted into unrelated ERP business-setting changes by the deployment script.
-
----
-
-## 5. OMC-owned site initialization
+## 5.5 OMC-owned initialization
 
 ```bash
 bench --site <site> execute \
   omc_app.setup.operations.initialize_site
 ```
 
-This idempotently reconciles OMC-owned:
+This reconciles OMC-owned setup such as roles/permissions, Desk metadata, referral workspace integration and branding.
 
-- canonical roles and DocPerm configuration;
-- Desk/workspace metadata;
-- referral workspace links;
-- branding;
-- ERP compatibility validation.
-
-The operation is safe to rerun and does not seed unrelated tax/business data.
-
----
-
-## 6. Customer/staff migration preflight
+## 5.6 Read-only customer/staff migration preflight
 
 ```bash
 bench --site <site> execute \
   omc_app.api.customer_migration.preflight
 ```
 
-This stage is read-only.
+The identity strategy uses deterministic ERP evidence and leaves ambiguous identities for review rather than guessing.
 
-The identity strategy is designed to use deterministic ERP evidence and leave ambiguous records for review rather than guessing.
+The migration must not propose mass customer login-user creation.
 
-Current identity priority:
-
-```text
-1. unique valid Customer email
-2. unique linked-Lead CNIC
-3. unique safe phone
-4. unique supported Customer tax ID / NTN
-5. identity review
-```
-
-The configuration script requires:
+The script requires:
 
 ```text
 user_accounts_to_create = 0
 ```
 
-Historical customer migration does not mass-create customer login Users or shared/default passwords.
+## 5.7 Backup before historical-data writes
 
-The formatted console report shows the important totals only, including:
+A second full backup is taken immediately before migration apply.
 
-- total ERP customers;
-- safely identifiable customers;
-- activation-ready imports;
-- claim-on-signup deferrals;
-- identity-review rows;
-- profile create/reuse counts;
-- blocker/warning counts;
-- historical Service/Task projection status.
-
-Full samples/details remain available in the raw evidence file.
-
----
-
-## 7. Second backup before historical-data writes
-
-Immediately before migration apply:
-
-```bash
-bench --site <site> backup --with-files
-```
-
-This provides a clean recovery boundary between site setup and bulk historical reconciliation.
-
----
-
-## 8. Unified customer/staff/historical migration
+## 5.8 Idempotent customer/staff/historical migration
 
 ```bash
 bench --site <site> execute \
@@ -322,267 +205,294 @@ bench --site <site> execute \
   --kwargs '{"confirm":"APPLY_CUSTOMER_MIGRATION","limit":0,"batch_size":100}'
 ```
 
-The migration can safely reconcile:
+The migration can reconcile supported:
 
-- existing ERP customers into OMC customer profile/account structures where identity is deterministic;
-- supported ERP staff into canonical `OMC Staff Access`;
-- Employee persona from supported ERP evidence;
-- referral-capable staff registries;
-- proven historical referral attribution;
-- supported historical ERP Service/Task projections.
+- existing ERP Customers into OMC customer/account/profile state;
+- trusted ERP staff into canonical `OMC Staff Access`;
+- supported Employee/persona evidence;
+- referral-capable staff records;
+- supported historical attribution/projection evidence.
 
-It deliberately does **not**:
+It deliberately does not:
 
-- bulk-create customer Frappe Users;
-- create common/default passwords;
+- mass-create customer Frappe Users;
+- create shared/default passwords;
 - enable disabled Users;
 - promote Website Users to System Users;
 - override deliberate staff suspension/rejection;
 - force-link ambiguous customers;
-- fabricate referral or commission history.
+- fabricate unsupported referral/commission history.
 
-After apply, the script requires:
+The script verifies after apply that:
 
 ```text
 user_accounts_created = 0
 ```
 
----
+## 5.9 Post-migration read-only verification
 
-## 9. Post-migration read-only verification
+The migration preflight runs again to confirm the reconciled state remains safe and rerunnable.
 
-The same migration preflight runs again after apply.
-
-This captures the converged state and confirms that the safe migration is rerunnable/idempotent.
-
----
-
-## 10. Production service-catalogue preview
+## 5.10 Service-catalogue preview
 
 ```bash
 bench --site <site> execute \
   omc_app.setup.operations.preview_service_catalogue
 ```
 
-Current source-controlled catalogue baseline:
+The source-controlled catalogue currently contains:
 
 ```text
 9 categories
-31 exact ERP Task Type mapped services
-17 active
-14 inactive / review-required
-93 required-document templates
-62 service form fields
-195 managed catalogue objects
-currency: PKR
-company: Omc House
-default activation policy: Full Settlement
+31 services
 ```
 
-The script refuses to synchronize unless:
+Use preview output as the authority for exact active/inactive and managed-row counts on the target release/site.
+
+The script requires:
 
 ```text
 ready_to_sync = true
 ```
 
-No fuzzy Task Type matching or silent Task Type creation is used.
+No fuzzy ERP Task Type matching or silent Task Type creation is allowed.
 
----
-
-## 11. Atomic service catalogue + customer-facing service setup
-
-The script runs:
+## 5.11 Atomic service-catalogue synchronization
 
 ```bash
 bench --site <site> execute \
   omc_app.setup.operations.sync_service_catalogue
 ```
 
-This operation now treats a production service as more than just its price/title mapping.
+The managed service layer includes service configuration plus customer-facing presentation/assignment data managed by the current catalogue code.
 
-For all 31 source-controlled OMC services it also reconciles:
+Catalogue publishing is explicit. Normal `bench migrate` is not the catalogue publisher.
 
-- a service-specific **short description**;
-- a service-specific **detailed description**;
-- a service-specific **support message**;
-- `default_assignment_role = Employee`.
-
-The descriptions are written as clear customer-facing sales/service copy: they explain the practical value of using OMC, reduce uncertainty and highlight the benefit of organized professional handling without promising a guaranteed legal/tax outcome or inventing an unsupported deadline.
-
-### Why Employee is the default assignment role
-
-OMC staff reconciliation already supports the canonical ERP persona:
-
-```text
-Employee
-```
-
-An eligible Employee must still be:
-
-- an enabled System User;
-- represented by approved/current `OMC Staff Access`;
-- valid under the canonical staff reconciliation model.
-
-Assignment chooses from the eligible Employee pool using least-loaded assignment. If no eligible Employee exists, the existing controlled Manager fallback remains available instead of assigning to an invalid user.
-
-Legacy assignment-role values remain readable for compatibility, but source-controlled services converge to `Employee`.
-
-### Transaction boundary
-
-Catalogue writes and service presentation/assignment writes are committed as **one transaction** through the OMC setup operation.
-
-If the description/support/assignment layer cannot validate, the combined sync is rolled back rather than leaving newly created services only partially configured.
-
----
-
-## 12. Catalogue and presentation validation
-
-The script validates the base catalogue:
+## 5.12 Catalogue validation
 
 ```bash
 bench --site <site> execute \
   omc_app.setup.operations.validate_service_catalogue
 ```
 
-and the managed customer-facing service layer:
+The run stops unless the catalogue converges to a valid state.
+
+## 5.13 Service presentation validation
 
 ```bash
 bench --site <site> execute \
   omc_app.setup.service_catalogue.presentation.validate_service_presentation
 ```
 
-The run stops unless both converge cleanly.
+The managed customer-facing presentation and assignment defaults must validate.
 
-For the presentation layer, final validation requires all managed services to have the source-controlled descriptions/support copy and the Employee assignment default.
+## 5.14 App-ready defaults preview
 
----
+The current configuration script also manages source-controlled app-ready defaults:
 
-## 13. Optional legacy app retirement
+```bash
+bench --site <site> execute \
+  omc_app.setup.operations.preview_app_defaults
+```
 
-Legacy app retirement occurs only **after** historical migration and catalogue reconciliation.
+Preview must report safe synchronization before any write is allowed.
 
-That order is intentional because old ERP/legacy data may contain identity or attribution evidence required during migration.
+App-ready defaults cover source-controlled application configuration such as supported mobile content/workflow/default data managed by the current setup layer.
 
-If an operator explicitly selects a legacy app, the script:
+Client/runtime-owned secrets, users, payment/bank details and transaction records are intentionally outside this ownership boundary.
 
-1. refuses protected apps (`frappe`, `erpnext`, `omc_app`);
-2. takes another full backup;
-3. uninstalls only the selected app from the target site;
-4. runs `bench migrate` and clears cache;
-5. validates the ERP contract again;
-6. reruns OMC initialization;
-7. validates catalogue and service presentation again.
+## 5.15 App-ready defaults synchronization
 
-The legacy app **source folder is not deleted automatically**. A Bench can host multiple sites, so another site may still depend on that source.
+```bash
+bench --site <site> execute \
+  omc_app.setup.operations.sync_app_defaults
+```
 
----
+The synchronization must validate successfully.
 
-## 14. Scheduler
+## 5.16 App-ready defaults validation
+
+```bash
+bench --site <site> execute \
+  omc_app.setup.operations.validate_app_defaults
+```
+
+The run stops if managed defaults do not converge.
+
+## 5.17 Optional legacy-app retirement
+
+Legacy app retirement is optional and occurs only after OMC migration/catalogue/default reconciliation.
+
+Protected apps are never valid retirement targets:
+
+```text
+frappe
+erpnext
+omc_app
+```
+
+If a legacy app is explicitly selected, the script takes another backup before uninstalling it from the target site.
+
+The legacy source folder is not deleted automatically because another Bench site may still depend on it.
+
+## 5.18 Scheduler
 
 ```bash
 bench --site <site> enable-scheduler
 ```
 
-OMC uses scheduled/background operations for operational recovery and processing.
-
----
-
-## 15. Asset build and cache clear
+## 5.19 Asset build and cache clear
 
 ```bash
 bench build --app omc_app
 bench --site <site> clear-cache
 ```
 
----
+## 5.20 Runtime restart
 
-## 16. Production process restart
-
-When Supervisor production configuration is detected, the script runs:
+If Supervisor production configuration is detected, the script can run:
 
 ```bash
 bench restart
 ```
 
-If Supervisor is not detected, the script does not guess a custom process-manager command; it warns that the runtime must be restarted using the client's actual production process manager.
+Otherwise it warns the operator to restart using the client's actual process manager.
 
-For controlled rehearsal only:
+`--no-restart` is for controlled rehearsal only; production traffic must not continue indefinitely on stale runtime processes.
 
-```bash
-bash scripts/configuration.sh --no-restart
-```
+## 5.21 Final verification
 
-Do not use `--no-restart` as an excuse to serve production traffic without restarting the runtime afterward.
+The script performs final application/site validation and preserves command evidence for audit/debugging.
 
 ---
 
-## 17. Final verification
+# 6. Logging and evidence
 
-The final automated checks include:
-
-- installed-app listing;
-- ERP contract validation;
-- catalogue validation;
-- service descriptions/support/Employee assignment validation;
-- `bench --site <site> doctor`.
-
-The script then prints the human log and raw-evidence paths.
-
----
-
-# Part C — Logging and Evidence
-
-## Human-readable main log
-
-Path pattern:
+The script writes a human-readable main log:
 
 ```text
 frappe-bench/logs/omc-configuration-<site>-<timestamp>.log
 ```
 
-Large migration JSON is summarized into sections such as:
-
-```text
-Migration preflight
--------------------
-  Total ERP customers             ...
-  Safely identifiable             ...
-  Activation-ready imports        ...
-  Deferred claim-on-signup        ...
-  Identity review                 ...
-  Customer Users to create        0
-  Blockers                        ...
-  Warnings                        ...
-```
-
-Catalogue output is summarized in the same style, including the count of services whose descriptions/support/Employee assignment were updated.
-
-## Raw command evidence
-
-Path pattern:
+It also creates a restricted raw evidence directory:
 
 ```text
 frappe-bench/logs/omc-configuration-<site>-<timestamp>-evidence/
 ```
 
-This directory contains the full raw outputs used by the script for validation, including migration samples and catalogue details.
+The raw evidence contains complete command outputs used for migration/catalogue/default validation.
 
-It exists so the main operator log remains readable **without losing the actual command evidence** needed for troubleshooting or audit.
-
-Because migration output can contain customer/staff identifiers, the evidence directory is created with restricted permissions and should be handled as operationally sensitive data.
+Treat this directory as operationally sensitive because migration evidence can contain customer/staff identifiers.
 
 ---
 
-# Part D — Manual Fallback Sequence
+# 7. Current customer/service architecture to verify after deployment
 
-Use this only if `configuration.sh` cannot be used.
+## Customer identity
+
+ERPNext `Customer` remains the ERP business customer master.
+
+OMC uses its own canonical authentication bridge/account/profile records for mobile access without replacing ERP Customer authority.
+
+Historical migration is not a recurring synchronization command that must be rerun whenever the linked customer later receives a new Service Request, document, payment or Task.
+
+Once canonical relationships exist, normal runtime workflows continue using those relationships.
+
+## Service execution
+
+The intended production contract is:
+
+```text
+One OMC Service Request
+        -> payment/accounting eligibility
+        -> durable activation bridge
+        -> ERP Service
+        -> exactly one authoritative ERP Task
+```
+
+The OMC Service Request is customer-facing lifecycle state.
+
+The ERP Task is internal operational work and must not be exposed to customers as their service record.
+
+## Payment authority
+
+For a positive-price Full Settlement service:
+
+```text
+required-document eligibility
+        -> payment/receipt workflow
+        -> ERP accounting evidence
+        -> settlement reconciliation
+        -> activation eligibility
+```
+
+Receipt review alone must not manually force final Paid/settled state.
+
+ERP accounting reconciliation remains authoritative.
+
+## Reusable documents
+
+The current document engine supports policy-driven reuse of approved prior documents.
+
+Current reuse is restricted by backend rules including:
+
+- same canonical customer;
+- same service;
+- matching stable document requirement;
+- approved source evidence;
+- configured reuse policy;
+- validity period where applicable;
+- eligible replacement/archive state.
+
+Supported policies are:
+
+```text
+Always New
+Reusable Until Replaced
+Reusable for N Days
+```
+
+`Always New` remains the safe default.
+
+At the current source baseline, catalogue provisioning does not itself assign `reuse_policy` or `reuse_validity_days`; deployment should therefore verify the actual configured required-document policies if reuse is expected for a service.
+
+Reusable evidence satisfies document eligibility only. It does not bypass payment or settlement.
+
+---
+
+# 8. Production smoke test
+
+After configuration and runtime restart, verify at minimum:
+
+- ERP/Frappe site opens normally;
+- `omc_app` remains installed;
+- customer login/activation works;
+- service catalogue loads correctly;
+- service detail/presentation content is correct;
+- customer can create a Service Request;
+- required-document upload works;
+- qualifying configured reusable evidence appears as already satisfied/on file;
+- reused evidence can be replaced with a fresh upload where supported;
+- payment/receipt workflow works;
+- receipt review alone does not falsely settle payment;
+- ERP accounting reconciliation gates activation correctly;
+- activation creates/resolves exactly one authoritative ERP Task for the request;
+- customer tracking uses Service Request state and does not expose internal ERP Task details;
+- eligible staff assignment/task visibility follows Staff Access capability/scope;
+- support/notification flows work;
+- production URL, HTTPS, email and deep links are correct.
+
+---
+
+# 9. Manual fallback sequence
+
+Use this only when `configuration.sh` cannot be used and the operator understands each guarded step.
 
 ```bash
-cd /path/to/frappe-bench
+cd /home/frappe/frappe-bench
 SITE="your.site.name"
 
 bench --site "$SITE" backup --with-files
-
 bench --site "$SITE" migrate
 bench --site "$SITE" clear-cache
 
@@ -616,144 +526,103 @@ bench --site "$SITE" execute \
 bench --site "$SITE" execute \
   omc_app.setup.service_catalogue.presentation.validate_service_presentation
 
+bench --site "$SITE" execute \
+  omc_app.setup.operations.preview_app_defaults
+
+bench --site "$SITE" execute \
+  omc_app.setup.operations.sync_app_defaults
+
+bench --site "$SITE" execute \
+  omc_app.setup.operations.validate_app_defaults
+
 bench --site "$SITE" enable-scheduler
 bench build --app omc_app
 bench --site "$SITE" clear-cache
-bench restart
-
-bench --site "$SITE" execute \
-  omc_app.setup.erp_contract.validate_client_erp_contract
-
-bench --site "$SITE" execute \
-  omc_app.setup.operations.validate_service_catalogue
-
-bench --site "$SITE" execute \
-  omc_app.setup.service_catalogue.presentation.validate_service_presentation
-
-bench --site "$SITE" doctor
 ```
 
-Legacy-app uninstall remains conditional and belongs after migration/catalogue convergence with a fresh pre-removal backup.
+Restart the production runtime using the correct process-manager procedure for the host.
+
+Do not use manual fallback to bypass a blocker reported by the guarded script.
 
 ---
 
-# Part E — Recovery and Rollback Model
+# 10. Recovery model
 
-`configuration.sh` is **fail closed**, but it does not blindly restore a production database automatically.
+The configuration workflow fails closed but does not automatically restore production data.
 
-Automatic restore is intentionally avoided because a restore rewinds database/files state and should remain an explicit operator decision.
-
-Recovery points are created before the main risk boundaries:
-
-```text
-1. before OMC installation              -> manual pre-install backup
-2. before post-install configuration    -> script backup
-3. before historical migration writes   -> script backup
-4. before legacy app uninstall           -> script backup, if retirement is selected
-```
+Backups are created around the main risk boundaries so rollback remains an explicit operator decision.
 
 If a stage fails:
 
 1. stop at the failure;
-2. retain the main log and raw-evidence directory;
-3. identify whether the failed operation is safely rerunnable;
-4. prefer correcting the blocker and rerunning idempotent OMC reconciliation when appropriate;
-5. use the relevant recorded backup only when an explicit rollback is required.
+2. retain the main log and evidence directory;
+3. identify the actual blocker;
+4. prefer correcting the blocker and rerunning idempotent OMC reconciliation when safe;
+5. restore from the relevant recorded backup only when explicit rollback is required.
 
-Do not bypass a failed safety check with direct database edits or ERPNext source patches.
-
----
-
-# Part F — What the Script Intentionally Does Not Do
-
-The production configuration script does **not** automatically:
-
-- run the full backend regression suite against the live customer database;
-- seed optional tax-calculator or business/rental tax schedules;
-- invent missing prices, tax rates or regulatory rules;
-- force-link ambiguous customer identities;
-- create bulk customer login Users/passwords;
-- enable disabled users;
-- change arbitrary ERPNext business settings merely to silence a warning;
-- execute an unknown external fix script;
-- remove a legacy app source folder with `rm -rf`;
-- modify ERPNext source code.
-
-These boundaries are deliberate.
+Do not bypass failed checks using direct database edits or ERPNext source patches.
 
 ---
 
-# Part G — Stop Conditions
+# 11. Stop conditions
 
 Stop and investigate if any of the following occurs:
 
-- wrong Bench or site is selected;
-- `omc_app` is not installed;
-- any required backup fails;
-- `bench migrate` fails;
-- ERP compatibility fails;
-- migration proposes customer User creation;
-- migration unexpectedly creates customer Users;
-- migration command exits unexpectedly;
-- catalogue preview returns `ready_to_sync = false`;
-- catalogue synchronization fails;
-- catalogue validation returns `valid = false`;
-- service presentation validation fails;
-- a managed service is missing during description/assignment reconciliation;
-- an unexpected legacy app is selected;
-- post-legacy-removal ERP/catalogue validation fails;
-- asset build or runtime restart fails;
-- `bench doctor` reports an unresolved production problem;
-- the ERP site stops loading correctly.
+- wrong Bench or site selected;
+- `omc_app` missing from installed apps;
+- backup failure;
+- migration failure;
+- ERP compatibility failure;
+- customer migration proposes/creates unexpected login Users;
+- catalogue preview is not safe to sync;
+- catalogue sync/validation failure;
+- presentation validation failure;
+- app-default preview is unsafe;
+- app-default sync/validation failure;
+- unexpected legacy app selected;
+- build/restart failure;
+- final site/runtime health problem;
+- ERP site stops loading normally.
 
 ---
 
-# Part H — Final Production Checklist
+# 12. Final production checklist
 
-After a successful script run:
-
-- [ ] correct client site was selected;
-- [ ] pre-install backup exists;
-- [ ] script backups completed;
-- [ ] `omc_app` is installed;
-- [ ] ERP contract is compatible;
-- [ ] OMC roles/permissions/Desk/branding reconciled;
-- [ ] customer/staff migration completed or left only understood review cases;
-- [ ] no bulk customer login Users were created;
-- [ ] historical referral/service evidence was preserved or explicitly left for review;
-- [ ] 31-service catalogue reconciled safely;
-- [ ] managed services have short descriptions;
-- [ ] managed services have detailed descriptions;
-- [ ] managed services have service-specific support messages;
-- [ ] managed services default to `Employee` assignment;
-- [ ] eligible Employee assignment works with Manager fallback if necessary;
-- [ ] required-document templates and form fields are valid;
-- [ ] scheduler is enabled;
-- [ ] OMC assets were built;
-- [ ] production runtime was restarted/reloaded;
-- [ ] final catalogue and service-presentation validations are clean;
-- [ ] `bench doctor` is healthy;
-- [ ] human-readable configuration log is retained;
-- [ ] raw evidence directory is retained securely;
+- [ ] correct Bench/site confirmed;
+- [ ] pre-install/update backup exists;
+- [ ] `omc_app` installed from the correct deployment source;
+- [ ] ERP contract validates;
+- [ ] OMC initialization completes;
+- [ ] customer/staff migration converges without bulk login-user creation;
+- [ ] service catalogue preview/sync/validation succeeds;
+- [ ] service presentation validation succeeds;
+- [ ] app-ready defaults preview/sync/validation succeeds;
+- [ ] scheduler enabled;
+- [ ] assets built;
+- [ ] production runtime restarted/reloaded;
+- [ ] configuration log retained;
+- [ ] raw evidence retained securely;
 - [ ] customer login/activation smoke test works;
-- [ ] service catalogue/detail UI shows the new copy correctly;
 - [ ] service request/document/payment flow works;
-- [ ] staff assignment/task visibility works;
+- [ ] configured reusable-document behavior works;
+- [ ] ERP settlement gating works;
+- [ ] one-request/one-Task activation contract works;
+- [ ] customers do not see internal ERP Task records;
+- [ ] staff scope/assignment works;
 - [ ] support/notification flow works;
-- [ ] production URL, HTTPS, email and deep links are verified.
+- [ ] production URL/HTTPS/email/deep links verified.
 
 ---
 
-# Final Deployment Rule
-
-The client-facing operational rule is:
+# Final deployment rule
 
 ```text
-Install OMC
-    -> run configuration.sh
-    -> allow the guarded migration/catalogue process to finish
-    -> review the readable result and raw evidence
-    -> smoke-test production
+Backup
+  -> install/update omc_app
+  -> run configuration.sh
+  -> review guarded migration/catalogue/app-default results
+  -> restart runtime
+  -> smoke-test production
 ```
 
-Do not replace that flow with ad-hoc manual database edits or a shortened sequence that skips backups, preflight or validation.
+Do not replace this with ad-hoc database edits, ERPNext core changes, or a shortened sequence that skips backups, preflight or validation.
