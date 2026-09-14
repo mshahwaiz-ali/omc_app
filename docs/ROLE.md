@@ -2,7 +2,7 @@
 
 This document describes the current access-control model used by the OMC Flutter app and Frappe backend.
 
-Source cross-check: **25 August 2026**, branch `main`.
+Source cross-check: **14 September 2026**, branch `main`.
 
 > **Authority rule:** backend capabilities and record scope are the security boundary. Flutter visibility, Frappe Role names, Desk permissions, and legacy profile fields do not independently grant protected OMC authority.
 
@@ -94,7 +94,7 @@ A guest is not a customer or staff identity.
 
 Guests may receive only explicitly public capabilities, currently including public catalogue/content access and the public tax calculator where supported.
 
-Guests must not receive customer-owned records or internal operations.
+Guests must not receive customer or internal records.
 
 ## Customer
 
@@ -291,6 +291,8 @@ Examples of internal capability domains include:
 - internal notifications.
 
 Approved staff also receive the internal baseline required to enter the workspace, view tasks, and receive internal notifications.
+
+ERP Task visibility is an internal capability surface. Customer service tracking uses customer-owned `OMC Service Request` state and does not grant customers visibility into internal ERP Task records.
 
 ---
 
@@ -561,7 +563,7 @@ can_access_customer_dashboard
 can_view_customer_notifications
 ```
 
-Customer capability does not grant internal workspace access.
+Customer capability does not grant internal workspace access or internal ERP Task visibility.
 
 A pending/blocked customer remains limited even if the Frappe User is authenticated.
 
@@ -799,6 +801,7 @@ The following rules should remain true during future changes:
 - suspended/rejected access must survive reconciliation;
 - reviewed persona conflicts fail closed;
 - customer ownership is server-side enforced;
+- customers do not receive internal ERP Task visibility through ordinary customer capabilities;
 - assigned/relevant scope must not become global scope accidentally;
 - referral ownership is separate from finance commission authority;
 - personal commission visibility is self-scoped;
@@ -822,7 +825,7 @@ Any role/capability change should test at least the affected boundaries:
 7. referral/personal-commission/finance-commission separation when relevant;
 8. Staff Access reconciliation behavior if persona provisioning changes.
 
-The latest recorded broader backend regression snapshot in the root README is **932 / 932 passed** for the implementation state cross-checked on 25 August 2026.
+Historical regression counts are not treated as proof of the current HEAD. Role/capability changes should be validated against the exact checkout and target environment being released.
 
 ---
 
