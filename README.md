@@ -1,5 +1,7 @@
 # OMC App — Frappe Backend
 
+Source cross-check: **14 September 2026**, branch `main`.
+
 This directory is the authoritative custom Frappe application `omc_app` used by the OMC House mobile/customer platform.
 
 Current client target:
@@ -71,9 +73,10 @@ The app provides:
 - capability, ownership and break-glass checks;
 - service catalogue and service templates;
 - payment-first service-request lifecycle;
-- stable document requirements and uploads;
+- stable document requirements, upload/replacement, review and policy-driven reuse;
 - payment/receipt workflow and ERP accounting reconciliation;
 - durable ERP Service/Task activation;
+- one authoritative ERP Task per activated OMC Service Request as the target production execution contract;
 - assignment and workflow automation;
 - referrals and commission lifecycle;
 - support, notifications, push delivery and customer settings;
@@ -104,6 +107,25 @@ Frappe System User
 ```
 
 `System Manager` is not implicit OMC business authority.
+
+## Service execution contract
+
+The customer-facing service record and internal ERP execution record are intentionally separate:
+
+```text
+OMC Service Request
+        |
+        | payment/accounting eligibility satisfied
+        v
+OMC Bridge Operation
+        |
+        +--> ERP Service
+        +--> exactly one authoritative ERP Task
+```
+
+The `OMC Service Request` is the customer-facing lifecycle. The ERP Task is internal operational work and must not be exposed to the customer as the customer-facing service record.
+
+Any retained one-to-many Task compatibility code is conformance debt rather than the intended production architecture.
 
 ## Main package map
 
@@ -164,6 +186,60 @@ Explicit reconciliation:
 bench --site <site> execute omc_app.setup.operations.sync_service_catalogue
 ```
 
+## Required documents and reuse
+
+Required-document identity is based on stable `document_key` values rather than display text alone.
+
+Supported reuse policies are:
+
+```text
+Always New
+Reusable Until Replaced
+Reusable for N Days
+```
+
+`Always New` is the safe default.
+
+The current reusable-document engine can materialize approved evidence from an earlier request when backend eligibility permits it. Current reuse is constrained by rules including:
+
+- same canonical customer;
+- same service;
+- matching stable document requirement;
+- approved source evidence;
+- configured reuse policy;
+- configured validity period where applicable;
+- valid replacement/archive state.
+
+The request-local reused projection records provenance using fields such as `source = Existing Document` and `source_document`.
+
+A fresh customer upload can replace that request-local projection through guarded backend logic.
+
+Reusable evidence satisfies document eligibility only. It does not bypass payment, ERP accounting settlement or activation rules.
+
+### Current catalogue configuration boundary
+
+At the current repository baseline, the source-controlled catalogue provisioner does not assign `reuse_policy` or `reuse_validity_days` for managed required-document rows.
+
+Therefore catalogue synchronization alone does not make a requirement reusable. Runtime reuse depends on the requirement row's actual configured policy until a source-controlled reuse-policy model is explicitly introduced.
+
+## Payment and accounting authority
+
+`OMC Service Payment` represents OMC payment/customer-receipt workflow; it is not the final ERP accounting authority.
+
+For positive-price Full Settlement services:
+
+```text
+required-document eligibility
+        -> payment/receipt workflow
+        -> ERP accounting evidence
+        -> settlement reconciliation
+        -> activation eligibility
+```
+
+Receipt approval alone must not force final Paid/settled state.
+
+Final settlement is established through ERP accounting reconciliation, and activation eligibility is rechecked before operational ERP writes.
+
 ## Validation
 
 Backend regression suite:
@@ -173,12 +249,7 @@ cd /home/frappe/frappe-bench
 bench --site <site> run-tests --app omc_app --skip-test-records
 ```
 
-Latest locally verified complete OMC backend regression checkpoint on 8 September 2026:
-
-```text
-Ran 1028 tests
-OK
-```
+Historical test counts are not treated as proof of the current HEAD. Before production release or deployment, rerun the applicable suite against the exact release commit and target site.
 
 ## Security boundaries
 
@@ -190,7 +261,9 @@ OK
 - break-glass grants are explicit, temporary and scoped;
 - sensitive mutations use guarded APIs;
 - payment/accounting eligibility is rechecked before ERP activation;
+- receipt review does not replace ERP accounting settlement;
 - document identity cannot be bypassed by display labels;
+- clients cannot impersonate backend-created reused-document provenance;
 - push tokens/bindings are account/device scoped;
 - ERPNext/Frappe core remains untouched.
 
@@ -220,4 +293,5 @@ This keeps one development source of truth and removes manual backend-folder cop
 - repository overview: `../../../../README.md` on `main`;
 - roles/capabilities: `../../../../docs/ROLE.md` on `main`;
 - product feature guide: `../../../../docs/OMC_APP_FEATURES.md` on `main`;
+- Flutter/backend API contract: `../../../../omc_app/docs/backend_api_contract.md` on `main`;
 - archived backend/deployment notes: `../../../docs/README.md` on `main`.
