@@ -190,6 +190,8 @@ def _assert_document_submission_available(
     ]
     if _has_field("OMC Service Document", "document_key"):
         fields.insert(1, "document_key")
+    if _has_field("OMC Service Document", "source"):
+        fields.append("source")
 
     existing = frappe.get_all(
         "OMC Service Document",
@@ -201,6 +203,7 @@ def _assert_document_submission_available(
         order_by="creation desc",
     )
 
+    reusable_projection = ""
     for row in existing:
         if int(getattr(row, "is_archived", 0) or 0):
             continue
@@ -220,6 +223,9 @@ def _assert_document_submission_available(
 
         status = (row.status or "").strip()
         if status in ACTIVE_DOCUMENT_STATUSES:
+            if (getattr(row, "source", None) or "").strip() == "Existing Document":
+                reusable_projection = row.name
+                continue
             frappe.throw(
                 (
                     f"{document_title} already has an active submission "
@@ -228,6 +234,31 @@ def _assert_document_submission_available(
                 ),
                 frappe.ValidationError,
             )
+
+    return reusable_projection
+
+
+def _archive_reused_projection(document_name):
+    if not document_name:
+        return
+
+    values = {}
+    if _has_field("OMC Service Document", "is_archived"):
+        values["is_archived"] = 1
+    if _has_field("OMC Service Document", "archived_on"):
+        values["archived_on"] = frappe.utils.now_datetime()
+    if _has_field("OMC Service Document", "archive_reason"):
+        values["archive_reason"] = "Replaced"
+    if _has_field("OMC Service Document", "visible_to_customer"):
+        values["visible_to_customer"] = 0
+
+    if values:
+        frappe.db.set_value(
+            "OMC Service Document",
+            document_name,
+            values,
+            update_modified=False,
+        )
 
 
 def _cleanup_failed_unlinked_upload(uploaded_file):
@@ -418,7 +449,7 @@ def _upload_service_document(**kwargs):
         document_type=document_type,
     )
 
-    _assert_document_submission_available(
+    reused_projection = _assert_document_submission_available(
         service_case,
         document_title,
         document_type,
@@ -442,7 +473,8 @@ def _upload_service_document(**kwargs):
     doc.document_type = document_type
     doc.status = "Uploaded"
     if _has_field("OMC Service Document", "source"):
-        doc.source = kwargs.get("source") or "Service Upload"
+        # Customer input must never impersonate server-created reused evidence.
+        doc.source = "Service Upload"
     doc.visible_to_customer = 1
     doc.quarantine_status = quarantine_status
     if _has_field("OMC Service Document", "is_archived"):
@@ -477,6 +509,7 @@ def _upload_service_document(**kwargs):
             update_modified=False,
         )
         doc.attachment = attachment
+        _archive_reused_projection(reused_projection)
     except Exception:
         _cleanup_failed_unlinked_upload(uploaded_file)
         raise
@@ -496,6 +529,7 @@ def _upload_service_document(**kwargs):
     return {
         "uploaded": True,
         "payment_id": payment_name,
+        "replaced_document": reused_projection,
         "document": {
             "name": doc.name,
             "case_id": doc.service_request,

@@ -3,7 +3,7 @@ from __future__ import annotations
 import frappe
 from frappe.utils import flt
 
-from omc_app.api import mobile, security
+from omc_app.api import mobile, security, service_document_reuse
 
 PAYMENT_DOCTYPE = "OMC Service Payment"
 FINANCIAL_PAYMENT_STATUSES = {"Receipt Submitted", "Under Review", "Paid"}
@@ -114,6 +114,7 @@ def ensure_service_payment(request_name: str):
         return None
     if _text(request.discount_status) == "Pending Approval":
         return None
+    service_document_reuse.ensure_reusable_documents(request)
     if not _required_documents_uploaded(request):
         return None
 
