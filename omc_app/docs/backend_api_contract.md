@@ -1,6 +1,12 @@
 # OMC Flutter ↔ Frappe Backend API Contract
 
-Source cross-check: **25 August 2026**, branch `main`.
+Source cross-check: **14 September 2026**, branch `main`.
+
+Implementation baseline for this contract refresh:
+
+```text
+0813d3b7 feat: reuse approved customer documents across service requests
+```
 
 This document describes the current API contract used by the Flutter application. Method-name source of truth is:
 
@@ -8,7 +14,7 @@ This document describes the current API contract used by the Flutter application
 lib/core/config/api_config.dart
 ```
 
-> The backend remains authoritative for identity, capabilities, ownership, workflow state, pricing, document requirements, payment eligibility and protected mutations. Flutter must not infer authority from a route or local role label.
+> The backend remains authoritative for identity, capabilities, ownership, workflow state, pricing, document requirements, document reuse, payment eligibility, settlement and protected mutations. Flutter must not infer authority from a route, local role label or local document state.
 
 ---
 
@@ -159,6 +165,8 @@ The backend is responsible for:
 
 Flutter must not directly create ERP Service/Task records.
 
+The production execution contract is one OMC Service Request to one authoritative ERP Task after activation eligibility is satisfied. ERP Task details remain internal operational data rather than the customer-facing service record.
+
 ---
 
 # 8. Customer service cases
@@ -179,7 +187,8 @@ Case detail can include:
 - canonical lifecycle/operational status;
 - pricing/payment contract;
 - required documents;
-- submitted documents;
+- submitted/reused documents;
+- document source/provenance where customer-safe;
 - timeline/progress;
 - customer next actions;
 - assignment context where customer-safe;
@@ -191,7 +200,7 @@ Backend record ownership is authoritative.
 
 # 9. Required-document contract
 
-Required-document entries can include stable identity fields:
+Required-document entries can include stable identity and reuse fields:
 
 ```json
 {
@@ -202,13 +211,37 @@ Required-document entries can include stable identity fields:
   "type": "Identity",
   "document_type": "Identity",
   "is_required": 1,
-  "status": "Required"
+  "status": "Required",
+  "reuse_policy": "Always New",
+  "reuse_validity_days": 0
 }
 ```
 
 `document_key` is authoritative when both template and upload are keyed.
 
+Supported reuse policies are:
+
+```text
+Always New
+Reusable Until Replaced
+Reusable for N Days
+```
+
+`Always New` is the safe default. Flutter must consume backend-provided reuse configuration and must not independently decide that a prior document is reusable.
+
+Current reusable-document matching is deliberately constrained by backend rules including:
+
+- same canonical customer;
+- same service;
+- matching stable requirement identity;
+- approved/eligible source evidence;
+- configured reuse policy;
+- configured validity period where applicable;
+- replacement/archive eligibility.
+
 New requirements may be request-grandfathered by backend `effective_from` logic; Flutter should consume the returned applicable requirement set and must not independently decide whether a requirement applies to an older request.
+
+At the current implementation baseline, the source-controlled catalogue provisioner does not itself assign `reuse_policy` or `reuse_validity_days`; runtime reuse therefore depends on the actual configured requirement row.
 
 ---
 
@@ -235,14 +268,24 @@ omc_app.api.customer_documents.update_service_document_status
 
 For a required-document upload, Flutter sends the selected requirement identity with the request/file data. The backend validates/canonicalises requirement identity before storage.
 
-A typical returned document can expose both:
+A typical returned service document can expose:
 
-```text
-document_key
-key
+```json
+{
+  "document_key": "cnic_front_image",
+  "key": "cnic_front_image",
+  "status": "Approved",
+  "source": "Existing Document",
+  "source_document": "OMC-SDOC-00001",
+  "is_reused": true
+}
 ```
 
-for compatibility.
+`source = "Existing Document"` identifies backend-created request-local reused evidence. `source_document` points to the approved earlier document when available.
+
+A customer upload must not be allowed to impersonate server-created reused evidence. The backend stores a genuine customer upload as `Service Upload` regardless of any client-supplied source hint.
+
+If a request currently contains a reused projection and the customer uploads a fresh replacement for that same requirement, the backend can archive the reused projection as replaced and keep the new upload as the active request document.
 
 Generic `upload_file` remains available for supported non-service-document upload flows, but required service documents should use the canonical service-document endpoint.
 
@@ -261,6 +304,10 @@ omc_app.api.payments.review_payment_receipt
 ```
 
 Customer payment/receipt state is not itself ERP settlement authority. Full-settlement service activation is gated by backend accounting evidence.
+
+Before required-document readiness blocks payment creation, the backend may materialize qualifying reusable documents for the request. Therefore Flutter should treat the returned backend document/payment state as authoritative rather than assuming every requirement needs a fresh upload.
+
+A reused document satisfies document eligibility only. It does not bypass payment, settlement or activation rules.
 
 Flutter should render backend-provided payment eligibility/action state and must not assume that a locally uploaded receipt means the service is activated.
 
@@ -380,6 +427,8 @@ omc_app.api.mobile.create_lead
 
 ERPNext Customer/Lead/Task remain ERP business records. OMC endpoints apply guarded mobile/internal access around them.
 
+ERP Tasks are internal operational records. Customer-facing service tracking should use the OMC Service Request contract rather than exposing internal Task details to the customer.
+
 ---
 
 # 20. Internal workspace and admin operations
@@ -438,8 +487,10 @@ Compatibility must not:
 - widen access;
 - change identity authority;
 - allow title-only matching when stable document keys are present;
+- let a client impersonate backend-created reused document provenance;
 - let a legacy referral flag imply commission approval/payment authority;
-- bypass payment/accounting activation gates.
+- bypass payment/accounting activation gates;
+- expose internal ERP Task details as the customer service record.
 
 ---
 
@@ -462,12 +513,12 @@ Mutating retry behavior must respect backend idempotency rules.
 
 # 24. Contract maintenance
 
-When a new backend endpoint is added or renamed:
+When a new backend endpoint or material response field is added or renamed:
 
-1. add/update the method constant in `lib/core/config/api_config.dart`;
+1. add/update the method constant in `lib/core/config/api_config.dart` where applicable;
 2. update the relevant repository/model;
 3. preserve backend authority and safe response parsing;
 4. add/adjust contract tests;
-5. update this document if the public contract materially changed.
+5. update this document when the public contract materially changes.
 
 The code is the final source of truth if this document ever diverges.
