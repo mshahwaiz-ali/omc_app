@@ -1,8 +1,8 @@
 # OMC House Flutter App
 
-Source cross-check: **25 August 2026**, branch `main`.
+Source cross-check: **14 September 2026**, branch `main`.
 
-The Flutter application is the customer and authorised-staff client for OMC House. It connects to the custom Frappe `omc_app` backend and treats backend identity, capabilities, ownership, workflow state, pricing, document requirements, payment eligibility and ERP activation as authoritative.
+The Flutter application is the customer and authorised-staff client for OMC House. It connects to the custom Frappe `omc_app` backend and treats backend identity, capabilities, ownership, workflow state, pricing, document requirements, document reuse, payment eligibility, settlement and ERP activation as authoritative.
 
 ---
 
@@ -24,7 +24,7 @@ The Flutter application is the customer and authorised-staff client for OMC Hous
 
 > Flutter renders the experience; it does not grant authority.
 
-The app consumes backend capability/access state and must not infer protected access from a route, local role label, or visible button.
+The app consumes backend capability/access state and must not infer protected access from a route, local role label, visible button, or locally cached workflow state.
 
 Customer records remain ownership-scoped. Internal operations require canonical backend capabilities.
 
@@ -43,7 +43,7 @@ Current Flutter features include:
 - service catalogue and service detail;
 - service request creation;
 - My Services / service-case tracking;
-- inline required-document upload/replacement;
+- required-document reuse/upload/replacement;
 - customer document list/detail;
 - payment list/detail and receipt upload;
 - notifications and push-token registration;
@@ -67,19 +67,23 @@ The current service journey is backend driven:
 ```text
 Browse service
     -> create request
-    -> required documents
+    -> required-document eligibility
+         -> reuse qualifying approved document when allowed
+         -> otherwise upload/replace document
     -> payment/receipt workflow
-    -> backend accounting/activation gate
-    -> ERP Service + Task activation
-    -> tracking/progress
+    -> ERP accounting settlement gate
+    -> ERP Service + exactly one authoritative ERP Task
+    -> tracking/progress through OMC Service Request
     -> completion
 ```
 
 Flutter does not create ERP execution records directly.
 
+The customer-facing service lifecycle is the `OMC Service Request`. The ERP Task is internal operational work and must not be exposed to the customer as the customer-facing service record.
+
 ---
 
-## Required-document uploads
+## Required-document eligibility
 
 Required-document rows carry stable backend identity (`document_key`).
 
@@ -87,7 +91,37 @@ When a user uploads or replaces a requirement, Flutter sends the selected requir
 
 This prevents a locally supplied label from redefining a service requirement.
 
-After a successful upload the app refreshes the relevant case/document/dashboard state so the user sees the latest backend contract.
+### Reusable documents
+
+A required-document response may also include backend reuse metadata such as:
+
+```text
+reuse_policy
+reuse_validity_days
+source
+source_document
+is_reused
+```
+
+Supported reuse policies are:
+
+```text
+Always New
+Reusable Until Replaced
+Reusable for N Days
+```
+
+`Always New` remains the safe default.
+
+Current reuse is deliberately constrained by backend rules including the same canonical customer, same service, matching stable requirement identity, approved source evidence, configured policy, validity period where applicable, and replacement/archive eligibility.
+
+Flutter does not decide whether a prior document is reusable. It renders the state returned by the backend.
+
+When a requirement is already satisfied by reused evidence, the UI may present it as already on file and allow replacement where supported. A fresh replacement upload supersedes the request-local reused projection through backend logic.
+
+Reusable evidence satisfies document eligibility only. It does not bypass payment, settlement or activation.
+
+After a successful upload/replacement, the app refreshes the relevant case/document/dashboard state so the user sees the latest backend contract.
 
 ---
 
@@ -124,7 +158,7 @@ OMC_LINK_BASE_URL
 OMC_SENTRY_DSN
 ```
 
-Development defaults can use a local backend. Production release builds enforce the production environment/origin rules defined in `ApiConfig` and require a valid HTTPS diagnostics DSN.
+Development defaults can use a local backend. Production release builds enforce the production environment/origin rules defined in `ApiConfig` and require the diagnostics configuration expected by the current build profile.
 
 Current production origin:
 
@@ -153,7 +187,7 @@ Current canonical areas include:
 - dashboard/quick actions;
 - service catalogue/templates;
 - secured service cases;
-- customer documents and service-document upload;
+- customer documents and service-document reuse/upload;
 - payments/receipt upload/review;
 - profile/settings;
 - knowledge/FAQ/banners/onboarding;
@@ -215,14 +249,7 @@ flutter test
 
 Focused contract tests are useful during feature development, but broad regression validation is still required before release.
 
-Latest directly observed validation relevant to the recent service-case document work:
-
-```text
-customer_service_case_detail_contract_test: 4 / 4 passed
-flutter analyze: No issues found
-```
-
-This is evidence for that tested state, not a guarantee for later changes.
+Historical pass counts are not treated as proof of the current HEAD unless those tests are rerun against the exact checkout and environment being released.
 
 ---
 
@@ -299,7 +326,10 @@ Do not reintroduce old production assumptions such as:
 - customer-side authority based only on local role labels;
 - specialist self-signup as a route to internal access;
 - direct ERP activation from Flutter;
-- title-only required-document matching when stable keys exist.
+- title-only required-document matching when stable keys exist;
+- assuming every required document must be freshly uploaded;
+- exposing internal ERP Tasks as customer service records;
+- treating receipt submission as final accounting settlement.
 
 Compatibility aliases may remain in the backend for older clients, but new Flutter code should use the canonical methods in `ApiConfig`.
 
