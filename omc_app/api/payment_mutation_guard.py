@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import frappe
+from frappe.utils import flt
 
 from omc_app.api import mobile, payment_accounting, payments
 from omc_app.omc_app.doctype.omc_service_payment.omc_service_payment import (
@@ -50,6 +51,19 @@ def _load_mutable_payment(payment_id):
             f"is {request_status}."
         )
     return payment
+
+
+def _assert_receipt_upload_allowed(payment):
+    status = (payment.status or "").strip()
+    accounted_amount = max(
+        flt(getattr(payment, "accounted_amount", 0) or 0, 6),
+        0,
+    )
+    if status == "Partially Paid" or accounted_amount > 0.000001:
+        frappe.throw(
+            "This installment already has ERP settlement evidence. Open another payment installment for the remaining balance.",
+            frappe.ValidationError,
+        )
 
 
 def _same_text(current, requested):
@@ -122,6 +136,7 @@ def upload_payment_receipt_file(
 ):
     resolved_id = _payment_id(payment_id, name)
     payment = _load_mutable_payment(resolved_id)
+    _assert_receipt_upload_allowed(payment)
     activated_status = _activated_case_snapshot(payment)
     response = payments.upload_payment_receipt_file(
         payment_id=resolved_id,
@@ -145,6 +160,7 @@ def upload_payment_receipt_multipart(
 ):
     resolved_id = _payment_id(payment_id, name)
     payment = _load_mutable_payment(resolved_id)
+    _assert_receipt_upload_allowed(payment)
     activated_status = _activated_case_snapshot(payment)
     response = payments.upload_payment_receipt_multipart(
         payment_id=resolved_id,
