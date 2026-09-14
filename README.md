@@ -8,35 +8,19 @@ OMC App is the customer and operations platform for **OMC House**. The repositor
 
 ## Current state
 
-Source cross-check: **25 August 2026**, branch `main`.
+Source cross-check: **14 September 2026**, branch `main`, repository HEAD `0813d3b7fed0de3662fa906ed1fbe6031360a362`.
 
-Latest implementation commit before this documentation refresh:
+Current HEAD:
 
-```text
-f668f779 feat: productionize service catalogue and document identity
-```
+    0813d3b7 feat: reuse approved customer documents across service requests
 
-Latest directly observed validation for that implementation:
+This documentation refresh does not itself constitute fresh release validation.
 
-```text
-Backend OMC suite:                 932 / 932 passed
-Flutter case-detail contract:        4 / 4 passed
-Flutter analyze:                  No issues found
+The current development cycle has accumulated backend and Flutter regression coverage across service requests, documents, payments, accounting reconciliation, activation, commissions and client contracts.
 
-Production catalogue validation:
-  categories:                         9 unchanged
-  services:                          31 unchanged
-  required documents:               93 unchanged
-  form fields:                       62 unchanged
-  total managed objects:            195 unchanged
-  pending creates:                    0
-  pending updates:                    0
-  pending deactivations:              0
-  conflicts:                          0
-  blockers:                           0
-```
+Historical pass counts are not treated as proof of the current HEAD unless the relevant suites are rerun against the exact checkout and target site.
 
-These numbers describe the exact tested repository/site state. A later code change or different site must be validated again.
+Before production release or deployment, validate the exact release commit and environment using the commands documented under **Validation** below.
 
 ---
 
@@ -297,11 +281,29 @@ This prevents catalogue evolution from silently changing the document contract o
 
 ---
 
-## Customer document upload flow
+## Customer document eligibility and reuse
+
+Required-document eligibility is backend controlled.
+
+For a required document, the backend can use either:
+
+    Required document
+            |
+            +------> qualifying approved reusable document already on file
+            |              |
+            |              v
+            |        request-local reused document projection
+            |
+            +------> no eligible reusable document
+                           |
+                           v
+                     customer upload
+
+### New uploads
 
 Flutter can upload directly against a required-document row on a service case. The client sends the selected requirement identity, including the service request, `document_key`, title, type, and attachment.
 
-The backend still remains authoritative. It:
+The backend remains authoritative. It:
 
 1. loads the request;
 2. verifies customer ownership/access;
@@ -312,7 +314,39 @@ The backend still remains authoritative. It:
 7. validates the attachment;
 8. stores canonical identity.
 
-Generic legacy/non-template uploads remain supported where intentionally allowed.
+Generic legacy/non-template uploads remain supported only where intentionally allowed.
+
+### Reusable documents
+
+Approved documents from an earlier request may satisfy a later requirement when the configured reuse policy allows it.
+
+The current reuse engine is deliberately scoped to:
+
+- the same canonical customer;
+- the same service;
+- the matching stable document requirement;
+- approved/eligible evidence;
+- an eligible reuse policy;
+- the configured validity period where applicable;
+- valid replacement/archive state.
+
+Supported policies are:
+
+- `Always New`
+- `Reusable Until Replaced`
+- `Reusable for N Days`
+
+`Always New` is the safe default.
+
+Reuse creates request-local evidence pointing to the already approved document. It does not modify the source document and it does not bypass payment or accounting settlement.
+
+### Current configuration boundary
+
+At the current repository HEAD, the source-controlled service-catalogue provisioner does **not** provision `reuse_policy` or `reuse_validity_days`.
+
+Therefore, catalogue synchronization does not automatically turn managed requirements into reusable requirements.
+
+Reuse depends on the actual policy configured on the applicable `OMC Service Required Document` row until a source-controlled reuse-policy model is explicitly introduced.
 
 ---
 
@@ -360,7 +394,7 @@ Ready for Activation
 Durable bridge
         |
         v
-ERP Service + ERP Task
+ERP Service + exactly one authoritative ERP Task
         |
         v
 In Progress
@@ -369,6 +403,18 @@ In Progress
 For the default `Full Settlement` policy, the bridge requires settled accounting evidence before ERP activation. Explicit no-charge and authorised post-paid policies are handled separately.
 
 A customer-visible receipt is not itself the ERP accounting authority.
+
+### Operational Task contract
+
+The intended production execution contract is:
+
+> **One OMC Service Request = one authoritative ERP Task.**
+
+The Service Request is the customer-facing service lifecycle.
+
+The ERP Task is internal operational work and must not be exposed to the customer as the customer-facing service record.
+
+Any retained legacy one-to-many Task behavior is compatibility/conformance debt rather than the target production architecture.
 
 ---
 

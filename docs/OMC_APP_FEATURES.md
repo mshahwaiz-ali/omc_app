@@ -1,33 +1,26 @@
 # OMC App — Current Feature Catalogue
 
-Source cross-check: **25 August 2026**, branch `main`.
+Source cross-check: **14 September 2026**, branch `main`, repository HEAD `0813d3b7fed0de3662fa906ed1fbe6031360a362`.
 
-This document describes implemented OMC App features and the current authority boundaries between Flutter, the custom Frappe app, and ERPNext.
+This document is the current OMC App feature inventory.
 
-> **Authority rule:** Flutter controls presentation and navigation. The OMC/Frappe backend remains authoritative for identity, access, ownership, capabilities, pricing, workflow state, documents, payments, assignment, ERP activation, and protected mutations.
+It describes the intended production feature set and the authority boundaries between Flutter, the custom OMC Frappe application, and ERPNext v14.
+
+> **Authority rule:** Flutter controls presentation and navigation. The OMC/Frappe backend remains authoritative for identity, access, ownership, capabilities, pricing, workflow state, documents, payments, assignment, settlement, ERP activation and protected mutations.
+
+Where current source still contains legacy behavior that conflicts with the intended production model, it is listed separately under **Known Conformance Gaps** rather than presented as a supported feature.
 
 ---
 
-## Validation snapshot
+## Validation status
 
-Latest directly observed validation for the current implementation before this documentation refresh:
+This documentation refresh does not itself constitute a fresh release validation.
 
-```text
-Backend OMC suite:                 932 / 932 passed
-Flutter case-detail contract:        4 / 4 passed
-Flutter analyze:                  No issues found
+The repository has accumulated focused backend and Flutter regression coverage during the current development cycle, including service-request, document-reuse, payment, activation and client-contract tests.
 
-Production service catalogue:
-  categories:                         9 unchanged
-  services:                          31 unchanged
-  required documents:               93 unchanged
-  form fields:                       62 unchanged
-  total managed objects:            195 unchanged
-  pending creates/updates:            0 / 0
-  conflicts/blockers:                 0 / 0
-```
+Exact historical pass counts are intentionally not treated here as proof of the current HEAD unless the relevant suites are rerun against that exact checkout and site.
 
-These results describe the exact tested repository/site state. They are not a substitute for validating a later commit or another site.
+Before production release or deployment, rerun the applicable backend tests, Flutter tests and static analysis against the exact release commit and target environment.
 
 ---
 
@@ -35,19 +28,21 @@ These results describe the exact tested repository/site state. They are not a su
 
 **Implemented**
 
-- splash/onboarding flow;
-- guest entry;
-- capability-aware routing;
-- customer shell navigation;
-- internal workspace navigation for authorised users;
-- access-denied handling;
-- loading, empty, retry and safe-error states;
-- duplicate-action protection on sensitive actions;
-- deep-link normalisation;
-- fail-closed treatment of unsupported protected routes;
-- responsive Flutter layouts.
+* splash/onboarding flow;
+* guest entry;
+* authenticated routing;
+* customer navigation;
+* capability-aware internal navigation;
+* access-denied handling;
+* loading, empty, retry and safe-error states;
+* duplicate-action protection where applicable;
+* deep-link normalization;
+* responsive Flutter layouts;
+* fail-closed handling of unsupported protected routes.
 
-Flutter route visibility is not the security boundary; protected APIs re-check backend authority.
+Flutter route visibility is not the security boundary.
+
+Protected backend APIs always remain authoritative.
 
 ---
 
@@ -55,19 +50,21 @@ Flutter route visibility is not the security boundary; protected APIs re-check b
 
 **Implemented**
 
-- password login;
-- session restoration;
-- logout and local session cleanup;
-- secure credential/session storage;
-- approval/access-state-aware post-login routing;
-- forgot/reset password flows;
-- email verification flows;
-- existing-customer activation flow;
-- guarded Google mobile login where configured;
-- friendly authentication errors;
-- optional local device lock using platform authentication.
+* password login;
+* session restoration;
+* logout and local cleanup;
+* protected authenticated requests;
+* approval/access-aware routing;
+* forgot/reset password flows;
+* email verification flows;
+* existing-customer activation;
+* supported social/mobile authentication where configured;
+* safe authentication errors;
+* optional local device lock.
 
-Device lock protects an already authenticated local session. It does not replace backend authentication.
+Local biometric/device lock protects an already authenticated local session.
+
+It does not replace backend authentication or authorization.
 
 ---
 
@@ -75,77 +72,97 @@ Device lock protects an already authenticated local session. It does not replace
 
 **Implemented — customer-only public signup**
 
-Current public self-registration accepts customer account types only. Internal staff personas are not granted through public signup.
+Public registration cannot provision internal staff authority.
 
-Registration includes supported customer identity/contact fields, username/password, acquisition context, and optional referral data. Backend validation remains authoritative.
+Registration supports controlled customer identity/contact information and optional referral/acquisition context.
 
-`OMC Pending Registration` provides guarded verification with:
+`OMC Pending Registration` supports verification controls including:
 
-- cryptographically random verification tokens;
-- stored token digests rather than plaintext secrets;
-- expiry and resend cooldown;
-- token rotation/supersede behavior;
-- safe terminal cleanup.
+* one-time verification secrets;
+* token digest storage;
+* expiry;
+* resend cooldown;
+* token supersession/rotation;
+* safe terminal cleanup;
+* collision handling.
 
-Staff access is provisioned separately from ERP/internal identity and canonical `OMC Staff Access` reconciliation.
+Internal employees and staff are provisioned through trusted ERP/internal processes instead.
 
 ---
 
-# 4. Customer identity authority
+# 4. Canonical customer identity
 
 **Implemented**
 
-Authenticated customer access uses:
+The customer identity relationship is:
 
 ```text
-Frappe Website User
-        |
-        v
+Frappe User
+     |
+     v
 OMC Customer Account
-        |
-        +------> ERP Customer
-        +------> OMC Customer Profile
+     |
+     +----> ERPNext Customer
+     |
+     +----> OMC Customer Profile
 ```
 
-`OMC Customer Account` is the canonical authenticated mapping. An account must have the required verified, linked and approved state before protected customer capabilities are enabled.
+### ERPNext Customer
 
-`OMC Customer Profile` remains a business/profile and compatibility record, but it does not independently override canonical account authority.
+ERPNext `Customer` remains the canonical business customer.
 
-Customer reads/writes are ownership-scoped.
+### OMC Customer Account
+
+`OMC Customer Account` is the protected authenticated mapping between the Frappe login and the ERP Customer.
+
+### OMC Customer Profile
+
+`OMC Customer Profile` remains an OMC application/profile projection and compatibility record.
+
+It does not replace ERP Customer as the business master.
+
+Customer operations are ownership-scoped.
 
 ---
 
-# 5. Existing ERP customer migration and claims
+# 5. Existing ERP customer migration
 
 **Implemented**
 
-`omc_app.api.customer_migration` classifies existing ERP Customers without bulk-creating Frappe login users.
+Existing ERP Customers can be classified and linked into OMC customer/profile state without bulk-generating login users.
 
-Current deterministic identity priority is:
+Current deterministic identity resolution uses supported evidence such as:
 
 ```text
 1. unique valid Customer email
 2. unique linked-Lead CNIC
 3. unique safe resolved phone
 4. unique supported Customer tax ID / NTN
-5. identity review
+5. manual identity review
 ```
-
-Tax ID/NTN is a final deterministic fallback; it does not replace email/CNIC/phone precedence.
 
 Migration behavior includes:
 
-- read-only preflight;
-- explicit apply confirmation;
-- idempotent reuse of safe existing records;
-- profile-only migration where appropriate;
-- no shared/default password generation;
-- no bulk login-user creation;
-- preservation of ambiguous identities for review;
-- staff/referral reconciliation phases where configured;
-- historical attribution only when evidence is supportable.
+* read-only preflight;
+* explicit apply mode;
+* idempotent reruns;
+* reuse of safe existing records;
+* no shared/default passwords;
+* no required mass login-user creation;
+* ambiguous identities retained for review;
+* no unsupported historical relationship guessing.
 
-Existing-customer claim/activation is separated from business-profile migration.
+### Important lifecycle rule
+
+This migration does **not** need to be rerun whenever an already-linked customer later receives a new:
+
+* Service Request;
+* ERP Task;
+* document;
+* payment;
+* commission allocation.
+
+Those records continue to use the existing canonical ERP Customer relationship.
 
 ---
 
@@ -153,19 +170,38 @@ Existing-customer claim/activation is separated from business-profile migration.
 
 **Implemented**
 
-Imported customers can activate app login through the supported identity-proof flow rather than receiving generated passwords.
+Imported ERP Customers can later activate app login using the supported identity-proof workflow.
 
-The backend protects activation with enumeration-safe responses, expiring one-time tokens, collision checks, row locking where required, and explicit identity eligibility.
+The activation path protects against:
 
-Existing identities are not silently merged when ambiguity exists.
+* account enumeration;
+* identity collisions;
+* ambiguous matches;
+* expired tokens;
+* duplicate ownership;
+* unsafe automatic merges.
+
+Business migration and login activation remain separate operations.
 
 ---
 
-# 7. Internal staff access
+# 7. New ERP-only Customer onboarding
+
+**Partially automated / explicit onboarding required**
+
+A newly created ERP Customer that has no OMC identity relationship does not automatically become an app-enabled login solely because normal reconciliation runs.
+
+A supported onboarding/import/linking action is still required.
+
+This is intentional until a safe automatic discovery policy exists.
+
+---
+
+# 8. Internal staff access
 
 **Implemented**
 
-Canonical internal authority is:
+Canonical OMC staff authority is:
 
 ```text
 Frappe System User
@@ -173,143 +209,214 @@ Frappe System User
         v
 OMC Staff Access
         |
-        +------> capability rows
-        +------> access status
-        +------> reconciliation status
-        +------> persona snapshot/source
+        +--> status
+        +--> persona
+        +--> explicit capabilities
+        +--> record scope
 ```
 
-Normal protected staff access requires an approved, current Staff Access record.
+Normal protected internal access requires valid Staff Access.
 
-ERP-owned personas currently include:
+Supported ERP/internal personas can include:
 
-- `Consultant`;
-- `Tax Associates`;
-- `Business Partner`;
-- `Employee`.
+* Consultant;
+* Tax Associates;
+* Business Partner;
+* Employee.
 
-OMC-owned operational roles include:
+OMC operational roles include areas such as:
 
-- `OMC Admin`;
-- `OMC Manager`;
-- `OMC Support Agent`;
-- `OMC Document Reviewer`;
-- `OMC Finance Reviewer`.
+* administration;
+* management;
+* support;
+* document review;
+* finance review.
 
-Retired duplicate OMC specialist role names remain compatibility-only and must not be used as new authority.
+`System Manager` remains a Frappe infrastructure role.
 
-`System Manager` is a Frappe infrastructure role, not implicit OMC business authority.
+It does **not** automatically grant OMC business authority.
 
 ---
 
-# 8. Capability model and break-glass access
+# 9. Capabilities and break-glass access
 
 **Implemented**
 
-Backend capabilities cover areas such as:
+Backend capability controls cover areas such as:
 
-- internal workspace;
-- customer/lead visibility and management;
-- task visibility/management;
-- all/relevant/assigned service-case access;
-- assisted service creation;
-- service-status updates;
-- document queue/review;
-- payment queue/review;
-- settlement reconciliation;
-- support operations;
-- staff/business settings;
-- service reassignment;
-- bridge retry/recovery;
-- referral ownership;
-- personal commission visibility;
-- finance commission approval/payment.
+* internal workspace;
+* customer and lead access;
+* assisted service creation;
+* service-case visibility;
+* Task visibility;
+* service assignment;
+* document review;
+* payment review;
+* settlement reconciliation;
+* support operations;
+* bridge recovery;
+* referral ownership;
+* commission visibility;
+* commission finance operations.
 
-Exceptional access can be represented by scoped, expiring `OMC Break Glass Grant` records. Break-glass capability does not permanently mutate the user's normal authority.
+Exceptional access can use scoped `OMC Break Glass Grant` records.
+
+Break-glass grants can be:
+
+* capability-specific;
+* temporary;
+* record-scoped;
+* revoked;
+* audited.
+
+They do not permanently alter normal persona authority.
 
 ---
 
-# 9. Home and dashboards
+# 10. Home and dashboards
 
 **Implemented**
 
-- guest/public home experience;
-- approved-customer dashboard;
-- quick actions;
-- service/activity context;
-- notifications/profile entry points;
-- capability-aware internal workspace summaries;
-- safe unavailable/error states rather than fabricated success values.
+The application supports:
+
+* guest/public home;
+* customer dashboard;
+* quick actions;
+* service activity;
+* document/payment context;
+* notifications;
+* profile access;
+* authorised internal workspace summaries;
+* explicit unavailable/error states.
+
+Dashboard values must derive from real backend data rather than fabricated placeholders.
 
 ---
 
-# 10. Production service catalogue
+# 11. Service catalogue
 
-**Implemented and production-reconciled**
+**Implemented**
 
-The source-controlled catalogue defines:
+The service catalogue supports:
+
+* stable `service_id`;
+* categories;
+* active/inactive state;
+* pricing;
+* accounting/tax mapping;
+* required documents;
+* service form fields;
+* Task Type mapping;
+* availability;
+* activation/payment policy;
+* source-controlled provisioning.
+
+Current catalogue configuration contains:
 
 ```text
 9 categories
 31 services
-17 active
-14 inactive / review-required
-currency: PKR
-company: Omc House
-default activation policy: Full Settlement
 ```
 
-Catalogue source lives under:
+Some services remain inactive where business/commercial information is not approved.
 
-```text
-omc_app/setup/service_catalogue/
-```
-
-Key features:
-
-- stable `service_id` identity;
-- stable category identity;
-- exact existing ERP Task Type mapping;
-- no fuzzy Task Type matching;
-- no automatic ERP Task Type creation;
-- managed required-document definitions;
-- managed service form fields;
-- explicit commercial confidence/review state;
-- inactive services for unresolved pricing/scope rather than invented values;
-- idempotent preview/validate/sync operations;
-- in-flight request protection;
-- pricing-change safety;
-- rollback on failed sync;
-- stale managed-row deactivation instead of destructive deletion.
-
-Catalogue publishing is explicit. Normal `bench migrate` does not publish it.
+OMC must not invent commercial facts just to make a service active.
 
 ---
 
-# 11. Service request creation
+# 12. Catalogue provisioning
 
 **Implemented**
 
-Customer and authorised assisted-service flows create `OMC Service Request` records through backend authority.
+Operator-facing catalogue operations include explicit:
+
+* preview;
+* validation;
+* synchronization.
+
+Provisioning supports:
+
+* deterministic matching;
+* exact ERP Task Type mapping;
+* no fuzzy Task Type creation;
+* reconciliation of managed records;
+* in-flight request safety;
+* pricing-change safety;
+* stale managed-row deactivation;
+* rollback on failure;
+* idempotent reruns.
+
+Normal `bench migrate` does not implicitly publish the commercial catalogue.
+
+---
+
+# 13. Service Request creation
+
+**Implemented**
+
+Both customers and authorised internal staff can create `OMC Service Request` records through controlled backend workflows.
 
 Request creation protects:
 
-- customer identity/ownership;
-- active service eligibility;
-- canonical pricing snapshots;
-- duplicate/parallel-request policy;
-- required service input validation;
-- idempotency where applicable;
-- customer/referral attribution;
-- staff capability/scope for assisted creation.
+* ERP Customer authority;
+* service eligibility;
+* pricing;
+* tax/accounting context;
+* required service inputs;
+* required documents;
+* duplicate/parallel request policy;
+* referral context;
+* assisted-service scope;
+* idempotency.
+
+Important request facts are snapshotted so later catalogue changes do not silently rewrite an existing customer's commercial agreement.
 
 ---
 
-# 12. Request lifecycle
+# 14. Assisted/internal service creation
 
 **Implemented**
 
-The backend uses an explicit request-state machine with states including:
+Authorised staff can create or assist with a service for an existing customer.
+
+Assisted creation:
+
+* uses the canonical ERP Customer;
+* does not create a second customer master;
+* preserves customer ownership;
+* preserves document rules;
+* preserves payment-first rules;
+* preserves accounting authority;
+* records internal provenance;
+* remains capability-gated.
+
+Internal creation does not automatically bypass business rules.
+
+---
+
+# 15. Fundamental execution contract
+
+**Target production architecture**
+
+> **One OMC Service Request = one authoritative ERP Task.**
+
+The single Task represents internal operational execution for that requested service.
+
+Customers interact with the Service Request.
+
+Internal employees work with the ERP Task.
+
+A customer must not be exposed directly to internal ERP Task details.
+
+Legacy one-to-many Task code still exists in parts of the source and is documented under **Known Conformance Gaps**.
+
+---
+
+# 16. Service Request lifecycle
+
+**Implemented with legacy surfaces still under cleanup**
+
+Important lifecycle states include:
 
 ```text
 Draft
@@ -324,258 +431,701 @@ Expired
 Cancelled
 ```
 
-Customer-facing operational status is a compatibility projection over the canonical lifecycle.
+Customer-facing status can be a safe projection of the internal lifecycle.
 
-Terminal transitions also clean related review work, payment/document state, bridge operations, timeline state and notifications in the same transaction where required.
+Invalid transitions must fail closed.
 
----
-
-# 13. Required documents and stable document identity
-
-**Implemented end-to-end**
-
-Required-document templates and uploaded service documents support stable `document_key` identity.
-
-Rules:
-
-- when both sides have a key, `document_key` is authoritative;
-- a wrong key cannot match by title/type;
-- genuine legacy/unkeyed records can use exact normalized title + document-type fallback;
-- one upload can satisfy at most one requirement;
-- the backend canonicalises title/type from the requirement;
-- requirement identity is validated against the request's service;
-- arbitrary generic uploads remain supported only where intentionally allowed.
-
-### Grandfathering
-
-Required-document templates can carry `effective_from`. New managed requirements therefore apply to new requests without retroactively changing older in-flight contracts.
+Terminal transitions should keep related payment, document, bridge, ToDo, timeline and notification state consistent.
 
 ---
 
-# 14. Flutter required-document upload UX
-
-**Implemented and validated**
-
-Service-case detail can present inline required-document actions such as Upload or Replace.
-
-The client carries the selected requirement identity to the backend and refreshes relevant case/document/dashboard state after success.
-
-Accessibility semantics are preserved for document rows and actions.
-
----
-
-# 15. Document review
+# 17. Required-document configuration
 
 **Implemented**
 
-- customer-owned document listing/detail;
-- attachment validation;
-- service-request ownership validation;
-- upload/replacement;
-- reviewer queue;
-- document status and review reason;
-- capability-gated document attachments/review;
-- completion checks using the same stable requirement identity rules.
+Service requirements use stable `document_key` identity.
+
+Rules include:
+
+* keyed requirements prefer exact `document_key`;
+* an incorrect key cannot be accepted only because title/type matches;
+* legacy unkeyed history may use controlled compatibility matching;
+* one upload satisfies at most one requirement;
+* requirement identity must belong to the correct service;
+* new requirements can use effective-date/grandfathering behavior.
+
+This protects historical requests when catalogue requirements change later.
 
 ---
 
-# 16. Payment and accounting gate
+# 18. Document upload
 
 **Implemented**
 
-OMC separates customer payment/receipt workflow from ERP accounting authority.
+Protected document upload supports:
 
-`OMC Service Payment` tracks OMC payment state and evidence. `OMC Accounting Link` represents the accounting settlement relationship used by activation eligibility.
+* request ownership checks;
+* authorised staff scope;
+* requirement validation;
+* service relationship validation;
+* private file handling;
+* file restrictions;
+* replacement;
+* document review state;
+* upload security controls.
 
-For the default `Full Settlement` policy, ERP activation requires settled accounting evidence.
-
-The backend also supports explicit no-charge and authorised post-paid paths.
-
-Finance capabilities are separated between payment review, settlement reconciliation, post-paid approval and commission operations.
+Customers must never receive another customer's private document merely because the document name or type matches.
 
 ---
 
-# 17. Durable ERP activation bridge
+# 19. Reusable customer documents
 
 **Implemented**
 
-`OMC Bridge Operation` provides exactly-once-oriented activation behavior with:
+Approved documents can be reused for later requests when the configured reuse policy allows it.
 
-- deterministic operation keys;
-- request locking;
-- eligibility re-checks;
-- final settlement re-check before ERP writes;
-- bounded retry/backoff;
-- stale-processing lease recovery;
-- rollback around ERP operational writes;
-- failed/cancelled/completed terminal states;
-- authorised manual recovery;
-- audit events.
+Reuse eligibility is scoped using facts including:
 
-Successful activation requires committed ERP `Service` and ERP `Task` links.
+* same canonical customer;
+* same service;
+* same stable `document_key`;
+* accepted/approved document status;
+* reuse policy;
+* expiry/validity period;
+* replacement/invalidation state;
+* secure file ownership.
+
+A requirement marked **Always New** is never automatically reusable.
+
+Reusable documents satisfy document eligibility.
+
+They do **not** bypass payment or settlement.
+
+### Current configuration boundary
+
+Document reuse is available only when the applicable `OMC Service Required Document` row is configured with either:
+
+* `Reusable Until Replaced`; or
+* `Reusable for N Days`.
+
+`Always New` remains the safe default.
+
+At the current repository HEAD, the source-controlled service-catalogue provisioner does **not** provision `reuse_policy` or `reuse_validity_days`.
+
+Therefore, the reuse engine is implemented, but catalogue-managed requirements are not automatically made reusable merely by running catalogue synchronization. Reuse depends on the requirement's actual configured policy until a source-controlled policy model is explicitly introduced.
 
 ---
 
-# 18. Assignment and tasks
+# 20. Returning-customer document flow
 
 **Implemented**
 
-Assignment supports backend-controlled eligibility and can use explicit/default/referral/role-based resolution depending on the request and service configuration.
+The customer flow is no longer based on the assumption that every request requires a brand-new upload.
 
-Task visibility and mutation are capability/scope controlled. Flutter task views are not allowed to bypass backend assignment authority.
-
----
-
-# 19. Leads and customers
-
-**Implemented**
-
-Native ERPNext `Lead` and `Customer` remain the business source of truth. OMC provides guarded APIs and workflow integration rather than replacing these ERP masters with duplicate canonical records.
-
-Legacy OMC Lead data remains compatibility/retirement territory and must not regain authority merely because an old table exists.
-
----
-
-# 20. Referrals
-
-**Implemented**
-
-Referral ownership requires explicit capability and eligible staff persona. Referral attribution is stored separately from commission lifecycle so business provenance is not inferred from a payout record alone.
-
-Referral owners can have self-scoped referral/commission experiences without receiving finance authority.
-
----
-
-# 21. Commissions
-
-**Implemented**
-
-Current commission architecture includes:
-
-- `OMC Commission Allocation`;
-- commission lifecycle operations;
-- personal/beneficiary commission visibility;
-- finance commission operations;
-- approval/payment capabilities separated from referral ownership;
-- historical evidence/provenance handling;
-- safe legacy compatibility aliases that do not broaden finance authority.
-
----
-
-# 22. Support
-
-**Implemented**
-
-- customer support-ticket creation;
-- customer ticket visibility;
-- internal support queue;
-- staff reply/status/assignment actions under capability control;
-- relevant customer/service context;
-- customer-safe support communication.
-
----
-
-# 23. Notifications
-
-**Implemented**
-
-- customer notifications;
-- internal notifications;
-- unread/read behavior where exposed;
-- service/payment/document/support event integration;
-- deep-link/navigation context where configured;
-- push-token infrastructure.
-
----
-
-# 24. Profile and settings
-
-**Implemented**
-
-Customer/profile self-service is backend guarded and limits writable fields. Internal users have a separate safe profile path and do not need a customer profile merely to update allowed user fields.
-
-Settings/preferences and notification preferences are backend connected where implemented.
-
----
-
-# 25. Tax calculator and expense tools
-
-**Implemented**
-
-The app contains customer tax-calculator and expense/budget functionality with backend support. Tax configuration remains OMC-owned configuration and is not an excuse to patch ERPNext source.
-
----
-
-# 26. Internal workspace and Desk
-
-**Implemented**
-
-Internal workspace provides capability-aware access to operational areas including service cases, customers, leads, tasks, document review, payment review, support, referral/commission operations and selected configuration.
-
-OMC Desk/workspace metadata is source controlled and can be deliberately reconciled through setup operations.
-
----
-
-# 27. Setup and migrations
-
-**Implemented with explicit boundaries**
-
-Lifecycle behavior:
+The intended behavior is:
 
 ```text
-before_install -> validate ERP/client contract
-after_install  -> explicit one-time OMC initialisation
-after_migrate  -> validation only
+Required document
+      |
+      +--> approved reusable document exists
+      |        -> requirement already satisfied/reused
+      |
+      +--> no reusable document
+               -> customer uploads document
+      |
+      v
+Document eligibility complete
+      |
+      v
+Payment workflow
 ```
 
-Normal migrate does not silently rewrite roles, branding, Desk metadata or service catalogue content.
-
-Explicit setup operations exist for deliberate permission, workspace, branding and catalogue reconciliation.
+This allows returning customers to reuse qualifying prior documentation.
 
 ---
 
-# 28. Security and hardening
+# 21. Document review
 
-**Implemented across the current architecture**
+**Implemented**
 
-Major controls include:
+Document operations include:
 
-- backend-first authorisation;
-- fail-closed unsupported access;
-- ownership and assignment scope;
-- explicit staff capabilities;
-- break-glass scoping/expiry;
-- sensitive POST guards;
-- CSRF/CORS/auth hardening where applicable;
-- idempotency controls;
-- safe upload validation;
-- pagination/limits on operational lists;
-- audit events for sensitive transitions;
-- no implicit OMC authority from System Manager;
-- no mass customer-role mutation during migration;
-- no silent identity guessing;
-- no ERPNext source modifications for OMC business logic.
+* customer document visibility;
+* service-request documents;
+* upload/replace;
+* reviewer queue;
+* approval/rejection state;
+* review reasons;
+* capability-gated review;
+* stable requirement identity;
+* document completion checks.
+
+Internal document handling remains subject to capability and customer/request scope.
 
 ---
 
-## Current intentional constraints
+# 22. Payment-first lifecycle
 
-The following are deliberate constraints rather than hidden implementation claims:
+**Authoritative production rule**
 
-- unresolved commercial data keeps affected catalogue services inactive;
-- legacy/unkeyed document compatibility remains for historical records;
-- customer migration keeps ambiguous identities in review;
-- existing-customer login activation depends on supported identity proof;
-- production/device E2E should still be performed for a release even when automated suites are green;
-- iOS release still requires the normal macOS/Xcode signing and App Store workflow.
+For a positive-price service:
+
+```text
+Service Request
+      |
+Required documents eligible
+      |
+Payment workflow
+      |
+ERP accounting evidence
+      |
+Settlement reconciliation
+      |
+Ready for activation
+      |
+Exactly one ERP Task
+```
+
+Creating the Service Request does not start operational work.
+
+Uploading documents does not start operational work.
+
+Uploading a receipt does not start operational work.
+
+Receipt approval alone does not establish final financial settlement.
+
+---
+
+# 23. OMC payment workflow
+
+**Implemented**
+
+`OMC Service Payment` tracks OMC payment/customer-receipt workflow.
+
+It is not the accounting authority.
+
+Supported operations include areas such as:
+
+* payment opening;
+* customer payment instructions;
+* receipt/evidence upload;
+* review workflow;
+* payment method handling;
+* outstanding/additional payment handling;
+* request association.
+
+### Critical rule
+
+> **`OMC Service Payment` becomes finally Paid/settled only through ERP accounting reconciliation.**
+
+The application must never manually force final Paid state merely because a reviewer accepted a receipt.
+
+---
+
+# 24. ERP accounting authority
+
+**Implemented**
+
+ERPNext accounting remains authoritative for financial settlement.
+
+OMC accounting/reconciliation records link OMC service-payment workflow to actual ERP accounting evidence.
+
+Reconciliation can distinguish states such as:
+
+* unmatched;
+* partially settled;
+* settled;
+* reversed;
+* review required;
+* quarantined/ambiguous.
+
+Only valid required settlement makes a positive-price Full Settlement request eligible for activation.
+
+---
+
+# 25. Installment/additional payments
+
+**Implemented**
+
+The payment model supports additional/installment payment activity where applicable.
+
+Outstanding amounts remain accounting-derived.
+
+Partial payment must not trigger full-settlement activation.
+
+Further payment actions should be constrained by the current authoritative outstanding balance.
+
+---
+
+# 26. No Charge services
+
+**Implemented**
+
+A service can explicitly be configured as `No Charge`.
+
+No Charge services do not require artificial accounting evidence.
+
+They must still satisfy other applicable eligibility rules.
+
+`No Charge` is a real service policy.
+
+It is not a manual bypass for a normally chargeable service.
+
+---
+
+# 27. Durable activation bridge
+
+**Implemented**
+
+`OMC Bridge Operation` provides the durable boundary between financial eligibility and operational ERP work.
+
+Bridge behavior includes:
+
+* deterministic operation identity;
+* locking;
+* final eligibility re-check;
+* settlement re-check;
+* idempotency;
+* retries;
+* bounded backoff;
+* stale-processing recovery;
+* rollback boundaries;
+* terminal failure evidence;
+* authorised manual recovery;
+* audit history.
+
+A retry must not create duplicate operational Tasks.
+
+---
+
+# 28. ERP Task execution
+
+**Target production model**
+
+Successful activation creates or resolves exactly one authoritative ERP Task for the Service Request.
+
+The Task contains internal execution context such as applicable:
+
+* ERP Customer;
+* Task Type;
+* service/request linkage;
+* assignment;
+* expected dates;
+* internal execution state.
+
+The Task remains ERP-owned operational work.
+
+Customers consume safe Service Request progress instead.
+
+---
+
+# 29. Task completion
+
+**Target production model**
+
+Completion is driven by the single authoritative Task for the request.
+
+When that Task is completed, the backend can finalize the related Service Request after verifying applicable completion conditions.
+
+An unrelated Task cannot complete another customer's Service Request.
+
+Legacy multi-Task completion aggregation is not part of the intended design.
+
+---
+
+# 30. Internal Task visibility
+
+**Implemented, scope review pending**
+
+Internal users can access Task information according to OMC capability rules.
+
+Customer personas must not receive direct ERP Task access.
+
+Internal Task APIs should continue to be narrowed to the minimum appropriate assignment/role scope.
+
+---
+
+# 31. Assignment
+
+**Implemented**
+
+Assignment is controlled by backend policy.
+
+Eligible context can include:
+
+* explicit assignment;
+* service/team policy;
+* consultant/associate eligibility;
+* referral/business context;
+* workload automation.
+
+Untrusted client input cannot arbitrarily select internal Task ownership.
+
+Assignment operations must remain idempotent.
+
+---
+
+# 32. Leads and Customers
+
+**Implemented**
+
+ERPNext `Lead` and `Customer` remain authoritative ERP business masters.
+
+OMC provides protected integration around them.
+
+Legacy OMC lead/customer-like records must not become a competing business source of truth.
+
+---
+
+# 33. Referral attribution
+
+**Implemented**
+
+Referral behavior separates:
+
+* referral ownership;
+* referral codes;
+* customer attribution;
+* service attribution/evidence;
+* commission entitlement;
+* finance operations.
+
+Referral provenance exists independently of payout state.
+
+Referral ownership does not automatically grant finance authority.
+
+---
+
+# 34. Commission snapshot
+
+**Implemented**
+
+OMC reuses the client's existing commission configuration rather than creating an independent commission calculation engine.
+
+When applicable, commission configuration is snapshotted onto a newly created ERP Payment Entry.
+
+Submitted historical Payment Entries are not mutated simply to retrofit new OMC commission fields.
+
+---
+
+# 35. Commission projection
+
+**Implemented**
+
+Existing `commission_projection.py` projects submitted ERP allocation evidence into `OMC Commission Allocation`.
+
+Important properties include:
+
+* ERP evidence remains authoritative;
+* immutable/projection-oriented OMC allocation records;
+* deterministic allocation identity;
+* duplicate prevention/idempotency;
+* beneficiary visibility;
+* finance approval/payment lifecycle;
+* separation of referral ownership from finance authority.
+
+Commission percentages must not be parsed from human-readable structure names.
+
+---
+
+# 36. Support
+
+**Implemented**
+
+Support features include:
+
+* customer ticket creation;
+* customer ticket visibility;
+* support messages;
+* internal support queue;
+* controlled assignment/status handling;
+* customer/service context;
+* capability-gated staff operations.
+
+---
+
+# 37. Notifications
+
+**Implemented**
+
+Notification functionality covers:
+
+* customer notifications;
+* internal notifications;
+* unread/read state;
+* service events;
+* document events;
+* payment events;
+* support events;
+* deep-link/navigation context;
+* device token/push infrastructure;
+* notification preferences.
+
+Customer notifications must not expose internal ERP-only information.
+
+---
+
+# 38. Profile and settings
+
+**Implemented**
+
+Customer profile changes are backend-controlled.
+
+Writable fields are restricted.
+
+Internal users use appropriate internal/profile paths rather than being forced into customer-profile semantics.
+
+Settings and notification preferences connect to backend state where supported.
+
+---
+
+# 39. Tax and expense functionality
+
+**Implemented**
+
+The Flutter application includes customer-facing tax/expense functionality backed by OMC APIs.
+
+Relevant configuration remains inside the OMC custom application.
+
+ERPNext core is not modified for these features.
+
+---
+
+# 40. Internal workspace
+
+**Implemented**
+
+Capability-aware internal workspace functionality can surface operational areas such as:
+
+* service requests;
+* customers;
+* leads;
+* ERP Tasks;
+* documents;
+* payment review;
+* reconciliation;
+* support;
+* referrals;
+* commissions;
+* selected configuration.
+
+Internal workspace actions remain backend-authorized.
+
+---
+
+# 41. Review and workflow automation
+
+**Implemented**
+
+Operational automation exists for areas including:
+
+* assignment;
+* document review routing;
+* payment review routing;
+* ERP synchronization recovery;
+* bridge retries;
+* workflow/status automation.
+
+Automation must preserve:
+
+* authority;
+* idempotency;
+* bounded retries;
+* explicit state;
+* auditability;
+* safe failure behavior.
+
+---
+
+# 42. ERP synchronization recovery
+
+**Implemented**
+
+OMC has explicit recovery state for integration failures rather than relying on silent repeated writes.
+
+Recovery behavior can include:
+
+* attempt counting;
+* backoff;
+* next-attempt tracking;
+* exhausted/failed state;
+* retry eligibility;
+* operator visibility.
+
+Retries must be safe and idempotent.
+
+---
+
+# 43. Security and hardening
+
+**Implemented across the architecture**
+
+Controls include:
+
+* authenticated sessions;
+* customer ownership enforcement;
+* explicit Staff Access;
+* capability checks;
+* record scope;
+* break-glass access;
+* sensitive mutation guards;
+* CSRF/CORS protections where applicable;
+* rate limiting;
+* idempotency;
+* upload validation;
+* audit events;
+* pagination/bounded reads;
+* safe error handling;
+* no implicit System Manager business authority;
+* no silent identity guessing;
+* no OMC business modification of ERPNext core.
+
+---
+
+# 44. Setup and migration lifecycle
+
+**Implemented**
+
+OMC setup is additive to an existing Frappe/ERPNext v14 environment.
+
+Setup can install or reconcile:
+
+* OMC DocTypes;
+* custom fields;
+* OMC roles/capabilities;
+* workspace metadata;
+* hooks;
+* patches;
+* ERP integration contract fields;
+* controlled lifecycle/configuration records.
+
+Normal migration must remain restart-safe.
+
+It must not silently invent business identities or commercial configuration.
+
+---
+
+# 45. Compatibility APIs and legacy surfaces
+
+**Implemented where required for migration safety**
+
+Compatibility wrappers may remain temporarily where older application paths still depend on them.
+
+Compatibility code must not:
+
+* widen permissions;
+* create a second authority;
+* restore retired architecture;
+* override ERP accounting truth;
+* expose internal Task data to customers.
+
+Retirement should be deliberate and regression-tested.
+
+---
+
+# 46. Known Conformance Gaps
+
+These items exist in current source but are **not intended production features**.
+
+## 46.1 Legacy one-to-many Task model
+
+Parts of the backend still contain:
+
+* `OMC Service Task Link`;
+* multiple linked Task logic;
+* required/optional Task concepts;
+* multi-Task completion aggregation;
+* related backend/Flutter tests.
+
+This conflicts with the current contract:
+
+> **One Service Request = one authoritative ERP Task.**
+
+It should be removed or reduced to compatibility-only behavior in a later focused implementation phase.
+
+## 46.2 `Post-paid Approval` legacy surface
+
+A `Post-paid Approval` activation policy still exists in portions of the current source.
+
+For positive-price production services, the intended contract is ERP-settlement-before-activation.
+
+`No Charge` remains supported.
+
+The post-paid surface should be reviewed and constrained/retired.
+
+## 46.3 Two document-reuse materialization mechanisms
+
+Self-service and assisted/internal reuse currently use different underlying materialization strategies.
+
+Both are ownership-scoped, but storage/lineage behavior should eventually be unified.
+
+## 46.4 New raw ERP Customer discovery
+
+A brand-new ERP Customer without an OMC identity relationship is not automatically converted into an app-enabled customer by normal reconciliation.
+
+A deliberate onboarding/linking workflow remains necessary.
+
+## 46.5 Internal Task scope
+
+Current internal Task visibility should be reviewed for least-privilege behavior, especially where broad Task access may exceed assignment-based needs.
+
+## 46.6 Service-template reuse metadata
+
+Some service-template responses expose less document-reuse metadata than the richer catalogue contract.
+
+The API contracts should eventually be normalized.
+
+## 46.7 Internal document summary identity
+
+Internal document summaries should be checked to ensure stable `document_key` matching is used consistently instead of relying on title/type where a key exists.
+
+## 46.8 Fresh accounting/commission/activation E2E
+
+A fresh controlled integration test is still required after architecture cleanup for:
+
+```text
+new Payment Entry
+-> commission snapshot
+-> submitted ERP settlement
+-> reconciliation
+-> commission allocation
+-> activation
+-> exactly one ERP Task
+```
+
+This is a verification gap, not permission to bypass accounting authority.
+
+---
+
+# 47. Production invariants
+
+All future feature changes must preserve:
+
+1. ERPNext `Customer` is the canonical business customer.
+2. OMC Account/Profile records are identity/application layers around ERP Customer.
+3. ERPNext/Frappe core remains untouched.
+4. One Service Request maps to exactly one authoritative ERP Task.
+5. Positive-price services require authoritative settlement before activation.
+6. Receipt review alone cannot make final payment settlement true.
+7. No Charge remains explicit policy.
+8. Installments respect accounting outstanding.
+9. Reusable documents require correct customer, service, document key and reuse policy.
+10. `Always New` documents are never automatically reused.
+11. Customers cannot access internal ERP Task details.
+12. System Manager does not imply OMC business authority.
+13. Commission projection reuses existing ERP/OMC commission evidence.
+14. Submitted ERP accounting records are not mutated to retrofit new behavior.
+15. Integration retries remain idempotent.
+16. Ambiguous identity, authority or accounting evidence fails safely.
 
 ---
 
 ## Related documentation
 
-- [`../README.md`](../README.md) — high-level architecture and operating boundaries;
-- [`ROLE.md`](ROLE.md) — role/persona/capability model;
-- [`omc_detailed_explanation.md`](omc_detailed_explanation.md) — business workflow architecture;
-- [`OMC_Client_Deployment_and_Customer_Migration_Handover.md`](OMC_Client_Deployment_and_Customer_Migration_Handover.md) — client deployment/migration runbook;
-- [`../omc_app/README.md`](../omc_app/README.md) — Flutter engineering guide;
-- [`../backend_omc_app/frappe-bench/apps/omc_app/README.md`](../backend_omc_app/frappe-bench/apps/omc_app/README.md) — backend engineering guide.
+* [`omc_detailed_explanation.md`](omc_detailed_explanation.md) — authoritative business/workflow architecture;
+* [`ROLE.md`](ROLE.md) — role, persona and capability model;
+* [`OMC_Client_Deployment_and_Customer_Migration_Handover.md`](OMC_Client_Deployment_and_Customer_Migration_Handover.md) — deployment and customer migration runbook;
+* [`../README.md`](../README.md) — repository overview;
+* [`../omc_app/README.md`](../omc_app/README.md) — Flutter engineering guide;
+* [`../omc_app/docs/backend_api_contract.md`](../omc_app/docs/backend_api_contract.md) — Flutter/backend API contract;
+* [`../backend_omc_app/frappe-bench/apps/omc_app/README.md`](../backend_omc_app/frappe-bench/apps/omc_app/README.md) — OMC backend application guide.
