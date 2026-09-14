@@ -12,5 +12,6 @@ void main() {
 
     expect(payment.status.label, 'Partially Paid');
     expect(payment.requiresAction, isTrue);
+    expect(payment.isSettlementEvidenceLocked, isTrue);
   });
 }

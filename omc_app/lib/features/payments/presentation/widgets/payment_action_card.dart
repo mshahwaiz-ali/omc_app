@@ -31,7 +31,9 @@ class PaymentActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canOpenPaymentAction =
-        payment.requiresAction && payment.paymentUrl != null;
+        !payment.isSettlementEvidenceLocked &&
+        payment.requiresAction &&
+        payment.paymentUrl != null;
     final paymentActionLabel =
         payment.paymentActionLabel?.trim().isNotEmpty == true
         ? payment.paymentActionLabel!.trim()
@@ -39,13 +41,12 @@ class PaymentActionCard extends StatelessWidget {
     final canOpenInvoice = payment.invoiceNumber?.trim().isNotEmpty == true;
     final canOpenPaymentProof = payment.paymentProofUrl != null;
     final canUploadReceipt =
-        payment.status != PaymentStatus.paid &&
-        payment.status != PaymentStatus.cancelled &&
-        onUploadReceipt != null;
+        !payment.isSettlementEvidenceLocked && onUploadReceipt != null;
     final instructions = payment.paymentInstructions?.trim();
     final bankDetails = payment.bankAccountDetails?.trim();
     final serviceRequest = payment.serviceReference?.trim() ?? '';
-    final showRequestAccounting = payment.isOwnPayment && serviceRequest.isNotEmpty;
+    final showRequestAccounting =
+        payment.isOwnPayment && serviceRequest.isNotEmpty;
 
     return PremiumCard(
       padding: const EdgeInsets.all(18),
@@ -196,7 +197,7 @@ class PaymentActionCard extends StatelessWidget {
       case PaymentStatus.underReview:
         return 'Payment proof has been submitted and is awaiting OMC verification. No paid status is implied yet.';
       case PaymentStatus.partiallyPaid:
-        return 'A verified partial payment has been reconciled. The remaining balance is still due.';
+        return 'A verified partial payment has been reconciled. Open a new installment for the remaining ERP balance; this payment record cannot be reused.';
       case PaymentStatus.paid:
         return 'This payment is marked paid. Evidence remains available below for reference.';
       case PaymentStatus.cancelled:

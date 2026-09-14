@@ -70,6 +70,11 @@ class PaymentItem {
     return isReferralPayment ? 'Referral customer' : 'My payment';
   }
 
+  bool get isSettlementEvidenceLocked =>
+      status == PaymentStatus.partiallyPaid ||
+      status == PaymentStatus.paid ||
+      status == PaymentStatus.cancelled;
+
   bool get requiresAction =>
       status == PaymentStatus.pending ||
       status == PaymentStatus.partiallyPaid ||

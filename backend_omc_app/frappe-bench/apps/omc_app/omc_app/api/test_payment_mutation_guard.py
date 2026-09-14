@@ -104,6 +104,25 @@ class TestPaymentMutationGuard(FrappeTestCase):
         )
         self.assertTrue(result["updated"])
 
+    @patch("omc_app.api.payment_mutation_guard.payments.upload_payment_receipt_file")
+    @patch("omc_app.api.payment_mutation_guard._load_mutable_payment")
+    def test_partial_payment_requires_new_installment(self, load_payment, upload):
+        payment = self._payment(status="Partially Paid")
+        payment.accounted_amount = 400
+        load_payment.return_value = payment
+
+        with self.assertRaises(frappe.ValidationError):
+            payment_mutation_guard.upload_payment_receipt_file(
+                payment_id="OMC-PAY-TEST",
+                file_name="second-receipt.pdf",
+                content_base64="ZGF0YQ==",
+                payment_reference="BANK-2",
+                remarks="Second installment",
+                idempotency_key=None,
+            )
+
+        upload.assert_not_called()
+
     @patch("omc_app.api.payment_mutation_guard.payments.review_payment_receipt")
     @patch("omc_app.api.payment_mutation_guard._noop_review_response")
     @patch("omc_app.api.payment_mutation_guard._load_mutable_payment")
