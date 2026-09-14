@@ -311,6 +311,11 @@ class CustomerServiceCaseDocument {
     required this.isRequired,
     this.documentKey = '',
     this.documentType = '',
+    this.source = '',
+    this.sourceDocument = '',
+    this.isReused = false,
+    this.reusePolicy = 'Always New',
+    this.reuseValidityDays = 0,
   });
 
   final String id;
@@ -321,6 +326,11 @@ class CustomerServiceCaseDocument {
   final String remarks;
   final String fileUrl;
   final bool isRequired;
+  final String source;
+  final String sourceDocument;
+  final bool isReused;
+  final String reusePolicy;
+  final int reuseValidityDays;
 
   String get normalizedStatus => status.trim().toLowerCase();
 
@@ -352,7 +362,14 @@ class CustomerServiceCaseDocument {
         normalizedStatus.isEmpty;
   }
 
+  bool get canReplaceReusedDocument =>
+      isReused && !isRejected && fileUrl.trim().isNotEmpty;
+
   factory CustomerServiceCaseDocument.fromJson(Map<String, dynamic> json) {
+    final source = _text(json['source']);
+    final sourceDocument = _text(json['source_document']);
+    final reusePolicy = _text(json['reuse_policy']);
+
     return CustomerServiceCaseDocument(
       id: _text(json['id'] ?? json['name']),
       title: _text(json['title'] ?? json['document_title']),
@@ -362,6 +379,14 @@ class CustomerServiceCaseDocument {
       remarks: _text(json['remarks'] ?? json['instructions']),
       fileUrl: _text(json['file_url'] ?? json['attachment']),
       isRequired: _boolValue(json['is_required']),
+      source: source,
+      sourceDocument: sourceDocument,
+      isReused:
+          _boolValue(json['is_reused']) ||
+          source.toLowerCase() == 'existing document' ||
+          sourceDocument.isNotEmpty,
+      reusePolicy: reusePolicy.isEmpty ? 'Always New' : reusePolicy,
+      reuseValidityDays: _intValue(json['reuse_validity_days']),
     );
   }
 }

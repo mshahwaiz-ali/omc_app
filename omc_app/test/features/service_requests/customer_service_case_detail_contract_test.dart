@@ -171,6 +171,50 @@ void main() {
     expect(detail.nextAction?.required, isTrue);
   });
 
+  test(
+    'parses reusable document provenance without requesting a duplicate upload',
+    () {
+      final detail = CustomerServiceCaseDetail.fromResponse({
+        'case': {
+          'name': 'SR-REUSE',
+          'document_details': [
+            {
+              'id': 'DOC-REUSED',
+              'document_key': 'cnic-front',
+              'title': 'CNIC front',
+              'document_type': 'Identity',
+              'status': 'Approved',
+              'file_url': '/private/files/cnic.pdf',
+              'is_required': 1,
+              'source': 'Existing Document',
+              'source_document': 'DOC-ORIGINAL',
+              'is_reused': 1,
+              'reuse_policy': 'Reusable Until Replaced',
+            },
+          ],
+          'customer_lifecycle': {
+            'current_stage': 'Payment',
+            'progress_percent': 40,
+            'action_required': false,
+            'terminal': false,
+            'completed': false,
+            'payment_not_required': false,
+            'milestones': <Map<String, dynamic>>[],
+          },
+        },
+      });
+
+      final document = detail.requiredDocuments.single;
+      expect(document.isReused, isTrue);
+      expect(document.source, 'Existing Document');
+      expect(document.sourceDocument, 'DOC-ORIGINAL');
+      expect(document.reusePolicy, 'Reusable Until Replaced');
+      expect(document.needsUpload, isFalse);
+      expect(document.canReplaceReusedDocument, isTrue);
+      expect(detail.documentsNeedingUpload, 0);
+    },
+  );
+
   test('parses only backend-provided real recent activity', () {
     final detail = CustomerServiceCaseDetail.fromResponse({
       'case': {

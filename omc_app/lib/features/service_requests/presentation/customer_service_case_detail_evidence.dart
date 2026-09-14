@@ -23,6 +23,9 @@ class _DocumentsCardState extends ConsumerState<_DocumentsCard> {
     final detail = widget.detail;
     final documents = detail.requiredDocuments;
     final needsUpload = detail.documentsNeedingUpload > 0;
+    final reusedDocuments = documents
+        .where((document) => document.isReused)
+        .length;
     final hasUploadedDocuments = documents.any(
       (document) => document.fileUrl.trim().isNotEmpty,
     );
@@ -64,7 +67,11 @@ class _DocumentsCardState extends ConsumerState<_DocumentsCard> {
                         ? '${detail.documentsNeedingUpload} required document${detail.documentsNeedingUpload == 1 ? '' : 's'} ${detail.documentsNeedingUpload == 1 ? 'is' : 'are'} not recorded for this completed service.'
                         : 'This request is no longer active. Missing documents are shown for reference only.'
                   : needsUpload
-                  ? '${detail.documentsNeedingUpload} required document${detail.documentsNeedingUpload == 1 ? '' : 's'} still need attention.'
+                  ? reusedDocuments > 0
+                        ? '$reusedDocuments required document${reusedDocuments == 1 ? '' : 's'} already on file; ${detail.documentsNeedingUpload} still need${detail.documentsNeedingUpload == 1 ? 's' : ''} upload.'
+                        : '${detail.documentsNeedingUpload} required document${detail.documentsNeedingUpload == 1 ? '' : 's'} still need attention.'
+                  : reusedDocuments > 0
+                  ? '$reusedDocuments required document${reusedDocuments == 1 ? ' is' : 's are'} already on file. Replace ${reusedDocuments == 1 ? 'it' : 'them'} only if the information has changed.'
                   : 'Your required document checklist is up to date.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: AppTheme.textSecondary,
@@ -79,14 +86,14 @@ class _DocumentsCardState extends ConsumerState<_DocumentsCard> {
                 canUpload:
                     widget.canUploadDocuments &&
                     !isReadOnly &&
-                    documents[index].needsUpload,
+                    (documents[index].needsUpload ||
+                        documents[index].canReplaceReusedDocument),
                 isUploading: _uploading.contains(
                   documents[index].uploadIdentity,
                 ),
                 onUpload: () => _uploadRequiredDocument(documents[index]),
               ),
-              if (index != documents.length - 1)
-                const SizedBox(height: 10),
+              if (index != documents.length - 1) const SizedBox(height: 10),
             ],
             if (widget.canViewDocuments && hasUploadedDocuments) ...[
               const SizedBox(height: 16),
@@ -203,6 +210,13 @@ class _DocumentRow extends StatelessWidget {
             AppTheme.textSecondary,
             AppTheme.background,
           )
+        : document.isReused
+        ? (
+            'Already on file',
+            Icons.inventory_2_outlined,
+            const Color(0xFF16864B),
+            const Color(0xFFEAF7EF),
+          )
         : switch (document.normalizedStatus) {
             'approved' || 'verified' => (
               'Approved',
@@ -241,7 +255,8 @@ class _DocumentRow extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final stacked = constraints.maxWidth < 330 ||
+          final stacked =
+              constraints.maxWidth < 330 ||
               MediaQuery.textScalerOf(context).scale(1) >= 1.4;
           final identity = Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -376,13 +391,16 @@ class _DocumentRowControls extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : const Icon(Icons.upload_file_outlined),
-      label: Text(document.isRejected ? 'Replace' : 'Upload'),
+      label: Text(
+        document.isRejected || document.isReused ? 'Replace' : 'Upload',
+      ),
     );
 
     if (expanded) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [Align(alignment: Alignment.centerLeft, child: status),
+        children: [
+          Align(alignment: Alignment.centerLeft, child: status),
           const SizedBox(height: 10),
           button,
         ],

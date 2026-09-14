@@ -388,6 +388,11 @@ def _document_detail_from_template(template):
         "uploaded_at": "",
         "uploaded_by": "",
         "is_required": template.get("is_required", 1),
+        "reuse_policy": template.get("reuse_policy") or "Always New",
+        "reuse_validity_days": template.get("reuse_validity_days") or 0,
+        "source": "",
+        "source_document": "",
+        "is_reused": False,
     }
 
 
@@ -446,6 +451,15 @@ def _document_detail_from_uploaded(document, template=None):
         ),
         "uploaded_by": document.get("uploaded_by") or "",
         "is_required": template.get("is_required", 0),
+        "reuse_policy": template.get("reuse_policy") or "Always New",
+        "reuse_validity_days": template.get("reuse_validity_days") or 0,
+        "source": document.get("source") or "Service Upload",
+        "source_document": document.get("source_document") or "",
+        "is_reused": bool(
+            document.get("is_reused")
+            or (document.get("source") or "").strip() == "Existing Document"
+            or document.get("source_document")
+        ),
     }
 
 def _payment_detail(payment):

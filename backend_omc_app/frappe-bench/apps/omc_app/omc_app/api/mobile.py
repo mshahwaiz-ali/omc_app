@@ -213,6 +213,18 @@ def _service_required_documents(
     ):
         fields.insert(2, "effective_from")
 
+    if _doctype_has_field(
+        "OMC Service Required Document",
+        "reuse_policy",
+    ):
+        fields.append("reuse_policy")
+
+    if _doctype_has_field(
+        "OMC Service Required Document",
+        "reuse_validity_days",
+    ):
+        fields.append("reuse_validity_days")
+
     rows = frappe.get_all(
         "OMC Service Required Document",
         filters={
@@ -279,6 +291,20 @@ def _service_required_documents(
                 getattr(
                     row,
                     "is_required",
+                    0,
+                )
+                or 0
+            ),
+            "reuse_policy": getattr(
+                row,
+                "reuse_policy",
+                None,
+            )
+            or "Always New",
+            "reuse_validity_days": int(
+                getattr(
+                    row,
+                    "reuse_validity_days",
                     0,
                 )
                 or 0
@@ -1351,6 +1377,15 @@ def _get_service_documents(service_request):
     ):
         fields.insert(1, "document_key")
 
+    for fieldname in (
+        "source",
+        "source_document",
+        "is_archived",
+        "archive_reason",
+    ):
+        if _doctype_has_field("OMC Service Document", fieldname):
+            fields.append(fieldname)
+
     docs = frappe.get_all(
         "OMC Service Document",
         filters={
@@ -1373,6 +1408,14 @@ def _get_service_documents(service_request):
             "file_url": doc.attachment or "",
             "attachment": doc.attachment or "",
             "status": doc.status or "",
+            "source": getattr(doc, "source", None) or "Service Upload",
+            "source_document": getattr(doc, "source_document", None) or "",
+            "is_reused": (
+                (getattr(doc, "source", None) or "").strip()
+                == "Existing Document"
+            ),
+            "is_archived": int(getattr(doc, "is_archived", 0) or 0),
+            "archive_reason": getattr(doc, "archive_reason", None) or "",
             "uploaded_at": _format_datetime(doc.uploaded_on),
             "uploaded_by": doc.uploaded_by or "",
             "remarks": doc.remarks or "",

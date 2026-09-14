@@ -72,6 +72,7 @@ def _document_fields():
         "document_key",
         "customer_profile",
         "source",
+        "source_document",
         "is_archived",
         "archived_on",
         "archive_reason",
@@ -217,6 +218,11 @@ def _document_dict(doc, service_case=None, customer_profile=None, capabilities=N
         "document_type": doc.document_type or "",
         "status": doc.status or "",
         "source": getattr(doc, "source", None) or "Service Upload",
+        "source_document": getattr(doc, "source_document", None) or "",
+        "is_reused": (
+            (getattr(doc, "source", None) or "").strip() == "Existing Document"
+            or bool(getattr(doc, "source_document", None))
+        ),
         "file_url": doc.attachment or "" if can_view_attachment else "",
         "attachment": doc.attachment or "" if can_view_attachment else "",
         "quarantine_status": getattr(doc, "quarantine_status", None) or "Not Required",
