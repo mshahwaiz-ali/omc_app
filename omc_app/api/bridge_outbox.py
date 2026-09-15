@@ -163,6 +163,31 @@ def enqueue_if_eligible(request_name: str):
     return name
 
 
+def _resolve_activation_assignment(request, service):
+    """Preserve an existing reviewed request assignee during activation.
+
+    Service Request assignment may already have been selected during request
+    intake or an authorized reassignment. Durable activation and technical
+    retries must not silently load-balance the request onto another employee.
+
+    If there is no existing assignee, the normal referral/default/role
+    resolution policy remains authoritative.
+    """
+    existing_assignee = _text(
+        getattr(request, "assigned_staff", None)
+    )
+
+    return service_assignment.resolve_assignee(
+        service,
+        explicit_user=existing_assignee or None,
+        referral_owner=getattr(
+            request,
+            "referral_owner",
+            None,
+        ),
+    )
+
+
 def _profile_for_request(request):
     if request.customer_profile and frappe.db.exists("OMC Customer Profile", request.customer_profile):
         return frappe.get_doc("OMC Customer Profile", request.customer_profile)
@@ -315,10 +340,14 @@ def process_operation(operation_name: str) -> dict:
         if not frappe.db.exists("Service", request.erp_service) or not frappe.db.exists("Task", request.erp_task):
             raise frappe.ValidationError("ERP activation links were not committed.")
 
-        decision = service_assignment.resolve_assignee(
-            service, referral_owner=request.referral_owner
+        decision = _resolve_activation_assignment(
+            request,
+            service,
         )
-        assignment = service_assignment.apply_assignment(request, decision)
+        assignment = service_assignment.apply_assignment(
+            request,
+            decision,
+        )
         activated = request_lifecycle.transition_request_state(
             request.name,
             "Activated",

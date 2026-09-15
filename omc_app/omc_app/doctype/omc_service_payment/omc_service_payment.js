@@ -1,5 +1,55 @@
+function omc_lock_payment_form(frm) {
+  const authoritative_fields = [
+    'service_request',
+    'payment_title',
+    'amount',
+    'accounted_amount',
+    'currency',
+    'status',
+    'receipt_status',
+    'accounting_status',
+    'quarantine_status',
+    'due_date',
+    'paid_on',
+    'payment_reference',
+    'receipt_attachment',
+    'visible_to_customer',
+    'linked_invoice',
+    'linked_payment_entry',
+    'reviewed_by',
+    'reviewed_at',
+    'settled_at',
+    'remarks',
+  ];
+
+  authoritative_fields.forEach((fieldname) => {
+    if (frm.fields_dict[fieldname]) {
+      frm.set_df_property(fieldname, 'read_only', 1);
+    }
+  });
+
+  frm.disable_save();
+
+  if (frm.is_new()) {
+    frm.dashboard.clear_headline();
+    frm.dashboard.set_headline_alert(
+      `<div class="indicator orange">
+        ${__('Payments are created from the Service Request workflow.')}
+      </div>`,
+    );
+
+    frm.page.set_primary_action(
+      __('Go to Service Requests'),
+      () => frappe.set_route('List', 'OMC Service Request'),
+    );
+  }
+}
+
+
 frappe.ui.form.on('OMC Service Payment', {
   refresh(frm) {
+    omc_lock_payment_form(frm);
+
     if (frm.is_new()) return;
 
     const reviewable = ['Receipt Submitted', 'Under Review'].includes(frm.doc.status);

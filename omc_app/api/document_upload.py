@@ -1,6 +1,6 @@
 import frappe
 
-from omc_app.api import identity, idempotency, payment_opening, review_routing, upload_validation
+from omc_app.api import access, identity, idempotency, mobile, payment_opening, review_routing, security, upload_validation
 from omc_app.api.mobile import (
     _clean_file_reference,
     _create_service_timeline_entry,
@@ -37,6 +37,141 @@ def _has_field(doctype, fieldname):
         return frappe.get_meta(doctype).has_field(fieldname)
     except Exception:
         return False
+
+
+def _require_internal_document_upload_access(
+    request_name,
+    *,
+    mutation=False,
+):
+    actor = _current_user()
+    if not actor or actor == "Guest":
+        frappe.throw("Login is required.", frappe.PermissionError)
+
+    request_name = str(request_name or "").strip()
+    if (
+        not request_name
+        or not frappe.db.exists("OMC Service Request", request_name)
+    ):
+        frappe.throw(
+            "Service request not found.",
+            frappe.DoesNotExistError,
+        )
+
+    capabilities = access.get_mobile_capabilities(user=actor)
+    if not (
+        capabilities.get("can_access_internal_workspace")
+        and capabilities.get("can_create_service_for_customer")
+    ):
+        frappe.throw(
+            "You do not have permission to upload customer documents from Desk.",
+            frappe.PermissionError,
+        )
+
+    mobile._require_service_case_read_scope(request_name)
+
+    if mutation:
+        security.enforce_rate_limit(
+            "staff_mutation",
+            actor=actor,
+        )
+
+    return actor, frappe.get_doc(
+        "OMC Service Request",
+        request_name,
+    )
+
+
+@frappe.whitelist()
+def get_desk_upload_context(service_request=None):
+    _actor, service_case = _require_internal_document_upload_access(
+        service_request,
+        mutation=False,
+    )
+    _assert_service_request_accepts_documents(service_case)
+
+    requirements = _service_required_documents(
+        service_case.service,
+        service_request=service_case,
+    )
+
+    requirement_payload = []
+    for requirement in requirements:
+        requirement_payload.append(
+            {
+                "document_key": (
+                    requirement.get("document_key")
+                    or requirement.get("key")
+                    or ""
+                ),
+                "document_title": (
+                    requirement.get("document_title")
+                    or requirement.get("title")
+                    or ""
+                ),
+                "document_type": (
+                    requirement.get("document_type")
+                    or requirement.get("type")
+                    or "General"
+                ),
+            }
+        )
+
+    fields = [
+        "name",
+        "document_title",
+        "document_type",
+        "status",
+        "attachment",
+    ]
+    if _has_field("OMC Service Document", "document_key"):
+        fields.insert(1, "document_key")
+    if _has_field("OMC Service Document", "source"):
+        fields.append("source")
+    if _has_field("OMC Service Document", "is_archived"):
+        fields.append("is_archived")
+
+    existing_rows = frappe.get_all(
+        "OMC Service Document",
+        filters={
+            "service_request": service_case.name,
+            "visible_to_customer": 1,
+        },
+        fields=fields,
+        order_by="creation desc",
+        limit_page_length=100,
+    )
+
+    existing_documents = []
+    for row in existing_rows:
+        if int(getattr(row, "is_archived", 0) or 0):
+            continue
+
+        existing_documents.append(
+            {
+                "name": row.name,
+                "document_key": (
+                    getattr(row, "document_key", None)
+                    or ""
+                ),
+                "document_title": row.document_title or "",
+                "document_type": row.document_type or "",
+                "status": row.status or "",
+                "source": getattr(row, "source", None) or "",
+                "has_attachment": bool(row.attachment),
+            }
+        )
+
+    return {
+        "service_request": service_case.name,
+        "service": service_case.service or "",
+        "request_status": service_case.status or "",
+        "requirements": requirement_payload,
+        "documents": existing_documents,
+        "allowed_extensions": sorted(ALLOWED_DOCUMENT_EXTENSIONS),
+        "maximum_file_size_mb": 10,
+        "maximum_files_per_request": MAX_FILES_PER_CASE,
+    }
 
 
 
@@ -355,31 +490,65 @@ def _validate_uploaded_document(service_case, attachment):
     return uploaded_file.file_url or clean_attachment, uploaded_file, quarantine_status
 
 
-@frappe.whitelist(methods=["POST"])
-def upload_service_document(**kwargs):
+def _register_service_document(
+    kwargs,
+    *,
+    service_case=None,
+    uploaded_by_staff=False,
+):
     if not idempotency.request_key(kwargs):
-        frappe.throw("An idempotency key is required.", frappe.ValidationError)
-    attachment = kwargs.get("attachment") or kwargs.get("file_url") or kwargs.get("file")
+        frappe.throw(
+            "An idempotency key is required.",
+            frappe.ValidationError,
+        )
+
+    attachment = (
+        kwargs.get("attachment")
+        or kwargs.get("file_url")
+        or kwargs.get("file")
+    )
     uploaded_file = _find_uploaded_file(attachment)
+
     claim = idempotency.begin(
         operation="service_document.register",
         actor=_current_user(),
         payload={
             "idempotency_key": kwargs.get("idempotency_key"),
-            "case_id": kwargs.get("case_id") or kwargs.get("service_request"),
-            "document_key": kwargs.get("document_key") or kwargs.get("key"),
-            "document_title": kwargs.get("document_title") or kwargs.get("title"),
-            "document_type": kwargs.get("document_type") or kwargs.get("type"),
-            "content_hash": getattr(uploaded_file, "content_hash", None)
-            or attachment,
+            "case_id": (
+                kwargs.get("case_id")
+                or kwargs.get("service_request")
+            ),
+            "document_key": (
+                kwargs.get("document_key")
+                or kwargs.get("key")
+            ),
+            "document_title": (
+                kwargs.get("document_title")
+                or kwargs.get("title")
+            ),
+            "document_type": (
+                kwargs.get("document_type")
+                or kwargs.get("type")
+            ),
+            "content_hash": (
+                getattr(uploaded_file, "content_hash", None)
+                or attachment
+            ),
         },
     )
+
     if claim and claim.replay is not None:
         _cleanup_failed_unlinked_upload(uploaded_file)
         return claim.replay
+
     try:
-        response = _upload_service_document(**kwargs)
+        response = _upload_service_document(
+            service_case=service_case,
+            uploaded_by_staff=uploaded_by_staff,
+            **kwargs,
+        )
         document = response.get("document") or {}
+
         return idempotency.complete(
             claim,
             response,
@@ -387,15 +556,47 @@ def upload_service_document(**kwargs):
             reference_name=document.get("name") or "",
             stored_response={
                 "uploaded": True,
-                "document": {"name": document.get("name") or ""},
+                "document": {
+                    "name": document.get("name") or "",
+                },
             },
         )
     except Exception:
+        _cleanup_failed_unlinked_upload(uploaded_file)
         idempotency.fail(claim)
         raise
 
 
-def _upload_service_document(**kwargs):
+@frappe.whitelist(methods=["POST"])
+def upload_service_document(**kwargs):
+    return _register_service_document(kwargs)
+
+
+@frappe.whitelist(methods=["POST"])
+def desk_upload_service_document(**kwargs):
+    case_id = (
+        kwargs.get("case_id")
+        or kwargs.get("service_request")
+    )
+
+    _actor, service_case = _require_internal_document_upload_access(
+        case_id,
+        mutation=True,
+    )
+
+    return _register_service_document(
+        kwargs,
+        service_case=service_case,
+        uploaded_by_staff=True,
+    )
+
+
+def _upload_service_document(
+    *,
+    service_case=None,
+    uploaded_by_staff=False,
+    **kwargs,
+):
     """Create a service-document record for an already uploaded File.
 
     This endpoint intentionally inserts OMC Service Document without setting its
@@ -434,9 +635,24 @@ def _upload_service_document(**kwargs):
     if not frappe.db.exists("OMC Service Request", case_id):
         frappe.throw("Service request not found", frappe.DoesNotExistError)
 
-    context, service_case = identity.require_owned_request(case_id)
+    profile_name = ""
+
+    if service_case is None:
+        context, service_case = identity.require_owned_request(case_id)
+        profile_name = context.legacy_profile or ""
+    elif service_case.name != case_id:
+        frappe.throw(
+            "Service request does not match the authorized Desk context.",
+            frappe.PermissionError,
+        )
+
     _assert_service_request_accepts_documents(service_case)
-    profile = frappe.get_doc("OMC Customer Profile", context.legacy_profile)
+
+    profile_name = (
+        service_case.customer_profile
+        or profile_name
+        or ""
+    )
 
     (
         document_key,
@@ -463,7 +679,7 @@ def _upload_service_document(**kwargs):
     doc = frappe.new_doc("OMC Service Document")
     doc.service_request = service_case.name
     if _has_field("OMC Service Document", "customer_profile"):
-        doc.customer_profile = service_case.customer_profile or (profile.name if profile else "")
+        doc.customer_profile = profile_name
     if (
         document_key
         and _has_field("OMC Service Document", "document_key")
@@ -518,9 +734,26 @@ def _upload_service_document(**kwargs):
         service_request=service_case.name,
         event_type="Document Uploaded",
         title="Document Uploaded",
-        description=remarks or f"{document_title} uploaded by customer.",
+        description=(
+            remarks
+            or (
+                f"{document_title} uploaded by OMC staff."
+                if uploaded_by_staff
+                else f"{document_title} uploaded by customer."
+            )
+        ),
         visible_to_customer=1,
     )
+
+    if uploaded_by_staff:
+        security.audit_event(
+            event_type="document.uploaded_for_customer",
+            capability="can_create_service_for_customer",
+            target_doctype="OMC Service Document",
+            target_name=doc.name,
+            actor=_current_user(),
+            safe_reason="staff_document_upload",
+        )
     review_routing.ensure_review_assignment(doc, service_case)
     payment_name = payment_opening.ensure_service_payment(
         service_case.name
