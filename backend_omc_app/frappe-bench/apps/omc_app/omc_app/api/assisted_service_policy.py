@@ -58,6 +58,37 @@ def get_customer_selection_options(
     return response
 
 
+@frappe.whitelist()
+def desk_customer_query(
+    doctype=None,
+    txt=None,
+    searchfield=None,
+    start=0,
+    page_len=20,
+    filters=None,
+):
+    """Link-field query for approved customers during Desk request creation."""
+    response = get_customer_selection_options(
+        customer_mode="Existing Customer",
+        search=txt,
+        limit_start=start,
+        limit_page_length=page_len,
+    )
+
+    items = response.get("items") or []
+
+    return [
+        [
+            item.get("customer_id") or "",
+            item.get("full_name") or "",
+            item.get("email") or "",
+            item.get("phone") or "",
+        ]
+        for item in items
+        if item.get("customer_id")
+    ]
+
+
 def _ensure_payment_from_response(response):
     if not isinstance(response, dict) or response.get("duplicate"):
         return response

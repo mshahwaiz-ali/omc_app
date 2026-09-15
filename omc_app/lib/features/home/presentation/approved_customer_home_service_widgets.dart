@@ -170,6 +170,185 @@ class _HeaderButton extends StatelessWidget {
   }
 }
 
+class _AttentionServiceCarousel extends StatefulWidget {
+  const _AttentionServiceCarousel({required this.services});
+
+  final List<HomeDashboardServiceSnapshot> services;
+
+  @override
+  State<_AttentionServiceCarousel> createState() =>
+      _AttentionServiceCarouselState();
+}
+
+class _AttentionServiceCarouselState extends State<_AttentionServiceCarousel> {
+  int _index = 0;
+
+  @override
+  void didUpdateWidget(covariant _AttentionServiceCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.services.isEmpty) {
+      _index = 0;
+      return;
+    }
+
+    String previousId = '';
+    if (oldWidget.services.isNotEmpty &&
+        _index >= 0 &&
+        _index < oldWidget.services.length) {
+      previousId = oldWidget.services[_index].id.trim();
+    }
+
+    if (previousId.isNotEmpty) {
+      final preservedIndex = widget.services.indexWhere(
+        (service) => service.id.trim() == previousId,
+      );
+      if (preservedIndex >= 0) {
+        _index = preservedIndex;
+        return;
+      }
+    }
+
+    _index = _index.clamp(0, widget.services.length - 1).toInt();
+  }
+
+  void _move(int delta) {
+    if (widget.services.length <= 1) return;
+
+    final next = (_index + delta).clamp(0, widget.services.length - 1).toInt();
+
+    if (next == _index) return;
+    setState(() => _index = next);
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+    if (velocity.abs() < 250) return;
+
+    _move(velocity < 0 ? 1 : -1);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.services.isEmpty) return const SizedBox.shrink();
+
+    if (widget.services.length == 1) {
+      return _CurrentServiceCard(service: widget.services.first);
+    }
+
+    final service = widget.services[_index];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(
+          label:
+              'Service needing attention ${_index + 1} of ${widget.services.length}',
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onHorizontalDragEnd: _onHorizontalDragEnd,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                final slide = Tween<Offset>(
+                  begin: const Offset(0.035, 0),
+                  end: Offset.zero,
+                ).animate(animation);
+
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(position: slide, child: child),
+                );
+              },
+              child: KeyedSubtree(
+                key: ValueKey<String>('${service.id}|${service.title}|$_index'),
+                child: _CurrentServiceCard(service: service),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        _AttentionCarouselControls(
+          currentIndex: _index,
+          count: widget.services.length,
+          onPrevious: _index > 0 ? () => _move(-1) : null,
+          onNext: _index < widget.services.length - 1 ? () => _move(1) : null,
+        ),
+      ],
+    );
+  }
+}
+
+class _AttentionCarouselControls extends StatelessWidget {
+  const _AttentionCarouselControls({
+    required this.currentIndex,
+    required this.count,
+    required this.onPrevious,
+    required this.onNext,
+  });
+
+  final int currentIndex;
+  final int count;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Attention services, ${currentIndex + 1} of $count',
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Previous service',
+            onPressed: onPrevious,
+            icon: const Icon(Icons.chevron_left_rounded),
+          ),
+          const SizedBox(width: 4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var index = 0; index < count; index++) ...[
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: index == currentIndex ? 18 : 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: index == currentIndex
+                        ? AppTheme.primary
+                        : AppTheme.border,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                ),
+                if (index != count - 1) const SizedBox(width: 5),
+              ],
+            ],
+          ),
+          const SizedBox(width: 10),
+          Text(
+            '${currentIndex + 1} of $count',
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Next service',
+            onPressed: onNext,
+            icon: const Icon(Icons.chevron_right_rounded),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CurrentServiceCard extends StatelessWidget {
   const _CurrentServiceCard({required this.service});
 

@@ -38,6 +38,24 @@ void main() {
     expect(support, contains('return const _CustomerHomeListView('));
   });
 
+  test('approved home separates attention work into a manual carousel', () {
+    expect(view, contains('.where((service) => service.actionRequired)'));
+    expect(view, contains('.where((service) => !service.actionRequired)'));
+    expect(
+      view,
+      contains('_AttentionServiceCarousel(services: attentionServices)'),
+    );
+    expect(
+      service,
+      contains('class _AttentionServiceCarousel extends StatefulWidget'),
+    );
+    expect(service, contains('onHorizontalDragEnd: _onHorizontalDragEnd'));
+    expect(service, contains("'Previous service'"));
+    expect(service, contains("'Next service'"));
+    expect(service, contains(r"'${currentIndex + 1} of $count'"));
+    expect(service, isNot(contains('Timer.periodic')));
+  });
+
   test(
     'approved home live cards use the V2 badge, spacing and radius tokens',
     () {

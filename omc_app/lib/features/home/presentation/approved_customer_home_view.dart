@@ -254,12 +254,23 @@ class _CustomerHomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final current = summary.serviceSnapshots.isEmpty
-        ? null
-        : summary.serviceSnapshots.first;
-    final otherServices = summary.serviceSnapshots.length <= 1
-        ? const <HomeDashboardServiceSnapshot>[]
-        : summary.serviceSnapshots.skip(1).take(2).toList(growable: false);
+    final attentionServices = summary.serviceSnapshots
+        .where((service) => service.actionRequired)
+        .toList(growable: false);
+    final normalServices = summary.serviceSnapshots
+        .where((service) => !service.actionRequired)
+        .toList(growable: false);
+
+    final current = attentionServices.isEmpty && normalServices.isNotEmpty
+        ? normalServices.first
+        : null;
+
+    final otherServices = attentionServices.isNotEmpty
+        ? normalServices.take(2).toList(growable: false)
+        : normalServices
+              .skip(current == null ? 0 : 1)
+              .take(2)
+              .toList(growable: false);
 
     return _CustomerHomeListView(
       children: [
@@ -270,7 +281,9 @@ class _CustomerHomeContent extends StatelessWidget {
           onProfile: onProfile,
         ),
         const SizedBox(height: 20),
-        if (current != null)
+        if (attentionServices.isNotEmpty)
+          _AttentionServiceCarousel(services: attentionServices)
+        else if (current != null)
           _CurrentServiceCard(service: current)
         else if (summary.activeCases > 0)
           _ActiveServiceCountCard(

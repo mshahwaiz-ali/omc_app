@@ -3,7 +3,7 @@ from __future__ import annotations
 import frappe
 from frappe.utils import flt
 
-from omc_app.api import accounting_reconciliation, identity, payments, security
+from omc_app.api import access, accounting_reconciliation, identity, payments, security
 
 
 OPEN_REQUEST_STATES = {"Pending Payment", "Financial Hold", "Activation Failed"}
@@ -105,6 +105,20 @@ def _assert_customer_owns_request(request):
     return context
 
 
+def _assert_internal_payment_desk_access(actor: str):
+    capabilities = access.get_mobile_capabilities(user=actor)
+    if not (
+        capabilities.get("can_access_internal_workspace")
+        and capabilities.get("can_create_service_for_customer")
+        and capabilities.get("can_view_all_service_cases")
+    ):
+        frappe.throw(
+            "You do not have permission to manage customer payments from Desk.",
+            frappe.PermissionError,
+        )
+    return capabilities
+
+
 def _read_accounting_summary(request) -> dict:
     required = max(flt(request.payable_amount or 0, 6), 0)
     currency = _text(request.pricing_currency) or "PKR"
@@ -182,10 +196,27 @@ def _read_accounting_summary(request) -> dict:
 
     open_payment = _open_payment(request.name)
     block_reason = _new_payment_block_reason(accounting_status, invoice_name)
+    installment_ready = bool(
+        invoice_name
+        and _invoice_is_submitted(invoice_name)
+    )
+
+    if (
+        outstanding > 0.000001
+        and not open_payment
+        and not installment_ready
+        and not block_reason
+    ):
+        block_reason = (
+            "The initial payment must be opened through the service payment "
+            "workflow after required documents are satisfied."
+        )
+
     can_make_payment = bool(
         outstanding > 0.000001
         and _text(request.request_state) in OPEN_REQUEST_STATES
         and _text(request.status) not in {"Completed", "Cancelled"}
+        and installment_ready
         and not open_payment
         and not block_reason
     )
@@ -219,8 +250,15 @@ def get_accounting_summary(service_request=None):
     request_name = _text(service_request)
     if not request_name or not frappe.db.exists("OMC Service Request", request_name):
         frappe.throw("Service request was not found.", frappe.DoesNotExistError)
+
+    actor = _current_user()
     request = frappe.get_doc("OMC Service Request", request_name)
-    _assert_customer_owns_request(request)
+
+    if access.can_access_internal_workspace(actor):
+        _assert_internal_payment_desk_access(actor)
+    else:
+        _assert_customer_owns_request(request)
+
     return _read_accounting_summary(request)
 
 
@@ -229,7 +267,13 @@ def create_installment(service_request=None, amount=None):
     actor = _current_user()
     if actor == "Guest":
         frappe.throw("Login is required.", frappe.PermissionError)
-    security.enforce_rate_limit("customer_mutation", actor=actor)
+
+    is_internal = access.can_access_internal_workspace(actor)
+    if is_internal:
+        _assert_internal_payment_desk_access(actor)
+        security.enforce_rate_limit("staff_mutation", actor=actor)
+    else:
+        security.enforce_rate_limit("customer_mutation", actor=actor)
 
     request_name = _text(service_request)
     if not request_name:
@@ -245,7 +289,9 @@ def create_installment(service_request=None, amount=None):
         frappe.throw("Service request was not found.", frappe.DoesNotExistError)
 
     request = frappe.get_doc("OMC Service Request", locked)
-    _assert_customer_owns_request(request)
+    if not is_internal:
+        _assert_customer_owns_request(request)
+
     if _text(request.status) in {"Completed", "Cancelled"}:
         frappe.throw(
             "A new payment cannot be created for a closed service request.",
@@ -269,6 +315,24 @@ def create_installment(service_request=None, amount=None):
         }
 
     remaining, accounting_status, invoice = _authoritative_remaining(request)
+
+    if not invoice:
+        frappe.throw(
+            "The initial payment must be opened through the service payment "
+            "workflow after required documents are satisfied.",
+            frappe.ValidationError,
+        )
+
+    if not _invoice_is_submitted(invoice):
+        block_reason = _new_payment_block_reason(accounting_status, invoice)
+        if block_reason:
+            frappe.throw(block_reason, frappe.ValidationError)
+        frappe.throw(
+            "Finance must reconcile the canonical Sales Invoice before another "
+            "installment can be opened.",
+            frappe.ValidationError,
+        )
+
     if accounting_status == "Settled" or remaining <= 0:
         frappe.throw("This request is already fully settled.", frappe.ValidationError)
 
@@ -316,10 +380,19 @@ def create_installment(service_request=None, amount=None):
     )
     security.audit_event(
         event_type="payment.installment_opened",
+        capability=(
+            "can_create_service_for_customer"
+            if is_internal
+            else "customer_ownership"
+        ),
         target_doctype=payments.PAYMENT_DOCTYPE,
         target_name=payment.name,
         actor=actor,
-        safe_reason="customer_installment",
+        safe_reason=(
+            "staff_installment"
+            if is_internal
+            else "customer_installment"
+        ),
     )
 
     return {
