@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import base64
+
 import frappe
+from frappe.utils import escape_html, flt, fmt_money
+from frappe.utils.pdf import get_pdf
+from frappe.www import printview
 
 from omc_app.api import access, capabilities, identity, mobile, payments, security
 
@@ -33,6 +38,133 @@ def _with_invoice_alias(payload):
     return result
 
 
+def _submitted_invoice_payment_total(invoice_name):
+    """Return submitted ERP Payment Entry allocation against this invoice."""
+    rows = frappe.db.sql(
+        """
+        SELECT COALESCE(SUM(ref.allocated_amount), 0)
+        FROM `tabPayment Entry Reference` AS ref
+        INNER JOIN `tabPayment Entry` AS pe
+            ON pe.name = ref.parent
+        WHERE ref.reference_doctype = 'Sales Invoice'
+          AND ref.reference_name = %s
+          AND pe.docstatus = 1
+        """,
+        (invoice_name,),
+    )
+
+    value = rows[0][0] if rows and rows[0] else 0
+    return max(flt(value or 0, 6), 0)
+
+
+def _render_invoice_pdf_with_outstanding(invoice_name):
+    """Render the customer invoice using the client's ERP Sales Format."""
+    invoice = frappe.get_doc("Sales Invoice", invoice_name)
+    print_format_name = "Sales Format"
+
+    if not frappe.db.exists("Print Format", print_format_name):
+        frappe.throw(
+            "Customer invoice print format is not available.",
+            frappe.ValidationError,
+        )
+
+    rendered = printview.get_html_and_style(
+        doc=invoice,
+        print_format=print_format_name,
+        no_letterhead=0,
+    )
+
+    body = (rendered or {}).get("html") or ""
+    if not body:
+        frappe.throw(
+            "Invoice print is not available.",
+            frappe.ValidationError,
+        )
+
+    style = (rendered or {}).get("style") or ""
+
+    # For non-POS invoices, Sales Invoice.paid_amount is not authoritative
+    # when settlement occurs through separate Payment Entries.
+    # Count only submitted ERP Payment Entry allocations.
+    # Cancelled Payment Entries are excluded by docstatus = 1.
+    paid_total = _submitted_invoice_payment_total(invoice.name)
+
+    settlement_rows = []
+
+    if "Paid / Settled" not in body:
+        paid = escape_html(
+            fmt_money(
+                paid_total,
+                currency=invoice.currency,
+            )
+        )
+
+        settlement_rows.append(
+            f"""
+            <div style="margin-bottom: 4px;">
+                <span style="font-weight: 600; margin-right: 12px;">
+                    Paid / Settled:
+                </span>
+                <span style="font-weight: 600; white-space: nowrap;">
+                    {paid}
+                </span>
+            </div>
+            """
+        )
+
+    if "Outstanding Amount" not in body:
+        outstanding = escape_html(
+            fmt_money(
+                invoice.outstanding_amount or 0,
+                currency=invoice.currency,
+            )
+        )
+
+        settlement_rows.append(
+            f"""
+            <div>
+                <span style="font-weight: 600; margin-right: 12px;">
+                    Outstanding Amount:
+                </span>
+                <span style="font-weight: 600; white-space: nowrap;">
+                    {outstanding}
+                </span>
+            </div>
+            """
+        )
+
+    settlement_html = ""
+
+    if settlement_rows:
+        settlement_html = (
+            '<div class="omc-invoice-settlement" '
+            'style="margin-top: 8px; text-align: right;">'
+            + "".join(settlement_rows)
+            + "</div>"
+        )
+
+    style_block = f"<style>{style}</style>" if style else ""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+{style_block}
+</head>
+<body>
+<div class="print-format-gutter">
+    <div class="print-format">
+        {body}
+        {settlement_html}
+    </div>
+</div>
+</body>
+</html>
+"""
+
+    return get_pdf(html)
+
+
 def _safe_payment_payload(name, *, capabilities, customer_view):
     try:
         payment = _load_readable_payment(name)
@@ -45,7 +177,6 @@ def _safe_payment_payload(name, *, capabilities, customer_view):
         )
     except frappe.DoesNotExistError:
         return None
-
 
 @frappe.whitelist()
 def get_payments(
@@ -204,13 +335,20 @@ def get_payment(payment_id=None, name=None):
             frappe.PermissionError,
         )
 
-    return _with_invoice_alias(
+    payload = _with_invoice_alias(
         payments._payment_dict(
             payment,
             capabilities=capabilities,
             customer_view=profile is not None,
         )
     )
+    payload["invoice_numbers"] = payments._payment_invoice_numbers(payment)
+    payload["receipt_urls"] = (
+        payments._payment_receipt_urls(payment)
+        if profile is not None or capabilities.get("can_view_payment_receipts")
+        else []
+    )
+    return payload
 
 
 @frappe.whitelist()
@@ -261,7 +399,23 @@ def download_invoice_pdf(payment_id=None, invoice_id=None):
                 frappe.ValidationError if eligible else frappe.DoesNotExistError,
             )
         resolved = eligible[0]
-    content = frappe.get_print("Sales Invoice", resolved, as_pdf=True)
-    frappe.local.response.filename = f"{resolved}.pdf"
-    frappe.local.response.filecontent = content
-    frappe.local.response.type = "download"
+    previous_ignore_print_permissions = frappe.local.flags.get(
+        "ignore_print_permissions"
+    )
+    frappe.local.flags.ignore_print_permissions = True
+    try:
+        content = _render_invoice_pdf_with_outstanding(resolved)
+    finally:
+        frappe.local.flags.ignore_print_permissions = (
+            previous_ignore_print_permissions
+        )
+
+    if isinstance(content, str):
+        content = content.encode("utf-8")
+
+    return {
+        "invoice_id": resolved,
+        "file_name": f"{resolved}.pdf",
+        "mime_type": "application/pdf",
+        "file_content": base64.b64encode(content).decode("ascii"),
+    }

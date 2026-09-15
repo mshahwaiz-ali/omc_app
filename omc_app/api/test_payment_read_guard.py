@@ -159,3 +159,228 @@ class TestPaymentReadGuard(FrappeTestCase):
 
         with self.assertRaises(frappe.DoesNotExistError):
             payment_read_guard.get_payment(payment_id="OMC-PAY-TEST")
+
+    @patch("omc_app.api.payment_read_guard.payments._payment_receipt_urls")
+    @patch("omc_app.api.payment_read_guard.payments._payment_invoice_numbers")
+    @patch("omc_app.api.payment_read_guard.payments._payment_dict")
+    @patch(
+        "omc_app.api.payment_read_guard."
+        "payments._assert_service_request_payment_access"
+    )
+    @patch("omc_app.api.payment_read_guard.access.get_mobile_capabilities")
+    @patch("omc_app.api.payment_read_guard.mobile._assert_approved_customer")
+    @patch(
+        "omc_app.api.payment_read_guard."
+        "mobile._can_access_internal_workspace"
+    )
+    @patch("omc_app.api.payment_read_guard._load_readable_payment")
+    def test_payment_detail_exposes_accounting_evidence_lists(
+        self,
+        load_payment,
+        internal_workspace,
+        approved_customer,
+        capabilities,
+        payment_access,
+        payment_dict,
+        invoice_numbers,
+        receipt_urls,
+    ):
+        payment = self._payment()
+        load_payment.return_value = payment
+        internal_workspace.return_value = False
+        approved_customer.return_value = SimpleNamespace(name="CUS-TEST")
+        capabilities.return_value = {}
+        payment_dict.return_value = {
+            "name": payment.name,
+            "linked_invoice": "SINV-O-03059",
+            "accounted_amount": 4000,
+        }
+        invoice_numbers.return_value = [
+            "SINV-O-03059",
+            "SINV-LEGACY-00001",
+        ]
+        receipt_urls.return_value = [
+            "/private/files/proof-1.png",
+            "/private/files/proof-2.png",
+        ]
+
+        result = payment_read_guard.get_payment(
+            payment_id=payment.name,
+        )
+
+        self.assertEqual(result["invoice_number"], "SINV-O-03059")
+        self.assertEqual(
+            result["invoice_numbers"],
+            ["SINV-O-03059", "SINV-LEGACY-00001"],
+        )
+        self.assertEqual(
+            result["receipt_urls"],
+            [
+                "/private/files/proof-1.png",
+                "/private/files/proof-2.png",
+            ],
+        )
+        self.assertEqual(result["accounted_amount"], 4000)
+        payment_access.assert_called_once()
+
+    def test_submitted_invoice_payment_total_counts_only_submitted_entries(self):
+        with patch.object(
+            payment_read_guard.frappe.db,
+            "sql",
+            return_value=[(1500,)],
+        ) as sql:
+            result = (
+                payment_read_guard._submitted_invoice_payment_total(
+                    "SINV-O-03060"
+                )
+            )
+
+        self.assertEqual(result, 1500)
+
+        query = " ".join(sql.call_args.args[0].split())
+        params = sql.call_args.args[1]
+
+        self.assertIn(
+            "ref.reference_doctype = 'Sales Invoice'",
+            query,
+        )
+        self.assertIn("pe.docstatus = 1", query)
+        self.assertEqual(params, ("SINV-O-03060",))
+
+    def test_invoice_pdf_render_uses_sales_format_and_erp_settlement(self):
+        invoice = SimpleNamespace(
+            name="SINV-O-03060",
+            outstanding_amount=1500,
+            currency="PKR",
+        )
+
+        with (
+            patch.object(
+                payment_read_guard.frappe,
+                "get_doc",
+                return_value=invoice,
+            ),
+            patch.object(
+                payment_read_guard.frappe.db,
+                "exists",
+                return_value=True,
+            ) as exists,
+            patch.object(
+                payment_read_guard,
+                "_submitted_invoice_payment_total",
+                return_value=1500,
+            ) as paid_total,
+            patch.object(
+                payment_read_guard.printview,
+                "get_html_and_style",
+                return_value={
+                    "html": "<div>Sales Format invoice body</div>",
+                    "style": ".print-format { font-size: 9pt; }",
+                },
+            ) as render,
+            patch.object(
+                payment_read_guard,
+                "fmt_money",
+                return_value="PKR 1,500.00",
+            ),
+            patch.object(
+                payment_read_guard,
+                "get_pdf",
+                return_value=b"pdf-content",
+            ) as get_pdf,
+        ):
+            content = (
+                payment_read_guard._render_invoice_pdf_with_outstanding(
+                    invoice.name
+                )
+            )
+
+        self.assertEqual(content, b"pdf-content")
+
+        exists.assert_called_once_with(
+            "Print Format",
+            "Sales Format",
+        )
+        paid_total.assert_called_once_with(invoice.name)
+
+        render.assert_called_once_with(
+            doc=invoice,
+            print_format="Sales Format",
+            no_letterhead=0,
+        )
+
+        pdf_html = get_pdf.call_args.args[0]
+
+        self.assertIn("Sales Format invoice body", pdf_html)
+        self.assertIn("Paid / Settled:", pdf_html)
+        self.assertIn("Outstanding Amount:", pdf_html)
+        self.assertEqual(
+            pdf_html.count("PKR 1,500.00"),
+            2,
+        )
+    def test_download_invoice_pdf_returns_authenticated_erp_invoice(self):
+        payment = SimpleNamespace(service_request="OMC-SR-TEST")
+
+        with (
+            patch(
+                "omc_app.api.payment_read_guard._load_readable_payment"
+            ) as load_payment,
+            patch(
+                "omc_app.api.payment_read_guard.identity.current_user"
+            ) as current_user,
+            patch(
+                "omc_app.api.payment_read_guard.access.is_internal_user"
+            ) as is_internal,
+            patch(
+                "omc_app.api.payment_read_guard.identity.require_owned_request"
+            ) as require_owned_request,
+            patch(
+                "omc_app.api.payment_read_guard.security.enforce_rate_limit"
+            ),
+            patch(
+                "omc_app.api.payment_read_guard.frappe.get_all"
+            ) as get_all,
+            patch(
+                "omc_app.api.payment_read_guard.frappe.db.get_value"
+            ) as get_value,
+            patch(
+                "omc_app.api.payment_read_guard."
+                "_render_invoice_pdf_with_outstanding"
+            ) as render_invoice_pdf,
+        ):
+            load_payment.return_value = payment
+            current_user.return_value = "customer@example.com"
+            is_internal.return_value = False
+            get_all.return_value = ["SINV-O-03059"]
+            get_value.return_value = 1
+
+            previous_ignore = frappe.local.flags.get(
+                "ignore_print_permissions"
+            )
+
+            def render_invoice(*args, **kwargs):
+                self.assertTrue(
+                    frappe.local.flags.get("ignore_print_permissions")
+                )
+                return b"%PDF-test"
+
+            render_invoice_pdf.side_effect = render_invoice
+
+            result = payment_read_guard.download_invoice_pdf(
+                payment_id="OMC-PAY-TEST",
+                invoice_id="SINV-O-03059",
+            )
+
+            self.assertEqual(
+                frappe.local.flags.get("ignore_print_permissions"),
+                previous_ignore,
+            )
+
+        require_owned_request.assert_called_once_with("OMC-SR-TEST")
+        render_invoice_pdf.assert_called_once_with(
+            "SINV-O-03059",
+        )
+        self.assertEqual(result["invoice_id"], "SINV-O-03059")
+        self.assertEqual(result["file_name"], "SINV-O-03059.pdf")
+        self.assertEqual(result["mime_type"], "application/pdf")
+        self.assertEqual(result["file_content"], "JVBERi10ZXN0")

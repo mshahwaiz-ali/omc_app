@@ -668,6 +668,68 @@ def _ensure_available_payments(profile=None):
         _ensure_payment_for_case(service_case)
 
 
+def _payment_invoice_numbers(payment):
+    service_request = _clean_text(getattr(payment, "service_request", None))
+    if not service_request:
+        return []
+
+    invoice_names = []
+    linked_invoice = _clean_text(getattr(payment, "linked_invoice", None))
+    if (
+        linked_invoice
+        and frappe.db.get_value("Sales Invoice", linked_invoice, "docstatus") == 1
+    ):
+        invoice_names.append(linked_invoice)
+
+    rows = frappe.get_all(
+        "OMC Accounting Link",
+        filters={
+            "service_request": service_request,
+            "payment_entry": ["is", "not set"],
+            "invoice_docstatus": 1,
+        },
+        pluck="sales_invoice",
+        order_by="creation asc, name asc",
+        limit_page_length=100,
+    )
+    for value in rows:
+        name = _clean_text(value)
+        if (
+            name
+            and name not in invoice_names
+            and frappe.db.get_value("Sales Invoice", name, "docstatus") == 1
+        ):
+            invoice_names.append(name)
+
+    return invoice_names
+
+
+def _payment_receipt_urls(payment):
+    urls = []
+
+    current = _clean_text(getattr(payment, "receipt_attachment", None))
+    if current:
+        urls.append(current)
+
+    rows = frappe.get_all(
+        "OMC Payment Receipt",
+        filters={"service_payment": payment.name},
+        pluck="receipt_attachment",
+        order_by="submitted_at desc, creation desc",
+        limit_page_length=MAX_RECEIPTS_PER_PAYMENT,
+    )
+    for value in rows:
+        url = _clean_text(value)
+        if (
+            url
+            and _file_extension(url) in ALLOWED_RECEIPT_EXTENSIONS
+            and url not in urls
+        ):
+            urls.append(url)
+
+    return urls
+
+
 def _payment_dict(payment, capabilities=None, *, customer_view=False):
     capabilities = capabilities or {}
     service_case = (
@@ -714,6 +776,7 @@ def _payment_dict(payment, capabilities=None, *, customer_view=False):
         "service_reference": payment.service_request,
         "title": payment.payment_title or "Service Payment",
         "amount": payment.amount or 0,
+        "accounted_amount": getattr(payment, "accounted_amount", 0) or 0,
         "currency": payment.currency or "PKR",
         "status": payment.status or "Pending",
         "receipt_status": getattr(payment, "receipt_status", None) or "Not Submitted",
@@ -908,11 +971,18 @@ def get_payment(payment_id=None, name=None):
             frappe.PermissionError,
         )
 
-    return _payment_dict(
+    payload = _payment_dict(
         payment,
         capabilities=capabilities,
         customer_view=profile is not None,
     )
+    payload["invoice_numbers"] = _payment_invoice_numbers(payment)
+    payload["receipt_urls"] = (
+        _payment_receipt_urls(payment)
+        if profile is not None or capabilities.get("can_view_payment_receipts")
+        else []
+    )
+    return payload
 
 
 @frappe.whitelist(methods=["POST"])
