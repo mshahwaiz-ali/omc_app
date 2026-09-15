@@ -356,13 +356,60 @@ def _specialist_permission(values):
     return permission
 
 
-def _remove_role_docperms(role_names):
-    if not role_names:
+def _omc_owned_doctypes():
+    """Return DocTypes inside the OMC-owned naming namespace.
+
+    The OMC permission contract treats the ``OMC `` prefix as the ownership
+    boundary. This includes standard, child and retained compatibility
+    DocTypes such as OMC User Type while excluding all Frappe/ERPNext models.
+    """
+    return set(
+        frappe.get_all(
+            "DocType",
+            filters={"name": ["like", "OMC %"]},
+            pluck="name",
+            limit_page_length=1000,
+        )
+    )
+
+
+def _remove_role_docperms(role_names, *, doctypes):
+    """Remove role permissions only from explicitly scoped OMC DocTypes."""
+    if not role_names or not doctypes:
         return
+
     for name in frappe.get_all(
-        "DocPerm", filters={"role": ["in", sorted(role_names)]}, pluck="name"
+        "DocPerm",
+        filters={
+            "role": ["in", sorted(role_names)],
+            "parent": ["in", sorted(doctypes)],
+        },
+        pluck="name",
+        limit_page_length=5000,
     ):
         frappe.delete_doc("DocPerm", name, ignore_permissions=True, force=True)
+
+
+def _remove_role_custom_docperms(role_names, *, doctypes):
+    """Remove explicitly forbidden custom permissions only inside OMC scope."""
+    if not role_names or not doctypes:
+        return
+
+    for name in frappe.get_all(
+        "Custom DocPerm",
+        filters={
+            "role": ["in", sorted(role_names)],
+            "parent": ["in", sorted(doctypes)],
+        },
+        pluck="name",
+        limit_page_length=5000,
+    ):
+        frappe.delete_doc(
+            "Custom DocPerm",
+            name,
+            ignore_permissions=True,
+            force=True,
+        )
 
 
 def _migrate_legacy_user_roles():
@@ -375,9 +422,22 @@ def _is_submittable(doctype):
 
 
 def _apply_permissions():
-    # Remove all managed OMC, legacy and System Manager rows first. Any model
-    # omitted from the explicit allowlists below intentionally remains denied.
-    _remove_role_docperms(ACTIVE_OMC_ROLES | LEGACY_ROLES | {SYSTEM_ROLE})
+    # Reconcile only inside the OMC namespace. Permission classification
+    # determines which OMC roles are rebuilt below; namespace ownership
+    # determines which existing OMC permission rows are safe to remove.
+    # Frappe/ERPNext/client DocTypes remain completely outside this scope.
+    managed_doctypes = _omc_owned_doctypes()
+    _remove_role_docperms(
+        ACTIVE_OMC_ROLES | LEGACY_ROLES | {SYSTEM_ROLE},
+        doctypes=managed_doctypes,
+    )
+
+    # System Manager must never gain implicit authority over OMC models,
+    # including through Permission Manager / Custom DocPerm overrides.
+    _remove_role_custom_docperms(
+        {SYSTEM_ROLE},
+        doctypes=managed_doctypes,
+    )
 
     for doctype in sorted(ADMIN_MUTABLE_DOCTYPES):
         if not frappe.db.exists("DocType", doctype):
