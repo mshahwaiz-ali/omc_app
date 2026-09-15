@@ -465,9 +465,7 @@ class _PaymentCard extends StatelessWidget {
       title = detail.paymentStatus.isEmpty
           ? 'Payment status'
           : detail.paymentStatus;
-      message = detail.payableAmount > 0
-          ? '${detail.currency.isEmpty ? 'PKR' : detail.currency} ${detail.payableAmount.toStringAsFixed(2)} is recorded for this request.'
-          : 'Open payments for the latest payment status.';
+      message = detail.paymentAmountSummary;
       icon = Icons.account_balance_wallet_outlined;
       showAction = canViewPayments;
     } else {

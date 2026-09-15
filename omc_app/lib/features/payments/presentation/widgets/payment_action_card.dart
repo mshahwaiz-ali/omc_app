@@ -38,8 +38,10 @@ class PaymentActionCard extends StatelessWidget {
         payment.paymentActionLabel?.trim().isNotEmpty == true
         ? payment.paymentActionLabel!.trim()
         : 'Continue payment';
-    final canOpenInvoice = payment.invoiceNumber?.trim().isNotEmpty == true;
-    final canOpenPaymentProof = payment.paymentProofUrl != null;
+    final invoiceCount = payment.effectiveInvoiceNumbers.length;
+    final paymentProofCount = payment.effectivePaymentProofUrls.length;
+    final canOpenInvoice = invoiceCount > 0;
+    final canOpenPaymentProof = paymentProofCount > 0;
     final canUploadReceipt =
         !payment.isSettlementEvidenceLocked && onUploadReceipt != null;
     final instructions = payment.paymentInstructions?.trim();
@@ -162,7 +164,11 @@ class PaymentActionCard extends StatelessWidget {
             onPressed: canOpenInvoice ? onInvoice : null,
             icon: const Icon(Icons.receipt_long_outlined),
             label: Text(
-              canOpenInvoice ? 'View invoice' : 'Invoice not available yet',
+              canOpenInvoice
+                  ? invoiceCount > 1
+                        ? 'View invoices ($invoiceCount)'
+                        : 'View invoice'
+                  : 'Invoice not available yet',
             ),
           ),
           const SizedBox(height: 8),
@@ -171,7 +177,9 @@ class PaymentActionCard extends StatelessWidget {
             icon: const Icon(Icons.verified_outlined),
             label: Text(
               canOpenPaymentProof
-                  ? 'View submitted payment proof'
+                  ? paymentProofCount > 1
+                        ? 'View payment proofs ($paymentProofCount)'
+                        : 'View submitted payment proof'
                   : 'Payment proof not submitted yet',
             ),
           ),

@@ -110,7 +110,9 @@ class PaymentsRepository {
     return _mapPaymentDetailResponse(response);
   }
 
-  Future<PaymentReviewContext> fetchPaymentReviewContext(String paymentId) async {
+  Future<PaymentReviewContext> fetchPaymentReviewContext(
+    String paymentId,
+  ) async {
     final cleanPaymentId = paymentId.trim();
     if (cleanPaymentId.isEmpty) {
       throw const ApiError(message: 'Missing payment reference for review.');
@@ -249,9 +251,22 @@ class PaymentsRepository {
   Future<AuthenticatedPaymentFile> downloadInvoice(
     PaymentItem payment, {
     bool assisted = false,
+    String? invoiceNumber,
   }) async {
-    final invoiceNumber = payment.invoiceNumber?.trim() ?? '';
-    if (invoiceNumber.isEmpty) {
+    final requestedInvoice = invoiceNumber?.trim() ?? '';
+    final availableInvoices = payment.effectiveInvoiceNumbers;
+
+    if (requestedInvoice.isEmpty && availableInvoices.length > 1) {
+      throw const ApiError(message: 'Select which invoice you want to open.');
+    }
+
+    final resolvedInvoice = requestedInvoice.isNotEmpty
+        ? requestedInvoice
+        : availableInvoices.isNotEmpty
+        ? availableInvoices.first
+        : '';
+
+    if (resolvedInvoice.isEmpty) {
       throw const ApiError(
         message: 'Invoice is not available for this payment.',
       );
@@ -262,6 +277,7 @@ class PaymentsRepository {
       queryParameters: {
         'payment_id': payment.id,
         'name': payment.id,
+        'invoice_id': resolvedInvoice,
         if (assisted) 'assisted': '1',
       },
     );
@@ -278,7 +294,7 @@ class PaymentsRepository {
     }
 
     final fileName =
-        _nullableString(payload['file_name']) ?? '$invoiceNumber.pdf';
+        _nullableString(payload['file_name']) ?? '$resolvedInvoice.pdf';
 
     return AuthenticatedPaymentFile(
       name: fileName,
@@ -287,9 +303,24 @@ class PaymentsRepository {
   }
 
   Future<AuthenticatedPaymentFile> downloadPaymentProof(
-    PaymentItem payment,
-  ) async {
-    final location = payment.paymentProofUrl?.trim() ?? '';
+    PaymentItem payment, {
+    String? proofUrl,
+  }) async {
+    final requestedProof = proofUrl?.trim() ?? '';
+    final availableProofs = payment.effectivePaymentProofUrls;
+
+    if (requestedProof.isEmpty && availableProofs.length > 1) {
+      throw const ApiError(
+        message: 'Select which payment proof you want to open.',
+      );
+    }
+
+    final location = requestedProof.isNotEmpty
+        ? requestedProof
+        : availableProofs.isNotEmpty
+        ? availableProofs.first
+        : '';
+
     if (location.isEmpty) {
       throw const ApiError(
         message: 'No payment proof is attached to this payment.',
@@ -367,10 +398,16 @@ class PaymentsRepository {
         json['amount_label'] ?? json['amount'] ?? json['grand_total'],
         currency: json['currency'],
       ),
+      accountedAmountLabel:
+          json.containsKey('accounted_amount') &&
+              _doubleValue(json['accounted_amount']) > 0.000001
+          ? _amountLabel(json['accounted_amount'], currency: json['currency'])
+          : null,
       reference: _nullableString(
         json['reference'] ?? json['payment_reference'],
       ),
       invoiceNumber: _nullableString(json['invoice_number']),
+      invoiceNumbers: _stringList(json['invoice_numbers']),
       paymentProofUrl: _nullableString(
         json['payment_proof_url'] ??
             json['receipt_url'] ??
@@ -378,6 +415,9 @@ class PaymentsRepository {
             json['receipt_file'] ??
             json['receipt_link'] ??
             json['file_url'],
+      ),
+      paymentProofUrls: _stringList(
+        json['receipt_urls'] ?? json['payment_proof_urls'],
       ),
       paymentUrl: _nullableString(
         json['payment_url'] ??
@@ -426,6 +466,19 @@ class PaymentsRepository {
       customerProfile: _nullableString(json['customer_profile']),
       scopeType: _nullableString(json['scope_type']),
     );
+  }
+
+  List<String> _stringList(dynamic value) {
+    if (value is! List) return const <String>[];
+
+    final result = <String>[];
+    for (final item in value) {
+      final clean = item?.toString().trim() ?? '';
+      if (clean.isNotEmpty && !result.contains(clean)) {
+        result.add(clean);
+      }
+    }
+    return result;
   }
 
   bool _boolValue(dynamic value) {

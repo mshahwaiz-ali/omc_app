@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from frappe.exceptions import ValidationError
 from frappe.tests.utils import FrappeTestCase
 
 from omc_app import hooks
@@ -23,8 +24,9 @@ class TestPartialPaymentReceiptContinuation(FrappeTestCase):
             "omc_app.api.payment_mutation_guard.upload_payment_receipt_multipart",
         )
 
-    def test_follow_up_receipt_preserves_activated_service_status(self):
+    def test_follow_up_receipt_requires_new_installment_after_erp_settlement(self):
         payment = self._payment()
+
         with (
             patch.object(
                 payment_mutation_guard,
@@ -34,33 +36,30 @@ class TestPartialPaymentReceiptContinuation(FrappeTestCase):
             patch.object(
                 payment_mutation_guard,
                 "_activated_case_snapshot",
-                return_value="In Progress",
-            ),
+            ) as snapshot,
             patch.object(
                 payment_mutation_guard.payments,
                 "upload_payment_receipt_multipart",
-                return_value={"updated": True, "status": "Receipt Submitted"},
             ) as upload,
             patch.object(
                 payment_mutation_guard,
                 "_restore_activated_case_status",
             ) as restore,
         ):
-            result = payment_mutation_guard.upload_payment_receipt_multipart(
-                payment_id=payment.name,
-                payment_reference="BANK-2",
-                remarks="Second installment",
-                idempotency_key="receipt-2",
-            )
+            with self.assertRaisesRegex(
+                ValidationError,
+                "Open another payment installment",
+            ):
+                payment_mutation_guard.upload_payment_receipt_multipart(
+                    payment_id=payment.name,
+                    payment_reference="BANK-2",
+                    remarks="Second installment",
+                    idempotency_key="receipt-2",
+                )
 
-        self.assertTrue(result["updated"])
-        upload.assert_called_once_with(
-            payment_id=payment.name,
-            payment_reference="BANK-2",
-            remarks="Second installment",
-            idempotency_key="receipt-2",
-        )
-        restore.assert_called_once_with(payment, "In Progress")
+        snapshot.assert_not_called()
+        upload.assert_not_called()
+        restore.assert_not_called()
 
     def test_restore_only_applies_while_request_remains_activated(self):
         payment = self._payment()

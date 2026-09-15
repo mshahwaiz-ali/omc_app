@@ -86,6 +86,8 @@ class CustomerServiceCaseDetail {
     required this.paymentId,
     required this.settlementStatus,
     required this.payableAmount,
+    this.erpPaidAmount = 0,
+    this.erpOutstandingAmount = 0,
     required this.currency,
     required this.createdAtLabel,
     required this.updatedAtLabel,
@@ -114,6 +116,8 @@ class CustomerServiceCaseDetail {
   final String paymentId;
   final String settlementStatus;
   final double payableAmount;
+  final double erpPaidAmount;
+  final double erpOutstandingAmount;
   final String currency;
   final String createdAtLabel;
   final String updatedAtLabel;
@@ -145,6 +149,35 @@ class CustomerServiceCaseDetail {
     return actionType == 'correct_payment_receipt' ||
         receiptStatus.trim().toLowerCase() == 'rejected' ||
         paymentStatus.trim().toLowerCase() == 'rejected';
+  }
+
+  String get paymentAmountSummary {
+    final code = currency.trim().isEmpty ? 'PKR' : currency.trim();
+    final payment = paymentStatus.trim().toLowerCase();
+    final settlement = settlementStatus.trim().toLowerCase();
+    final isPartial =
+        payment == 'partially paid' || settlement == 'partially settled';
+
+    if (isPartial && erpPaidAmount > 0) {
+      final total = payableAmount > 0
+          ? payableAmount
+          : erpPaidAmount + erpOutstandingAmount;
+      return '$code ${erpPaidAmount.toStringAsFixed(2)} paid of '
+          '$code ${total.toStringAsFixed(2)} · '
+          '$code ${erpOutstandingAmount.toStringAsFixed(2)} remaining.';
+    }
+
+    if (settlement == 'settled' && erpPaidAmount > 0) {
+      return '$code ${erpPaidAmount.toStringAsFixed(2)} '
+          'paid and reconciled in ERP.';
+    }
+
+    if (payableAmount > 0) {
+      return '$code ${payableAmount.toStringAsFixed(2)} '
+          'is the total amount for this request.';
+    }
+
+    return 'Open payments for the latest payment status.';
   }
 
   factory CustomerServiceCaseDetail.fromResponse(
@@ -223,6 +256,10 @@ class CustomerServiceCaseDetail {
       payableAmount: _doubleValue(
         settlement['payable_amount'] ?? payload['payable_amount'],
       ),
+      erpPaidAmount: _doubleValue(
+        settlement['allocated_amount'] ?? payload['accounted_amount'],
+      ),
+      erpOutstandingAmount: _doubleValue(settlement['outstanding_amount']),
       currency: _text(settlement['currency'] ?? 'PKR'),
       createdAtLabel: _text(
         payload['submitted_on'] ??

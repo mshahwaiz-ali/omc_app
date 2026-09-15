@@ -248,4 +248,43 @@ void main() {
       'Please confirm the filing year.',
     );
   });
+
+  test('uses ERP settlement amounts for partial-payment summary', () {
+    final detail = CustomerServiceCaseDetail.fromResponse({
+      'case': {
+        'name': 'OMC-SR-260913-00001',
+        'request_state': 'Pending Payment',
+        'status': 'Waiting for Payment',
+        'receipt': {
+          'status': 'Accepted',
+          'payment_status': 'Partially Paid',
+          'payment_id': 'OMC-PAY-260913-00001',
+        },
+        'settlement': {
+          'status': 'Partially Settled',
+          'payable_amount': 9000,
+          'allocated_amount': 4000,
+          'outstanding_amount': 5000,
+          'currency': 'PKR',
+        },
+        'customer_lifecycle': {
+          'current_stage': 'Payment',
+          'progress_percent': 50,
+          'action_required': true,
+          'terminal': false,
+          'completed': false,
+          'payment_not_required': false,
+          'milestones': <Map<String, dynamic>>[],
+        },
+      },
+    });
+
+    expect(detail.payableAmount, 9000);
+    expect(detail.erpPaidAmount, 4000);
+    expect(detail.erpOutstandingAmount, 5000);
+    expect(
+      detail.paymentAmountSummary,
+      'PKR 4000.00 paid of PKR 9000.00 · PKR 5000.00 remaining.',
+    );
+  });
 }

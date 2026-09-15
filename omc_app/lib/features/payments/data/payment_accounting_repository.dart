@@ -10,14 +10,11 @@ const _accountingSummaryMethod =
 const _createInstallmentMethod =
     'omc_app.api.payment_installments.create_installment';
 
-final paymentAccountingRepositoryProvider = Provider<PaymentAccountingRepository>(
-  (ref) {
-    ref.watch(sessionEpochProvider);
-    return PaymentAccountingRepository(
-      frappeClient: ref.watch(frappeClientProvider),
-    );
-  },
-);
+final paymentAccountingRepositoryProvider =
+    Provider<PaymentAccountingRepository>((ref) {
+      ref.watch(sessionEpochProvider);
+      return PaymentAccountingRepository(ref.watch(frappeClientProvider));
+    });
 
 final paymentAccountingSummaryProvider = FutureProvider.autoDispose
     .family<PaymentAccountingSummary, String>((ref, serviceRequest) async {
@@ -27,8 +24,7 @@ final paymentAccountingSummaryProvider = FutureProvider.autoDispose
     });
 
 class PaymentAccountingRepository {
-  PaymentAccountingRepository({required FrappeClient frappeClient})
-    : _frappeClient = frappeClient;
+  PaymentAccountingRepository(this._frappeClient);
 
   final FrappeClient _frappeClient;
 
@@ -64,10 +60,7 @@ class PaymentAccountingRepository {
 
     final response = await _frappeClient.postMethod(
       _createInstallmentMethod,
-      data: {
-        'service_request': request,
-        'amount': amount,
-      },
+      data: {'service_request': request, 'amount': amount},
     );
     return CreateInstallmentResult.fromJson(_payload(response));
   }

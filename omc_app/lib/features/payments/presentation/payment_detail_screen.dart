@@ -213,9 +213,9 @@ class _PaymentHeroCard extends StatelessWidget {
             },
           ),
           const SizedBox(height: 18),
-          const Text(
-            'Amount',
-            style: TextStyle(
+          Text(
+            payment.heroAmountTitle,
+            style: const TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -223,7 +223,7 @@ class _PaymentHeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            payment.amountLabel,
+            payment.heroAmountLabel,
             style: const TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 28,
@@ -730,16 +730,66 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
     }
   }
 
+  Future<String?> _selectEvidence(
+    BuildContext context, {
+    required String title,
+    required List<String> values,
+    required String Function(String value, int index) optionLabel,
+  }) async {
+    if (values.isEmpty) return null;
+    if (values.length == 1) return values.first;
+
+    return showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(title, style: Theme.of(sheetContext).textTheme.titleLarge),
+                const SizedBox(height: 10),
+                for (var index = 0; index < values.length; index++)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.description_outlined),
+                    title: Text(optionLabel(values[index], index)),
+                    onTap: () => Navigator.of(sheetContext).pop(values[index]),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _openAuthenticatedInvoice(BuildContext context) async {
-    if (payment.invoiceNumber?.trim().isEmpty ?? true) {
+    final invoices = payment.effectiveInvoiceNumbers;
+    if (invoices.isEmpty) {
       _showSnack(context, 'Invoice is not available for this payment.');
       return;
     }
 
+    final selectedInvoice = await _selectEvidence(
+      context,
+      title: 'Select invoice',
+      values: invoices,
+      optionLabel: (value, _) => value,
+    );
+    if (selectedInvoice == null || !context.mounted) return;
+
     try {
       final file = await ref
           .read(paymentsRepositoryProvider)
-          .downloadInvoice(payment, assisted: widget.assisted);
+          .downloadInvoice(
+            payment,
+            assisted: widget.assisted,
+            invoiceNumber: selectedInvoice,
+          );
 
       if (!context.mounted) return;
 
@@ -764,14 +814,30 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
   }
 
   Future<void> _openAuthenticatedPaymentProof(BuildContext context) async {
-    if (payment.paymentProofUrl?.trim().isEmpty ?? true) {
+    final proofs = payment.effectivePaymentProofUrls;
+    if (proofs.isEmpty) {
       _showSnack(context, 'Payment proof is not available for this record.');
       return;
     }
+
+    final selectedProof = await _selectEvidence(
+      context,
+      title: 'Select payment proof',
+      values: proofs,
+      optionLabel: (value, index) {
+        final uri = Uri.tryParse(value);
+        final name = uri?.pathSegments.isNotEmpty == true
+            ? Uri.decodeComponent(uri!.pathSegments.last)
+            : '';
+        return name.trim().isEmpty ? 'Payment proof ${index + 1}' : name;
+      },
+    );
+    if (selectedProof == null || !context.mounted) return;
+
     try {
       final file = await ref
           .read(paymentsRepositoryProvider)
-          .downloadPaymentProof(payment);
+          .downloadPaymentProof(payment, proofUrl: selectedProof);
       if (!context.mounted) return;
 
       await Navigator.of(context).push<void>(

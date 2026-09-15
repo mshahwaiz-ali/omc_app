@@ -15,9 +15,12 @@ class PaymentItem {
     required this.title,
     required this.amountLabel,
     required this.status,
+    this.accountedAmountLabel,
     this.reference,
     this.invoiceNumber,
+    this.invoiceNumbers = const <String>[],
     this.paymentProofUrl,
+    this.paymentProofUrls = const <String>[],
     this.paymentUrl,
     this.paymentChannel,
     this.paymentActionLabel,
@@ -37,9 +40,12 @@ class PaymentItem {
   final String id;
   final String title;
   final String amountLabel;
+  final String? accountedAmountLabel;
   final String? reference;
   final String? invoiceNumber;
+  final List<String> invoiceNumbers;
   final String? paymentProofUrl;
+  final List<String> paymentProofUrls;
   final String? paymentUrl;
   final String? paymentChannel;
   final String? paymentActionLabel;
@@ -68,6 +74,44 @@ class PaymentItem {
     if (profile != null && profile.isNotEmpty) return profile;
 
     return isReferralPayment ? 'Referral customer' : 'My payment';
+  }
+
+  List<String> get effectiveInvoiceNumbers {
+    final values = <String>[];
+    for (final value in <String>[...invoiceNumbers, invoiceNumber ?? '']) {
+      final clean = value.trim();
+      if (clean.isNotEmpty && !values.contains(clean)) {
+        values.add(clean);
+      }
+    }
+    return List<String>.unmodifiable(values);
+  }
+
+  List<String> get effectivePaymentProofUrls {
+    final values = <String>[];
+    for (final value in <String>[...paymentProofUrls, paymentProofUrl ?? '']) {
+      final clean = value.trim();
+      if (clean.isNotEmpty && !values.contains(clean)) {
+        values.add(clean);
+      }
+    }
+    return List<String>.unmodifiable(values);
+  }
+
+  String get heroAmountTitle {
+    if (status == PaymentStatus.partiallyPaid) return 'ERP accounted';
+    if (status == PaymentStatus.paid) return 'ERP paid';
+    return 'Installment amount';
+  }
+
+  String get heroAmountLabel {
+    final accounted = accountedAmountLabel?.trim() ?? '';
+    if ((status == PaymentStatus.partiallyPaid ||
+            status == PaymentStatus.paid) &&
+        accounted.isNotEmpty) {
+      return accounted;
+    }
+    return amountLabel;
   }
 
   bool get isSettlementEvidenceLocked =>

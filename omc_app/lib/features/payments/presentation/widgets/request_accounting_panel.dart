@@ -87,7 +87,7 @@ class _RequestAccountingPanelState
         maximumAmount: maximum,
       ),
     );
-    if (amount == null || !mounted) return;
+    if (amount == null || !context.mounted) return;
 
     setState(() => _creatingInstallment = true);
     final messenger = ScaffoldMessenger.of(context);
@@ -248,8 +248,7 @@ class _AccountingContent extends StatelessWidget {
               item: summary.payments[index],
               onOpen: () => onOpenPayment(summary.payments[index].paymentId),
             ),
-            if (index != summary.payments.length - 1)
-              const Divider(height: 18),
+            if (index != summary.payments.length - 1) const Divider(height: 18),
           ],
         ],
       ],
@@ -391,7 +390,7 @@ class _HistoryRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    'Requested ${_money(item.currency, item.amount)} · Accounted ${_money(item.currency, item.accountedAmount)}',
+                    'Requested ${_money(item.currency, item.amount)} · Settled ${_money(item.currency, item.accountedAmount)}',
                     style: const TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 12,
@@ -530,7 +529,7 @@ class _InstallmentDialogState extends State<_InstallmentDialog> {
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              labelText: 'Payment amount',
+              labelText: 'Installment amount',
               prefixText: '${widget.currency} ',
               errorText: _error,
             ),
