@@ -538,15 +538,25 @@ class TestPhase6BPaymentReviewAI(FrappeTestCase):
         _set_value,
         _audit,
     ):
-        receipt = self._receipt()
+        receipt = SimpleNamespace(
+            name="OMC-RCP-6B",
+            service_payment="OMC-PAY-6B",
+            service_request="OMC-SR-6B",
+            receipt_attachment="/private/files/receipt.pdf",
+            receipt_sha256="phase6b-ai-analysis",
+            review_status="Submitted",
+            ai_warnings_json="[]",
+        )
         get_doc.return_value = receipt
 
         with (
             patch.object(payment_accounting, "review_receipt") as human_review,
             patch.object(payment_accounting, "process_receipt") as accounting,
+            patch.object(analysis.frappe, "log_error") as log_error,
         ):
             result = analysis.analyze_receipt(receipt.name)
 
         self.assertEqual(result["status"], "completed")
         human_review.assert_not_called()
         accounting.assert_not_called()
+        log_error.assert_not_called()
