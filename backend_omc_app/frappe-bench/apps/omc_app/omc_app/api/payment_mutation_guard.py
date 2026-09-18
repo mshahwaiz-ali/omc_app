@@ -3,7 +3,7 @@ from __future__ import annotations
 import frappe
 from frappe.utils import flt
 
-from omc_app.api import mobile, payment_accounting, payments
+from omc_app.api import access, mobile, payment_accounting, payments
 from omc_app.omc_app.doctype.omc_service_payment.omc_service_payment import (
     TERMINAL_PAYMENT_STATUSES,
     TERMINAL_SERVICE_REQUEST_STATUSES,
@@ -124,6 +124,31 @@ def _restore_activated_case_status(payment, previous_status):
         )
 
 
+
+def _require_staff_receipt_upload_access(payment):
+    actor = payments._current_user()
+    capabilities = access.get_mobile_capabilities(user=actor)
+
+    if (
+        actor == "Guest"
+        or not capabilities.get("can_access_internal_workspace")
+        or not capabilities.get("can_review_payments")
+    ):
+        frappe.throw(
+            "You do not have permission to upload payment receipts on behalf of customers.",
+            frappe.PermissionError,
+        )
+
+    payments._assert_service_request_payment_access(
+        payment.service_request,
+        internal_user=actor,
+    )
+    service_case = frappe.get_doc(
+        "OMC Service Request",
+        payment.service_request,
+    )
+    return actor, service_case
+
 @frappe.whitelist(methods=["POST"])
 def upload_payment_receipt_file(
     payment_id=None,
@@ -171,6 +196,62 @@ def upload_payment_receipt_multipart(
     _restore_activated_case_status(payment, activated_status)
     return response
 
+
+
+@frappe.whitelist(methods=["POST"])
+def staff_upload_payment_receipt_file(
+    payment_id=None,
+    name=None,
+    file_name=None,
+    content_base64=None,
+    payment_reference=None,
+    remarks=None,
+    idempotency_key=None,
+):
+    resolved_id = _payment_id(payment_id, name)
+    payment = _load_mutable_payment(resolved_id)
+    _assert_receipt_upload_allowed(payment)
+    actor, service_case = _require_staff_receipt_upload_access(payment)
+    activated_status = _activated_case_snapshot(payment)
+    response = payments._submit_payment_receipt_base64(
+        payment=payment,
+        service_case=service_case,
+        file_name=file_name,
+        content_base64=content_base64,
+        payment_reference=payment_reference,
+        remarks=remarks,
+        idempotency_key=idempotency_key,
+        submission_source="Staff On Behalf",
+        submitted_by=actor,
+    )
+    _restore_activated_case_status(payment, activated_status)
+    return response
+
+
+@frappe.whitelist(methods=["POST"])
+def staff_upload_payment_receipt_multipart(
+    payment_id=None,
+    name=None,
+    payment_reference=None,
+    remarks=None,
+    idempotency_key=None,
+):
+    resolved_id = _payment_id(payment_id, name)
+    payment = _load_mutable_payment(resolved_id)
+    _assert_receipt_upload_allowed(payment)
+    actor, service_case = _require_staff_receipt_upload_access(payment)
+    activated_status = _activated_case_snapshot(payment)
+    response = payments._submit_payment_receipt_multipart(
+        payment=payment,
+        service_case=service_case,
+        payment_reference=payment_reference,
+        remarks=remarks,
+        idempotency_key=idempotency_key,
+        submission_source="Staff On Behalf",
+        submitted_by=actor,
+    )
+    _restore_activated_case_status(payment, activated_status)
+    return response
 
 @frappe.whitelist(methods=["POST"])
 def review_payment_receipt(

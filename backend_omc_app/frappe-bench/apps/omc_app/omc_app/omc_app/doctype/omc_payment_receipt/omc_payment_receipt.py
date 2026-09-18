@@ -12,6 +12,7 @@ class OMCPaymentReceipt(Document):
         "receipt_attachment",
         "submitted_reference",
         "submitted_remarks",
+        "submission_source",
         "submitted_by",
         "submitted_at",
         "currency",
@@ -33,8 +34,16 @@ class OMCPaymentReceipt(Document):
                 as_dict=True,
             )
         if file_row:
-            self.submitted_by = file_row.owner
-            self.submitted_at = file_row.creation
+            if not self.submitted_by:
+                self.submitted_by = file_row.owner
+            if not self.submitted_at:
+                self.submitted_at = file_row.creation
+        self.submission_source = self.submission_source or "Customer App"
+        if self.submission_source not in {"Customer App", "Staff On Behalf"}:
+            frappe.throw(
+                "Invalid payment receipt submission source.",
+                frappe.ValidationError,
+            )
         self.review_status = self.review_status or "Submitted"
         self.accounting_state = self.accounting_state or "Not Started"
 

@@ -201,22 +201,19 @@ def _receipt_for_current_evidence(payment):
 
 
 def _create_receipt_evidence(payment, *, key: str, actor: str):
-    doc = frappe.new_doc(RECEIPT_DOCTYPE)
-    doc.service_payment = payment.name
-    doc.service_request = payment.service_request
-    doc.source_key = key
-    doc.receipt_attachment = payment.receipt_attachment
-    doc.submitted_reference = payment.payment_reference
-    doc.submitted_remarks = payment.remarks
-    doc.submitted_by = payment.owner
-    doc.submitted_at = payment.modified
-    doc.currency = payment.currency or "PKR"
-    doc.review_status = "Submitted"
-    doc.verification_source = "Manual"
-    doc.accounting_state = "Not Started"
-    doc.insert(ignore_permissions=True)
-    return doc
-
+    provenance = payments._receipt_file_provenance(
+        payment,
+        payment.receipt_attachment,
+    )
+    return payments._record_receipt_evidence(
+        payment=payment,
+        receipt_attachment=payment.receipt_attachment,
+        payment_reference=payment.payment_reference,
+        remarks=payment.remarks,
+        submission_source=provenance["submission_source"],
+        submitted_by=provenance["submitted_by"] or actor,
+        submitted_at=provenance["submitted_at"],
+    )
 
 def _queue_receipt(receipt_name: str) -> None:
     frappe.enqueue(

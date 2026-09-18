@@ -12,6 +12,7 @@ from omc_app.api import access, idempotency, identity, mobile, review_routing, s
 
 PAYMENT_ACCOUNT_DOCTYPE = "OMC Payment Account"
 PAYMENT_DOCTYPE = "OMC Service Payment"
+RECEIPT_DOCTYPE = "OMC Payment Receipt"
 DEFAULT_PAYMENT_WHATSAPP_NUMBER = "923122114116"
 ALLOWED_RECEIPT_EXTENSIONS = {"pdf", "jpg", "jpeg", "png"}
 MAX_RECEIPT_SIZE_BYTES = 10 * 1024 * 1024
@@ -995,6 +996,261 @@ def get_payment(payment_id=None, name=None):
     return payload
 
 
+
+def _receipt_source_key(payment_name, receipt_attachment):
+    return hashlib.sha256(
+        f"{payment_name}|{receipt_attachment}".encode("utf-8")
+    ).hexdigest()
+
+
+def _receipt_file_provenance(payment, receipt_attachment):
+    row = frappe.db.get_value(
+        "File",
+        {
+            "file_url": receipt_attachment,
+            "attached_to_doctype": PAYMENT_DOCTYPE,
+            "attached_to_name": payment.name,
+        },
+        ["owner", "creation"],
+        as_dict=True,
+    )
+    actor = _clean_text(getattr(row, "owner", None)) if row else ""
+    submitted_at = getattr(row, "creation", None) if row else None
+    source = (
+        "Staff On Behalf"
+        if actor and access.is_internal_user(actor)
+        else "Customer App"
+    )
+    return {
+        "submission_source": source,
+        "submitted_by": actor,
+        "submitted_at": submitted_at,
+    }
+
+
+def _record_receipt_evidence(
+    *,
+    payment,
+    receipt_attachment,
+    payment_reference="",
+    remarks="",
+    submission_source,
+    submitted_by,
+    submitted_at=None,
+):
+    source_key = _receipt_source_key(
+        payment.name,
+        receipt_attachment,
+    )
+    existing = frappe.db.get_value(
+        RECEIPT_DOCTYPE,
+        {"source_key": source_key},
+        "name",
+    )
+    if existing:
+        return frappe.get_doc(RECEIPT_DOCTYPE, existing)
+
+    doc = frappe.new_doc(RECEIPT_DOCTYPE)
+    doc.service_payment = payment.name
+    doc.service_request = payment.service_request
+    doc.source_key = source_key
+    doc.receipt_attachment = receipt_attachment
+    doc.submitted_reference = _clean_text(payment_reference)
+    doc.submitted_remarks = _clean_text(remarks)
+    doc.submission_source = _clean_text(submission_source)
+    doc.submitted_by = _clean_text(submitted_by)
+    doc.submitted_at = submitted_at or frappe.utils.now_datetime()
+    doc.currency = payment.currency or "PKR"
+    doc.review_status = "Submitted"
+    doc.verification_source = "Manual"
+    doc.accounting_state = "Not Started"
+
+    try:
+        doc.insert(ignore_permissions=True)
+    except frappe.DuplicateEntryError:
+        existing = frappe.db.get_value(
+            RECEIPT_DOCTYPE,
+            {"source_key": source_key},
+            "name",
+        )
+        if existing:
+            return frappe.get_doc(RECEIPT_DOCTYPE, existing)
+        raise
+
+    security.audit_event(
+        event_type="payment.receipt_submitted",
+        target_doctype=RECEIPT_DOCTYPE,
+        target_name=doc.name,
+        actor=_clean_text(submitted_by),
+        safe_reason=(
+            "staff_on_behalf"
+            if _clean_text(submission_source) == "Staff On Behalf"
+            else "customer_app"
+        ),
+    )
+    return doc
+
+
+def _decode_receipt_base64(content_base64):
+    if not content_base64:
+        frappe.throw("content_base64 is required")
+    try:
+        return base64.b64decode(content_base64, validate=True)
+    except Exception:
+        frappe.throw("Invalid base64 file content.", frappe.ValidationError)
+
+
+def _submit_payment_receipt_bytes(
+    *,
+    payment,
+    service_case,
+    file_name,
+    content,
+    payment_reference=None,
+    remarks=None,
+    idempotency_key=None,
+    submission_source,
+    submitted_by,
+):
+    if not file_name:
+        frappe.throw("file_name is required")
+    if not content:
+        frappe.throw("Payment receipt file is empty.", frappe.ValidationError)
+    if not idempotency_key:
+        frappe.throw(
+            "An idempotency key is required.",
+            frappe.ValidationError,
+        )
+
+    actor = _clean_text(submitted_by) or _current_user()
+    security.enforce_rate_limit("upload", actor=actor)
+    _assert_payment_accepts_receipt(payment)
+
+    clean_file_name = upload_validation.validate_upload_bytes(
+        filename=file_name,
+        content=content,
+        allowed_extensions=ALLOWED_RECEIPT_EXTENSIONS,
+        max_size_bytes=MAX_RECEIPT_SIZE_BYTES,
+    )
+    file_count = frappe.db.count(
+        "File",
+        filters={
+            "attached_to_doctype": PAYMENT_DOCTYPE,
+            "attached_to_name": payment.name,
+        },
+    )
+    if file_count >= MAX_RECEIPTS_PER_PAYMENT:
+        frappe.throw(
+            "Payment receipt upload limit reached.",
+            frappe.ValidationError,
+        )
+
+    quarantine_status = upload_validation.scan_upload(
+        filename=clean_file_name,
+        content=content,
+    )
+    if quarantine_status == "Rejected":
+        frappe.throw(
+            "The uploaded file was rejected by security scanning.",
+            frappe.ValidationError,
+        )
+
+    claim = idempotency.begin(
+        operation="payment_receipt.upload",
+        actor=actor,
+        payload={
+            "idempotency_key": idempotency_key,
+            "payment_id": payment.name,
+            "file_name": clean_file_name,
+            "content_sha256": hashlib.sha256(content).hexdigest(),
+            "payment_reference": payment_reference or "",
+            "remarks": remarks or "",
+            "submission_source": submission_source,
+        },
+    )
+    if claim and claim.replay is not None:
+        return claim.replay
+
+    try:
+        file_doc = save_file(
+            clean_file_name,
+            content,
+            PAYMENT_DOCTYPE,
+            payment.name,
+            is_private=1,
+        )
+        response = _apply_payment_receipt(
+            payment=payment,
+            service_case=service_case,
+            file_doc=file_doc,
+            payment_reference=payment_reference,
+            remarks=remarks,
+            quarantine_status=quarantine_status,
+            submission_source=submission_source,
+            submitted_by=actor,
+        )
+        return idempotency.complete(
+            claim,
+            response,
+            reference_doctype=PAYMENT_DOCTYPE,
+            reference_name=payment.name,
+        )
+    except Exception:
+        idempotency.fail(claim)
+        raise
+
+
+def _submit_payment_receipt_base64(
+    *,
+    payment,
+    service_case,
+    file_name,
+    content_base64,
+    payment_reference=None,
+    remarks=None,
+    idempotency_key=None,
+    submission_source,
+    submitted_by,
+):
+    return _submit_payment_receipt_bytes(
+        payment=payment,
+        service_case=service_case,
+        file_name=file_name,
+        content=_decode_receipt_base64(content_base64),
+        payment_reference=payment_reference,
+        remarks=remarks,
+        idempotency_key=idempotency_key,
+        submission_source=submission_source,
+        submitted_by=submitted_by,
+    )
+
+
+def _submit_payment_receipt_multipart(
+    *,
+    payment,
+    service_case,
+    payment_reference=None,
+    remarks=None,
+    idempotency_key=None,
+    submission_source,
+    submitted_by,
+):
+    filename, content = upload_validation.read_multipart_upload(
+        allowed_extensions=ALLOWED_RECEIPT_EXTENSIONS,
+        max_size_bytes=MAX_RECEIPT_SIZE_BYTES,
+    )
+    return _submit_payment_receipt_bytes(
+        payment=payment,
+        service_case=service_case,
+        file_name=filename,
+        content=content,
+        payment_reference=payment_reference,
+        remarks=remarks,
+        idempotency_key=idempotency_key,
+        submission_source=submission_source,
+        submitted_by=submitted_by,
+    )
+
 @frappe.whitelist(methods=["POST"])
 def upload_payment_receipt_file(
     payment_id=None,
@@ -1008,13 +1264,6 @@ def upload_payment_receipt_file(
     payment_id = payment_id or name
     if not payment_id:
         frappe.throw("payment_id is required")
-    if not file_name:
-        frappe.throw("file_name is required")
-    if not content_base64:
-        frappe.throw("content_base64 is required")
-    if not idempotency_key:
-        frappe.throw("An idempotency key is required.", frappe.ValidationError)
-    security.enforce_rate_limit("upload", actor=_current_user())
 
     if not frappe.db.exists(PAYMENT_DOCTYPE, payment_id):
         frappe.throw(
@@ -1023,16 +1272,12 @@ def upload_payment_receipt_file(
         )
 
     payment = frappe.get_doc(PAYMENT_DOCTYPE, payment_id)
-    profile, service_case = _assert_payment_customer_access(
-        payment
-    )
+    profile, service_case = _assert_payment_customer_access(payment)
     if not profile:
         frappe.throw(
             "Payment receipt upload is a customer action.",
             frappe.PermissionError,
         )
-
-    _assert_payment_accepts_receipt(payment)
 
     capabilities = mobile._get_mobile_capabilities()
     if not (
@@ -1044,62 +1289,17 @@ def upload_payment_receipt_file(
             frappe.PermissionError,
         )
 
-    try:
-        decoded_content = base64.b64decode(content_base64, validate=True)
-    except Exception:
-        frappe.throw("Invalid base64 file content.", frappe.ValidationError)
-    clean_file_name = upload_validation.validate_upload_bytes(
-        filename=file_name,
-        content=decoded_content,
-        allowed_extensions=ALLOWED_RECEIPT_EXTENSIONS,
-        max_size_bytes=MAX_RECEIPT_SIZE_BYTES,
+    return _submit_payment_receipt_base64(
+        payment=payment,
+        service_case=service_case,
+        file_name=file_name,
+        content_base64=content_base64,
+        payment_reference=payment_reference,
+        remarks=remarks,
+        idempotency_key=idempotency_key,
+        submission_source="Customer App",
+        submitted_by=_current_user(),
     )
-    file_count = frappe.db.count("File", filters={"attached_to_doctype": PAYMENT_DOCTYPE, "attached_to_name": payment.name})
-    if file_count >= MAX_RECEIPTS_PER_PAYMENT:
-        frappe.throw("Payment receipt upload limit reached.", frappe.ValidationError)
-    quarantine_status = upload_validation.scan_upload(filename=clean_file_name, content=decoded_content)
-    if quarantine_status == "Rejected":
-        frappe.throw("The uploaded file was rejected by security scanning.", frappe.ValidationError)
-    claim = idempotency.begin(
-        operation="payment_receipt.upload",
-        actor=_current_user(),
-        payload={
-            "idempotency_key": idempotency_key,
-            "payment_id": payment.name,
-            "file_name": clean_file_name,
-            "content_sha256": hashlib.sha256(decoded_content).hexdigest(),
-            "payment_reference": payment_reference or "",
-            "remarks": remarks or "",
-        },
-    )
-    if claim and claim.replay is not None:
-        return claim.replay
-    try:
-        file_doc = save_file(
-            clean_file_name,
-            decoded_content,
-            PAYMENT_DOCTYPE,
-            payment.name,
-            is_private=1,
-        )
-        response = _apply_payment_receipt(
-            payment=payment,
-            service_case=service_case,
-            file_doc=file_doc,
-            payment_reference=payment_reference,
-            remarks=remarks,
-            quarantine_status=quarantine_status,
-        )
-        return idempotency.complete(
-            claim,
-            response,
-            reference_doctype=PAYMENT_DOCTYPE,
-            reference_name=payment.name,
-        )
-    except Exception:
-        idempotency.fail(claim)
-        raise
-
 
 @frappe.whitelist(methods=["POST"])
 def upload_payment_receipt_multipart(
@@ -1110,11 +1310,9 @@ def upload_payment_receipt_multipart(
     idempotency_key=None,
 ):
     payment_id = payment_id or name
-    if not idempotency_key:
-        frappe.throw("An idempotency key is required.", frappe.ValidationError)
-    security.enforce_rate_limit("upload", actor=_current_user())
     if not payment_id or not frappe.db.exists(PAYMENT_DOCTYPE, payment_id):
         frappe.throw("Payment not found", frappe.DoesNotExistError)
+
     payment = frappe.get_doc(PAYMENT_DOCTYPE, payment_id)
     profile, service_case = _assert_payment_customer_access(payment)
     if not profile:
@@ -1122,7 +1320,7 @@ def upload_payment_receipt_multipart(
             "Payment receipt upload is a customer action.",
             frappe.PermissionError,
         )
-    _assert_payment_accepts_receipt(payment)
+
     capabilities = mobile._get_mobile_capabilities()
     if not (
         capabilities.get("can_upload_payment_receipt")
@@ -1133,56 +1331,15 @@ def upload_payment_receipt_multipart(
             frappe.PermissionError,
         )
 
-    filename, content = upload_validation.read_multipart_upload(
-        allowed_extensions=ALLOWED_RECEIPT_EXTENSIONS,
-        max_size_bytes=MAX_RECEIPT_SIZE_BYTES,
+    return _submit_payment_receipt_multipart(
+        payment=payment,
+        service_case=service_case,
+        payment_reference=payment_reference,
+        remarks=remarks,
+        idempotency_key=idempotency_key,
+        submission_source="Customer App",
+        submitted_by=_current_user(),
     )
-    file_count = frappe.db.count("File", filters={"attached_to_doctype": PAYMENT_DOCTYPE, "attached_to_name": payment.name})
-    if file_count >= MAX_RECEIPTS_PER_PAYMENT:
-        frappe.throw("Payment receipt upload limit reached.", frappe.ValidationError)
-    quarantine_status = upload_validation.scan_upload(filename=filename, content=content)
-    if quarantine_status == "Rejected":
-        frappe.throw("The uploaded file was rejected by security scanning.", frappe.ValidationError)
-    claim = idempotency.begin(
-        operation="payment_receipt.upload",
-        actor=_current_user(),
-        payload={
-            "idempotency_key": idempotency_key,
-            "payment_id": payment.name,
-            "file_name": filename,
-            "content_sha256": hashlib.sha256(content).hexdigest(),
-            "payment_reference": payment_reference or "",
-            "remarks": remarks or "",
-        },
-    )
-    if claim and claim.replay is not None:
-        return claim.replay
-    try:
-        file_doc = save_file(
-            filename,
-            content,
-            PAYMENT_DOCTYPE,
-            payment.name,
-            is_private=1,
-        )
-        response = _apply_payment_receipt(
-            payment=payment,
-            service_case=service_case,
-            file_doc=file_doc,
-            payment_reference=payment_reference,
-            remarks=remarks,
-            quarantine_status=quarantine_status,
-        )
-        return idempotency.complete(
-            claim,
-            response,
-            reference_doctype=PAYMENT_DOCTYPE,
-            reference_name=payment.name,
-        )
-    except Exception:
-        idempotency.fail(claim)
-        raise
-
 
 def _apply_payment_receipt(
     *,
@@ -1192,6 +1349,8 @@ def _apply_payment_receipt(
     payment_reference=None,
     remarks=None,
     quarantine_status="Manual Review",
+    submission_source="Customer App",
+    submitted_by=None,
 ):
     try:
         clean_reference = (payment_reference or "").strip()
@@ -1231,12 +1390,36 @@ def _apply_payment_receipt(
         payment.paid_on = None
         payment.save(ignore_permissions=True)
 
+        actual_submitter = (
+            _clean_text(getattr(file_doc, "owner", None))
+            or _clean_text(submitted_by)
+            or _current_user()
+        )
+        submitted_at = (
+            getattr(file_doc, "creation", None)
+            or frappe.utils.now_datetime()
+        )
+        receipt = _record_receipt_evidence(
+            payment=payment,
+            receipt_attachment=file_doc.file_url,
+            payment_reference=clean_reference,
+            remarks=clean_remarks,
+            submission_source=submission_source,
+            submitted_by=actual_submitter,
+            submitted_at=submitted_at,
+        )
+
         description = (
             clean_remarks
             or (
-                f"Receipt submitted for "
-                f"{payment.payment_title or 'payment'} "
-                "and is waiting for OMC review."
+                "Receipt uploaded by OMC staff on behalf of the customer "
+                "and is waiting for finance review."
+                if submission_source == "Staff On Behalf"
+                else (
+                    f"Receipt submitted for "
+                    f"{payment.payment_title or 'payment'} "
+                    "and is waiting for OMC review."
+                )
             )
         )
         mobile._create_service_timeline_entry(
@@ -1261,13 +1444,13 @@ def _apply_payment_receipt(
             "receipt_status": payment.receipt_status,
             "accounting_status": payment.accounting_status,
             "quarantine_status": payment.quarantine_status,
-            "receipt_url": (
-                payment.receipt_attachment or ""
-            ),
-            "payment_reference": (
-                payment.payment_reference or ""
-            ),
+            "receipt_url": payment.receipt_attachment or "",
+            "payment_reference": payment.payment_reference or "",
             "remarks": payment.remarks or "",
+            "receipt_evidence": receipt.name,
+            "submission_source": receipt.submission_source or submission_source,
+            "submitted_by": receipt.submitted_by or actual_submitter,
+            "submitted_at": str(receipt.submitted_at or submitted_at),
         }
     except Exception:
         _cleanup_failed_receipt_file(
@@ -1275,9 +1458,6 @@ def _apply_payment_receipt(
             payment,
         )
         raise
-
-
-
 
 @frappe.whitelist(methods=["POST"])
 def review_payment_receipt(

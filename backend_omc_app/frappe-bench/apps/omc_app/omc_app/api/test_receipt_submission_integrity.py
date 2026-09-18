@@ -59,6 +59,7 @@ class TestReceiptSubmissionIntegrity(FrappeTestCase):
         )
 
     @patch.object(payments.frappe.db, "commit")
+    @patch.object(payments, "_record_receipt_evidence")
     @patch.object(payments.review_routing, "ensure_review_assignment")
     @patch.object(payments, "_set_case_status")
     @patch.object(
@@ -84,6 +85,7 @@ class TestReceiptSubmissionIntegrity(FrappeTestCase):
         timeline,
         set_status,
         notify,
+        record_evidence,
         commit,
     ):
         payment = MagicMock()
@@ -111,6 +113,12 @@ class TestReceiptSubmissionIntegrity(FrappeTestCase):
         capabilities.return_value = {
             "can_upload_payment_receipt": True,
         }
+        record_evidence.return_value = SimpleNamespace(
+            name="OMC-RCP-1",
+            submission_source="Customer App",
+            submitted_by="profile-edit-test@example.com",
+            submitted_at="2026-09-18 12:00:00",
+        )
 
         with (
             patch.object(payments.security, "enforce_rate_limit"),
@@ -136,6 +144,7 @@ class TestReceiptSubmissionIntegrity(FrappeTestCase):
         payment.save.assert_called_once_with(
             ignore_permissions=True,
         )
+        record_evidence.assert_called_once()
         timeline.assert_called_once()
         set_status.assert_called_once()
         notify.assert_called_once()
