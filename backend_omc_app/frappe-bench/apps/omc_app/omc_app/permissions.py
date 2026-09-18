@@ -51,7 +51,10 @@ def _owned_request_condition(request_table, user=None):
         "and account.account_link_status = 'Linked' "
         "and account.service_access_status = 'Approved' "
         f"and ({request_table}.customer_account = account.name "
+        f"or (ifnull({request_table}.erp_customer, '') != '' "
+        f"and {request_table}.erp_customer = account.erp_customer) "
         f"or (ifnull({request_table}.customer_account, '') = '' "
+        f"and ifnull({request_table}.erp_customer, '') = '' "
         f"and {request_table}.customer_profile = account.legacy_customer_profile)))"
     )
 

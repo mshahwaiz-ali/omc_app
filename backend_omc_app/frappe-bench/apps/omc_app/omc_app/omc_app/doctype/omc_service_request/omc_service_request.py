@@ -87,11 +87,24 @@ class OMCServiceRequest(Document):
             archive_service_documents_for_status(self.name, self.status)
 
     def _enforce_customer_authority(self):
-        # Historical/account-less requests pre-date the canonical Customer
-        # Account boundary and remain covered by the bridge's legacy fallback.
-        if not getattr(self, "customer_account", None):
-            return ""
-        return customer_authority.enforce_request_customer(self)
+        profile = None
+        profile_name = getattr(self, "customer_profile", None)
+
+        if profile_name:
+            if not frappe.db.exists("OMC Customer Profile", profile_name):
+                frappe.throw(
+                    "Linked OMC Customer Profile does not exist.",
+                    frappe.ValidationError,
+                )
+            profile = frappe.get_doc(
+                "OMC Customer Profile",
+                profile_name,
+            )
+
+        return customer_authority.enforce_request_customer(
+            self,
+            profile=profile,
+        )
 
     def _validate_request_state(self, previous):
         if not previous or previous.request_state == self.request_state:
