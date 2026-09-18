@@ -111,6 +111,49 @@ class TestPhase6BPaymentReviewAI(FrappeTestCase):
         ):
             yield human_review, audit, queue
 
+    def test_ai_numeric_normalization_uses_project_rounding_convention(self):
+        with patch.object(
+            analysis,
+            "flt",
+            side_effect=lambda value: float(value or 0),
+        ) as ai_flt:
+            result = analysis._normalise_extraction(
+                {
+                    "amount": "15000.1234567",
+                    "currency": "PKR",
+                    "confidence": 0.96,
+                }
+            )
+
+        self.assertEqual(result["amount"], 15000.123457)
+        ai_flt.assert_called_once_with("15000.1234567")
+
+        with patch.object(
+            payment_accounting,
+            "flt",
+            side_effect=lambda value: float(value or 0),
+        ) as accounting_flt:
+            with patch.object(
+                analysis,
+                "analysis_summary",
+                return_value={
+                    "status": "Completed",
+                    "confidence": 0.96,
+                    "detected_amount": 15000,
+                    "detected_currency": "PKR",
+                    "warnings": [],
+                },
+            ):
+                state = payment_accounting._ai_review_state(
+                    self._payment(),
+                    self._receipt(),
+                    currency="PKR",
+                    remaining_amount=30000,
+                )
+
+        self.assertTrue(state["suggestion_available"])
+        accounting_flt.assert_called_once_with(0.96)
+
     def test_confident_partial_ai_amount_is_safe_suggestion(self):
         state = payment_accounting._ai_review_state(
             self._payment(),

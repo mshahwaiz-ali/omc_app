@@ -18,22 +18,26 @@ def get_review_context(payment_id=None, name=None):
         return result
 
     installment_amount = max(
-        flt(
-            frappe.db.get_value(
-                payments.PAYMENT_DOCTYPE,
-                resolved,
-                "amount",
-            )
-            or 0,
+        round(
+            flt(
+                frappe.db.get_value(
+                    payments.PAYMENT_DOCTYPE,
+                    resolved,
+                    "amount",
+                )
+                or 0
+            ),
             6,
         ),
         0,
     )
     request_remaining = max(
-        flt(
-            result.get("erp_remaining_amount")
-            or result.get("remaining_amount")
-            or 0,
+        round(
+            flt(
+                result.get("erp_remaining_amount")
+                or result.get("remaining_amount")
+                or 0
+            ),
             6,
         ),
         0,
