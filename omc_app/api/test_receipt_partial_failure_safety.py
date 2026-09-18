@@ -88,6 +88,16 @@ class TestReceiptPartialFailureSafety(FrappeTestCase):
         payments,
         "_cleanup_failed_receipt_file",
     )
+    @patch.object(
+        payments,
+        "_record_receipt_evidence",
+        return_value=SimpleNamespace(
+            name="OMC-RCP-1",
+            submission_source="Customer App",
+            submitted_by="profile-edit-test@example.com",
+            submitted_at="2026-09-18 12:00:00",
+        ),
+    )
     @patch.object(payments.frappe.db, "commit")
     @patch.object(payments.review_routing, "ensure_review_assignment")
     @patch.object(payments, "_set_case_status")
@@ -116,6 +126,7 @@ class TestReceiptPartialFailureSafety(FrappeTestCase):
         set_status,
         assign_review,
         commit,
+        record_evidence,
         cleanup,
     ):
         payment = MagicMock()
@@ -163,6 +174,7 @@ class TestReceiptPartialFailureSafety(FrappeTestCase):
                 idempotency_key="receipt-failure-1",
             )
 
+        record_evidence.assert_called_once()
         cleanup.assert_called_once_with(
             file_doc,
             payment,
