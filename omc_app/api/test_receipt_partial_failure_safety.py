@@ -88,6 +88,7 @@ class TestReceiptPartialFailureSafety(FrappeTestCase):
         payments,
         "_cleanup_failed_receipt_file",
     )
+    @patch("omc_app.api.payment_receipt_analysis.schedule_analysis")
     @patch.object(
         payments,
         "_record_receipt_evidence",
@@ -127,6 +128,7 @@ class TestReceiptPartialFailureSafety(FrappeTestCase):
         assign_review,
         commit,
         record_evidence,
+        schedule_analysis,
         cleanup,
     ):
         payment = MagicMock()
@@ -175,6 +177,7 @@ class TestReceiptPartialFailureSafety(FrappeTestCase):
             )
 
         record_evidence.assert_called_once()
+        schedule_analysis.assert_called_once_with("OMC-RCP-1")
         cleanup.assert_called_once_with(
             file_doc,
             payment,

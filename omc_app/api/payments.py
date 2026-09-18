@@ -1037,6 +1037,7 @@ def _record_receipt_evidence(
     submission_source,
     submitted_by,
     submitted_at=None,
+    receipt_sha256="",
 ):
     source_key = _receipt_source_key(
         payment.name,
@@ -1055,6 +1056,7 @@ def _record_receipt_evidence(
     doc.service_request = payment.service_request
     doc.source_key = source_key
     doc.receipt_attachment = receipt_attachment
+    doc.receipt_sha256 = _clean_text(receipt_sha256)
     doc.submitted_reference = _clean_text(payment_reference)
     doc.submitted_remarks = _clean_text(remarks)
     doc.submission_source = _clean_text(submission_source)
@@ -1064,6 +1066,7 @@ def _record_receipt_evidence(
     doc.review_status = "Submitted"
     doc.verification_source = "Manual"
     doc.accounting_state = "Not Started"
+    doc.ai_status = "Not Requested"
 
     try:
         doc.insert(ignore_permissions=True)
@@ -1089,7 +1092,6 @@ def _record_receipt_evidence(
         ),
     )
     return doc
-
 
 def _decode_receipt_base64(content_base64):
     if not content_base64:
@@ -1155,6 +1157,7 @@ def _submit_payment_receipt_bytes(
             frappe.ValidationError,
         )
 
+    content_sha256 = hashlib.sha256(content).hexdigest()
     claim = idempotency.begin(
         operation="payment_receipt.upload",
         actor=actor,
@@ -1162,7 +1165,7 @@ def _submit_payment_receipt_bytes(
             "idempotency_key": idempotency_key,
             "payment_id": payment.name,
             "file_name": clean_file_name,
-            "content_sha256": hashlib.sha256(content).hexdigest(),
+            "content_sha256": content_sha256,
             "payment_reference": payment_reference or "",
             "remarks": remarks or "",
             "submission_source": submission_source,
@@ -1188,6 +1191,7 @@ def _submit_payment_receipt_bytes(
             quarantine_status=quarantine_status,
             submission_source=submission_source,
             submitted_by=actor,
+            receipt_sha256=content_sha256,
         )
         return idempotency.complete(
             claim,
@@ -1198,7 +1202,6 @@ def _submit_payment_receipt_bytes(
     except Exception:
         idempotency.fail(claim)
         raise
-
 
 def _submit_payment_receipt_base64(
     *,
@@ -1351,6 +1354,7 @@ def _apply_payment_receipt(
     quarantine_status="Manual Review",
     submission_source="Customer App",
     submitted_by=None,
+    receipt_sha256="",
 ):
     try:
         clean_reference = (payment_reference or "").strip()
@@ -1371,12 +1375,8 @@ def _apply_payment_receipt(
                 "name": payment.name,
                 "case_id": payment.service_request,
                 "status": payment.status,
-                "receipt_url": (
-                    payment.receipt_attachment or ""
-                ),
-                "payment_reference": (
-                    payment.payment_reference or ""
-                ),
+                "receipt_url": payment.receipt_attachment or "",
+                "payment_reference": payment.payment_reference or "",
                 "remarks": payment.remarks or "",
                 "message": "No payment receipt change.",
             }
@@ -1407,7 +1407,19 @@ def _apply_payment_receipt(
             submission_source=submission_source,
             submitted_by=actual_submitter,
             submitted_at=submitted_at,
+            receipt_sha256=receipt_sha256,
         )
+
+        try:
+            from omc_app.api import payment_receipt_analysis
+
+            payment_receipt_analysis.schedule_analysis(receipt.name)
+        except Exception as exc:
+            # Receipt upload must remain usable even if AI assistance is unavailable.
+            frappe.log_error(
+                f"{type(exc).__name__}: AI scheduling unavailable",
+                f"OMC Receipt AI Scheduling Failed: {receipt.name}",
+            )
 
         description = (
             clean_remarks
@@ -1451,6 +1463,7 @@ def _apply_payment_receipt(
             "submission_source": receipt.submission_source or submission_source,
             "submitted_by": receipt.submitted_by or actual_submitter,
             "submitted_at": str(receipt.submitted_at or submitted_at),
+            "ai_status": getattr(receipt, "ai_status", None) or "Not Requested",
         }
     except Exception:
         _cleanup_failed_receipt_file(

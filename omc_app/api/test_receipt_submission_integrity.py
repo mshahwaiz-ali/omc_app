@@ -59,6 +59,7 @@ class TestReceiptSubmissionIntegrity(FrappeTestCase):
         )
 
     @patch.object(payments.frappe.db, "commit")
+    @patch("omc_app.api.payment_receipt_analysis.schedule_analysis")
     @patch.object(payments, "_record_receipt_evidence")
     @patch.object(payments.review_routing, "ensure_review_assignment")
     @patch.object(payments, "_set_case_status")
@@ -86,6 +87,7 @@ class TestReceiptSubmissionIntegrity(FrappeTestCase):
         set_status,
         notify,
         record_evidence,
+        schedule_analysis,
         commit,
     ):
         payment = MagicMock()
@@ -149,6 +151,7 @@ class TestReceiptSubmissionIntegrity(FrappeTestCase):
             ignore_permissions=True,
         )
         record_evidence.assert_called_once()
+        schedule_analysis.assert_called_once_with("OMC-RCP-1")
         timeline.assert_called_once()
         set_status.assert_called_once()
         notify.assert_called_once()
