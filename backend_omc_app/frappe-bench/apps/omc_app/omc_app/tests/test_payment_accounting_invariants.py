@@ -140,37 +140,38 @@ class TestActivationPaymentEvidence(FrappeTestCase):
             payment_policy_snapshot=policy,
         )
 
-    def test_full_settlement_policy_rejects_partial_accounting(self):
-        with patch.object(
-            bridge_outbox,
-            "_accounting_status",
-            return_value="Partially Settled",
+    def test_full_settlement_policy_accepts_positive_partial_accounting(self):
+        with (
+            patch.object(
+                bridge_outbox,
+                "_accounting_status",
+                return_value="Partially Settled",
+            ),
+            patch.object(
+                bridge_outbox,
+                "_accounted_amount",
+                return_value=15000,
+            ),
         ):
             evidence = bridge_outbox._payment_evidence(
                 self._request("Full Settlement")
             )
 
-        self.assertFalse(evidence["valid"])
-        self.assertEqual(evidence["reason"], "Full ERP settlement is required.")
+        self.assertTrue(evidence["valid"])
+        self.assertEqual(evidence["reason"], "")
 
-    def test_legacy_verified_payment_snapshot_rejects_partial_accounting(self):
-        with patch.object(
-            bridge_outbox,
-            "_accounting_status",
-            return_value="Partially Settled",
-        ):
-            evidence = bridge_outbox._payment_evidence(
-                self._request("Verified Payment")
-            )
-
-        self.assertFalse(evidence["valid"])
-        self.assertEqual(evidence["reason"], "Full ERP settlement is required.")
-
-    def test_legacy_verified_payment_snapshot_accepts_full_settlement(self):
-        with patch.object(
-            bridge_outbox,
-            "_accounting_status",
-            return_value="Settled",
+    def test_legacy_verified_payment_snapshot_accepts_positive_partial_accounting(self):
+        with (
+            patch.object(
+                bridge_outbox,
+                "_accounting_status",
+                return_value="Partially Settled",
+            ),
+            patch.object(
+                bridge_outbox,
+                "_accounted_amount",
+                return_value=15000,
+            ),
         ):
             evidence = bridge_outbox._payment_evidence(
                 self._request("Verified Payment")
@@ -178,6 +179,49 @@ class TestActivationPaymentEvidence(FrappeTestCase):
 
         self.assertTrue(evidence["valid"])
         self.assertEqual(evidence["reason"], "")
+
+    def test_legacy_verified_payment_snapshot_accepts_full_settlement(self):
+        with (
+            patch.object(
+                bridge_outbox,
+                "_accounting_status",
+                return_value="Settled",
+            ),
+            patch.object(
+                bridge_outbox,
+                "_accounted_amount",
+                return_value=30000,
+            ),
+        ):
+            evidence = bridge_outbox._payment_evidence(
+                self._request("Verified Payment")
+            )
+
+        self.assertTrue(evidence["valid"])
+        self.assertEqual(evidence["reason"], "")
+
+    def test_settlement_status_without_positive_allocation_is_rejected(self):
+        with (
+            patch.object(
+                bridge_outbox,
+                "_accounting_status",
+                return_value="Settled",
+            ),
+            patch.object(
+                bridge_outbox,
+                "_accounted_amount",
+                return_value=0,
+            ),
+        ):
+            evidence = bridge_outbox._payment_evidence(
+                self._request("Full Settlement")
+            )
+
+        self.assertFalse(evidence["valid"])
+        self.assertEqual(
+            evidence["reason"],
+            "A positive ERP-reconciled customer payment is required.",
+        )
 
 
 class TestAccountingReconciliationSweep(FrappeTestCase):
