@@ -32,11 +32,31 @@ class TestWorkflowAutomation(TestCase):
 
     @patch.object(payments.mobile, "_has_doctype", return_value=True)
     @patch.object(payments, "_uploaded_required_documents", return_value=False)
+    @patch.object(payments.mobile, "_create_customer_notification")
+    @patch.object(payments.mobile, "_create_service_timeline_entry")
+    @patch.object(payments.frappe.db, "exists", return_value=False)
     @patch.object(payments.frappe, "get_all", return_value=[])
-    def test_missing_required_upload_does_not_open_payment(
-        self, _get_all, _approved, _has_doctype
+    @patch.object(payments.frappe, "new_doc")
+    def test_missing_required_upload_still_opens_payment(
+        self,
+        new_doc,
+        _get_all,
+        _exists,
+        timeline,
+        notification,
+        _approved,
+        _has_doctype,
     ):
-        self.assertIsNone(payments._ensure_payment_for_case(self._case()))
+        payment = MagicMock()
+        payment.name = "OMC-PAY-DOCS-INDEPENDENT"
+        new_doc.return_value = payment
+
+        result = payments._ensure_payment_for_case(self._case())
+
+        self.assertEqual(result, payment.name)
+        payment.insert.assert_called_once_with(ignore_permissions=True)
+        timeline.assert_called_once()
+        notification.assert_called_once()
 
     @patch.object(payments.mobile, "_has_doctype", return_value=True)
     @patch.object(payments, "_uploaded_required_documents", return_value=True)
