@@ -3,7 +3,7 @@ import re
 import frappe
 from frappe.utils.file_manager import save_file
 
-from omc_app.api import access, idempotency, referrals
+from omc_app.api import access, idempotency, identity, referrals
 def _items_response(key, items=None):
     return {key: items or []}
 
@@ -2030,16 +2030,13 @@ def get_service_case(case_id=None):
     can_access_internal_workspace = _can_access_internal_workspace()
     if can_access_internal_workspace:
         _require_service_case_read_scope(case_id)
-        profile = None
     else:
-        profile = _assert_approved_customer()
-
-    if not can_access_internal_workspace:
-        if not profile:
-            frappe.throw("Login is required", frappe.PermissionError)
-
-        if service_case.customer_profile and service_case.customer_profile != profile.name:
-            frappe.throw("You do not have permission to access this service request", frappe.PermissionError)
+        context = identity.require_customer_context()
+        if not identity.request_is_owned(service_case, context):
+            frappe.throw(
+                "You do not have permission to access this service request",
+                frappe.PermissionError,
+            )
 
     documents = _get_service_documents(service_case.name)
     required_document_templates = _service_required_documents(
@@ -2111,11 +2108,10 @@ def add_service_case_comment(case_id=None, message=None):
     if not frappe.db.exists("OMC Service Request", case_id):
         frappe.throw("Service case not found", frappe.DoesNotExistError)
 
-    profile = _assert_approved_customer()
-    doc = frappe.get_doc("OMC Service Request", case_id)
-
-    if profile and doc.customer_profile and doc.customer_profile != profile.name:
-        frappe.throw("You do not have permission to update this service case", frappe.PermissionError)
+    _context, doc = identity.require_owned_request(
+        case_id,
+        for_update=True,
+    )
 
     entry = _create_service_timeline_entry(
         service_request=doc.name,
