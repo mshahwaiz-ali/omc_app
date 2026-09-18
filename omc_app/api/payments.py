@@ -790,6 +790,16 @@ def _payment_dict(payment, capabilities=None, *, customer_view=False):
         "accounted_amount": getattr(payment, "accounted_amount", 0) or 0,
         "currency": payment.currency or "PKR",
         "status": payment.status or "Pending",
+        "payment_execution_mode": (
+            getattr(service_case, "payment_execution_mode", None) or "Prepaid"
+            if service_case
+            else "Prepaid"
+        ),
+        "pay_later_approved_at": (
+            str(getattr(service_case, "post_paid_approved_at", None) or "")
+            if service_case
+            else ""
+        ),
         "receipt_status": getattr(payment, "receipt_status", None) or "Not Submitted",
         "accounting_status": getattr(payment, "accounting_status", None) or "Unmatched",
         "quarantine_status": getattr(payment, "quarantine_status", None) or "Not Required",

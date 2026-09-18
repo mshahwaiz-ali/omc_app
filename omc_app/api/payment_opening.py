@@ -6,7 +6,7 @@ from frappe.utils import flt
 from omc_app.api import mobile, security, service_document_reuse
 
 PAYMENT_DOCTYPE = "OMC Service Payment"
-FINANCIAL_PAYMENT_STATUSES = {"Receipt Submitted", "Under Review", "Paid"}
+FINANCIAL_PAYMENT_STATUSES = {"Receipt Submitted", "Under Review", "Paid", "Deferred"}
 
 
 def _text(value) -> str:

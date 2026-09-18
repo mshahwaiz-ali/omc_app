@@ -161,7 +161,7 @@ def _cancel_open_payments(request_name: str) -> None:
         if linked_payment_entry:
             explicitly_linked_entries.add(linked_payment_entry)
 
-        if _text(getattr(row, "status", None)) == "Paid":
+        if _text(getattr(row, "status", None)) in {"Paid", "Deferred"}:
             continue
 
         if linked_payment_entry:
@@ -476,6 +476,8 @@ def update_operational_status(
 
 def expire_request(request_name: str) -> bool:
     request = _lock_request(_text(request_name))
+    if _text(getattr(request, "payment_execution_mode", None)) == "Pay Later":
+        return False
     if _text(request.request_state) not in {"Pending Payment", "Payment Not Required"}:
         return False
     if not request.expires_at or request.expires_at >= now_datetime():

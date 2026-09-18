@@ -67,34 +67,91 @@ def _accounted_amount(request_name: str) -> float:
     return max(flt(sum(flt(value) for value in allocations or []), 6), 0)
 
 
+def _execution_mode(request) -> str:
+    return _text(getattr(request, "payment_execution_mode", None)) or "Prepaid"
+
+
 def _payment_evidence(request) -> dict:
     policy = _text(request.payment_policy_snapshot) or "Full Settlement"
+    mode = _execution_mode(request)
     accounting_status = _accounting_status(request.name)
-    if policy in {"Verified Payment", "Full Settlement"}:
-        accounted_amount = _accounted_amount(request.name)
-        valid = (
-            accounting_status in {"Partially Settled", "Settled"}
-            and accounted_amount > 0
+    accounted_amount = _accounted_amount(request.name)
+
+    if mode == "Pay Later":
+        approved = bool(
+            _text(getattr(request, "post_paid_approved_by", None))
+            and getattr(request, "post_paid_approved_at", None)
+            and _text(getattr(request, "pay_later_reason", None))
         )
-        return {
-            "valid": valid,
-            "reason": (
-                "A positive ERP-reconciled customer payment is required."
-                if not valid
-                else ""
-            ),
-        }
-    return {"valid": True, "reason": ""}
+        no_payment_evidence = not (
+            accounting_status in {"Partially Settled", "Settled"}
+            or accounted_amount > 0
+        )
+        unresolved_receipt = bool(
+            frappe.db.exists(
+                "OMC Payment Receipt",
+                {
+                    "service_request": request.name,
+                    "review_status": ["in", ["Submitted", "Verified"]],
+                },
+            )
+        )
+        valid = bool(
+            approved
+            and no_payment_evidence
+            and not unresolved_receipt
+        )
+        if not approved:
+            reason = "Authorized Pay Later approval with a reason is required."
+        elif not no_payment_evidence:
+            reason = (
+                "Pay Later cannot activate after positive ERP payment evidence exists."
+            )
+        elif unresolved_receipt:
+            reason = (
+                "Resolve or reject submitted payment evidence before Pay Later activation."
+            )
+        else:
+            reason = ""
+        return {"valid": valid, "reason": reason}
+
+    if policy == "No Charge":
+        return {"valid": True, "reason": ""}
+
+    valid = bool(
+        accounting_status in {"Partially Settled", "Settled"}
+        and accounted_amount > 0
+    )
+    return {
+        "valid": valid,
+        "reason": (
+            "A positive ERP-reconciled customer payment is required."
+            if not valid
+            else ""
+        ),
+    }
 
 
 def eligibility(request) -> dict:
     state = _text(request.request_state)
     policy = _text(request.payment_policy_snapshot) or "Full Settlement"
+    mode = _execution_mode(request)
     if state in {"Cancelled", "Expired", "Financial Hold"}:
         return {"eligible": False, "reason": f"request is {state}"}
     if state == "Activated":
         return {"eligible": False, "reason": "request is already activated"}
     allowed_states = {"Pending Payment", "Ready for Activation", "Activation Failed"}
+    if mode == "Pay Later":
+        evidence = _payment_evidence(request)
+        eligible = bool(evidence["valid"] and state in allowed_states)
+        return {
+            "eligible": eligible,
+            "reason": (
+                evidence["reason"]
+                if not evidence["valid"]
+                else "Request is not activation-eligible."
+            ),
+        }
     if policy == "No Charge":
         eligible = not request.payable_amount and state in {
             "Payment Not Required", "Ready for Activation", "Activation Failed"
@@ -106,12 +163,6 @@ def eligibility(request) -> dict:
                 if request.payable_amount
                 else ("No Charge request is not ready for activation." if not eligible else "")
             ),
-        }
-    if policy == "Post-paid Approval":
-        eligible = bool(request.post_paid_approved_by and request.post_paid_approved_at) and state in allowed_states
-        return {
-            "eligible": eligible,
-            "reason": "Finance approval is required." if not eligible else "",
         }
     evidence = _payment_evidence(request)
     eligible = bool(evidence["valid"] and state in allowed_states)
@@ -522,6 +573,7 @@ def expire_pending_requests(limit: int = 100):
         "OMC Service Request",
         filters={
             "request_state": ["in", ["Pending Payment", "Payment Not Required"]],
+            "payment_execution_mode": ["!=", "Pay Later"],
             "expires_at": ["<", now_datetime()],
         },
         pluck="name",

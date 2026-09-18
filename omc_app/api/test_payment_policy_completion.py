@@ -13,8 +13,10 @@ class TestPaymentPolicyCompletion(FrappeTestCase):
             service="TEST-SERVICE",
             customer_profile="OMC-CUST-TEST",
             payment_policy_snapshot=policy,
+            payment_execution_mode="Prepaid",
             post_paid_approved_by=None,
             post_paid_approved_at=None,
+            pay_later_reason=None,
             erp_task=None,
         )
 
@@ -90,12 +92,50 @@ class TestPaymentPolicyCompletion(FrappeTestCase):
             blockers,
         )
 
-    def test_post_paid_requires_finance_approval_not_full_settlement(self):
+    def test_post_paid_policy_snapshot_does_not_bypass_prepaid_execution(self):
         service_case = self._case("Post-paid Approval")
         service_case.post_paid_approved_by = "finance@example.com"
         service_case.post_paid_approved_at = "2026-09-11 12:00:00"
 
         blockers = self._blockers(service_case, "Pending")
+
+        self.assertIn(
+            "Required payment has not been confirmed.",
+            blockers,
+        )
+
+    def test_pay_later_still_blocks_completion_until_invoice_is_linked(self):
+        service_case = self._case("Full Settlement")
+        service_case.payment_execution_mode = "Pay Later"
+        service_case.post_paid_approved_by = "finance@example.com"
+        service_case.post_paid_approved_at = "2026-09-11 12:00:00"
+        service_case.pay_later_reason = "Approved credit exception."
+
+        with patch.object(
+            workflow_automation,
+            "_pay_later_invoice_linked",
+            return_value=False,
+        ):
+            blockers = self._blockers(service_case, "Deferred")
+
+        self.assertIn(
+            "Required payment has not been confirmed.",
+            blockers,
+        )
+
+    def test_pay_later_allows_completion_after_invoice_link_without_settlement(self):
+        service_case = self._case("Full Settlement")
+        service_case.payment_execution_mode = "Pay Later"
+        service_case.post_paid_approved_by = "finance@example.com"
+        service_case.post_paid_approved_at = "2026-09-11 12:00:00"
+        service_case.pay_later_reason = "Approved credit exception."
+
+        with patch.object(
+            workflow_automation,
+            "_pay_later_invoice_linked",
+            return_value=True,
+        ):
+            blockers = self._blockers(service_case, "Deferred")
 
         self.assertNotIn(
             "Required payment has not been confirmed.",
