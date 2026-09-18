@@ -156,22 +156,36 @@ class TestReusableDocumentReplacement(FrappeTestCase):
 
 
 class TestPaymentOpeningReuseGate(FrappeTestCase):
-    def test_reuse_is_materialized_before_required_document_gate(self):
+    def test_payment_opening_is_independent_of_required_document_completion(self):
         request = SimpleNamespace(
             name="OMC-SR-TEST",
             request_state="Pending Payment",
             discount_status="",
+            payment_policy_snapshot="No Charge",
+            payable_amount=0,
         )
         with (
-            patch.object(payment_opening.frappe.db, "get_value", return_value=request.name),
-            patch.object(payment_opening.frappe, "get_doc", return_value=request),
+            patch.object(
+                payment_opening.frappe.db,
+                "get_value",
+                return_value=request.name,
+            ),
+            patch.object(
+                payment_opening.frappe,
+                "get_doc",
+                return_value=request,
+            ),
             patch.object(
                 payment_opening.service_document_reuse,
                 "ensure_reusable_documents",
             ) as ensure_reuse,
-            patch.object(payment_opening, "_required_documents_uploaded", return_value=False),
+            patch.object(
+                payment_opening,
+                "_required_documents_uploaded",
+            ) as required_documents_uploaded,
         ):
             result = payment_opening.ensure_service_payment(request.name)
 
         ensure_reuse.assert_called_once_with(request)
+        required_documents_uploaded.assert_not_called()
         self.assertIsNone(result)
