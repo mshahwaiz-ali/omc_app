@@ -10,6 +10,7 @@ class OMCPaymentReceipt(Document):
         "service_request",
         "source_key",
         "receipt_attachment",
+        "receipt_sha256",
         "submitted_reference",
         "submitted_remarks",
         "submission_source",

@@ -17,6 +17,25 @@
   "submission_source",
   "submitted_by",
   "submitted_at",
+  "ai_section",
+  "receipt_sha256",
+  "ai_status",
+  "ai_model",
+  "ai_confidence",
+  "ai_detected_amount",
+  "ai_detected_currency",
+  "ai_detected_reference",
+  "ai_detected_date",
+  "ai_detected_time",
+  "ai_detected_bank",
+  "ai_detected_beneficiary",
+  "ai_detected_status",
+  "ai_warnings_json",
+  "ai_result_json",
+  "ai_error_code",
+  "ai_requested_at",
+  "ai_analyzed_at",
+  "ai_override_reason",
   "review_section",
   "review_status",
   "verified_amount",
@@ -125,6 +144,131 @@
    "label": "Submitted At",
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "fieldname": "ai_section",
+   "fieldtype": "Section Break",
+   "label": "AI Receipt Analysis"
+  },
+  {
+   "fieldname": "receipt_sha256",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Receipt SHA-256",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "default": "Not Requested",
+   "fieldname": "ai_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "AI Status",
+   "options": "Not Requested\\nQueued\\nProcessing\\nCompleted\\nManual Review",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "ai_model",
+   "fieldtype": "Data",
+   "label": "AI Model",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "ai_confidence",
+   "fieldtype": "Float",
+   "label": "AI Confidence",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_detected_amount",
+   "fieldtype": "Currency",
+   "label": "Detected Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_detected_currency",
+   "fieldtype": "Data",
+   "label": "Detected Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_detected_reference",
+   "fieldtype": "Data",
+   "label": "Detected Transaction Reference",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "ai_detected_date",
+   "fieldtype": "Date",
+   "label": "Detected Transaction Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_detected_time",
+   "fieldtype": "Time",
+   "label": "Detected Transaction Time",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_detected_bank",
+   "fieldtype": "Data",
+   "label": "Detected Bank / Wallet",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_detected_beneficiary",
+   "fieldtype": "Data",
+   "label": "Detected Beneficiary / Account",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_detected_status",
+   "fieldtype": "Data",
+   "label": "Detected Transaction Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_warnings_json",
+   "fieldtype": "Code",
+   "label": "AI Validation Warnings",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_result_json",
+   "fieldtype": "Code",
+   "hidden": 1,
+   "label": "AI Structured Result",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_error_code",
+   "fieldtype": "Data",
+   "label": "AI Error Code",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_requested_at",
+   "fieldtype": "Datetime",
+   "label": "AI Requested At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_analyzed_at",
+   "fieldtype": "Datetime",
+   "label": "AI Analyzed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_override_reason",
+   "fieldtype": "Small Text",
+   "label": "AI / Manual Review Override Reason",
+   "read_only": 1
   },
   {
    "fieldname": "review_section",
