@@ -50,6 +50,9 @@ class PaymentActionCard extends StatelessWidget {
     final bankDetails = structuredBankDetails.isNotEmpty
         ? structuredBankDetails
         : payment.bankAccountDetails?.trim();
+    final showPaymentInstructions =
+        payment.status != PaymentStatus.deferred &&
+        (instructions?.isNotEmpty == true || bankDetails?.isNotEmpty == true);
     final serviceRequest = payment.serviceReference?.trim() ?? '';
     final showRequestAccounting =
         payment.isOwnPayment && serviceRequest.isNotEmpty;
@@ -62,7 +65,9 @@ class PaymentActionCard extends StatelessWidget {
           Semantics(
             header: true,
             child: Text(
-              'Next payment step',
+              payment.status == PaymentStatus.deferred
+                  ? 'Pay Later status'
+                  : 'Next payment step',
               style: TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 17,
@@ -81,8 +86,7 @@ class PaymentActionCard extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
-          if (instructions?.isNotEmpty == true ||
-              bankDetails?.isNotEmpty == true) ...[
+          if (showPaymentInstructions) ...[
             const SizedBox(height: 16),
             _PaymentInstructions(
               instructions: instructions,
@@ -210,6 +214,8 @@ class PaymentActionCard extends StatelessWidget {
         return 'Payment proof has been submitted and is awaiting OMC verification. No paid status is implied yet.';
       case PaymentStatus.partiallyPaid:
         return 'A verified partial payment has been reconciled. Open a new installment for the remaining ERP balance; this payment record cannot be reused.';
+      case PaymentStatus.deferred:
+        return 'Pay Later is approved. No payment proof is required now. After service completion, settlement continues against the ERP invoice.';
       case PaymentStatus.paid:
         return 'This payment is marked paid. Evidence remains available below for reference.';
       case PaymentStatus.cancelled:

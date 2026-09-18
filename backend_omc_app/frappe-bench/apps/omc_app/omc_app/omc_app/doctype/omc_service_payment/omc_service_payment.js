@@ -301,6 +301,17 @@ frappe.ui.form.on('OMC Service Payment', {
 
     if (frm.is_new()) return;
 
+    if (String(frm.doc.status || '').trim() === 'Deferred') {
+      frm.dashboard.clear_headline();
+      frm.dashboard.set_headline_alert(
+        `<div class="indicator blue">
+          ${__(
+            'Pay Later approved. No receipt is required now; settlement continues against the ERP invoice after the service Task is completed.'
+          )}
+        </div>`,
+      );
+    }
+
     void omc_add_pay_later_action(frm);
 
     const uploadable = ['Pending', 'Receipt Submitted', 'Under Review', 'Rejected'].includes(

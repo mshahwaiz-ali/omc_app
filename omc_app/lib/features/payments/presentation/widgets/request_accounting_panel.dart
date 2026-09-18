@@ -160,7 +160,9 @@ class _AccountingContent extends StatelessWidget {
           runSpacing: 8,
           children: [
             _AmountMetric(
-              label: 'Invoice total',
+              label: summary.isPayLater && summary.canonicalInvoice.isEmpty
+                  ? 'Service amount'
+                  : 'Invoice total',
               value: _money(summary.currency, summary.invoiceTotal),
             ),
             _AmountMetric(
@@ -168,7 +170,9 @@ class _AccountingContent extends StatelessWidget {
               value: _money(summary.currency, summary.paidAmount),
             ),
             _AmountMetric(
-              label: 'Outstanding',
+              label: summary.isPayLater && summary.canonicalInvoice.isEmpty
+                  ? 'Pay Later balance'
+                  : 'Outstanding',
               value: _money(summary.currency, summary.outstandingAmount),
               emphasis: summary.outstandingAmount > 0,
             ),
@@ -181,10 +185,12 @@ class _AccountingContent extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppTheme.warning.withValues(alpha: 0.07),
+              color: (summary.isPayLater ? AppTheme.info : AppTheme.warning)
+                  .withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: AppTheme.warning.withValues(alpha: 0.18),
+                color: (summary.isPayLater ? AppTheme.info : AppTheme.warning)
+                    .withValues(alpha: 0.18),
               ),
             ),
             child: Text(
@@ -317,7 +323,16 @@ class _StatusStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settled = summary.isSettled;
+    final payLater = summary.isPayLater;
     final color = settled ? AppTheme.success : AppTheme.info;
+    final operationalState = summary.requestState.isNotEmpty
+        ? summary.requestState
+        : summary.activationStatus;
+    final message = payLater
+        ? summary.canonicalInvoice.isEmpty
+              ? 'Pay Later approved · $operationalState'
+              : 'Pay Later · ERP ${summary.accountingStatus} · $operationalState'
+        : '${summary.accountingStatus} · ${summary.activationStatus.isEmpty ? summary.requestState : summary.activationStatus}';
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -329,14 +344,18 @@ class _StatusStrip extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            settled ? Icons.verified_rounded : Icons.account_balance_outlined,
+            settled
+                ? Icons.verified_rounded
+                : payLater
+                ? Icons.schedule_rounded
+                : Icons.account_balance_outlined,
             color: color,
             size: 20,
           ),
           const SizedBox(width: 9),
           Expanded(
             child: Text(
-              '${summary.accountingStatus} · ${summary.activationStatus.isEmpty ? summary.requestState : summary.activationStatus}',
+              message,
               style: const TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 14,
@@ -381,7 +400,7 @@ class _HistoryRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    '${item.status} · ERP ${item.accountingStatus}',
+                    '${item.status.trim().toLowerCase() == 'deferred' ? 'Pay Later' : item.status} · ERP ${item.accountingStatus}',
                     style: const TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 12,

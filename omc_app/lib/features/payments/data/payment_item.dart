@@ -26,6 +26,7 @@ class PaymentBankAccount {
 
   String get displayDetails {
     final lines = <String>[
+      if (title.isNotEmpty) 'Payment account: $title',
       if (bankName.isNotEmpty) 'Bank: $bankName',
       if (accountTitle.isNotEmpty) 'Account title: $accountTitle',
       if (accountNumber.isNotEmpty) 'Account number: $accountNumber',
@@ -42,6 +43,7 @@ enum PaymentStatus {
   receiptSubmitted,
   underReview,
   partiallyPaid,
+  deferred,
   paid,
   rejected,
   overdue,
@@ -54,6 +56,8 @@ class PaymentItem {
     required this.title,
     required this.amountLabel,
     required this.status,
+    this.paymentExecutionMode,
+    this.payLaterApprovedAt,
     this.accountedAmountLabel,
     this.reference,
     this.invoiceNumber,
@@ -98,6 +102,8 @@ class PaymentItem {
   final String? serviceReference;
   final String? remarks;
   final PaymentStatus status;
+  final String? paymentExecutionMode;
+  final String? payLaterApprovedAt;
   final bool canReviewPayments;
   final String? customerName;
   final String? customerProfile;
@@ -139,7 +145,14 @@ class PaymentItem {
     return List<String>.unmodifiable(values);
   }
 
+  bool get isPayLater =>
+      paymentExecutionMode?.trim().toLowerCase() == 'pay later' ||
+      status == PaymentStatus.deferred;
+
+  String get executionModeLabel => isPayLater ? 'Pay Later' : 'Prepaid';
+
   String get heroAmountTitle {
+    if (status == PaymentStatus.deferred) return 'Pay Later amount';
     if (status == PaymentStatus.partiallyPaid) return 'ERP accounted';
     if (status == PaymentStatus.paid) return 'ERP paid';
     return 'Installment amount';
@@ -157,6 +170,7 @@ class PaymentItem {
 
   bool get isSettlementEvidenceLocked =>
       status == PaymentStatus.partiallyPaid ||
+      status == PaymentStatus.deferred ||
       status == PaymentStatus.paid ||
       status == PaymentStatus.cancelled;
 
@@ -178,6 +192,8 @@ extension PaymentStatusLabel on PaymentStatus {
         return 'Under Review';
       case PaymentStatus.partiallyPaid:
         return 'Partially Paid';
+      case PaymentStatus.deferred:
+        return 'Pay Later';
       case PaymentStatus.paid:
         return 'Paid';
       case PaymentStatus.rejected:

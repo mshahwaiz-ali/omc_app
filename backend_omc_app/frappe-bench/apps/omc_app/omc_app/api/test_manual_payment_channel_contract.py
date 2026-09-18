@@ -54,6 +54,38 @@ class TestManualPaymentChannelContract(FrappeTestCase):
             payload["payment_url"],
         )
 
+    def test_configured_bank_details_get_transfer_instructions_without_support_fallback(self):
+        account = SimpleNamespace(
+            title="Primary PKR Account",
+            account_title="OMC Services Pvt Ltd",
+            bank_name="Meezan Bank",
+            account_number="00123456789",
+            iban="PK00MEZN001234567890",
+            branch="Gulberg",
+            whatsapp_number="923001234567",
+            instructions="",
+            currency="PKR",
+        )
+        payment = SimpleNamespace(
+            name="OMC-PAY-3",
+            service_request="OMC-SR-3",
+            amount=5000,
+            currency="PKR",
+        )
+        service_case = SimpleNamespace(name="OMC-SR-3")
+
+        with patch.object(payments, "_first_payment_account", return_value=account):
+            payload = payments._payment_support_payload(payment, service_case)
+
+        self.assertIn(
+            "configured account below",
+            payload["payment_instructions"],
+        )
+        self.assertNotIn(
+            "Contact OMC support on WhatsApp for payment details",
+            payload["payment_instructions"],
+        )
+
     def test_bank_account_contract_comes_from_active_desk_configuration(self):
         account = SimpleNamespace(
             title="Primary PKR Account",

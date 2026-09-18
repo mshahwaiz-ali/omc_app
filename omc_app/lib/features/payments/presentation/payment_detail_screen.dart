@@ -330,6 +330,14 @@ _paymentVerificationVisual(PaymentStatus status) {
         message:
             'A verified payment has been reconciled. The remaining balance is still due.',
       );
+    case PaymentStatus.deferred:
+      return (
+        color: AppTheme.info,
+        icon: Icons.schedule_rounded,
+        title: 'Pay Later approved',
+        message:
+            'Service can proceed before payment. After the ERP Task is completed, the ERP invoice becomes the authoritative collection record.',
+      );
     case PaymentStatus.paid:
       return (
         color: AppTheme.success,
@@ -378,8 +386,20 @@ class _PaymentInfoCard extends StatelessWidget {
             value: payment.serviceReference ?? '-',
           ),
           _PaymentInfoRow(
+            label: 'Payment mode',
+            value: payment.executionModeLabel,
+          ),
+          if (payment.isPayLater &&
+              payment.payLaterApprovedAt?.trim().isNotEmpty == true)
+            _PaymentInfoRow(
+              label: 'Pay Later approved',
+              value: payment.payLaterApprovedAt!.trim(),
+            ),
+          _PaymentInfoRow(
             label: 'Payment channel',
-            value: payment.paymentChannel?.trim().isNotEmpty == true
+            value: payment.isPayLater
+                ? 'Deferred until service completion'
+                : payment.paymentChannel?.trim().isNotEmpty == true
                 ? payment.paymentChannel!.replaceAll('_', ' ')
                 : payment.paymentUrl == null
                 ? '-'

@@ -41,6 +41,10 @@ void main() {
       );
 
       expect(account.hasDetails, isTrue);
+      expect(
+        account.displayDetails,
+        contains('Payment account: Primary PKR Account'),
+      );
       expect(account.displayDetails, contains('Bank: Meezan Bank'));
       expect(account.displayDetails, contains('Account title: OMC House'));
       expect(account.displayDetails, contains('Account number: 1234567890'));

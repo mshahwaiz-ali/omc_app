@@ -113,10 +113,12 @@ class _PaymentsList extends StatelessWidget {
         return 4;
       case PaymentStatus.underReview:
         return 5;
-      case PaymentStatus.paid:
+      case PaymentStatus.deferred:
         return 6;
-      case PaymentStatus.cancelled:
+      case PaymentStatus.paid:
         return 7;
+      case PaymentStatus.cancelled:
+        return 8;
     }
   }
 }
@@ -441,6 +443,8 @@ class _PaymentCard extends StatelessWidget {
         color: AppTheme.warning,
         icon: Icons.account_balance_wallet_outlined,
       );
+    case PaymentStatus.deferred:
+      return (color: AppTheme.info, icon: Icons.schedule_rounded);
     case PaymentStatus.paid:
       return (color: AppTheme.success, icon: Icons.verified_outlined);
     case PaymentStatus.cancelled:
@@ -482,6 +486,13 @@ class _PaymentCard extends StatelessWidget {
         label: 'Pay balance',
         message: 'A partial payment is verified; the remaining balance is still due.',
         icon: Icons.account_balance_wallet_outlined,
+      );
+    case PaymentStatus.deferred:
+      return (
+        label: 'View Pay Later',
+        message:
+            'Pay Later is approved. Payment is deferred until the completed service Task produces the ERP invoice.',
+        icon: Icons.schedule_rounded,
       );
     case PaymentStatus.paid:
       return (

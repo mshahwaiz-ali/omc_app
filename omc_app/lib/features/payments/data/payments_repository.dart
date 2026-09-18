@@ -462,6 +462,8 @@ class PaymentsRepository {
             json['notes'],
       ),
       status: _statusFromValue(json['status']),
+      paymentExecutionMode: _nullableString(json['payment_execution_mode']),
+      payLaterApprovedAt: _nullableString(json['pay_later_approved_at']),
       canReviewPayments: _boolValue(json['can_review_payments']),
       customerName: _nullableString(json['customer_name']),
       customerProfile: _nullableString(json['customer_profile']),
@@ -518,6 +520,9 @@ class PaymentsRepository {
   PaymentStatus _statusFromValue(dynamic value) {
     final status = value?.toString().trim().toLowerCase() ?? '';
 
+    if (status.contains('deferred') || status.contains('pay later')) {
+      return PaymentStatus.deferred;
+    }
     if (status.contains('receipt submitted') ||
         status.contains('receipt_submitted') ||
         status.contains('submitted')) {

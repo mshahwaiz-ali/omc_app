@@ -9,6 +9,8 @@ class PaymentAccountingSummary {
     required this.accountingStatus,
     required this.activationStatus,
     required this.requestState,
+    this.paymentExecutionMode = 'Prepaid',
+    this.payLaterApproved = false,
     required this.canMakePayment,
     required this.maximumPaymentAmount,
     required this.paymentBlockReason,
@@ -28,6 +30,11 @@ class PaymentAccountingSummary {
       accountingStatus: _text(json['accounting_status'], fallback: 'Unmatched'),
       activationStatus: _text(json['activation_status']),
       requestState: _text(json['request_state']),
+      paymentExecutionMode: _text(
+        json['payment_execution_mode'],
+        fallback: 'Prepaid',
+      ),
+      payLaterApproved: _bool(json['pay_later_approved']),
       canMakePayment: _bool(json['can_make_payment']),
       maximumPaymentAmount: _number(json['maximum_payment_amount']),
       paymentBlockReason: _text(json['payment_block_reason']),
@@ -50,6 +57,8 @@ class PaymentAccountingSummary {
   final String accountingStatus;
   final String activationStatus;
   final String requestState;
+  final String paymentExecutionMode;
+  final bool payLaterApproved;
   final bool canMakePayment;
   final double maximumPaymentAmount;
   final String paymentBlockReason;
@@ -59,6 +68,10 @@ class PaymentAccountingSummary {
   bool get isSettled =>
       accountingStatus.trim().toLowerCase() == 'settled' ||
       outstandingAmount <= 0.000001;
+
+  bool get isPayLater =>
+      paymentExecutionMode.trim().toLowerCase() == 'pay later' &&
+      payLaterApproved;
 
   bool get hasOpenPayment => openPaymentId.trim().isNotEmpty;
 }
