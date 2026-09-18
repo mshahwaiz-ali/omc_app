@@ -94,6 +94,88 @@ async function omc_staff_upload_receipt(frm) {
 }
 
 
+function omc_escape_html(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  })[char]);
+}
+
+
+function omc_format_money(value, currency) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '-';
+  const prefix = String(currency || '').trim();
+  return `${omc_escape_html(prefix)} ${amount.toLocaleString(undefined, {
+    maximumFractionDigits: 6,
+  })}`.trim();
+}
+
+
+function omc_payment_review_context_html(data) {
+  const ai = data.ai || {};
+  const currency = data.currency || 'PKR';
+  const confidence = Number(ai.confidence || 0);
+  const confidenceLabel = `${Math.round(confidence * 100)}%`;
+  const warnings = Array.isArray(ai.warnings) ? ai.warnings : [];
+  const accounts = Array.isArray(data.payment_accounts) ? data.payment_accounts : [];
+
+  const warningHtml = warnings.length
+    ? `<ul class="mb-0">${warnings
+        .map((row) => `<li><strong>${omc_escape_html(row.code || 'Warning')}</strong>: ${omc_escape_html(row.message || '')}</li>`)
+        .join('')}</ul>`
+    : `<span class="text-muted">${__('No AI validation warnings.')}</span>`;
+
+  const accountHtml = accounts.length
+    ? `<ul class="mb-0">${accounts
+        .map((row) => {
+          const parts = [
+            row.title,
+            row.bank_name,
+            row.account_title,
+            row.account_number,
+            row.iban,
+          ].filter(Boolean);
+          return `<li>${parts.map(omc_escape_html).join(' · ')}</li>`;
+        })
+        .join('')}</ul>`
+    : `<span class="text-muted">${__('No valid mapped payment account is currently available.')}</span>`;
+
+  const receiptUrl = String(data.receipt_url || '');
+  const receiptHtml = receiptUrl
+    ? `<a href="${omc_escape_html(receiptUrl)}" target="_blank" rel="noopener noreferrer">${__('Open original receipt')}</a>`
+    : `<span class="text-muted">${__('Receipt attachment unavailable')}</span>`;
+
+  const suggested = data.ai_suggestion_available
+    ? omc_format_money(data.suggested_verified_amount, currency)
+    : __('No safe AI amount suggestion');
+
+  return `
+    <div class="mb-3">
+      <div><strong>${__('Original Receipt')}:</strong> ${receiptHtml}</div>
+      <div><strong>${__('Expected Installment')}:</strong> ${omc_format_money(data.installment_amount, currency)}</div>
+      <div><strong>${__('ERP Remaining')}:</strong> ${omc_format_money(data.erp_remaining_amount, currency)}</div>
+      <div><strong>${__('Detected Amount')}:</strong> ${omc_format_money(ai.detected_amount, ai.detected_currency || currency)}</div>
+      <div><strong>${__('Suggested Verified Amount')}:</strong> ${suggested}</div>
+      <div><strong>${__('AI Confidence')}:</strong> ${omc_escape_html(confidenceLabel)}</div>
+      <div><strong>${__('AI Status')}:</strong> ${omc_escape_html(ai.status || 'Not Requested')}</div>
+      <div><strong>${__('Manual Review')}:</strong> ${data.ai_manual_review_required ? __('Required') : __('AI amount suggestion available')}</div>
+      <hr>
+      <div><strong>${__('Reference')}:</strong> ${omc_escape_html(ai.detected_reference || '-')}</div>
+      <div><strong>${__('Bank / Wallet')}:</strong> ${omc_escape_html(ai.detected_bank || '-')}</div>
+      <div><strong>${__('Beneficiary / Account')}:</strong> ${omc_escape_html(ai.detected_beneficiary || '-')}</div>
+      <div><strong>${__('Date / Time')}:</strong> ${omc_escape_html([ai.detected_date, ai.detected_time].filter(Boolean).join(' ') || '-')}</div>
+      <div><strong>${__('Transaction Status')}:</strong> ${omc_escape_html(ai.detected_status || '-')}</div>
+      <div class="mt-2"><strong>${__('AI Warnings')}:</strong> ${warningHtml}</div>
+      <div class="mt-2"><strong>${__('Valid Payment Accounts')}:</strong> ${accountHtml}</div>
+    </div>
+  `;
+}
+
+
 function omc_lock_payment_form(frm) {
   const authoritative_fields = [
     'service_request',
@@ -164,23 +246,35 @@ frappe.ui.form.on('OMC Service Payment', {
 
     frm.add_custom_button(__('Verify Receipt'), async () => {
       const context = await frappe.call({
-        method: 'omc_app.api.payment_accounting.get_review_context',
+        method: 'omc_app.api.payment_review_context_guard.get_review_context',
         args: { payment_id: frm.doc.name },
       });
       const data = context.message || {};
+      const ai = data.ai || {};
       const accounts = data.payment_accounts || [];
       const defaultAccount = accounts.length === 1 ? accounts[0].name : '';
+      const defaultVerifiedAmount = data.ai_suggestion_available
+        ? data.suggested_verified_amount
+        : 0;
 
       const dialog = new frappe.ui.Dialog({
         title: __('Verify Payment Receipt'),
         fields: [
           {
+            fieldname: 'review_context',
+            fieldtype: 'HTML',
+            options: omc_payment_review_context_html(data),
+          },
+          {
             fieldname: 'verified_amount',
             fieldtype: 'Currency',
             label: __('Verified Amount'),
             options: 'currency',
-            default: data.remaining_amount || 0,
+            default: defaultVerifiedAmount,
             reqd: 1,
+            description: data.ai_suggestion_available
+              ? __('AI populated this as a suggestion only. Confirm or edit it after checking the original receipt.')
+              : __('Enter the amount only after manually checking the original receipt.'),
           },
           {
             fieldname: 'currency',
@@ -201,7 +295,16 @@ frappe.ui.form.on('OMC Service Payment', {
             fieldname: 'payment_reference',
             fieldtype: 'Data',
             label: __('Payment Reference'),
-            default: frm.doc.payment_reference || '',
+            default: frm.doc.payment_reference || ai.detected_reference || '',
+          },
+          {
+            fieldname: 'ai_override_reason',
+            fieldtype: 'Small Text',
+            label: __('Override / Exception Reason'),
+            reqd: Boolean(data.ai_exception_reason_required),
+            description: __(
+              'Required when AI is unavailable or not confident enough, and whenever you change a confidently detected AI amount.'
+            ),
           },
           {
             fieldname: 'remarks',
@@ -211,6 +314,28 @@ frappe.ui.form.on('OMC Service Payment', {
         ],
         primary_action_label: __('Verify & Start Accounting'),
         primary_action: async (values) => {
+          const verifiedAmount = Number(values.verified_amount || 0);
+          const aiAmount = data.ai_confident_detected_amount;
+          const changedFromConfidentAi =
+            aiAmount !== null &&
+            aiAmount !== undefined &&
+            aiAmount !== '' &&
+            Math.abs(verifiedAmount - Number(aiAmount)) > 0.000001;
+          const reasonRequired =
+            Boolean(data.ai_exception_reason_required) || changedFromConfidentAi;
+          const overrideReason = String(values.ai_override_reason || '').trim();
+
+          if (reasonRequired && !overrideReason) {
+            frappe.msgprint({
+              title: __('Reason Required'),
+              message: changedFromConfidentAi
+                ? __('Enter an override reason because the verified amount differs from the confidently detected AI amount.')
+                : __('Enter an exception reason because AI analysis is unavailable or not confident enough.'),
+              indicator: 'orange',
+            });
+            return;
+          }
+
           dialog.disable_primary_action();
           try {
             await frappe.call({
@@ -222,6 +347,7 @@ frappe.ui.form.on('OMC Service Payment', {
                 verified_amount: values.verified_amount,
                 payment_account: values.payment_account,
                 payment_reference: values.payment_reference,
+                ai_override_reason: overrideReason,
                 remarks: values.remarks,
               },
               freeze: true,
@@ -229,7 +355,10 @@ frappe.ui.form.on('OMC Service Payment', {
             });
             dialog.hide();
             await frm.reload_doc();
-            frappe.show_alert({ message: __('Receipt verified. ERP accounting has been queued.'), indicator: 'green' });
+            frappe.show_alert({
+              message: __('Receipt verified. ERP accounting has been queued.'),
+              indicator: 'green',
+            });
           } finally {
             dialog.enable_primary_action();
           }

@@ -80,6 +80,10 @@ def _mapped_payment_accounts(*, company: str, currency: str) -> list[dict]:
         fields=[
             "name",
             "title",
+            "bank_name",
+            "account_title",
+            "account_number",
+            "iban",
             "currency",
             "erp_account",
             "mode_of_payment",
@@ -112,6 +116,10 @@ def _mapped_payment_accounts(*, company: str, currency: str) -> list[dict]:
             {
                 "name": row.name,
                 "title": _text(row.title) or row.name,
+                "bank_name": _text(row.bank_name),
+                "account_title": _text(row.account_title),
+                "account_number": _text(row.account_number),
+                "iban": _text(row.iban),
                 "erp_account": account_name,
                 "mode_of_payment": _text(row.mode_of_payment),
             }
@@ -200,6 +208,104 @@ def _receipt_for_current_evidence(payment):
     return frappe.get_doc(RECEIPT_DOCTYPE, name) if name else None, key
 
 
+
+
+def _ai_review_state(payment, receipt, *, currency: str, remaining_amount: float) -> dict:
+    """Build advisory AI state without granting it payment authority."""
+    from omc_app.api import payment_receipt_analysis
+
+    if receipt:
+        summary = payment_receipt_analysis.analysis_summary(receipt)
+    else:
+        summary = {
+            "receipt_evidence": "",
+            "receipt_url": _text(getattr(payment, "receipt_attachment", None)),
+            "status": "Not Requested",
+            "model": "",
+            "confidence": 0.0,
+            "detected_amount": None,
+            "detected_currency": "",
+            "detected_reference": "",
+            "detected_date": "",
+            "detected_time": "",
+            "detected_bank": "",
+            "detected_beneficiary": "",
+            "detected_status": "",
+            "warnings": [],
+            "manual_review_required": True,
+            "error_code": "RECEIPT_EVIDENCE_MISSING",
+        }
+
+    warnings = summary.get("warnings") or []
+    if not isinstance(warnings, list):
+        warnings = []
+    warning_codes = {
+        _text(row.get("code"))
+        for row in warnings
+        if isinstance(row, dict) and _text(row.get("code"))
+    }
+
+    expected_amount = max(_amount(getattr(payment, "amount", 0)), 0)
+    remaining_amount = max(_amount(remaining_amount), 0)
+    detected_raw = summary.get("detected_amount")
+    detected_amount = (
+        None
+        if detected_raw in (None, "")
+        else _amount(detected_raw)
+    )
+    confidence = min(max(flt(summary.get("confidence") or 0, 6), 0), 1)
+    status = _text(summary.get("status")) or "Not Requested"
+    expected_currency = _text(currency).upper()
+    detected_currency = _text(summary.get("detected_currency")).upper()
+    currency_matches = bool(
+        not detected_currency
+        or not expected_currency
+        or detected_currency == expected_currency
+    )
+    amount_safe = bool(
+        detected_amount is not None
+        and detected_amount > 0
+        and detected_amount <= expected_amount + 0.000001
+        and detected_amount <= remaining_amount + 0.000001
+    )
+    confident_amount = bool(
+        status == "Completed"
+        and confidence >= payment_receipt_analysis.CONFIDENT_SUGGESTION_THRESHOLD
+        and detected_amount is not None
+        and detected_amount > 0
+    )
+
+    unsafe_suggestion_codes = set(
+        payment_receipt_analysis.CRITICAL_WARNING_CODES
+    ) | {"TRANSACTION_STATUS_UNREADABLE"}
+    unsafe_warning = bool(warning_codes.intersection(unsafe_suggestion_codes))
+    suggestion_available = bool(
+        confident_amount
+        and amount_safe
+        and currency_matches
+        and not unsafe_warning
+    )
+
+    exception_reason_required = bool(
+        status != "Completed"
+        or confidence < payment_receipt_analysis.CONFIDENT_SUGGESTION_THRESHOLD
+        or detected_amount is None
+        or detected_amount <= 0
+        or "TRANSACTION_STATUS_UNREADABLE" in warning_codes
+    )
+
+    return {
+        "summary": summary,
+        "warning_codes": sorted(warning_codes),
+        "manual_review_required": not suggestion_available,
+        "exception_reason_required": exception_reason_required,
+        "suggestion_available": suggestion_available,
+        "suggested_verified_amount": detected_amount if suggestion_available else None,
+        "confident_detected_amount": detected_amount if confident_amount else None,
+        "override_reason_required_if_amount_changed": confident_amount,
+    }
+
+
 def _create_receipt_evidence(payment, *, key: str, actor: str):
     provenance = payments._receipt_file_provenance(
         payment,
@@ -238,11 +344,38 @@ def get_review_context(payment_id=None, name=None):
     company = _text(request.company_snapshot)
     currency = _text(request.pricing_currency) or _text(payment.currency) or "PKR"
     accounts = _mapped_payment_accounts(company=company, currency=currency)
+    remaining = _remaining_amount(payment)
+    receipt, _key = _receipt_for_current_evidence(payment)
+    ai_state = _ai_review_state(
+        payment,
+        receipt,
+        currency=currency,
+        remaining_amount=remaining,
+    )
+    installment_amount = max(_amount(payment.amount), 0)
     return {
         "payment": payment.name,
+        "receipt_evidence": _text(getattr(receipt, "name", None)),
+        "receipt_url": _text(getattr(receipt, "receipt_attachment", None))
+        or _text(payment.receipt_attachment),
         "currency": currency,
-        "remaining_amount": _remaining_amount(payment),
+        "expected_amount": installment_amount,
+        "installment_amount": installment_amount,
+        "erp_remaining_amount": remaining,
+        "remaining_amount": remaining,
         "payment_accounts": accounts,
+        "ai": ai_state["summary"],
+        "ai_status": ai_state["summary"].get("status") or "Not Requested",
+        "ai_confidence": ai_state["summary"].get("confidence") or 0,
+        "ai_warnings": ai_state["summary"].get("warnings") or [],
+        "ai_manual_review_required": ai_state["manual_review_required"],
+        "ai_exception_reason_required": ai_state["exception_reason_required"],
+        "ai_suggestion_available": ai_state["suggestion_available"],
+        "suggested_verified_amount": ai_state["suggested_verified_amount"],
+        "ai_confident_detected_amount": ai_state["confident_detected_amount"],
+        "ai_override_reason_required_if_amount_changed": ai_state[
+            "override_reason_required_if_amount_changed"
+        ],
     }
 
 
@@ -254,6 +387,7 @@ def review_receipt(
     payment_reference=None,
     verified_amount=None,
     payment_account=None,
+    ai_override_reason=None,
     verification_source="Manual",
     gateway_transaction_id=None,
 ):
@@ -324,6 +458,29 @@ def review_receipt(
             frappe.ValidationError,
         )
 
+    ai_state = _ai_review_state(
+        payment,
+        receipt,
+        currency=config["currency"],
+        remaining_amount=remaining,
+    )
+    clean_ai_override_reason = _text(ai_override_reason)
+    confident_detected_amount = ai_state["confident_detected_amount"]
+    amount_changed_from_ai = bool(
+        confident_detected_amount is not None
+        and abs(amount - confident_detected_amount) > 0.000001
+    )
+    if ai_state["exception_reason_required"] and not clean_ai_override_reason:
+        frappe.throw(
+            "An exception reason is required because AI analysis is unavailable, incomplete, or not confident enough for verification assistance.",
+            frappe.ValidationError,
+        )
+    if amount_changed_from_ai and not clean_ai_override_reason:
+        frappe.throw(
+            "An override reason is required when changing the confidently detected AI amount.",
+            frappe.ValidationError,
+        )
+
     response = payments.review_payment_receipt(
         payment_id=payment.name,
         status="Paid",
@@ -338,6 +495,7 @@ def review_receipt(
     receipt.reviewed_at = now_datetime()
     receipt.verification_source = _text(verification_source) or "Manual"
     receipt.gateway_transaction_id = _text(gateway_transaction_id)
+    receipt.ai_override_reason = clean_ai_override_reason
     receipt.accounting_state = "Pending"
     receipt.next_attempt_at = now_datetime()
     receipt.save(ignore_permissions=True)
@@ -349,12 +507,26 @@ def review_receipt(
         actor=actor,
         safe_reason="receipt_verified",
     )
+    if clean_ai_override_reason:
+        security.audit_event(
+            event_type="payment.receipt_ai_override",
+            capability="can_review_payments",
+            target_doctype=RECEIPT_DOCTYPE,
+            target_name=receipt.name,
+            actor=actor,
+            safe_reason=(
+                "manual_ai_exception"
+                if ai_state["exception_reason_required"]
+                else "confident_amount_override"
+            ),
+        )
     frappe.db.commit()
     _queue_receipt(receipt.name)
     return {
         **response,
         "receipt_evidence": receipt.name,
         "verified_amount": amount,
+        "ai_override_reason_recorded": bool(clean_ai_override_reason),
         "accounting_queued": True,
         "message": "Receipt verified. ERP accounting has been queued.",
     }

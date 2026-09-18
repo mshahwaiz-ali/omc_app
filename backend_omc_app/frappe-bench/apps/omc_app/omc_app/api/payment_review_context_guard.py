@@ -29,8 +29,18 @@ def get_review_context(payment_id=None, name=None):
         ),
         0,
     )
-    request_remaining = max(flt(result.get("remaining_amount") or 0, 6), 0)
+    request_remaining = max(
+        flt(
+            result.get("erp_remaining_amount")
+            or result.get("remaining_amount")
+            or 0,
+            6,
+        ),
+        0,
+    )
     result["request_remaining_amount"] = request_remaining
+    result["erp_remaining_amount"] = request_remaining
+    result["expected_amount"] = installment_amount
     result["installment_amount"] = installment_amount
     result["remaining_amount"] = min(request_remaining, installment_amount)
     return result
