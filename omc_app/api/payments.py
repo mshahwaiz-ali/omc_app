@@ -269,10 +269,16 @@ def _payment_support_payload(payment=None, service_case=None):
         bank_lines.append(f"Currency: {account_currency}")
 
     if not instructions:
-        instructions = (
-            "Contact OMC support on WhatsApp for payment details, transfer the amount, "
-            "then upload the receipt screenshot here for finance review."
-        )
+        if bank_lines:
+            instructions = (
+                "Transfer the payment to the configured account below, then upload "
+                "the payment proof here for finance review."
+            )
+        else:
+            instructions = (
+                "Contact OMC support on WhatsApp for payment details, transfer the amount, "
+                "then upload the payment proof here for finance review."
+            )
 
     case_name = getattr(service_case, "name", "") or getattr(payment, "service_request", "") or ""
     payment_name = getattr(payment, "name", "") or ""

@@ -211,14 +211,15 @@ def _read_accounting_summary(request) -> dict:
         and not block_reason
     ):
         block_reason = (
-            "The initial payment must be opened through the service payment "
-            "workflow after required documents are satisfied."
+            "The initial payment should be available directly from the service "
+            "request workflow. Refresh the request or contact OMC support if it is missing."
         )
 
     if execution_mode == "Pay Later":
         block_reason = (
-            "Pay Later is approved. Settlement follows the ERP invoice workflow "
-            "after the service task is completed."
+            "Pay Later is approved. No payment or receipt is required before "
+            "service completion. After the ERP Task is completed, settlement "
+            "continues against the ERP invoice."
         )
 
     can_make_payment = bool(
@@ -339,8 +340,9 @@ def create_installment(service_request=None, amount=None):
 
     if not invoice:
         frappe.throw(
-            "The initial payment must be opened through the service payment "
-            "workflow after required documents are satisfied.",
+            "The initial payment is handled through the service payment workflow. "
+            "Additional installments can be opened only after the canonical ERP "
+            "Sales Invoice exists.",
             frappe.ValidationError,
         )
 
