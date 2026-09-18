@@ -113,26 +113,29 @@ void main() {
     expect(summary.canMakePayment, isFalse);
   });
 
-  test('Desk payment account title is included with structured bank details', () {
-    const account = PaymentBankAccount(
-      title: 'Primary PKR Account',
-      bankName: 'Meezan Bank',
-      accountTitle: 'OMC House',
-      accountNumber: '00123456789',
-      iban: 'PK00MEZN001234567890',
-      branch: 'Gulberg',
-      currency: 'PKR',
-    );
+  test(
+    'Desk payment account title is included with structured bank details',
+    () {
+      const account = PaymentBankAccount(
+        title: 'Primary PKR Account',
+        bankName: 'Meezan Bank',
+        accountTitle: 'OMC House',
+        accountNumber: '00123456789',
+        iban: 'PK00MEZN001234567890',
+        branch: 'Gulberg',
+        currency: 'PKR',
+      );
 
-    expect(
-      account.displayDetails,
-      contains('Payment account: Primary PKR Account'),
-    );
-    expect(account.displayDetails, contains('Bank: Meezan Bank'));
-    expect(account.displayDetails, contains('Account title: OMC House'));
-    expect(account.displayDetails, contains('Account number: 00123456789'));
-    expect(account.displayDetails, contains('IBAN: PK00MEZN001234567890'));
-  });
+      expect(
+        account.displayDetails,
+        contains('Payment account: Primary PKR Account'),
+      );
+      expect(account.displayDetails, contains('Bank: Meezan Bank'));
+      expect(account.displayDetails, contains('Account title: OMC House'));
+      expect(account.displayDetails, contains('Account number: 00123456789'));
+      expect(account.displayDetails, contains('IBAN: PK00MEZN001234567890'));
+    },
+  );
 }
 
 class _PaymentDetailClient extends FrappeClient {

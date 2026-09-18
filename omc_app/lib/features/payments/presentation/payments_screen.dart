@@ -484,7 +484,8 @@ class _PaymentCard extends StatelessWidget {
     case PaymentStatus.partiallyPaid:
       return (
         label: 'Pay balance',
-        message: 'A partial payment is verified; the remaining balance is still due.',
+        message:
+            'A partial payment is verified; the remaining balance is still due.',
         icon: Icons.account_balance_wallet_outlined,
       );
     case PaymentStatus.deferred:
@@ -525,7 +526,7 @@ class _EmptyPaymentsView extends StatelessWidget {
             icon: Icons.account_balance_wallet_outlined,
             title: 'No payment is due',
             message:
-                'A payment will appear here after all required documents are uploaded.',
+                'Payment options appear with the service request and can be completed independently of document uploads.',
           ),
         ),
       ],
