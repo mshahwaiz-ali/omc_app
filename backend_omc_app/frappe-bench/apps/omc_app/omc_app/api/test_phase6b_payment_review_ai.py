@@ -103,6 +103,11 @@ class TestPhase6BPaymentReviewAI(FrappeTestCase):
                 payment_accounting.security,
                 "audit_event",
             ) as audit,
+            patch.object(
+                payment_accounting,
+                "now_datetime",
+                return_value="2026-09-19 00:45:00",
+            ),
             patch.object(payment_accounting.frappe.db, "commit"),
             patch.object(
                 payment_accounting,
@@ -552,6 +557,11 @@ class TestPhase6BPaymentReviewAI(FrappeTestCase):
         with (
             patch.object(payment_accounting, "review_receipt") as human_review,
             patch.object(payment_accounting, "process_receipt") as accounting,
+            patch.object(
+                analysis,
+                "now_datetime",
+                return_value="2026-09-19 00:45:00",
+            ),
             patch.object(analysis.frappe, "log_error") as log_error,
         ):
             result = analysis.analyze_receipt(receipt.name)
