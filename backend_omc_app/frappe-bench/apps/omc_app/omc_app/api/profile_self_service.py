@@ -8,7 +8,14 @@ from frappe import _
 from frappe.exceptions import PermissionError, ValidationError
 from frappe.utils import now_datetime
 
-from omc_app.api import access, identity, mobile, security, staff_profile
+from omc_app.api import (
+    access,
+    customer_business_projection,
+    identity,
+    mobile,
+    security,
+    staff_profile,
+)
 
 
 ALLOWED_FIELDS = {
@@ -227,13 +234,18 @@ def _staff_snapshot(profile) -> dict[str, str]:
     }
 
 
-def _snapshot(profile) -> dict[str, str]:
-    tracked_fields = {**ALLOWED_FIELDS, **SET_ONCE_FIELDS}
-    return {
-        fieldname: str(profile.get(fieldname) or "")
-        for fieldname in tracked_fields
+def _snapshot(profile, *, user: str = "") -> dict[str, str]:
+    business = customer_business_projection.business_snapshot(
+        profile,
+        user=user,
+    )
+    snapshot = {
+        fieldname: str(business.get(fieldname) or "")
+        for fieldname in {**ALLOWED_FIELDS, **SET_ONCE_FIELDS}
+        if fieldname != "whatsapp_no"
     }
-
+    snapshot["whatsapp_no"] = str(profile.get("whatsapp_no") or "")
+    return snapshot
 
 def _create_audit(
     *,
@@ -432,17 +444,23 @@ def update_profile(**kwargs):
         return _update_internal_profile(user=user, payload=payload)
 
     payload = _clean_payload(kwargs)
-
     profile = mobile._get_customer_profile_for_user(user)
+    if not profile:
+        frappe.throw(_("Customer profile is not available."), ValidationError)
 
-    before = _snapshot(profile)
+    before = _snapshot(profile, user=user)
     changed_fields: list[str] = []
 
     for fieldname, value in payload.items():
-        current_value = str(profile.get(fieldname) or "").strip()
+        current_value = str(before.get(fieldname) or "").strip()
 
         if fieldname in SET_ONCE_FIELDS and current_value:
-            if current_value != value:
+            same_identity = (
+                fieldname in {"cnic", "ntn"}
+                and customer_business_projection._normalise_tax(current_value)
+                == customer_business_projection._normalise_tax(value)
+            )
+            if current_value != value and not same_identity:
                 label = SET_ONCE_FIELD_LABELS.get(fieldname, fieldname)
                 frappe.throw(
                     _(
@@ -456,18 +474,41 @@ def update_profile(**kwargs):
         if current_value == value:
             continue
 
-        profile.set(fieldname, value)
         changed_fields.append(fieldname)
 
     if not changed_fields:
+        from omc_app.api import profile as profile_api
+
         return {
             "updated": False,
             "updated_fields": [],
             "message": "No profile details changed.",
-            "profile": mobile.get_profile(),
+            "profile": profile_api.get_profile(),
         }
 
-    profile.save(ignore_permissions=True)
+    erp_payload = {
+        fieldname: payload[fieldname]
+        for fieldname in changed_fields
+        if fieldname != "whatsapp_no"
+    }
+    result = customer_business_projection.update_business_fields(
+        profile,
+        erp_payload,
+        user=user,
+    )
+
+    if result.get("erp_backed"):
+        profile = frappe.get_doc("OMC Customer Profile", profile.name)
+
+        if "whatsapp_no" in changed_fields:
+            profile.whatsapp_no = payload["whatsapp_no"]
+            profile.save(ignore_permissions=True)
+    else:
+        # Temporary compatibility path for historical unlinked profiles.
+        # Phase 10 migration removes the need for this branch.
+        for fieldname in changed_fields:
+            profile.set(fieldname, payload[fieldname])
+        profile.save(ignore_permissions=True)
 
     if "full_name" in changed_fields and frappe.db.exists("User", user):
         user_doc = frappe.get_doc("User", user)
@@ -475,7 +516,8 @@ def update_profile(**kwargs):
         user_doc.full_name = payload["full_name"]
         user_doc.save(ignore_permissions=True)
 
-    after = _snapshot(profile)
+    profile = frappe.get_doc("OMC Customer Profile", profile.name)
+    after = _snapshot(profile, user=user)
     _create_audit(
         user=user,
         profile=profile,
@@ -485,26 +527,14 @@ def update_profile(**kwargs):
     )
     frappe.db.commit()
 
+    from omc_app.api import profile as profile_api
+
     return {
         "updated": True,
         "updated_fields": changed_fields,
         "message": "Profile updated successfully.",
-        "profile": mobile.get_profile(),
+        "profile": profile_api.get_profile(),
     }
-
-
-WORK_ADDRESS_LIMITS = {
-    "work_address": 500,
-    "work_address_details": 500,
-    "google_place_id": 180,
-    "work_city": 140,
-    "work_district": 140,
-    "work_province": 140,
-    "work_postal_code": 20,
-    "work_country": 140,
-    "work_location_source": 80,
-}
-
 
 def _address_value(data, fieldname):
     value = data.get(fieldname)
