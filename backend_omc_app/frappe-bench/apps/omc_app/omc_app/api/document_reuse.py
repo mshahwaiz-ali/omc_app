@@ -77,23 +77,38 @@ def _requirements(request) -> list:
 
 
 def _prior_request_names(request) -> list[str]:
-    if not request.customer_profile or not request.service:
+    """Return prior requests for the same canonical business customer/service.
+
+    ERP Customer is the durable ownership identity. Profile fallback remains
+    only for legacy requests that pre-date the canonical ERP projection.
+    """
+    if not request.service:
+        return []
+
+    filters = {
+        "service": request.service,
+        "name": ["!=", request.name],
+        "status": ["!=", "Cancelled"],
+    }
+
+    erp_customer = _text(getattr(request, "erp_customer", None))
+    customer_profile = _text(getattr(request, "customer_profile", None))
+
+    if erp_customer:
+        filters["erp_customer"] = erp_customer
+    elif customer_profile:
+        filters["customer_profile"] = customer_profile
+    else:
         return []
 
     rows = frappe.get_all(
         "OMC Service Request",
-        filters={
-            "customer_profile": request.customer_profile,
-            "service": request.service,
-            "name": ["!=", request.name],
-            "status": ["!=", "Cancelled"],
-        },
+        filters=filters,
         pluck="name",
         order_by="creation desc",
         limit_page_length=500,
     )
     return [_text(name) for name in rows if _text(name)]
-
 
 def _current_request_has_document(request_name: str, document_key: str) -> bool:
     return bool(

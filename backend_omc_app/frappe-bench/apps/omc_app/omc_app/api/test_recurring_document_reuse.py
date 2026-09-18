@@ -9,6 +9,47 @@ from omc_app.api import assisted_service_policy, document_reuse
 
 
 class TestRecurringDocumentReuse(FrappeTestCase):
+    def test_prior_request_scope_prefers_canonical_erp_customer(self):
+        request = SimpleNamespace(
+            name="OMC-SR-NEW",
+            service="tax-service",
+            erp_customer="ERP-CUST-1",
+            customer_profile="PROFILE-NEW",
+        )
+
+        with patch.object(
+            document_reuse.frappe,
+            "get_all",
+            return_value=[],
+        ) as get_all:
+            document_reuse._prior_request_names(request)
+
+        filters = get_all.call_args.kwargs["filters"]
+        self.assertEqual(filters["erp_customer"], "ERP-CUST-1")
+        self.assertNotIn("customer_profile", filters)
+
+    def test_prior_request_scope_keeps_legacy_profile_fallback(self):
+        request = SimpleNamespace(
+            name="OMC-SR-NEW",
+            service="tax-service",
+            erp_customer="",
+            customer_profile="PROFILE-LEGACY",
+        )
+
+        with patch.object(
+            document_reuse.frappe,
+            "get_all",
+            return_value=[],
+        ) as get_all:
+            document_reuse._prior_request_names(request)
+
+        filters = get_all.call_args.kwargs["filters"]
+        self.assertEqual(
+            filters["customer_profile"],
+            "PROFILE-LEGACY",
+        )
+        self.assertNotIn("erp_customer", filters)
+
     def test_always_new_is_not_automatically_reused(self):
         self.assertNotIn("Always New", document_reuse.REUSE_POLICIES)
 
