@@ -24,6 +24,10 @@ class TestTaskInvoiceCompatibility(FrappeTestCase):
             "_request_for_task",
             return_value="OMC-SR-TEST-00001",
         ), patch.object(
+            task_invoice_compat.frappe,
+            "get_doc",
+            return_value=SimpleNamespace(payment_execution_mode="Prepaid"),
+        ), patch.object(
             task_invoice_compat,
             "_canonical_invoice_or_throw",
             return_value="SINV-OMC-00001",
@@ -41,6 +45,10 @@ class TestTaskInvoiceCompatibility(FrappeTestCase):
             task_invoice_compat,
             "_request_for_task",
             return_value="OMC-SR-TEST-00001",
+        ), patch.object(
+            task_invoice_compat.frappe,
+            "get_doc",
+            return_value=SimpleNamespace(payment_execution_mode="Prepaid"),
         ), patch.object(
             task_invoice_compat,
             "_canonical_invoice_or_throw",
@@ -71,6 +79,10 @@ class TestTaskInvoiceCompatibility(FrappeTestCase):
             task_invoice_compat,
             "_request_for_task",
             side_effect=request_for_task,
+        ), patch.object(
+            task_invoice_compat.frappe,
+            "get_doc",
+            return_value=SimpleNamespace(payment_execution_mode="Prepaid"),
         ), patch.object(
             task_invoice_compat,
             "_canonical_invoice_or_throw",
