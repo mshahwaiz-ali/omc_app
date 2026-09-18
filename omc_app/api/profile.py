@@ -4,6 +4,7 @@ import frappe
 from frappe.utils.file_manager import save_file
 
 from omc_app.api import access
+from omc_app.api import customer_business_projection
 from omc_app.api import staff_profile
 
 
@@ -138,14 +139,28 @@ def _internal_profile_payload(user):
     }
 
 
-def _profile_edit_policy(profile):
+def _profile_edit_policy(profile, business=None):
+    business = business or (
+        customer_business_projection.business_snapshot(profile)
+        if profile
+        else {}
+    )
+
     def field_policy(fieldname):
         if not profile:
             return {"can_edit": False, "mode": "unavailable"}
 
-        value = str(profile.get(fieldname) or "").strip()
+        value = str(
+            business.get(fieldname)
+            or profile.get(fieldname)
+            or ""
+        ).strip()
         if value:
             return {"can_edit": False, "mode": "locked"}
+
+        tax_kind = str(business.get("tax_id_kind") or "").strip()
+        if fieldname in {"cnic", "ntn"} and tax_kind and tax_kind != fieldname:
+            return {"can_edit": False, "mode": "unavailable"}
 
         return {"can_edit": True, "mode": "add"}
 
@@ -155,7 +170,6 @@ def _profile_edit_policy(profile):
         "ntn": field_policy("ntn"),
         "company_name": field_policy("company_name"),
     }
-
 
 def _profile_payload(profile, user):
     user_image = _get_user_image_url(user)
@@ -167,40 +181,48 @@ def _profile_payload(profile, user):
             "avatar_url": user_image,
             "user_image": user_image,
             "customer_id": "",
+            "erp_customer": "",
             "customer_status": "Guest" if user == "Guest" else "",
             "approval_status": "",
             "access_state": "guest" if user == "Guest" else "pending",
             "profile_edit_policy": _profile_edit_policy(None),
         }
 
+    business = customer_business_projection.business_snapshot(
+        profile,
+        user=user,
+    )
+
     return {
-        "full_name": profile.full_name or "",
-        "display_name": profile.full_name or "",
-        "email": profile.email or user or "",
+        "full_name": business.get("full_name") or profile.full_name or "",
+        "display_name": business.get("full_name") or profile.full_name or "",
+        "email": business.get("email") or profile.email or user or "",
         "user": user or "",
-        "phone": profile.phone or "",
+        "phone": business.get("phone") or "",
         "whatsapp_no": profile.get("whatsapp_no") or "",
         "avatar_url": user_image,
         "user_image": user_image,
         "customer_id": profile.name,
+        "erp_customer": business.get("erp_customer") or "",
+        "erp_customer_type": business.get("erp_customer_type") or "",
         "customer_status": profile.customer_status or "",
         "approval_status": profile.approval_status or "",
-        "company_name": profile.company_name or "",
-        "cnic": profile.cnic or "",
-        "ntn": profile.ntn or "",
+        "company_name": business.get("company_name") or "",
+        "cnic": business.get("cnic") or "",
+        "ntn": business.get("ntn") or "",
+        "tax_id": business.get("tax_id") or "",
         "register_as": profile.get("register_as") or "",
         "customer_type": profile.get("customer_type") or "",
-        "address": profile.get("address") or "",
+        "address": business.get("address") or "",
         "education": profile.get("education") or "",
         "experience": profile.get("experience") or "",
         "remarks": profile.get("remarks") or "",
-        "profile_edit_policy": _profile_edit_policy(profile),
+        "profile_edit_policy": _profile_edit_policy(profile, business),
         "access_state": "approved"
         if (profile.customer_status or "").lower() == "active"
         and (profile.approval_status or "").lower() == "approved"
         else "pending",
     }
-
 
 @frappe.whitelist()
 def get_profile():

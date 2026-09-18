@@ -6,9 +6,8 @@ OMC Customer Profile is the OMC-specific projection that carries referral,
 onboarding, acquisition and application metadata. A business Customer does
 not require a User or OMC Customer Account to have a valid Profile.
 
-This module deliberately does not synchronize ordinary editable business
-fields. ERP-backed profile read/write projection belongs to the later profile
-phase.
+Ordinary customer business fields are projected from ERP Customer/Contact
+through the Phase 4 business-data adapter. OMC-only metadata remains here.
 """
 
 from __future__ import annotations
@@ -17,7 +16,11 @@ from typing import Any
 
 import frappe
 
-from omc_app.api import erp_customer_resolver, reconciliation_queues
+from omc_app.api import (
+    customer_business_projection,
+    erp_customer_resolver,
+    reconciliation_queues,
+)
 
 
 PROFILE_DOCTYPE = "OMC Customer Profile"
@@ -612,6 +615,12 @@ def sync_from_erp_customer(doc, method=None):
             create_if_missing=True,
             customer_doc=doc,
         )
+
+        if result.get("status") in {"Resolved", "Created"} and result.get("profile"):
+            customer_business_projection.sync_profile_projection(
+                result["profile"],
+                customer_doc=doc,
+            )
     except Exception as exc:
         frappe.db.rollback(save_point=savepoint)
 
