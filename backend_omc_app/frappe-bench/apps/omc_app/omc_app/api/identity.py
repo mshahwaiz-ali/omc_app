@@ -340,11 +340,45 @@ def source_version(*values) -> str:
 
 
 def request_is_owned(request, context: CustomerContext) -> bool:
-    account = _text(request.get("customer_account")) if request.meta.has_field("customer_account") else ""
-    if account:
-        return account == context.account_name
-    return bool(context.legacy_profile and _text(request.get("customer_profile")) == context.legacy_profile)
+    """Return whether the activated customer owns this business request.
 
+    Ownership order is canonical and fail-closed:
+    1. exact app-account match;
+    2. exact ERP Customer match;
+    3. legacy Profile fallback only when the request has no canonical ERP
+       Customer projection.
+
+    A conflicting canonical ERP Customer never falls back to Profile.
+    """
+
+    account = (
+        _text(request.get("customer_account"))
+        if request.meta.has_field("customer_account")
+        else ""
+    )
+    if account and account == context.account_name:
+        return True
+
+    request_customer = (
+        _text(request.get("erp_customer"))
+        if request.meta.has_field("erp_customer")
+        else ""
+    )
+    if request_customer:
+        return bool(
+            context.erp_customer
+            and request_customer == context.erp_customer
+        )
+
+    if account:
+        return False
+
+    return bool(
+        context.legacy_profile
+        and request.meta.has_field("customer_profile")
+        and _text(request.get("customer_profile"))
+        == context.legacy_profile
+    )
 
 def require_owned_request(name: str, *, for_update: bool = False):
     context = require_customer_context()

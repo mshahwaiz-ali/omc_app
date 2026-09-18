@@ -486,21 +486,63 @@ def _request_response(doc) -> dict:
     }
 
 
-def _approved_account_for_profile(profile):
-    name = frappe.db.get_value(
-        "OMC Customer Account", {"legacy_customer_profile": profile.name}, "name"
+def _profile_erp_customer(profile) -> str:
+    customer = _text(
+        getattr(profile, "linked_erpnext_customer", None)
     )
-    if not name:
-        frappe.throw("Customer account is not available.", frappe.PermissionError)
-    account = frappe.get_doc("OMC Customer Account", name)
-    if (
-        account.identity_proof_status != "Verified"
-        or account.account_link_status != "Linked"
-        or account.service_access_status != "Approved"
-    ):
-        frappe.throw("Customer account is not available.", frappe.PermissionError)
-    return account
+    if not customer or not frappe.db.exists("Customer", customer):
+        frappe.throw(
+            "Customer profile is not linked to a valid ERP Customer.",
+            frappe.ValidationError,
+        )
+    return customer
 
+
+def _request_account_for_profile(profile, *, erp_customer: str):
+    """Return an approved app account when one exists.
+
+    Staff serviceability is defined by ERP Customer + OMC Profile, not by
+    app activation. An unapproved/missing account therefore leaves the request
+    account-less instead of blocking legitimate staff-assisted service.
+    """
+
+    names = frappe.get_all(
+        "OMC Customer Account",
+        filters={"legacy_customer_profile": profile.name},
+        pluck="name",
+        order_by="name asc",
+        limit_page_length=2,
+    )
+
+    if len(names) > 1:
+        frappe.throw(
+            "Multiple OMC Customer Accounts are linked to this customer profile.",
+            frappe.ValidationError,
+        )
+
+    if not names:
+        return None
+
+    account = frappe.get_doc("OMC Customer Account", names[0])
+    account_customer = _text(
+        getattr(account, "erp_customer", None)
+    )
+
+    if account_customer and account_customer != erp_customer:
+        frappe.throw(
+            "OMC Customer Account conflicts with the canonical ERP Customer.",
+            frappe.ValidationError,
+        )
+
+    if (
+        account.identity_proof_status == "Verified"
+        and account.account_link_status == "Linked"
+        and account.service_access_status == "Approved"
+        and account_customer == erp_customer
+    ):
+        return account
+
+    return None
 
 
 def _pagination(limit_start=0, limit_page_length=20):
@@ -512,23 +554,15 @@ def _pagination(limit_start=0, limit_page_length=20):
     return start, length
 
 
-def _approved_assisted_profile_names() -> list[str]:
-    names = frappe.get_all(
-        "OMC Customer Account",
-        filters={
-            "identity_proof_status": "Verified",
-            "account_link_status": "Linked",
-            "service_access_status": "Approved",
-        },
-        pluck="legacy_customer_profile",
-        limit_page_length=0,
-    )
-    return sorted({
-        _text(name)
-        for name in names
-        if _text(name)
-    })
+def _serviceable_profile_filters() -> dict:
+    """Filters for business customers that staff may service.
 
+    App activation is intentionally absent from this predicate.
+    """
+    return {
+        "is_active": 1,
+        "linked_erpnext_customer": ["!=", ""],
+    }
 
 def _customer_item(row, *, mode: str) -> dict:
     return {
@@ -541,6 +575,7 @@ def _customer_item(row, *, mode: str) -> dict:
         "approval_status": row.approval_status or "",
         "consent_granted": int(row.referral_assistance_consent or 0),
         "customer_origin": row.customer_origin or "",
+        "erp_customer": row.linked_erpnext_customer or "",
         "linked_app_user": row.linked_app_user or "",
         "modified": str(row.modified or ""),
     }
@@ -610,18 +645,13 @@ def get_customer_selection_options(
             frappe.PermissionError,
         )
 
-    approved_profile_names = _approved_assisted_profile_names()
-    approved_profile_filter = [
-        "in",
-        approved_profile_names or ["__none__"],
-    ]
+    serviceable_filters = _serviceable_profile_filters()
 
     if selected_mode == "My Referral":
         filters = {
-            "name": approved_profile_filter,
+            **serviceable_filters,
             "referred_by": user,
             "referral_assistance_consent": 1,
-            "is_active": 1,
         }
         rows = frappe.get_all(
             "OMC Customer Profile",
@@ -639,6 +669,7 @@ def get_customer_selection_options(
                 "approval_status",
                 "referral_assistance_consent",
                 "customer_origin",
+                "linked_erpnext_customer",
                 "linked_app_user",
                 "modified",
             ],
@@ -650,10 +681,7 @@ def get_customer_selection_options(
     elif selected_mode == "Existing Customer":
         rows = frappe.get_all(
             "OMC Customer Profile",
-            filters={
-                "name": approved_profile_filter,
-                "is_active": 1,
-            },
+            filters=serviceable_filters,
             or_filters=_search_or_filters(
                 search,
                 ("name", "full_name", "email", "phone", "cnic"),
@@ -667,6 +695,7 @@ def get_customer_selection_options(
                 "approval_status",
                 "referral_assistance_consent",
                 "customer_origin",
+                "linked_erpnext_customer",
                 "linked_app_user",
                 "modified",
             ],
@@ -936,6 +965,7 @@ def _create_request(**kwargs):
         customer_context = identity.require_customer_context()
         profile = frappe.get_doc("OMC Customer Profile", customer_context.legacy_profile)
         account = frappe.get_doc("OMC Customer Account", customer_context.account_name)
+        erp_customer = _text(customer_context.erp_customer)
         customer_mode = "Self"
         submission_mode = "Customer Self-Service"
         manual_customer = None
@@ -975,7 +1005,11 @@ def _create_request(**kwargs):
                 "Walk-in customers must be reconciled to an approved Customer Account before request creation.",
                 frappe.ValidationError,
             )
-        account = _approved_account_for_profile(profile)
+        erp_customer = _profile_erp_customer(profile)
+        account = _request_account_for_profile(
+            profile,
+            erp_customer=erp_customer,
+        )
 
     full_name = _text(kwargs.get("full_name") or kwargs.get("customer_name"))
     contact_email = _text(kwargs.get("contact_email") or kwargs.get("email"))
@@ -1014,8 +1048,8 @@ def _create_request(**kwargs):
         hours=max(frappe.utils.cint(getattr(service, "pending_payment_expiry_hours", 72) or 72), 1),
     )
     doc.customer_profile = profile.name if profile else ""
-    doc.customer_account = account.name
-    doc.erp_customer = account.erp_customer
+    doc.customer_account = account.name if account else ""
+    doc.erp_customer = erp_customer
     doc.requested_for_customer = (
         _text(profile.linked_app_user)
         or _text(profile.user)
@@ -1054,6 +1088,7 @@ def _create_request(**kwargs):
         attribution = referral_attribution.request_snapshot(
             request=doc,
             account=account,
+            erp_customer=erp_customer,
             referral_registry=doc.referral_record,
         )
         frappe.db.set_value(

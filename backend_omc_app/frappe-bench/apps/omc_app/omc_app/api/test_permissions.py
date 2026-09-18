@@ -25,6 +25,8 @@ class TestPermissionQueryConditions(FrappeTestCase):
             query = permissions.service_request_query(user='customer@example.com')
         self.assertIn('tabOMC Customer Account', query)
         self.assertIn('customer_account = account.name', query)
+        self.assertIn('erp_customer = account.erp_customer', query)
+        self.assertIn("ifnull(`tabOMC Service Request`.erp_customer, '') = ''", query)
         self.assertNotIn('requested_for_customer', query)
         self.assertNotIn('linked_app_user', query)
         self.assertIn('customer@example.com', query)
