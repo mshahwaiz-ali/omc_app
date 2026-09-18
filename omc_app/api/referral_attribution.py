@@ -19,7 +19,8 @@ def _key(*values) -> str:
 def create_snapshot(
     *,
     referral_registry: str,
-    customer_account: str,
+    customer_account: str = "",
+    erp_customer: str = "",
     attribution_type: str,
     service_request: str = "",
     consent_status: str = "Granted",
@@ -27,11 +28,41 @@ def create_snapshot(
 ):
     if attribution_type not in {"Acquisition", "Service Request"}:
         frappe.throw("Invalid referral attribution type.", frappe.ValidationError)
+
     registry = frappe.get_doc("OMC Referral", referral_registry)
-    account = frappe.get_doc("OMC Customer Account", customer_account)
+
+    account = None
+    account_name = _text(customer_account)
+    if account_name:
+        account = frappe.get_doc("OMC Customer Account", account_name)
+
+    canonical_customer = _text(erp_customer)
+    account_customer = _text(
+        getattr(account, "erp_customer", None)
+        if account
+        else ""
+    )
+
+    if canonical_customer and account_customer and canonical_customer != account_customer:
+        frappe.throw(
+            "Referral attribution Customer Account conflicts with ERP Customer.",
+            frappe.ValidationError,
+        )
+
+    canonical_customer = canonical_customer or account_customer
+    if (
+        not canonical_customer
+        or not frappe.db.exists("Customer", canonical_customer)
+    ):
+        frappe.throw(
+            "A valid ERP Customer is required for referral attribution.",
+            frappe.ValidationError,
+        )
+
     staff = identity.get_staff_access(registry.referrer_user)
     if not staff or staff.access_status != "Approved" or staff.reconciliation_status != "Current":
         frappe.throw("Referral owner is not eligible.", frappe.PermissionError)
+
     allowed_personas = {
         "Consultant", "Tax Associate", "Tax Associates", "Business Partner",
         "OMC Consultant", "OMC Tax Associate", "OMC Business Partner",
@@ -53,17 +84,31 @@ def create_snapshot(
             "Invalid referral persona snapshot.",
             frappe.ValidationError,
         )
+
+    identity_key = (
+        canonical_customer
+        if attribution_type == "Service Request"
+        else (account.name if account else canonical_customer)
+    )
     attribution_key = _key(
         attribution_type,
         registry.name,
-        account.name,
+        identity_key,
         service_request if attribution_type == "Service Request" else "acquisition",
     )
+
     existing = frappe.db.get_value(
         "OMC Referral Attribution", {"attribution_key": attribution_key}, "name"
     )
     if existing:
         return frappe.get_doc("OMC Referral Attribution", existing)
+
+    account_source = (
+        _text(getattr(account, "source_version", None))
+        if account
+        else f"erp-customer:{canonical_customer}"
+    )
+
     doc = frappe.get_doc({
         "doctype": "OMC Referral Attribution",
         "attribution_key": attribution_key,
@@ -72,16 +117,22 @@ def create_snapshot(
         "referral_code_snapshot": registry.referral_code,
         "owner_user": registry.referrer_user,
         "owner_persona_snapshot": persona,
-        "customer_account": account.name,
-        "erp_customer": account.erp_customer,
+        "customer_account": account.name if account else None,
+        "erp_customer": canonical_customer,
         "service_request": service_request or None,
         "consent_status": consent_status,
         "consent_version": "omc-referral-consent-v1",
         "attributed_at": now_datetime(),
         "source_version": identity.source_version(
-            registry.name, registry.referral_code, registry.modified,
-            staff.name, staff.source_version, account.source_version,
+            registry.name,
+            registry.referral_code,
+            registry.modified,
+            staff.name,
+            staff.source_version,
+            canonical_customer,
+            account_source,
             persona,
+            service_request,
         ),
     })
     try:
@@ -94,8 +145,6 @@ def create_snapshot(
             ),
         )
     return doc
-
-
 
 def create_historical_acquisition_snapshot(
     *,
@@ -238,43 +287,103 @@ def create_historical_acquisition_snapshot(
     return doc
 
 
-def request_snapshot(*, request, account, referral_registry: str):
-    historical_persona = ""
-
-    erp_customer = _text(
+def request_snapshot(
+    *,
+    request,
+    referral_registry: str,
+    account=None,
+    erp_customer: str = "",
+):
+    canonical_customer = _text(
+        erp_customer
+        or getattr(request, "erp_customer", "")
+        or getattr(account, "erp_customer", "")
+    )
+    account_customer = _text(
         getattr(account, "erp_customer", "")
     )
-    if erp_customer:
-        rows = frappe.get_all(
-            "OMC Referral Attribution",
-            filters={
-                "attribution_type": "Acquisition",
-                "referral_registry": referral_registry,
-                "erp_customer": erp_customer,
-                "consent_status": "Not Applicable",
-            },
-            fields=["name"],
-            limit_page_length=2,
+
+    if account_customer and canonical_customer != account_customer:
+        frappe.throw(
+            "Referral request ownership conflicts with Customer Account.",
+            frappe.ValidationError,
         )
 
-        if len(rows) > 1:
+    if (
+        not canonical_customer
+        or not frappe.db.exists("Customer", canonical_customer)
+    ):
+        frappe.throw(
+            "A valid ERP Customer is required for referral attribution.",
+            frappe.ValidationError,
+        )
+
+    existing_rows = frappe.get_all(
+        "OMC Referral Attribution",
+        filters={
+            "attribution_type": "Service Request",
+            "referral_registry": referral_registry,
+            "service_request": request.name,
+        },
+        fields=["name", "erp_customer"],
+        limit_page_length=2,
+    )
+
+    if len(existing_rows) > 1:
+        frappe.throw(
+            "Service request referral attribution is ambiguous.",
+            frappe.ValidationError,
+        )
+
+    if existing_rows:
+        existing_customer = _text(existing_rows[0].erp_customer)
+        if existing_customer and existing_customer != canonical_customer:
             frappe.throw(
-                "Historical acquisition attribution is ambiguous.",
+                "Existing referral attribution conflicts with ERP Customer.",
                 frappe.ValidationError,
             )
+        return frappe.get_doc(
+            "OMC Referral Attribution",
+            existing_rows[0].name,
+        )
 
-        if rows:
-            acquisition = frappe.get_doc(
-                "OMC Referral Attribution",
-                rows[0].name,
-            )
-            historical_persona = _text(
-                acquisition.owner_persona_snapshot
-            )
+    historical_persona = ""
+
+    rows = frappe.get_all(
+        "OMC Referral Attribution",
+        filters={
+            "attribution_type": "Acquisition",
+            "referral_registry": referral_registry,
+            "erp_customer": canonical_customer,
+            "consent_status": "Not Applicable",
+        },
+        fields=["name"],
+        limit_page_length=2,
+    )
+
+    if len(rows) > 1:
+        frappe.throw(
+            "Historical acquisition attribution is ambiguous.",
+            frappe.ValidationError,
+        )
+
+    if rows:
+        acquisition = frappe.get_doc(
+            "OMC Referral Attribution",
+            rows[0].name,
+        )
+        historical_persona = _text(
+            acquisition.owner_persona_snapshot
+        )
 
     kwargs = {
         "referral_registry": referral_registry,
-        "customer_account": account.name,
+        "customer_account": (
+            getattr(account, "name", "")
+            if account
+            else ""
+        ),
+        "erp_customer": canonical_customer,
         "attribution_type": "Service Request",
         "service_request": request.name,
     }
@@ -283,3 +392,4 @@ def request_snapshot(*, request, account, referral_registry: str):
         kwargs["owner_persona_snapshot"] = historical_persona
 
     return create_snapshot(**kwargs)
+

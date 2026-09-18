@@ -6,31 +6,23 @@ from omc_app.api import assisted_service
 
 
 class TestAssistedServicePickerParity(FrappeTestCase):
-    def test_existing_customer_picker_uses_submit_eligible_accounts(self):
+    def test_existing_customer_picker_uses_erp_backed_profiles_without_account_gate(self):
         calls = []
 
         def get_all(doctype, **kwargs):
             calls.append((doctype, kwargs))
 
-            if doctype == "OMC Customer Account":
+            if doctype == "OMC Customer Profile":
                 self.assertEqual(
                     kwargs["filters"],
                     {
-                        "identity_proof_status": "Verified",
-                        "account_link_status": "Linked",
-                        "service_access_status": "Approved",
+                        "is_active": 1,
+                        "linked_erpnext_customer": ["!=", ""],
                     },
                 )
-                return ["OMC-CUST-APPROVED"]
-
-            if doctype == "OMC Customer Profile":
-                self.assertEqual(
-                    kwargs["filters"]["name"],
-                    ["in", ["OMC-CUST-APPROVED"]],
-                )
-                self.assertEqual(
-                    kwargs["filters"]["is_active"],
-                    1,
+                self.assertIn(
+                    "linked_erpnext_customer",
+                    kwargs["fields"],
                 )
                 return []
 
@@ -63,5 +55,36 @@ class TestAssistedServicePickerParity(FrappeTestCase):
         self.assertEqual(result["items"], [])
         self.assertEqual(
             [doctype for doctype, _ in calls],
-            ["OMC Customer Account", "OMC Customer Profile"],
+            ["OMC Customer Profile"],
         )
+
+    def test_accountless_business_profile_is_serviceable(self):
+        profile = type(
+            "Profile",
+            (),
+            {
+                "name": "PROFILE-BUSINESS-ONLY",
+                "linked_erpnext_customer": "ERP-CUST-1",
+            },
+        )()
+
+        with (
+            patch.object(
+                assisted_service.frappe.db,
+                "exists",
+                return_value=True,
+            ),
+            patch.object(
+                assisted_service.frappe,
+                "get_all",
+                return_value=[],
+            ),
+        ):
+            customer = assisted_service._profile_erp_customer(profile)
+            account = assisted_service._request_account_for_profile(
+                profile,
+                erp_customer=customer,
+            )
+
+        self.assertEqual(customer, "ERP-CUST-1")
+        self.assertIsNone(account)

@@ -258,12 +258,9 @@ class TestHistoricalReferralAttribution(FrappeTestCase):
 
 
 class TestHistoricalServiceRequestAttribution(FrappeTestCase):
-    def test_request_snapshot_inherits_historical_acquisition_persona(self):
+    def test_request_snapshot_supports_accountless_business_customer_and_inherits_persona(self):
         request = frappe._dict({
             "name": "REQ-HIST-1",
-        })
-        account = frappe._dict({
-            "name": "ACCOUNT-1",
             "erp_customer": "ERP-CUST-HIST-1",
         })
 
@@ -272,18 +269,71 @@ class TestHistoricalServiceRequestAttribution(FrappeTestCase):
             "owner_persona_snapshot": "Consultant",
         })
 
+        def get_all(doctype, **kwargs):
+            filters = kwargs.get("filters") or {}
+            if filters.get("attribution_type") == "Service Request":
+                return []
+            if filters.get("attribution_type") == "Acquisition":
+                return [frappe._dict({"name": acquisition.name})]
+            self.fail(f"Unexpected filters: {filters}")
+
         with (
+            patch.object(
+                referral_attribution.frappe.db,
+                "exists",
+                return_value=True,
+            ),
             patch.object(
                 referral_attribution.frappe,
                 "get_all",
-                return_value=[
-                    frappe._dict({"name": acquisition.name}),
-                ],
+                side_effect=get_all,
             ),
             patch.object(
                 referral_attribution.frappe,
                 "get_doc",
                 return_value=acquisition,
+            ),
+            patch.object(
+                referral_attribution,
+                "create_snapshot",
+            ) as create_snapshot,
+        ):
+            referral_attribution.request_snapshot(
+                request=request,
+                account=None,
+                erp_customer="ERP-CUST-HIST-1",
+                referral_registry="REF-ADNAN",
+            )
+
+        create_snapshot.assert_called_once_with(
+            referral_registry="REF-ADNAN",
+            customer_account="",
+            erp_customer="ERP-CUST-HIST-1",
+            attribution_type="Service Request",
+            service_request="REQ-HIST-1",
+            owner_persona_snapshot="Consultant",
+        )
+
+    def test_request_snapshot_keeps_approved_account_as_optional_evidence(self):
+        request = frappe._dict({
+            "name": "REQ-HIST-2",
+            "erp_customer": "ERP-CUST-HIST-1",
+        })
+        account = frappe._dict({
+            "name": "ACCOUNT-1",
+            "erp_customer": "ERP-CUST-HIST-1",
+        })
+
+        with (
+            patch.object(
+                referral_attribution.frappe.db,
+                "exists",
+                return_value=True,
+            ),
+            patch.object(
+                referral_attribution.frappe,
+                "get_all",
+                return_value=[],
             ),
             patch.object(
                 referral_attribution,
@@ -299,7 +349,7 @@ class TestHistoricalServiceRequestAttribution(FrappeTestCase):
         create_snapshot.assert_called_once_with(
             referral_registry="REF-ADNAN",
             customer_account="ACCOUNT-1",
+            erp_customer="ERP-CUST-HIST-1",
             attribution_type="Service Request",
-            service_request="REQ-HIST-1",
-            owner_persona_snapshot="Consultant",
+            service_request="REQ-HIST-2",
         )
