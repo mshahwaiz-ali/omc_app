@@ -87,11 +87,45 @@ class OMCServiceRequest(Document):
             archive_service_documents_for_status(self.name, self.status)
 
     def _enforce_customer_authority(self):
-        # Historical/account-less requests pre-date the canonical Customer
-        # Account boundary and remain covered by the bridge's legacy fallback.
-        if not getattr(self, "customer_account", None):
-            return ""
-        return customer_authority.enforce_request_customer(self)
+        profile = None
+        profile_name = getattr(self, "customer_profile", None)
+
+        if profile_name:
+            if not frappe.db.exists("OMC Customer Profile", profile_name):
+                frappe.throw(
+                    "Linked OMC Customer Profile does not exist.",
+                    frappe.ValidationError,
+                )
+            profile = frappe.get_doc(
+                "OMC Customer Profile",
+                profile_name,
+            )
+
+        customer = customer_authority.enforce_request_customer(
+            self,
+            profile=profile,
+        )
+
+        # Future operational requests must always carry the canonical business
+        # identity. Historical imports remain readable without forcing a
+        # destructive migration during normal saves.
+        if self.is_new() and getattr(self, "request_state", None) != "Historical":
+            if not profile:
+                frappe.throw(
+                    "OMC Customer Profile is required for a new service request.",
+                    frappe.ValidationError,
+                )
+            if not customer:
+                frappe.throw(
+                    "ERP Customer is required for a new service request.",
+                    frappe.ValidationError,
+                )
+
+            # Persist the canonical projection even while older authority
+            # implementations are still being upgraded in-place.
+            self.erp_customer = customer
+
+        return customer
 
     def _validate_request_state(self, previous):
         if not previous or previous.request_state == self.request_state:

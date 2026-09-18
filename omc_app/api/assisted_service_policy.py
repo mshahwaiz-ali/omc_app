@@ -16,7 +16,7 @@ def _assert_allowed_assisted_mode(value) -> str:
     mode = _mode(value)
     if mode not in ALLOWED_ASSISTED_MODES:
         frappe.throw(
-            "Internal staff can create service requests only for their own referrals or approved existing customers.",
+            "Internal staff can create service requests only for their own referrals or ERP-backed existing customers.",
             frappe.PermissionError,
         )
     return mode
@@ -67,7 +67,7 @@ def desk_customer_query(
     page_len=20,
     filters=None,
 ):
-    """Link-field query for approved customers during Desk request creation."""
+    """Link-field query for ERP-backed customers during Desk request creation."""
     response = get_customer_selection_options(
         customer_mode="Existing Customer",
         search=txt,
