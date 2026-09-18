@@ -81,12 +81,12 @@ class TestCustomerAuthority(FrappeTestCase):
             with self.assertRaises(frappe.ValidationError):
                 customer_authority.resolve_request_customer(request)
 
-    def test_accountless_legacy_request_keeps_existing_erp_customer(self):
+    def test_accountless_request_keeps_canonical_erp_customer(self):
         request = SimpleNamespace(
             customer_account="",
             erp_customer="CUST-LEGACY",
         )
-        profile = SimpleNamespace(linked_erpnext_customer="CUST-PROFILE")
+        profile = SimpleNamespace(linked_erpnext_customer="CUST-LEGACY")
         with patch.object(
             customer_authority.frappe.db,
             "exists",
@@ -98,6 +98,24 @@ class TestCustomerAuthority(FrappeTestCase):
             )
 
         self.assertEqual(customer, "CUST-LEGACY")
+
+    def test_request_and_profile_customer_conflict_fails_closed(self):
+        request = SimpleNamespace(
+            customer_account="",
+            erp_customer="CUST-LEGACY",
+        )
+        profile = SimpleNamespace(linked_erpnext_customer="CUST-PROFILE")
+
+        with patch.object(
+            customer_authority.frappe.db,
+            "exists",
+            side_effect=self._exists,
+        ):
+            with self.assertRaises(frappe.ValidationError):
+                customer_authority.resolve_request_customer(
+                    request,
+                    profile=profile,
+                )
 
     def test_accountless_legacy_request_can_fall_back_to_profile(self):
         request = SimpleNamespace(

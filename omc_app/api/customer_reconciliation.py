@@ -64,13 +64,26 @@ def _account_state(user: str):
     )
 
 
-def _profile_user(profile) -> str:
-    user = _text(
+def _profile_user_reference(profile) -> str:
+    """Return only an explicit application identity link.
+
+    Profile email is business/contact data and must never silently become app
+    activation evidence.
+    """
+
+    return _text(
         getattr(profile, "linked_app_user", None)
         or getattr(profile, "user", None)
-        or getattr(profile, "email", None)
     ).lower()
-    return user if user and frappe.db.exists("User", user) else ""
+
+
+def _profile_user(profile) -> str:
+    user = _profile_user_reference(profile)
+    return (
+        user
+        if user and frappe.db.exists("User", user)
+        else ""
+    )
 
 
 def _account_conflict(account, *, profile_name: str, erp_customer: str) -> str:
@@ -92,22 +105,30 @@ def _account_conflict(account, *, profile_name: str, erp_customer: str) -> str:
 def _reconcile_profile(profile, *, run_id: str) -> dict[str, int]:
     result = {"changed": 0, "review": 0, "quarantine": 0, "failed": 0}
     version = _source_version(profile)
+
+    user_reference = _profile_user_reference(profile)
     user = _profile_user(profile)
 
-    if not user:
+    # An explicit User link that no longer resolves is still a technical
+    # identity problem. A Profile with no User link at all is now a valid
+    # business-only customer state and must not be quarantined.
+    if user_reference and not user:
         reconciliation_queues.open_technical_quarantine(
             domain=DOMAIN,
             source_doctype="OMC Customer Profile",
             source_name=profile.name,
             source_version=version,
             failure_code="legacy_user_missing",
-            safe_evidence={"profile": profile.name, "has_email": bool(profile.email)},
+            safe_evidence={
+                "profile": profile.name,
+                "has_email": bool(profile.email),
+            },
             run_id=run_id,
         )
         result["quarantine"] = 1
         return result
 
-    before = _account_state(user)
+    before = _account_state(user) if user else None
     profile_doc = frappe.get_doc("OMC Customer Profile", profile.name)
 
     resolution = erp_customer_resolver.resolve_profile_customer(
@@ -148,6 +169,22 @@ def _reconcile_profile(profile, *, run_id: str) -> dict[str, int]:
             run_id=run_id,
         )
         result["review"] = 1
+        return result
+
+    # ERP Customer + OMC Profile is a complete business-customer identity.
+    # No User or Customer Account is required until app activation.
+    if not user:
+        reconciliation_queues.resolve_source_queues(
+            domain=DOMAIN,
+            source_doctype="OMC Customer Profile",
+            source_name=profile.name,
+            review_reason_codes=REVIEW_CODES,
+            quarantine_failure_codes=QUARANTINE_CODES,
+            resolution_note=(
+                "Business customer ERP Customer/Profile mapping is valid; "
+                "app activation is not required."
+            ),
+        )
         return result
 
     account = identity.get_customer_account(user)

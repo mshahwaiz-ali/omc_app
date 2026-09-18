@@ -224,7 +224,12 @@ def _customer_identity_rows() -> list[dict[str, Any]]:
     return result
 
 
-def _customer_matches(profile, user: str) -> list[str]:
+def _customer_matches(
+    profile,
+    user: str,
+    *,
+    identity_rows=None,
+) -> list[str]:
     """Return deterministic ERP Customer ownership candidates.
 
     `user` is intentionally not an ERP Customer identity. The restored client
@@ -497,31 +502,197 @@ def _set_new_customer_referral_identity(customer, profile) -> bool:
     return True
 
 
-def _create_customer(profile, user: str):
-    full_name = _text(getattr(profile, "full_name", None))
-    if not full_name:
-        return None, "customer profile has no full name"
 
-    customer_group = _default_value("customer_group")
-    territory = _default_value("territory")
-    if not customer_group or not territory:
-        return None, "ERP Selling Settings require customer group and territory"
+def _create_customer(profile, user: str):
+    """Create one ERP Customer for a proven genuinely-new signup.
+
+    ERPNext remains the business authority. Required client-side Customer
+    configuration is resolved from ERP settings rather than hard-coded.
+    """
+    full_name = _text(
+        getattr(profile, "full_name", None)
+    )
+
+    if not full_name:
+        return (
+            None,
+            "customer profile has no full name",
+        )
+
+    customer_group = _default_value(
+        "customer_group"
+    )
+    territory = _default_value(
+        "territory"
+    )
+
+    if (
+        not customer_group
+        or not territory
+        or not frappe.db.exists(
+            "Customer Group",
+            customer_group,
+        )
+        or not frappe.db.exists(
+            "Territory",
+            territory,
+        )
+    ):
+        return (
+            None,
+            "ERP Selling Settings require a valid "
+            "customer group and territory",
+        )
 
     customer = frappe.new_doc("Customer")
+
     customer.customer_name = full_name
     customer.customer_type = "Individual"
     customer.customer_group = customer_group
     customer.territory = territory
 
-    _set_if_field(customer, "user_link", user)
-    _set_if_field(customer, "mobile_no", getattr(profile, "phone", None))
-    _set_if_field(customer, "email_id", getattr(profile, "email", None))
-    _set_customer_identity(customer, profile)
-    _set_new_customer_referral_identity(customer, profile)
+    company_field = customer.meta.get_field(
+        "company"
+    )
 
-    customer.insert(ignore_permissions=True)
+    if company_field:
+        default_company = _text(
+            frappe.db.get_single_value(
+                "Global Defaults",
+                "default_company",
+            )
+        )
+
+        valid_company = bool(
+            default_company
+            and frappe.db.exists(
+                "Company",
+                default_company,
+            )
+        )
+
+        if (
+            int(
+                getattr(
+                    company_field,
+                    "reqd",
+                    0,
+                )
+                or 0
+            )
+            and not valid_company
+        ):
+            return (
+                None,
+                "ERP Global Defaults require a "
+                "valid default company",
+            )
+
+        if valid_company:
+            customer.set(
+                "company",
+                default_company,
+            )
+
+    _set_if_field(
+        customer,
+        "user_link",
+        user,
+    )
+
+    _set_if_field(
+        customer,
+        "mobile_no",
+        getattr(profile, "phone", None),
+    )
+
+    _set_if_field(
+        customer,
+        "email_id",
+        getattr(profile, "email", None),
+    )
+
+    # Client-specific writable identity projections. These are useful for
+    # deterministic future matching while Contact/Address projection remains
+    # a later phase.
+    _set_if_field(
+        customer,
+        "custom_email_address",
+        getattr(profile, "email", None),
+    )
+
+    _set_if_field(
+        customer,
+        "contact_no",
+        getattr(profile, "phone", None),
+    )
+
+    _set_if_field(
+        customer,
+        "custom_business_name",
+        getattr(
+            profile,
+            "company_name",
+            None,
+        ),
+    )
+
+    _set_customer_identity(
+        customer,
+        profile,
+    )
+
+    tax_field = customer.meta.get_field(
+        "tax_id"
+    )
+
+    if (
+        tax_field
+        and int(
+            getattr(
+                tax_field,
+                "reqd",
+                0,
+            )
+            or 0
+        )
+        and not _text(
+            customer.get("tax_id")
+        )
+    ):
+        return (
+            None,
+            "CNIC or NTN is required to create "
+            "the ERP Customer",
+        )
+
+    _set_new_customer_referral_identity(
+        customer,
+        profile,
+    )
+
+    # Phase 1 Customer.after_insert synchronization must reuse the source
+    # Profile rather than creating another OMC Customer Profile.
+    previous_source = getattr(
+        frappe.flags,
+        "omc_customer_profile_source",
+        None,
+    )
+
+    frappe.flags.omc_customer_profile_source = (
+        profile.name
+    )
+
+    try:
+        customer.insert(
+            ignore_permissions=True
+        )
+    finally:
+        frappe.flags.omc_customer_profile_source = (
+            previous_source
+        )
+
     return customer, ""
-
 
 
 def _reconcile_claim_historical_referral(
@@ -704,15 +875,26 @@ def resolve_profile_customer(
     # any historical ERP identity collision blocks automatic creation.
     # The record must be reviewed/reclassified instead of silently linking
     # an old customer or creating a duplicate.
-    if mode == "new_customer" and matches:
-        return {
-            "status": "Existing Customer Detected",
-            "customer": "",
-            "created": False,
-            "reason": (
-                "an existing ERP Customer matches this customer identity"
-            ),
-        }
+    if mode == "new_customer":
+        if len(matches) > 1:
+            return {
+                "status": "Ambiguous",
+                "customer": "",
+                "created": False,
+                "reason": (
+                    "multiple ERP Customers match this customer identity"
+                ),
+            }
+
+        if len(matches) == 1:
+            return {
+                "status": "Existing Customer Detected",
+                "customer": "",
+                "created": False,
+                "reason": (
+                    "an existing ERP Customer matches this customer identity"
+                ),
+            }
 
     # Backward-compatible/default behavior for existing callers.
     if len(matches) > 1:

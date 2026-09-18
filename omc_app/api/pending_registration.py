@@ -171,50 +171,185 @@ def _supersede_existing(email: str, username: str) -> None:
         doc.save(ignore_permissions=True)
 
 
-def create_pending_registration(data: dict) -> PendingRegistrationSecret:
+
+def create_pending_registration(
+    data: dict,
+) -> PendingRegistrationSecret:
     from omc_app.api import access
 
-    validated = access._validated_signup_kwargs(data)
+    validated = access._validated_signup_kwargs(
+        data
+    )
+
     email = validated["email"]
-    full_name = (validated.get("full_name") or validated.get("name") or email).strip()
 
-    submitted_username = validated.get("username")
+    full_name = (
+        validated.get("full_name")
+        or validated.get("name")
+        or email
+    ).strip()
+
+    onboarding_mode = str(
+        validated.get("onboarding_mode")
+        or "New Customer"
+    ).strip()
+
+    activation_state = (
+        identity.activation_profile_state(
+            email,
+            phone=(
+                validated.get("phone")
+                or validated.get("mobile")
+            ),
+            cnic=validated.get("cnic"),
+            ntn=validated.get("ntn"),
+        )
+    )
+
+    claim_profile_name = ""
+
+    if (
+        onboarding_mode
+        == "Existing Customer Claim"
+        and activation_state.get("status")
+        == "claimable"
+    ):
+        claim_profile_name = (
+            activation_state.get("profile")
+            or ""
+        )
+
+    submitted_username = validated.get(
+        "username"
+    )
+
     if submitted_username:
-        username = access.validate_username(submitted_username)
+        username = access.validate_username(
+            submitted_username
+        )
     else:
-        username = access.suggest_username(full_name=full_name, email=email)["username"]
+        username = access.suggest_username(
+            full_name=full_name,
+            email=email,
+        )["username"]
 
-    # Older clients may still submit a password at this stage. Validate basic
-    # shape for compatibility, then discard it completely; it is never written
-    # to the Pending Registration document or Frappe's password store.
-    submitted_password = validated.get("password") or validated.get("new_password")
-    if submitted_password and len(submitted_password) < 8:
-        frappe.throw("Password must be at least 8 characters long", frappe.ValidationError)
+    submitted_password = (
+        validated.get("password")
+        or validated.get("new_password")
+    )
 
-    if frappe.db.exists("User", email) or frappe.db.exists("OMC Customer Profile", {"email": email}):
-        frappe.throw("Registration is not available for these details.", frappe.DuplicateEntryError)
-    if frappe.db.exists("OMC Customer Profile", {"username": username}):
-        frappe.throw("Registration is not available for these details.", frappe.DuplicateEntryError)
+    if (
+        submitted_password
+        and len(submitted_password) < 8
+    ):
+        frappe.throw(
+            "Password must be at least 8 "
+            "characters long",
+            frappe.ValidationError,
+        )
 
-    _supersede_existing(email, username)
+    if frappe.db.exists("User", email):
+        frappe.throw(
+            "Registration is not available "
+            "for these details.",
+            frappe.DuplicateEntryError,
+        )
+
+    profile_state = (
+        activation_state.get("status")
+        or "missing"
+    )
+
+    if profile_state in {
+        "ambiguous",
+        "activated",
+    }:
+        frappe.throw(
+            "Registration is not available "
+            "for these details.",
+            frappe.DuplicateEntryError,
+        )
+
+    if (
+        profile_state == "claimable"
+        and not claim_profile_name
+    ):
+        # A business-only Profile already exists. It must be activated
+        # explicitly through Existing Customer Claim rather than duplicated.
+        frappe.throw(
+            "Registration is not available "
+            "for these details.",
+            frappe.DuplicateEntryError,
+        )
+
+    username_owner = frappe.db.get_value(
+        "OMC Customer Profile",
+        {"username": username},
+        "name",
+    )
+
+    if (
+        username_owner
+        and username_owner
+        != claim_profile_name
+    ):
+        frappe.throw(
+            "Registration is not available "
+            "for these details.",
+            frappe.DuplicateEntryError,
+        )
+
+    _supersede_existing(
+        email,
+        username,
+    )
 
     token = secrets.token_urlsafe(32)
     now = now_datetime()
-    payload = _public_payload(validated)
+
+    payload = _public_payload(
+        validated
+    )
+
     payload["username"] = username
     payload["email"] = email
 
-    doc = frappe.new_doc(PENDING_REGISTRATION_DOCTYPE)
+    doc = frappe.new_doc(
+        PENDING_REGISTRATION_DOCTYPE
+    )
+
     doc.email = email
     doc.username = username
     doc.status = "Pending"
-    doc.expires_at = add_to_date(now, minutes=TOKEN_TTL_MINUTES)
-    doc.resend_after = add_to_date(now, seconds=RESEND_COOLDOWN_SECONDS)
-    doc.token_digest = _token_digest(token)
-    doc.payload_json = json.dumps(payload, ensure_ascii=False, sort_keys=True)
-    doc.insert(ignore_permissions=True)
 
-    return PendingRegistrationSecret(doc.name, token)
+    doc.expires_at = add_to_date(
+        now,
+        minutes=TOKEN_TTL_MINUTES,
+    )
+
+    doc.resend_after = add_to_date(
+        now,
+        seconds=RESEND_COOLDOWN_SECONDS,
+    )
+
+    doc.token_digest = _token_digest(
+        token
+    )
+
+    doc.payload_json = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+
+    doc.insert(
+        ignore_permissions=True
+    )
+
+    return PendingRegistrationSecret(
+        doc.name,
+        token,
+    )
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -409,101 +544,519 @@ def _create_profile_acquisition_attribution(
     )
 
 
-def _complete_locked_registration(doc, password: str) -> dict:
-    from omc_app.api import mobile
 
-    if doc.status not in ACTIVE_PENDING_STATUSES:
-        return {"ok": False, "status": "invalid_or_expired"}
-    if get_datetime(doc.expires_at) <= now_datetime():
-        sanitize_registration(doc, status="Expired")
-        doc.save(ignore_permissions=True)
-        frappe.db.commit()
-        return {"ok": False, "status": "invalid_or_expired"}
-
-    payload = read_pending_payload(doc)
-    payload["password"] = password
-    payload["username"] = doc.username
-    payload["email"] = doc.email
-
-    user_exists = bool(frappe.db.exists("User", doc.email))
-    profile_name = frappe.db.get_value("OMC Customer Profile", {"email": doc.email}, "name")
-    profile_exists = bool(profile_name)
-    if user_exists != profile_exists:
-        security.audit_event(
-            event_type="registration.partial_identity_detected",
-            target_doctype=PENDING_REGISTRATION_DOCTYPE,
-            target_name=doc.name,
-            safe_reason="partial_identity",
+def _profile_activation_mode(
+    profile,
+) -> str:
+    onboarding_mode = str(
+        getattr(
+            profile,
+            "onboarding_mode",
+            "",
         )
+        or ""
+    ).strip()
+
+    if onboarding_mode in {
+        "Existing Customer Claim",
+        "Imported Existing",
+    }:
+        return "claim_existing"
+
+    return "new_customer"
+
+
+def _activation_resolution_succeeded(
+    resolution: dict,
+) -> bool:
+    return str(
+        (resolution or {}).get("status")
+        or ""
+    ).strip() in {
+        "Resolved",
+        "Created",
+    }
+
+
+def _ensure_activation_account(
+    doc,
+    profile,
+    resolution: dict,
+):
+    email = str(
+        doc.email or ""
+    ).strip().lower()
+
+    activated = (
+        _activation_resolution_succeeded(
+            resolution
+        )
+    )
+
+    resolved_customer = str(
+        (resolution or {}).get("customer")
+        or ""
+    ).strip()
+
+    account = identity.get_customer_account(
+        email,
+        for_update=True,
+    )
+
+    if not account and activated:
+        account = (
+            identity
+            .ensure_customer_account_from_legacy(
+                email
+            )
+        )
+
+    if not account:
+        account = frappe.get_doc({
+            "doctype":
+                "OMC Customer Account",
+            "user": email,
+            "erp_customer":
+                resolved_customer or None,
+            "legacy_customer_profile":
+                profile.name,
+            "identity_proof_status":
+                "Verified",
+            "account_link_status":
+                (
+                    "Linked"
+                    if activated
+                    else "Unlinked"
+                ),
+            "service_access_status":
+                (
+                    "Approved"
+                    if activated
+                    else "Pending Review"
+                ),
+            "mapping_provenance":
+                "Activation",
+            "mapping_confidence":
+                (
+                    "Exact Link"
+                    if activated
+                    else ""
+                ),
+            "source_version":
+                identity.source_version(
+                    doc.name,
+                    doc.verified_at,
+                    email,
+                    resolved_customer,
+                ),
+            "last_reconciled_at":
+                now_datetime(),
+        })
+
+        account.insert(
+            ignore_permissions=True
+        )
+
+        return account
+
+    existing_customer = str(
+        getattr(
+            account,
+            "erp_customer",
+            "",
+        )
+        or ""
+    ).strip()
+
+    if (
+        activated
+        and existing_customer
+        and existing_customer
+        != resolved_customer
+    ):
         frappe.throw(
-            "Registration cannot be completed automatically. Contact OMC support.",
+            "Customer activation conflicts "
+            "with the existing account mapping.",
             frappe.ValidationError,
         )
 
-    doc.status = "Verified"
-    doc.verified_at = doc.verified_at or now_datetime()
-    doc.save(ignore_permissions=True)
+    account.legacy_customer_profile = (
+        profile.name
+    )
 
-    if not user_exists:
-        previous_defer = getattr(frappe.flags, "omc_defer_signup_commit", False)
-        frappe.flags.omc_defer_signup_commit = True
-        try:
-            mobile.sign_up(**payload)
-        finally:
-            frappe.flags.omc_defer_signup_commit = previous_defer
+    account.identity_proof_status = (
+        "Verified"
+    )
 
-    account = identity.ensure_customer_account_from_legacy(doc.email)
-    if not account:
-        profile_name = frappe.db.get_value("OMC Customer Profile", {"email": doc.email}, "name")
-        account = frappe.get_doc({
-            "doctype": "OMC Customer Account",
-            "user": doc.email,
-            "legacy_customer_profile": profile_name,
-            "identity_proof_status": "Verified",
-            "account_link_status": "Unlinked",
-            "service_access_status": "Pending Review",
-            "mapping_provenance": "Activation",
-            "mapping_confidence": "",
-            "source_version": identity.source_version(doc.name, doc.verified_at, doc.email),
-            "last_reconciled_at": now_datetime(),
-        })
-        account.insert(ignore_permissions=True)
+    account.mapping_provenance = (
+        "Activation"
+    )
+
+    account.source_version = (
+        identity.source_version(
+            doc.name,
+            doc.verified_at,
+            email,
+            resolved_customer,
+        )
+    )
+
+    account.last_reconciled_at = (
+        now_datetime()
+    )
+
+    if activated:
+        account.erp_customer = (
+            resolved_customer
+        )
+        account.account_link_status = (
+            "Linked"
+        )
+        account.service_access_status = (
+            "Approved"
+        )
+        account.mapping_confidence = (
+            "Exact Link"
+        )
     else:
-        account.mapping_provenance = "Activation"
-        account.save(ignore_permissions=True)
+        if not existing_customer:
+            account.erp_customer = None
+            account.account_link_status = (
+                "Unlinked"
+            )
+
+        account.service_access_status = (
+            "Pending Review"
+        )
+
+        if not existing_customer:
+            account.mapping_confidence = ""
+
+    account.save(
+        ignore_permissions=True
+    )
+
+    return account
+
+
+def _activate_verified_customer(
+    doc,
+) -> dict:
+    from omc_app.api import erp_customer_resolver
+
+    email = str(
+        doc.email or ""
+    ).strip().lower()
 
     profile_name = frappe.db.get_value(
         "OMC Customer Profile",
-        {"email": doc.email},
+        {"email": email},
         "name",
     )
 
-    if profile_name:
-        profile = frappe.get_doc(
-            "OMC Customer Profile",
-            profile_name,
+    if not profile_name:
+        frappe.throw(
+            "Verified registration has no "
+            "customer profile.",
+            frappe.ValidationError,
         )
+
+    profile = frappe.get_doc(
+        "OMC Customer Profile",
+        profile_name,
+    )
+
+    original_status = (
+        profile.approval_status,
+        profile.customer_status,
+        int(profile.is_active or 0),
+    )
+
+    # Resolver approval checks operate against this in-memory reviewed
+    # activation candidate. Nothing is persisted until the ERP mapping is
+    # proven.
+    profile.approval_status = "Approved"
+    profile.customer_status = "Active"
+    profile.is_active = 1
+
+    resolution = (
+        erp_customer_resolver
+        .resolve_profile_customer(
+            profile,
+            resolution_mode=(
+                _profile_activation_mode(
+                    profile
+                )
+            ),
+        )
+    )
+
+    activated = (
+        _activation_resolution_succeeded(
+            resolution
+        )
+    )
+
+    if activated:
+        profile.save(
+            ignore_permissions=True
+        )
+    else:
+        (
+            profile.approval_status,
+            profile.customer_status,
+            profile.is_active,
+        ) = original_status
+
+    account = _ensure_activation_account(
+        doc,
+        profile,
+        resolution,
+    )
+
+    if activated:
         _create_profile_acquisition_attribution(
             profile,
             account,
         )
 
-    doc.reload()
-    doc.activated_user = doc.email if frappe.db.exists("User", doc.email) else None
-    sanitize_registration(doc, status="Activated")
-    doc.save(ignore_permissions=True)
-    security.audit_event(
-        event_type="registration.activated",
-        target_doctype=PENDING_REGISTRATION_DOCTYPE,
-        target_name=doc.name,
-        new_state="activated",
-    )
-    frappe.db.commit()
     return {
-        "ok": True,
-        "status": "activated",
-        "message": "Your account is ready. You can sign in now.",
+        "activated": activated,
+        "profile": profile.name,
+        "account": account.name,
+        "resolution": resolution,
     }
+
+
+
+def _complete_locked_registration(
+    doc,
+    password: str,
+) -> dict:
+    from omc_app.api import mobile
+
+    if doc.status not in ACTIVE_PENDING_STATUSES:
+        return {
+            "ok": False,
+            "status": "invalid_or_expired",
+        }
+
+    if (
+        get_datetime(doc.expires_at)
+        <= now_datetime()
+    ):
+        sanitize_registration(
+            doc,
+            status="Expired",
+        )
+
+        doc.save(
+            ignore_permissions=True
+        )
+
+        frappe.db.commit()
+
+        return {
+            "ok": False,
+            "status": "invalid_or_expired",
+        }
+
+    savepoint = (
+        "omc_registration_completion"
+    )
+
+    frappe.db.savepoint(savepoint)
+
+    try:
+        payload = read_pending_payload(
+            doc
+        )
+
+        payload["password"] = password
+        payload["username"] = doc.username
+        payload["email"] = doc.email
+
+        user_exists = bool(
+            frappe.db.exists(
+                "User",
+                doc.email,
+            )
+        )
+
+        profile_state = (
+            identity.activation_profile_state(
+                doc.email,
+                phone=(
+                    payload.get("phone")
+                    or payload.get("mobile")
+                ),
+                cnic=payload.get("cnic"),
+                ntn=payload.get("ntn"),
+            )
+        )
+
+        profile_exists = (
+            profile_state.get("status")
+            != "missing"
+        )
+
+        claimable_existing_profile = (
+            not user_exists
+            and payload.get(
+                "onboarding_mode"
+            )
+            == "Existing Customer Claim"
+            and profile_state.get("status")
+            == "claimable"
+        )
+
+        partial_identity = bool(
+            (
+                user_exists
+                and not profile_exists
+            )
+            or (
+                not user_exists
+                and profile_exists
+                and not claimable_existing_profile
+            )
+        )
+
+        if partial_identity:
+            security.audit_event(
+                event_type=(
+                    "registration."
+                    "partial_identity_detected"
+                ),
+                target_doctype=(
+                    PENDING_REGISTRATION_DOCTYPE
+                ),
+                target_name=doc.name,
+                safe_reason="partial_identity",
+            )
+
+            frappe.throw(
+                "Registration cannot be completed "
+                "automatically. Contact OMC support.",
+                frappe.ValidationError,
+            )
+
+        doc.status = "Verified"
+
+        doc.verified_at = (
+            doc.verified_at
+            or now_datetime()
+        )
+
+        doc.save(
+            ignore_permissions=True
+        )
+
+        if not user_exists:
+            previous_defer = getattr(
+                frappe.flags,
+                "omc_defer_signup_commit",
+                False,
+            )
+
+            frappe.flags.omc_defer_signup_commit = True
+
+            try:
+                mobile.sign_up(**payload)
+            finally:
+                frappe.flags.omc_defer_signup_commit = (
+                    previous_defer
+                )
+
+        activation = (
+            _activate_verified_customer(
+                doc
+            )
+        )
+
+        activated = bool(
+            activation.get("activated")
+        )
+
+        public_status = (
+            "activated"
+            if activated
+            else "pending_review"
+        )
+
+        doc.reload()
+
+        doc.activated_user = (
+            doc.email
+            if frappe.db.exists(
+                "User",
+                doc.email,
+            )
+            else None
+        )
+
+        sanitize_registration(
+            doc,
+            status="Activated",
+        )
+
+        doc.save(
+            ignore_permissions=True
+        )
+
+        security.audit_event(
+            event_type=(
+                "registration.activated"
+                if activated
+                else (
+                    "registration."
+                    "pending_customer_review"
+                )
+            ),
+            target_doctype=(
+                PENDING_REGISTRATION_DOCTYPE
+            ),
+            target_name=doc.name,
+            new_state=public_status,
+        )
+
+        frappe.db.commit()
+
+        if activated:
+            return {
+                "ok": True,
+                "status": "activated",
+                "message": (
+                    "Your account is ready. "
+                    "You can sign in now."
+                ),
+            }
+
+        resolution = (
+            activation.get("resolution")
+            or {}
+        )
+
+        return {
+            "ok": True,
+            "status": "pending_review",
+            "message": (
+                "Your identity is verified. "
+                "OMC will review your existing "
+                "customer linkage before service "
+                "access is enabled."
+            ),
+            "resolution_status": (
+                resolution.get("status")
+                or ""
+            ),
+        }
+
+    except Exception:
+        frappe.db.rollback(
+            save_point=savepoint
+        )
+        raise
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
