@@ -6,6 +6,14 @@ from omc_app.api import customer_authority
 from omc_app.api.request_lifecycle import REQUEST_STATE_TRANSITIONS, compatibility_status
 
 
+PAYMENT_DECISION_FIELDS = (
+    "payment_execution_mode",
+    "post_paid_approved_by",
+    "post_paid_approved_at",
+    "pay_later_reason",
+)
+
+
 SNAPSHOT_FIELDS = (
     "service",
     "customer_profile",
@@ -54,6 +62,8 @@ class OMCServiceRequest(Document):
             self.requested_by = frappe.session.user
 
         self.activation_version = self.activation_version or 1
+        if self.meta.get_field("payment_execution_mode") and not self.payment_execution_mode:
+            self.payment_execution_mode = "Prepaid"
         self._enforce_customer_authority()
 
         if self.meta.get_field("company_snapshot") and not historical_import:
@@ -71,6 +81,7 @@ class OMCServiceRequest(Document):
         previous = self.get_doc_before_save()
         self._enforce_customer_authority()
         self._validate_request_state(previous)
+        self._protect_payment_decision(previous)
         self._protect_snapshots(previous)
         self._project_compatibility_status()
         if self.service and not self.service_title:
@@ -148,6 +159,16 @@ class OMCServiceRequest(Document):
                 self.activated_at = now_datetime()
         if self.request_state == "Ready for Activation" and not self.ready_for_activation_at:
             self.ready_for_activation_at = now_datetime()
+
+    def _protect_payment_decision(self, previous):
+        if not previous:
+            return
+        for fieldname in PAYMENT_DECISION_FIELDS:
+            if previous.get(fieldname) != self.get(fieldname):
+                frappe.throw(
+                    f"{self.meta.get_label(fieldname)} can only change through the guarded Pay Later workflow.",
+                    frappe.ValidationError,
+                )
 
     def _protect_snapshots(self, previous):
         if not previous:

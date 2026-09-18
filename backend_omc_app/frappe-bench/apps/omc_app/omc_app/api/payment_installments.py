@@ -86,7 +86,7 @@ def _open_payment(request_name: str):
     )
     for row in rows:
         status = _text(row.status)
-        if status == "Paid":
+        if status in {"Paid", "Deferred"}:
             continue
         entry = _text(row.linked_payment_entry)
         if entry and frappe.db.get_value("Payment Entry", entry, "docstatus") == 1:
@@ -194,6 +194,9 @@ def _read_accounting_summary(request) -> dict:
         for row in history
     ]
 
+    execution_mode = _text(
+        getattr(request, "payment_execution_mode", None)
+    ) or "Prepaid"
     open_payment = _open_payment(request.name)
     block_reason = _new_payment_block_reason(accounting_status, invoice_name)
     installment_ready = bool(
@@ -212,8 +215,15 @@ def _read_accounting_summary(request) -> dict:
             "workflow after required documents are satisfied."
         )
 
+    if execution_mode == "Pay Later":
+        block_reason = (
+            "Pay Later is approved. Settlement follows the ERP invoice workflow "
+            "after the service task is completed."
+        )
+
     can_make_payment = bool(
-        outstanding > 0.000001
+        execution_mode != "Pay Later"
+        and outstanding > 0.000001
         and _text(request.request_state) in OPEN_REQUEST_STATES
         and _text(request.status) not in {"Completed", "Cancelled"}
         and installment_ready
@@ -237,6 +247,12 @@ def _read_accounting_summary(request) -> dict:
         "accounting_status": accounting_status or "Unmatched",
         "activation_status": activation_status,
         "request_state": _text(request.request_state),
+        "payment_execution_mode": execution_mode,
+        "pay_later_approved": bool(
+            execution_mode == "Pay Later"
+            and _text(getattr(request, "post_paid_approved_by", None))
+            and getattr(request, "post_paid_approved_at", None)
+        ),
         "can_make_payment": can_make_payment,
         "maximum_payment_amount": outstanding if can_make_payment else 0,
         "payment_block_reason": block_reason,
@@ -295,6 +311,11 @@ def create_installment(service_request=None, amount=None):
     if _text(request.status) in {"Completed", "Cancelled"}:
         frappe.throw(
             "A new payment cannot be created for a closed service request.",
+            frappe.ValidationError,
+        )
+    if _text(getattr(request, "payment_execution_mode", None)) == "Pay Later":
+        frappe.throw(
+            "This request is in Pay Later mode; use the ERP invoice collection workflow after service completion.",
             frappe.ValidationError,
         )
     if _text(request.request_state) not in OPEN_REQUEST_STATES:

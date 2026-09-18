@@ -1,14 +1,15 @@
 import frappe
 from frappe.model.document import Document
 
-TERMINAL_PAYMENT_STATUSES = {"Paid", "Cancelled"}
+TERMINAL_PAYMENT_STATUSES = {"Paid", "Deferred", "Cancelled"}
 TERMINAL_SERVICE_REQUEST_STATUSES = {"Completed", "Cancelled"}
 ALLOWED_PAYMENT_STATUS_TRANSITIONS = {
-    "Pending": {"Receipt Submitted", "Under Review", "Cancelled"},
+    "Pending": {"Receipt Submitted", "Under Review", "Deferred", "Cancelled"},
     "Receipt Submitted": {"Under Review", "Rejected", "Cancelled"},
     "Under Review": {"Partially Paid", "Rejected", "Cancelled"},
     "Partially Paid": {"Receipt Submitted", "Under Review", "Rejected", "Cancelled"},
-    "Rejected": {"Receipt Submitted", "Under Review", "Cancelled"},
+    "Rejected": {"Receipt Submitted", "Under Review", "Deferred", "Cancelled"},
+    "Deferred": set(),
     "Paid": set(),
     "Cancelled": set(),
 }
@@ -51,6 +52,8 @@ class OMCServicePayment(Document):
             frappe.throw("Paid is reserved for reconciled ERP settlement.")
         if self.status == "Partially Paid" and self.accounting_status != "Partially Settled":
             frappe.throw("Partially Paid is reserved for reconciled ERP partial settlement.")
+        if self.status == "Deferred":
+            self._assert_deferred_authorization()
 
         if previous_status != self.status:
             self._assert_parent_is_mutable()
@@ -62,6 +65,32 @@ class OMCServicePayment(Document):
 
         if self.status != "Paid":
             self.paid_on = None
+
+    def _assert_deferred_authorization(self):
+        if not self.service_request:
+            frappe.throw("Deferred payment requires a service request.", frappe.ValidationError)
+
+        request = frappe.db.get_value(
+            "OMC Service Request",
+            self.service_request,
+            [
+                "payment_execution_mode",
+                "post_paid_approved_by",
+                "post_paid_approved_at",
+                "pay_later_reason",
+            ],
+            as_dict=True,
+        )
+        if not request:
+            frappe.throw("Deferred payment requires a valid service request.", frappe.ValidationError)
+        if (request.payment_execution_mode or "").strip() != "Pay Later":
+            frappe.throw("Deferred payment requires an approved Pay Later request.", frappe.ValidationError)
+        if not (
+            (request.post_paid_approved_by or "").strip()
+            and request.post_paid_approved_at
+            and (request.pay_later_reason or "").strip()
+        ):
+            frappe.throw("Deferred payment requires audited Pay Later approval.", frappe.ValidationError)
 
     def _assert_financial_integrity(self, previous=None):
         amount = frappe.utils.flt(self.amount or 0)

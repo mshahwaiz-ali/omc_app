@@ -176,6 +176,77 @@ function omc_payment_review_context_html(data) {
 }
 
 
+function omc_pay_later_idempotency_key(paymentName) {
+  const randomPart =
+    window.crypto && window.crypto.randomUUID
+      ? window.crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `desk-pay-later:${paymentName}:${randomPart}`;
+}
+
+
+async function omc_add_pay_later_action(frm) {
+  if (!['Pending', 'Rejected'].includes(String(frm.doc.status || '').trim())) {
+    return;
+  }
+
+  try {
+    const response = await frappe.call({
+      method: 'omc_app.api.pay_later.get_approval_context',
+      args: { payment_id: frm.doc.name },
+    });
+    const context = response.message || {};
+
+    if (!context.can_approve || !context.eligible || context.approved) {
+      return;
+    }
+
+    frm.add_custom_button(
+      __('Approve Pay Later'),
+      () => {
+        frappe.prompt(
+          [
+            {
+              fieldname: 'reason',
+              fieldtype: 'Small Text',
+              label: __('Reason'),
+              reqd: 1,
+              description: __(
+                'Pay Later is a request-specific finance approval. No Payment Entry or Sales Invoice is created by this action.'
+              ),
+            },
+          ],
+          async (values) => {
+            await frappe.call({
+              method: 'omc_app.api.pay_later.approve_pay_later',
+              type: 'POST',
+              args: {
+                payment_id: frm.doc.name,
+                reason: values.reason,
+                idempotency_key: omc_pay_later_idempotency_key(frm.doc.name),
+              },
+              freeze: true,
+              freeze_message: __('Approving Pay Later and queuing service activation...'),
+            });
+
+            frappe.show_alert({
+              message: __('Pay Later approved. Service activation has been queued.'),
+              indicator: 'green',
+            });
+            await frm.reload_doc();
+          },
+          __('Approve Pay Later'),
+          __('Approve')
+        );
+      },
+      __('Payment Review')
+    );
+  } catch (error) {
+    console.warn('Unable to load Pay Later approval context', error);
+  }
+}
+
+
 function omc_lock_payment_form(frm) {
   const authoritative_fields = [
     'service_request',
@@ -229,6 +300,8 @@ frappe.ui.form.on('OMC Service Payment', {
     omc_lock_payment_form(frm);
 
     if (frm.is_new()) return;
+
+    void omc_add_pay_later_action(frm);
 
     const uploadable = ['Pending', 'Receipt Submitted', 'Under Review', 'Rejected'].includes(
       frm.doc.status,

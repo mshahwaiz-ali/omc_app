@@ -140,6 +140,7 @@ def run_daily_workflow_checks():
             "customer_profile",
             "assigned_staff",
             "expected_completion_date",
+            "payment_execution_mode",
             "modified",
         ],
         order_by="modified asc",
@@ -174,7 +175,9 @@ def run_daily_workflow_checks():
                     dedupe_hours=72,
                 )
                 summary["customer_reminders_created"] += int(bool(notification))
-            else:
+            elif str(
+                getattr(service_case, "payment_execution_mode", None) or "Prepaid"
+            ).strip() != "Pay Later":
                 notification = _notify_once(
                     title="Payment pending",
                     message=f"Payment is pending for {service_case.name}.",
@@ -213,14 +216,29 @@ def run_daily_workflow_checks():
     return summary
 
 
-def _payment_completion_satisfied(service_case, active_payments) -> bool:
-    """Apply the request's frozen payment policy to operational completion.
+def _pay_later_invoice_linked(service_case) -> bool:
+    invoice = frappe.db.get_value(
+        "OMC Accounting Link",
+        {"base_request_key": service_case.name},
+        "sales_invoice",
+    )
+    return bool(invoice and frappe.db.exists("Sales Invoice", invoice))
 
-    Payment status is only treated as evidence after the accounting projection
-    has written it. This keeps operational completion aligned with the same
-    policy that allowed the request to activate, without converting an ERP
-    receivable into an OMC paid balance.
-    """
+
+def _payment_completion_satisfied(service_case, active_payments) -> bool:
+    """Apply execution-mode billing rules to operational completion."""
+
+    mode = str(
+        getattr(service_case, "payment_execution_mode", None)
+        or "Prepaid"
+    ).strip()
+    if mode == "Pay Later":
+        approved = bool(
+            getattr(service_case, "post_paid_approved_by", None)
+            and getattr(service_case, "post_paid_approved_at", None)
+            and str(getattr(service_case, "pay_later_reason", None) or "").strip()
+        )
+        return bool(approved and _pay_later_invoice_linked(service_case))
 
     policy = str(
         getattr(service_case, "payment_policy_snapshot", None)
@@ -230,14 +248,9 @@ def _payment_completion_satisfied(service_case, active_payments) -> bool:
     if policy == "No Charge":
         return True
 
-    if policy == "Post-paid Approval":
-        return bool(
-            getattr(service_case, "post_paid_approved_by", None)
-            and getattr(service_case, "post_paid_approved_at", None)
-        )
-
-    # Verified Payment changes the activation threshold only. A charged
-    # service is not financially complete until ERP reconciliation projects Paid.
+    # Frozen Post-paid service configuration no longer bypasses request-level
+    # execution choice. A request remains prepaid until Pay Later is explicitly
+    # authorized through the guarded workflow.
     return not active_payments or all(
         str(getattr(payment, "status", None) or "").strip() == "Paid"
         for payment in active_payments
