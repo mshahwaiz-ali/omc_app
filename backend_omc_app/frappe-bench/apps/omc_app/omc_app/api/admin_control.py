@@ -265,81 +265,332 @@ def get_admin_overview(limit_start=0, limit_page_length=20):
 
 
 @frappe.whitelist(methods=["POST"])
-def review_registration(profile_id=None, decision=None, roles=None, reason=None):
-    _require("can_review_registrations")
+
+def review_registration(
+    profile_id=None,
+    decision=None,
+    roles=None,
+    reason=None,
+):
+    _require(
+        "can_review_registrations"
+    )
+
     profile_id = _text(profile_id)
     decision = _text(decision).lower()
-    if decision not in {"approve", "reject"}:
-        frappe.throw("decision must be approve or reject.", frappe.ValidationError)
-    if not profile_id or not frappe.db.exists("OMC Customer Profile", profile_id):
-        frappe.throw("Registration profile was not found.", frappe.DoesNotExistError)
-    profile = frappe.get_doc("OMC Customer Profile", profile_id)
-    email = _text(profile.get("linked_app_user") or profile.user or profile.email).lower()
-    if not email or not frappe.db.exists("User", email):
-        frappe.throw("The registration does not have a verified user account.", frappe.ValidationError)
+
+    if decision not in {
+        "approve",
+        "reject",
+    }:
+        frappe.throw(
+            "decision must be approve or reject.",
+            frappe.ValidationError,
+        )
+
+    if (
+        not profile_id
+        or not frappe.db.exists(
+            "OMC Customer Profile",
+            profile_id,
+        )
+    ):
+        frappe.throw(
+            "Registration profile was not found.",
+            frappe.DoesNotExistError,
+        )
+
+    profile = frappe.get_doc(
+        "OMC Customer Profile",
+        profile_id,
+    )
+
+    email = _text(
+        profile.get("linked_app_user")
+        or profile.user
+        or profile.email
+    ).lower()
+
+    if (
+        not email
+        or not frappe.db.exists(
+            "User",
+            email,
+        )
+    ):
+        frappe.throw(
+            "The registration does not have "
+            "a verified user account.",
+            frappe.ValidationError,
+        )
 
     if decision == "reject":
         profile.approval_status = "Rejected"
         profile.customer_status = "Rejected"
         profile.is_active = 0
-        profile.add_comment("Comment", text=_text(reason) or "Registration rejected by OMC administration.")
-        profile.save(ignore_permissions=True)
-        frappe.db.commit()
-        return {"profile_id": profile.name, "decision": "rejected", "roles": []}
 
-    requested_role = _requested_staff_role(profile)
-    selected_roles = roles
-    if isinstance(selected_roles, str):
-        try:
-            selected_roles = json.loads(selected_roles)
-        except ValueError:
-            selected_roles = [selected_roles]
-    if requested_role:
-        _, granted = _upsert_staff_access(email, selected_roles or [requested_role])
-    else:
-        granted = []
-        if identity.user_type(email) == "System User":
-            frappe.throw("System Users cannot be approved as customer accounts.", frappe.ValidationError)
-    profile.approval_status = "Approved"
-    profile.customer_status = "Active"
-    profile.is_active = 1
-    profile.save(ignore_permissions=True)
-    if not requested_role:
-        resolved = erp_customer_resolver.resolve_profile_customer(
-            profile,
-            resolution_mode=_resolution_mode_for_profile(profile),
+        profile.add_comment(
+            "Comment",
+            text=(
+                _text(reason)
+                or (
+                    "Registration rejected by "
+                    "OMC administration."
+                )
+            ),
         )
-        if _text(resolved.get("status")) not in {"Resolved", "Created"}:
+
+        profile.save(
+            ignore_permissions=True
+        )
+
+        frappe.db.commit()
+
+        return {
+            "profile_id": profile.name,
+            "decision": "rejected",
+            "roles": [],
+        }
+
+    requested_role = _requested_staff_role(
+        profile
+    )
+
+    selected_roles = roles
+
+    if isinstance(
+        selected_roles,
+        str,
+    ):
+        try:
+            selected_roles = json.loads(
+                selected_roles
+            )
+        except ValueError:
+            selected_roles = [
+                selected_roles
+            ]
+
+    if requested_role:
+        _, granted = _upsert_staff_access(
+            email,
+            selected_roles
+            or [requested_role],
+        )
+
+        profile.approval_status = "Approved"
+        profile.customer_status = "Active"
+        profile.is_active = 1
+
+        profile.save(
+            ignore_permissions=True
+        )
+
+        frappe.clear_cache(
+            user=email
+        )
+
+        frappe.db.commit()
+
+        return {
+            "profile_id": profile.name,
+            "user_id": email,
+            "decision": "approved",
+            "roles": granted,
+        }
+
+    if identity.user_type(email) == "System User":
+        frappe.throw(
+            "System Users cannot be approved "
+            "as customer accounts.",
+            frappe.ValidationError,
+        )
+
+    savepoint = (
+        "omc_registration_review"
+    )
+
+    frappe.db.savepoint(savepoint)
+
+    try:
+        profile.approval_status = "Approved"
+        profile.customer_status = "Active"
+        profile.is_active = 1
+
+        mode = _resolution_mode_for_profile(
+            profile
+        )
+
+        resolved = (
+            erp_customer_resolver
+            .resolve_profile_customer(
+                profile,
+                resolution_mode=mode,
+            )
+        )
+
+        # Human approval may explicitly reclassify a mistaken New Customer
+        # signup when exactly one historical ERP Customer is detected.
+        if (
+            mode == "new_customer"
+            and _text(
+                resolved.get("status")
+            )
+            == "Existing Customer Detected"
+        ):
+            profile.onboarding_mode = (
+                "Existing Customer Claim"
+            )
+
+            resolved = (
+                erp_customer_resolver
+                .resolve_profile_customer(
+                    profile,
+                    resolution_mode=(
+                        "claim_existing"
+                    ),
+                )
+            )
+
+        if _text(
+            resolved.get("status")
+        ) not in {
+            "Resolved",
+            "Created",
+        }:
             frappe.throw(
-                resolved.get("reason") or "ERP Customer linkage requires reconciliation.",
+                resolved.get("reason")
+                or (
+                    "ERP Customer linkage "
+                    "requires reconciliation."
+                ),
                 frappe.ValidationError,
             )
-        account = identity.ensure_customer_account_from_legacy(email)
+
+        profile.save(
+            ignore_permissions=True
+        )
+
+        account = (
+            identity.get_customer_account(
+                email,
+                for_update=True,
+            )
+        )
+
         if not account:
-            account = identity.get_customer_account(email, for_update=True)
+            account = (
+                identity
+                .ensure_customer_account_from_legacy(
+                    email
+                )
+            )
+
         if not account:
-            frappe.throw("The customer identity requires reviewed ERP Customer linkage.", frappe.ValidationError)
-        account.erp_customer = resolved.get("customer")
-        account.identity_proof_status = "Verified"
-        account.account_link_status = "Linked"
-        account.service_access_status = "Approved"
-        account.mapping_provenance = "Reviewed Reconciliation"
-        account.mapping_confidence = "Reviewed"
-        account.source_version = identity.source_version(profile.modified, resolved.get("customer"), email)
-        account.approved_by = _current_user()
-        account.approved_at = frappe.utils.now_datetime()
-        account.save(ignore_permissions=True)
+            frappe.throw(
+                "The customer identity requires "
+                "reviewed ERP Customer linkage.",
+                frappe.ValidationError,
+            )
+
+        resolved_customer = _text(
+            resolved.get("customer")
+        )
+
+        existing_customer = _text(
+            account.erp_customer
+        )
+
+        if (
+            existing_customer
+            and existing_customer
+            != resolved_customer
+        ):
+            frappe.throw(
+                "Customer Account already maps "
+                "to another ERP Customer.",
+                frappe.ValidationError,
+            )
+
+        account.erp_customer = (
+            resolved_customer
+        )
+
+        account.identity_proof_status = (
+            "Verified"
+        )
+
+        account.account_link_status = (
+            "Linked"
+        )
+
+        account.service_access_status = (
+            "Approved"
+        )
+
+        account.mapping_provenance = (
+            "Reviewed Reconciliation"
+        )
+
+        account.mapping_confidence = (
+            "Reviewed"
+        )
+
+        account.source_version = (
+            identity.source_version(
+                profile.modified,
+                resolved_customer,
+                email,
+            )
+        )
+
+        account.approved_by = (
+            _current_user()
+        )
+
+        account.approved_at = (
+            frappe.utils.now_datetime()
+        )
+
+        account.save(
+            ignore_permissions=True
+        )
+
         security.audit_event(
-            event_type="customer_access.approved",
-            capability="can_review_registrations",
-            target_doctype="OMC Customer Account",
+            event_type=(
+                "customer_access.approved"
+            ),
+            capability=(
+                "can_review_registrations"
+            ),
+            target_doctype=(
+                "OMC Customer Account"
+            ),
             target_name=account.name,
             old_state="Pending Review",
             new_state="Approved",
         )
-    frappe.clear_cache(user=email)
-    frappe.db.commit()
-    return {"profile_id": profile.name, "user_id": email, "decision": "approved", "roles": granted or [access.CUSTOMER_ROLE]}
+
+        frappe.clear_cache(
+            user=email
+        )
+
+        frappe.db.commit()
+
+        return {
+            "profile_id": profile.name,
+            "user_id": email,
+            "decision": "approved",
+            "roles": [
+                access.CUSTOMER_ROLE
+            ],
+        }
+
+    except Exception:
+        frappe.db.rollback(
+            save_point=savepoint
+        )
+        raise
 
 
 @frappe.whitelist(methods=["POST"])

@@ -1,10 +1,13 @@
 """Canonical ERP Customer authority for OMC service-request flows.
 
-OMC Customer Account is the application access/link authority for current
-requests. Its ``erp_customer`` must therefore agree with any denormalized
-``OMC Service Request.erp_customer`` value before ERP operational records are
-created. Legacy requests that pre-date Customer Account remain readable and
-repairable through their existing request/profile links.
+ERP Customer is the canonical business identity.
+
+OMC Customer Profile is the OMC workflow/application projection.
+OMC Customer Account is optional app-access/link authority and must never
+define whether the underlying business customer exists or is serviceable.
+
+Where request, Profile and Account links coexist they must all agree with the
+same ERP Customer. Conflicts fail closed before ERP operational work occurs.
 """
 from __future__ import annotations
 
@@ -19,76 +22,137 @@ def _text(value: Any) -> str:
 
 def _valid_erp_customer(customer: str) -> bool:
     customer = _text(customer)
-    return bool(customer and frappe.db.exists("Customer", customer))
+    return bool(
+        customer
+        and frappe.db.exists("Customer", customer)
+    )
+
+
+def _validated_customer(
+    customer: str,
+    *,
+    source: str,
+) -> str:
+    customer = _text(customer)
+
+    if not customer:
+        return ""
+
+    if not _valid_erp_customer(customer):
+        frappe.throw(
+            f"{source} is not linked to a valid ERP Customer.",
+            frappe.ValidationError,
+        )
+
+    return customer
+
+
+def _account_customer(account_name: str) -> str:
+    account_name = _text(account_name)
+
+    if not account_name:
+        return ""
+
+    if not frappe.db.exists(
+        "OMC Customer Account",
+        account_name,
+    ):
+        frappe.throw(
+            f"Linked OMC Customer Account {account_name} does not exist.",
+            frappe.ValidationError,
+        )
+
+    customer = _text(
+        frappe.db.get_value(
+            "OMC Customer Account",
+            account_name,
+            "erp_customer",
+        )
+    )
+
+    if not _valid_erp_customer(customer):
+        frappe.throw(
+            f"OMC Customer Account {account_name} is not linked "
+            "to a valid ERP Customer.",
+            frappe.ValidationError,
+        )
+
+    return customer
 
 
 def resolve_request_customer(request, *, profile=None) -> str:
-    """Return the ERP Customer that may own this request's ERP work.
+    """Return the canonical ERP Customer for request ERP work.
 
-    Current requests with ``customer_account`` fail closed if the account is
-    missing, has no valid ERP Customer, or conflicts with the request's cached
-    ERP Customer. Requests without a Customer Account retain the legacy
-    request/profile fallback so historical data does not require a destructive
-    migration merely to remain operable.
+    ERP Customer is authoritative when already projected onto the request.
+
+    Profile and Customer Account links remain important consistency evidence,
+    but Customer Account is not required for a valid business customer.
+
+    Legacy requests may still resolve from Profile or Account when the request
+    itself predates the ERP Customer projection.
     """
 
-    account_name = _text(getattr(request, "customer_account", None))
-    request_customer = _text(getattr(request, "erp_customer", None))
-
-    if account_name:
-        if not frappe.db.exists("OMC Customer Account", account_name):
-            frappe.throw(
-                f"Linked OMC Customer Account {account_name} does not exist.",
-                frappe.ValidationError,
-            )
-
-        account_customer = _text(
-            frappe.db.get_value(
-                "OMC Customer Account",
-                account_name,
-                "erp_customer",
-            )
-        )
-        if not _valid_erp_customer(account_customer):
-            frappe.throw(
-                f"OMC Customer Account {account_name} is not linked to a valid ERP Customer.",
-                frappe.ValidationError,
-            )
-
-        if request_customer and request_customer != account_customer:
-            frappe.throw(
-                "Service Request ERP Customer conflicts with the linked OMC Customer Account.",
-                frappe.ValidationError,
-            )
-
-        return account_customer
-
-    # Backward-compatible authority for requests created before Customer
-    # Account became the canonical mobile/customer access boundary.
-    if _valid_erp_customer(request_customer):
-        return request_customer
-
-    profile_customer = (
-        _text(getattr(profile, "linked_erpnext_customer", None))
-        if profile
-        else ""
+    request_customer = _validated_customer(
+        getattr(request, "erp_customer", None),
+        source="Service Request ERP Customer",
     )
-    return profile_customer if _valid_erp_customer(profile_customer) else ""
+
+    profile_customer = _validated_customer(
+        getattr(profile, "linked_erpnext_customer", None)
+        if profile
+        else "",
+        source="OMC Customer Profile",
+    )
+
+    account_customer = _account_customer(
+        getattr(request, "customer_account", None)
+    )
+
+    customer = (
+        request_customer
+        or profile_customer
+        or account_customer
+    )
+
+    if not customer:
+        return ""
+
+    links = (
+        ("Service Request", request_customer),
+        ("OMC Customer Profile", profile_customer),
+        ("OMC Customer Account", account_customer),
+    )
+
+    for source, linked_customer in links:
+        if (
+            linked_customer
+            and linked_customer != customer
+        ):
+            frappe.throw(
+                f"{source} ERP Customer conflicts with the "
+                "canonical ERP Customer.",
+                frappe.ValidationError,
+            )
+
+    return customer
 
 
 def enforce_request_customer(request, *, profile=None) -> str:
-    """Validate authority and project the canonical account Customer to request.
+    """Validate authority and project the ERP Customer onto the request.
 
-    The projection mutates only the in-memory request document. Its normal
-    save/insert transaction persists the value; this helper never commits or
-    writes ERP records directly.
+    The helper mutates only the in-memory Service Request. Its normal insert
+    or save transaction persists the projection. It never commits and never
+    creates ERP accounting or operational records.
     """
 
-    customer = resolve_request_customer(request, profile=profile)
-    account_name = _text(getattr(request, "customer_account", None))
+    customer = resolve_request_customer(
+        request,
+        profile=profile,
+    )
 
-    if account_name and customer:
+    if customer:
         setter = getattr(request, "set", None)
+
         if callable(setter):
             setter("erp_customer", customer)
         else:

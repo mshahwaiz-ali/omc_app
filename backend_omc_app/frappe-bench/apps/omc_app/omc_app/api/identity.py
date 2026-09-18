@@ -65,6 +65,206 @@ def _legacy_profile_for_user(user: str):
     return frappe.get_doc("OMC Customer Profile", next(iter(names)))
 
 
+
+
+def activation_profile_state(
+    email: str,
+    *,
+    phone: str | None = None,
+    cnic: str | None = None,
+    ntn: str | None = None,
+) -> dict[str, str]:
+    """Resolve the canonical Profile available for app activation.
+
+    First prefer an exact Profile email. If the business-only Profile has
+    not yet received an email projection, fall back to deterministic ERP
+    Customer identity and then its exact linked OMC Profile.
+
+    This function never creates a Customer/Profile and never guesses when
+    identity or Profile linkage is ambiguous.
+    """
+    email = _text(email).lower()
+
+    def profile_state(
+        profile_name: str,
+        *,
+        customer: str = "",
+    ) -> dict[str, str]:
+        row = frappe.db.get_value(
+            "OMC Customer Profile",
+            profile_name,
+            [
+                "name",
+                "user",
+                "linked_app_user",
+                "linked_erpnext_customer",
+            ],
+            as_dict=True,
+        )
+
+        if not row:
+            return {
+                "status": "missing",
+                "profile": "",
+                "customer": customer,
+            }
+
+        explicit_user = _text(
+            row.linked_app_user
+            or row.user
+        )
+
+        account_name = ""
+
+        if _doctype_exists(
+            CUSTOMER_ACCOUNT
+        ):
+            account_name = _text(
+                frappe.db.get_value(
+                    CUSTOMER_ACCOUNT,
+                    {
+                        "legacy_customer_profile":
+                            row.name,
+                    },
+                    "name",
+                )
+            )
+
+        if explicit_user or account_name:
+            return {
+                "status": "activated",
+                "profile": row.name,
+                "customer": (
+                    customer
+                    or _text(
+                        row.linked_erpnext_customer
+                    )
+                ),
+            }
+
+        return {
+            "status": "claimable",
+            "profile": row.name,
+            "customer": (
+                customer
+                or _text(
+                    row.linked_erpnext_customer
+                )
+            ),
+        }
+
+    # Exact Profile email is the cheapest and safest first lookup.
+    if email:
+        rows = frappe.get_all(
+            "OMC Customer Profile",
+            filters={
+                "email": email,
+            },
+            pluck="name",
+            order_by="name asc",
+            limit_page_length=3,
+        )
+
+        if len(rows) > 1:
+            return {
+                "status": "ambiguous",
+                "profile": "",
+                "customer": "",
+            }
+
+        if len(rows) == 1:
+            return profile_state(
+                rows[0]
+            )
+
+    # Phase 1 business-only Profiles intentionally do not require User/app
+    # identity or a fully projected email. Resolve through ERP Customer
+    # identity so later activation reuses the same canonical Profile.
+    if any(
+        _text(value)
+        for value in (
+            email,
+            phone,
+            cnic,
+            ntn,
+        )
+    ):
+        from omc_app.api import (
+            erp_customer_resolver,
+        )
+
+        candidate = frappe._dict({
+            "email": email,
+            "phone": _text(phone),
+            "cnic": _text(cnic),
+            "ntn": _text(ntn),
+        })
+
+        matches = (
+            erp_customer_resolver
+            ._customer_matches(
+                candidate,
+                "",
+            )
+        )
+
+        if len(matches) > 1:
+            return {
+                "status":
+                    "customer_ambiguous",
+                "profile": "",
+                "customer": "",
+            }
+
+        if len(matches) == 1:
+            customer = _text(
+                matches[0]
+            )
+
+            linked_profiles = (
+                frappe.get_all(
+                    "OMC Customer Profile",
+                    filters={
+                        "linked_erpnext_customer":
+                            customer,
+                    },
+                    pluck="name",
+                    order_by="name asc",
+                    limit_page_length=3,
+                )
+            )
+
+            if len(linked_profiles) > 1:
+                return {
+                    "status":
+                        "ambiguous",
+                    "profile": "",
+                    "customer": customer,
+                }
+
+            if len(linked_profiles) == 1:
+                return profile_state(
+                    linked_profiles[0],
+                    customer=customer,
+                )
+
+            # Historical ERP Customer without a Profile is still a valid
+            # business customer. Completion may create the first Profile
+            # through the normal resolver path after email verification.
+            return {
+                "status":
+                    "customer_without_profile",
+                "profile": "",
+                "customer": customer,
+            }
+
+    return {
+        "status": "missing",
+        "profile": "",
+        "customer": "",
+    }
+
+
 def ensure_customer_account_from_legacy(user: str | None = None):
     user = _text(user or current_user())
     if user_type(user) == "System User":

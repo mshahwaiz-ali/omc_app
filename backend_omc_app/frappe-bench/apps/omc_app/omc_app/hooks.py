@@ -18,6 +18,10 @@ override_whitelisted_methods.update({
 permission_query_conditions = {'OMC Service Request': 'omc_app.permissions.service_request_query', 'OMC Customer Profile': 'omc_app.permissions.customer_profile_query', 'OMC Referral': 'omc_app.permissions.referral_query', 'OMC Service Document': 'omc_app.permissions.service_document_query', 'OMC Service Payment': 'omc_app.permissions.service_payment_query', 'OMC Support Ticket': 'omc_app.permissions.support_ticket_query'}
 has_permission = {'OMC Service Request': 'omc_app.permissions.service_request_has_permission', 'OMC Customer Profile': 'omc_app.permissions.customer_profile_has_permission', 'OMC Referral': 'omc_app.permissions.referral_has_permission', 'OMC Service Document': 'omc_app.permissions.service_document_has_permission', 'OMC Service Payment': 'omc_app.permissions.service_payment_has_permission', 'OMC Support Ticket': 'omc_app.permissions.support_ticket_has_permission'}
 doc_events = {
+    'Customer': {
+        'after_insert': 'omc_app.api.customer_profile_resolver.sync_from_erp_customer',
+        'on_update': 'omc_app.api.customer_profile_resolver.sync_from_erp_customer',
+    },
     'User': {
         'after_insert': 'omc_app.referral_automation.sync_user_referral_code',
         'on_update': 'omc_app.referral_automation.sync_user_referral_code',

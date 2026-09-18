@@ -268,3 +268,85 @@ class TestCustomerReconciliation(FrappeTestCase):
             open_review.call_args.kwargs["safe_evidence"]["conflict_kind"],
             "erp_customer_mismatch",
         )
+
+
+class TestBusinessOnlyCustomerReconciliation(FrappeTestCase):
+    def _profile(self, **overrides):
+        values = {
+            "name": "OMC-CUST-BUSINESS-ONLY",
+            "user": "",
+            "linked_app_user": "",
+            "email": "business@example.com",
+            "phone": "",
+            "cnic": "",
+            "ntn": "",
+            "customer_status": "Active",
+            "approval_status": "Approved",
+            "is_active": 1,
+            "linked_erpnext_customer": "ERP-CUST-1",
+            "modified": "2026-09-18 12:00:00",
+        }
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
+    def test_email_alone_is_not_app_activation_identity(self):
+        profile = self._profile()
+
+        with patch.object(
+            customer_reconciliation.frappe.db,
+            "exists",
+            return_value=True,
+        ):
+            self.assertEqual(
+                customer_reconciliation._profile_user(profile),
+                "",
+            )
+
+    def test_business_only_profile_needs_no_customer_account(self):
+        profile = self._profile()
+
+        with (
+            patch.object(
+                customer_reconciliation.frappe,
+                "get_doc",
+                return_value=profile,
+            ),
+            patch.object(
+                customer_reconciliation.erp_customer_resolver,
+                "resolve_profile_customer",
+                return_value={
+                    "status": "Resolved",
+                    "customer": "ERP-CUST-1",
+                    "created": False,
+                    "reason": "",
+                },
+            ),
+            patch.object(
+                customer_reconciliation.identity,
+                "get_customer_account",
+            ) as get_account,
+            patch.object(
+                customer_reconciliation.identity,
+                "ensure_customer_account_from_legacy",
+            ) as ensure_account,
+            patch.object(
+                customer_reconciliation.reconciliation_queues,
+                "open_technical_quarantine",
+            ) as quarantine,
+            patch.object(
+                customer_reconciliation.reconciliation_queues,
+                "resolve_source_queues",
+            ) as resolve_queues,
+        ):
+            result = customer_reconciliation._reconcile_profile(
+                profile,
+                run_id="RUN-BUSINESS-ONLY",
+            )
+
+        self.assertEqual(result["changed"], 0)
+        self.assertEqual(result["review"], 0)
+        self.assertEqual(result["quarantine"], 0)
+        get_account.assert_not_called()
+        ensure_account.assert_not_called()
+        quarantine.assert_not_called()
+        resolve_queues.assert_called_once()

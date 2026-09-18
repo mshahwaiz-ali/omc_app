@@ -15,7 +15,7 @@ class TestCustomerAuthorityContract(FrappeTestCase):
                 return candidate
         self.fail("Repository root not found")
 
-    def test_omc_customer_profile_is_canonical_app_identity(self):
+    def test_omc_customer_profile_is_application_projection(self):
         root = self._repo_root()
         api = (
             root
@@ -29,6 +29,9 @@ class TestCustomerAuthorityContract(FrappeTestCase):
 
         mobile = (api / "mobile.py").read_text(encoding="utf-8")
         profile = (api / "profile.py").read_text(encoding="utf-8")
+        profile_resolver = (
+            api / "customer_profile_resolver.py"
+        ).read_text(encoding="utf-8")
         manual_controller = (
             doctype_root
             / "omc_manual_customer/omc_manual_customer.py"
@@ -39,10 +42,26 @@ class TestCustomerAuthorityContract(FrappeTestCase):
 
         self.assertIn('frappe.new_doc("OMC Customer Profile")', mobile)
         self.assertIn('"OMC Customer Profile"', profile)
+        self.assertIn(
+            'PROFILE_DOCTYPE = "OMC Customer Profile"',
+            profile_resolver,
+        )
+        self.assertIn(
+            "No User, password or Customer Account is created here.",
+            profile_resolver,
+        )
+        self.assertIn(
+            "profile.user = None",
+            profile_resolver,
+        )
+        self.assertIn(
+            "profile.linked_app_user = None",
+            profile_resolver,
+        )
         self.assertIn("OMC Manual Customer is retired", manual_controller)
         self.assertIn('"OMC Manual Customer"', legacy_conversion)
 
-    def test_erp_customer_is_downstream_bridge_only(self):
+    def test_erp_customer_is_canonical_business_identity(self):
         root = self._repo_root()
         api = (
             root
@@ -52,20 +71,57 @@ class TestCustomerAuthorityContract(FrappeTestCase):
         resolver = (api / "erp_customer_resolver.py").read_text(
             encoding="utf-8"
         )
+        profile_resolver = (
+            api / "customer_profile_resolver.py"
+        ).read_text(encoding="utf-8")
         authority = (api / "customer_authority.py").read_text(
             encoding="utf-8"
         )
         adapter = (api / "erp_service_task_adapter.py").read_text(
             encoding="utf-8"
         )
+        hooks = (
+            root
+            / "backend_omc_app/frappe-bench/apps/omc_app/omc_app/hooks.py"
+        ).read_text(encoding="utf-8")
 
+        # Profile -> Customer creation still exists for approved app flows.
         self.assertIn('frappe.new_doc("Customer")', resolver)
-        self.assertIn('"OMC Customer Account"', authority)
-        self.assertIn("customer_authority.resolve_request_customer", adapter)
-        self.assertNotIn('frappe.new_doc("Customer")', adapter)
+
+        # ERP Customer is now explicitly the canonical business identity.
+        self.assertIn(
+            "ERP Customer is the canonical business identity.",
+            authority,
+        )
+
+        # A Desk-created ERP Customer can gain an OMC Profile without
+        # creating an application User or Customer Account.
+        self.assertIn(
+            "def resolve_for_erp_customer(",
+            profile_resolver,
+        )
+        self.assertIn(
+            "def _create_business_profile(",
+            profile_resolver,
+        )
+        self.assertIn(
+            "'Customer': {",
+            hooks,
+        )
+        self.assertIn(
+            "customer_profile_resolver.sync_from_erp_customer",
+            hooks,
+        )
+
+        # ERP operational bridge continues to consume centralized customer
+        # authority rather than creating Customers independently.
+        self.assertIn(
+            "customer_authority.resolve_request_customer",
+            adapter,
+        )
         self.assertNotIn(
-            'frappe.new_doc("OMC Customer Profile")',
-            resolver,
+            'frappe.new_doc("Customer")',
+            adapter,
         )
 
     def test_customer_duplicate_guards_remain_active(self):
@@ -114,10 +170,35 @@ class TestCustomerAuthorityContract(FrappeTestCase):
         )
 
         # New customer creation remains protected by the verified registration
-        # flow; retired walk-in records are no longer a second acquisition path.
-        self.assertIn('frappe.db.exists("User", email)', pending_registration)
+        # flow. Phase 2 centralizes Profile/business identity collision checks
+        # in activation_profile_state so business-only historical Profiles can
+        # be claimed without allowing duplicate customer acquisition.
         self.assertIn(
-            'frappe.db.exists("OMC Customer Profile", {"email": email})',
+            'frappe.db.exists("User", email)',
+            pending_registration,
+        )
+        self.assertIn(
+            "identity.activation_profile_state(",
+            pending_registration,
+        )
+        self.assertIn(
+            'profile_state in {',
+            pending_registration,
+        )
+        self.assertIn(
+            '"ambiguous",',
+            pending_registration,
+        )
+        self.assertIn(
+            '"activated",',
+            pending_registration,
+        )
+        self.assertIn(
+            'profile_state == "claimable"',
+            pending_registration,
+        )
+        self.assertIn(
+            "and not claim_profile_name",
             pending_registration,
         )
 

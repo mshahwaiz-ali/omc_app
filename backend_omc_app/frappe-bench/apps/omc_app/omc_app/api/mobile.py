@@ -3,7 +3,7 @@ import re
 import frappe
 from frappe.utils.file_manager import save_file
 
-from omc_app.api import access, idempotency, referrals
+from omc_app.api import access, idempotency, identity, referrals
 def _items_response(key, items=None):
     return {key: items or []}
 
@@ -769,16 +769,69 @@ def sign_up(**kwargs):
     if len(password) < 8:
         frappe.throw("Password must be at least 8 characters long")
 
-    existing_profile = (
-        frappe.db.exists("OMC Customer Profile", {"user": email})
-        or frappe.db.exists("OMC Customer Profile", {"email": email})
+    activation_state = (
+        identity.activation_profile_state(
+            email,
+            phone=phone,
+            cnic=cnic,
+            ntn=ntn,
+        )
     )
-    if access.username_exists(username):
-        frappe.throw("Username is already taken.", frappe.DuplicateEntryError)
 
-    if frappe.db.exists("User", email) or existing_profile:
+    activation_profile_name = ""
+
+    if (
+        onboarding_mode
+        == "Existing Customer Claim"
+        and activation_state.get("status")
+        == "claimable"
+    ):
+        activation_profile_name = (
+            activation_state.get("profile")
+            or ""
+        )
+
+    if frappe.db.exists("User", email):
         frappe.throw(
             "An account with this email already exists. Please sign in.",
+            frappe.DuplicateEntryError,
+        )
+
+    if activation_state.get("status") in {
+        "ambiguous",
+        "activated",
+    }:
+        frappe.throw(
+            "Customer activation requires OMC review.",
+            frappe.ValidationError,
+        )
+
+    if (
+        activation_state.get("status")
+        == "claimable"
+        and not activation_profile_name
+    ):
+        frappe.throw(
+            "This customer already exists. "
+            "Use Existing Customer Claim to activate it.",
+            frappe.ValidationError,
+        )
+
+    username_profile_owner = (
+        frappe.db.get_value(
+            "OMC Customer Profile",
+            {"username": username},
+            "name",
+        )
+    )
+
+    if (
+        access.username_exists(username)
+        and username_profile_owner
+        != activation_profile_name
+    ):
+        frappe.throw(
+            "Username is already taken.",
             frappe.DuplicateEntryError,
         )
 
@@ -808,12 +861,25 @@ def sign_up(**kwargs):
 
     _normalize_signup_user(user)
 
-    profile_name = frappe.db.get_value("OMC Customer Profile", {"user": email}, "name")
-    if not profile_name:
-        profile_name = frappe.db.get_value("OMC Customer Profile", {"email": email}, "name")
+    profile_name = (
+        activation_profile_name
+        or frappe.db.get_value(
+            "OMC Customer Profile",
+            {"user": email},
+            "name",
+        )
+        or frappe.db.get_value(
+            "OMC Customer Profile",
+            {"email": email},
+            "name",
+        )
+    )
 
     if profile_name:
-        profile = frappe.get_doc("OMC Customer Profile", profile_name)
+        profile = frappe.get_doc(
+            "OMC Customer Profile",
+            profile_name,
+        )
     else:
         profile = frappe.new_doc("OMC Customer Profile")
         profile.user = email

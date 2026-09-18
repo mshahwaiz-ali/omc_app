@@ -185,9 +185,19 @@ class TestPendingRegistration(FrappeTestCase):
         self.created.append(secret.registration_name)
 
         with patch.object(
-            pending_registration.identity,
-            "ensure_customer_account_from_legacy",
-            return_value=self._mock_account(),
+            pending_registration,
+            "_activate_verified_customer",
+            return_value={
+                "activated": True,
+                "profile": "OMC-CUST-TEST",
+                "account": "OMC-ACCOUNT-TEST",
+                "resolution": {
+                    "status": "Created",
+                    "customer": "ERP-CUST-TEST",
+                    "created": True,
+                    "reason": "",
+                },
+            },
         ):
             result = pending_registration.complete_registration(
                 secret.verification_token,
@@ -338,9 +348,19 @@ class TestPendingRegistration(FrappeTestCase):
         secret = pending_registration.create_pending_registration(payload)
         self.created.append(secret.registration_name)
         with patch.object(
-            pending_registration.identity,
-            "ensure_customer_account_from_legacy",
-            return_value=self._mock_account(),
+            pending_registration,
+            "_activate_verified_customer",
+            return_value={
+                "activated": True,
+                "profile": "OMC-CUST-TEST",
+                "account": "OMC-ACCOUNT-TEST",
+                "resolution": {
+                    "status": "Created",
+                    "customer": "ERP-CUST-TEST",
+                    "created": True,
+                    "reason": "",
+                },
+            },
         ):
             first = pending_registration.verify_registration(
                 secret.verification_token,
