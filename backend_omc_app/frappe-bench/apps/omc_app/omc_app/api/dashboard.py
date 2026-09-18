@@ -1,5 +1,6 @@
 import frappe
 
+from omc_app import permissions
 from omc_app.api import service_case_contract
 from omc_app.api.mobile import (
     _assert_approved_customer,
@@ -48,12 +49,36 @@ def _status_count(doctype, base_filters, status):
     return _count(doctype, filters)
 
 
-def _service_scope(profile=None):
-    filters = {}
-    if profile:
-        filters["customer_profile"] = profile.name
-    return filters
+def _owned_service_names(profile=None):
+    if not profile:
+        return None
 
+    user = _current_user()
+    condition = permissions.service_request_query(user)
+    where = f"WHERE ({condition})" if condition else ""
+
+    rows = frappe.db.sql(
+        f"""
+        SELECT name
+        FROM `tabOMC Service Request`
+        {where}
+        ORDER BY name
+        """,
+        as_dict=True,
+    )
+    return [row.name for row in rows]
+
+
+def _service_scope(profile=None):
+    names = _owned_service_names(profile)
+    if names is None:
+        return {}
+    return {
+        "name": [
+            "in",
+            names or ["__no_service_requests__"],
+        ]
+    }
 
 def _service_lifecycle_bucket(request_state, operational_status):
     state = (request_state or "").strip()
@@ -119,9 +144,14 @@ def _related_filters(profile, doctype, service_names):
 
 
 def _service_names(profile=None):
-    filters = _service_scope(profile)
-    return _get_all("OMC Service Request", filters=filters, pluck="name")
-
+    names = _owned_service_names(profile)
+    if names is not None:
+        return names
+    return _get_all(
+        "OMC Service Request",
+        filters={},
+        pluck="name",
+    )
 
 def _service_title(row):
     title = (getattr(row, "service_title", None) or "").strip()

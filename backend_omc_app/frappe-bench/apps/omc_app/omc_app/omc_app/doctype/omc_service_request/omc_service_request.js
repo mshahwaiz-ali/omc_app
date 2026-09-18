@@ -210,6 +210,7 @@ async function omc_load_customer_preview(frm) {
             "phone",
             "user",
             "linked_app_user",
+            "linked_erpnext_customer",
         ]
     );
 
@@ -232,8 +233,10 @@ async function omc_load_customer_preview(frm) {
     );
 
     const account = account_response.message || {};
+    const erpCustomer =
+        profile.linked_erpnext_customer || "";
 
-    if (!account.name) {
+    if (!erpCustomer) {
         await omc_set_values(frm, {
             customer_account: "",
             erp_customer: "",
@@ -242,7 +245,7 @@ async function omc_load_customer_preview(frm) {
         frappe.msgprint({
             title: __("Customer Not Available"),
             message: __(
-                "The selected customer does not have an approved OMC Customer Account."
+                "The selected customer is not linked to an ERP Customer."
             ),
             indicator: "red",
         });
@@ -251,35 +254,41 @@ async function omc_load_customer_preview(frm) {
         return;
     }
 
-    const approved =
+    if (
+        account.name &&
+        account.erp_customer &&
+        account.erp_customer !== erpCustomer
+    ) {
+        frappe.msgprint({
+            title: __("Customer Link Conflict"),
+            message: __(
+                "The OMC Customer Account conflicts with the selected ERP Customer. Resolve the customer link before creating a request."
+            ),
+            indicator: "red",
+        });
+
+        await frm.set_value("customer_profile", "");
+        return;
+    }
+
+    const approvedAccount =
+        account.name &&
+        account.erp_customer === erpCustomer &&
         account.identity_proof_status === "Verified" &&
         account.account_link_status === "Linked" &&
         account.service_access_status === "Approved";
-
-    if (!approved) {
-        await frm.set_value("customer_profile", "");
-
-        frappe.msgprint({
-            title: __("Customer Not Approved"),
-            message: __(
-                "Only Verified, Linked and Approved customers can be used for a Desk service request."
-            ),
-            indicator: "red",
-        });
-
-        return;
-    }
 
     await omc_set_values(frm, {
         customer_name: profile.full_name || "",
         contact_email: profile.email || "",
         contact_phone: profile.phone || "",
-        customer_account: account.name || "",
-        erp_customer: account.erp_customer || "",
+        customer_account:
+            approvedAccount ? account.name : "",
+        erp_customer: erpCustomer,
         requested_for_customer:
             profile.linked_app_user ||
             profile.user ||
-            account.user ||
+            (approvedAccount ? account.user : "") ||
             "",
         requested_by: frappe.session.user,
         customer_mode: "Existing Customer",
