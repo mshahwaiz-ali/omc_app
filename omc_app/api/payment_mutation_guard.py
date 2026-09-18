@@ -262,6 +262,7 @@ def review_payment_receipt(
     payment_reference=None,
     verified_amount=None,
     payment_account=None,
+    ai_override_reason=None,
 ):
     resolved_id = _payment_id(payment_id, name)
     payment = _load_mutable_payment(resolved_id)
@@ -278,6 +279,7 @@ def review_payment_receipt(
             payment_reference=payment_reference,
             verified_amount=verified_amount,
             payment_account=payment_account,
+            ai_override_reason=ai_override_reason,
         )
 
     if normalized == "Rejected":

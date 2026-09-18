@@ -71,6 +71,7 @@ class OMCPaymentReceipt(Document):
                 "reviewed_at",
                 "verification_source",
                 "gateway_transaction_id",
+                "ai_override_reason",
                 "sales_invoice",
                 "payment_entry",
             }
