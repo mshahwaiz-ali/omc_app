@@ -80,11 +80,13 @@ def _project_task_rate(request_name: str, task_name: str) -> bool:
     payable = getattr(pricing, "payable_amount", None)
     if payable is None:
         payable = getattr(pricing, "final_price", None)
-    expected = max(flt(payable or 0, 6), 0)
+    expected = max(_money(payable), 0)
     if expected <= 0:
         return False
 
-    current = flt(frappe.db.get_value("Task", task_name, "rate") or 0, 6)
+    current = _money(
+        frappe.db.get_value("Task", task_name, "rate")
+    )
     if abs(current - expected) <= 0.000001:
         return False
 

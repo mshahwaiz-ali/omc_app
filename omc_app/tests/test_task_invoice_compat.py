@@ -229,6 +229,44 @@ class TestTaskInvoiceCompatibility(FrappeTestCase):
             update_modified=False,
         )
 
+    def test_rate_projection_does_not_use_frappe_precision_rounding(self):
+        meta = Mock()
+        meta.get_field.return_value = SimpleNamespace(fieldname="rate")
+
+        def get_value(doctype, name, fieldname, *args, **kwargs):
+            if doctype == task_invoice_compat.REQUEST_DOCTYPE:
+                return SimpleNamespace(payable_amount=50000, final_price=45000)
+            if doctype == "Task" and fieldname == "rate":
+                return 35000
+            return None
+
+        with patch.object(
+            task_invoice_compat.frappe,
+            "get_meta",
+            return_value=meta,
+        ), patch.object(
+            task_invoice_compat.frappe.db,
+            "get_value",
+            side_effect=get_value,
+        ), patch.object(
+            task_invoice_compat.frappe.db,
+            "set_value",
+        ), patch.object(
+            task_invoice_compat,
+            "flt",
+            side_effect=lambda value: float(value or 0),
+        ) as safe_flt:
+            updated = task_invoice_compat._project_task_rate(
+                "OMC-SR-TEST-00001",
+                "TASK-OMC-00001",
+            )
+
+        self.assertTrue(updated)
+        self.assertTrue(safe_flt.call_args_list)
+        for call in safe_flt.call_args_list:
+            self.assertEqual(len(call.args), 1)
+            self.assertFalse(call.kwargs)
+
     def test_task_update_projects_invoice_then_preserves_status_sync(self):
         doc = SimpleNamespace(name="TASK-OMC-00001")
         with patch.object(
