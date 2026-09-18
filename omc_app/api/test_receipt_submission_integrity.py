@@ -128,7 +128,11 @@ class TestReceiptSubmissionIntegrity(FrappeTestCase):
             patch.object(
                 payments,
                 "save_file",
-                return_value=SimpleNamespace(file_url="/private/files/new.pdf"),
+                return_value=SimpleNamespace(
+                    file_url="/private/files/new.pdf",
+                    owner="profile-edit-test@example.com",
+                    creation="2026-09-18 12:00:00",
+                ),
             ),
         ):
             result = payments.upload_payment_receipt_file(
