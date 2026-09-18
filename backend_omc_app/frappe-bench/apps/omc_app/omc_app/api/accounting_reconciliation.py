@@ -912,18 +912,27 @@ def sales_invoice_cancelled(doc, method=None):
 
 
 def sales_invoice_submitted(doc, method=None):
-    if not int(getattr(doc, "is_return", 0) or 0) or not getattr(
-        doc, "return_against", None
-    ):
-        return
     requests = set(
         frappe.get_all(
             "OMC Accounting Link",
-            filters={"sales_invoice": doc.return_against},
+            filters={"sales_invoice": doc.name},
             pluck="service_request",
             limit_page_length=100,
         )
     )
+
+    if int(getattr(doc, "is_return", 0) or 0) and getattr(
+        doc, "return_against", None
+    ):
+        requests.update(
+            frappe.get_all(
+                "OMC Accounting Link",
+                filters={"sales_invoice": doc.return_against},
+                pluck="service_request",
+                limit_page_length=100,
+            )
+        )
+
     for request_name in sorted(requests):
         reconcile_request(request_name)
 
