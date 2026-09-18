@@ -135,6 +135,8 @@ class TestReceiptPartialFailureSafety(FrappeTestCase):
         file_doc = SimpleNamespace(
             name="FILE-1",
             file_url="/private/files/r.pdf",
+            owner="profile-edit-test@example.com",
+            creation="2026-09-18 12:00:00",
         )
 
         get_doc.return_value = payment
