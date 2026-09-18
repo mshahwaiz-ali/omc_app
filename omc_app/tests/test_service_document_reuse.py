@@ -57,20 +57,39 @@ class TestServiceDocumentReusePolicy(FrappeTestCase):
             )
         )
 
-    def test_source_request_scope_is_same_customer_and_service(self):
+    def test_source_request_scope_is_same_erp_customer_and_service(self):
         request = SimpleNamespace(
             name="OMC-SR-NEW",
             service="ntn-registration",
-            customer_profile="OMC-CUST-1",
+            erp_customer="ERP-CUST-1",
+            customer_profile="OMC-CUST-NEW",
             creation="2026-09-14 12:00:00",
         )
         with patch.object(service_document_reuse.frappe, "get_all", return_value=[]) as get_all:
             service_document_reuse._source_request_names(request)
         filters = get_all.call_args.kwargs["filters"]
         self.assertEqual(filters["service"], "ntn-registration")
-        self.assertEqual(filters["customer_profile"], "OMC-CUST-1")
+        self.assertEqual(filters["erp_customer"], "ERP-CUST-1")
+        self.assertNotIn("customer_profile", filters)
         self.assertEqual(filters["name"], ["!=", "OMC-SR-NEW"])
         self.assertEqual(filters["creation"], ["<", "2026-09-14 12:00:00"])
+
+    def test_source_request_scope_falls_back_to_legacy_profile(self):
+        request = SimpleNamespace(
+            name="OMC-SR-NEW",
+            service="ntn-registration",
+            erp_customer="",
+            customer_profile="OMC-CUST-LEGACY",
+            creation=None,
+        )
+        with patch.object(service_document_reuse.frappe, "get_all", return_value=[]) as get_all:
+            service_document_reuse._source_request_names(request)
+        filters = get_all.call_args.kwargs["filters"]
+        self.assertEqual(
+            filters["customer_profile"],
+            "OMC-CUST-LEGACY",
+        )
+        self.assertNotIn("erp_customer", filters)
 
     def test_stable_document_key_selects_reusable_source(self):
         sources = [

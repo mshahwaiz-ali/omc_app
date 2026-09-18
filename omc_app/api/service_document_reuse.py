@@ -112,18 +112,26 @@ def _current_request_documents(request) -> list:
 
 
 def _source_request_names(request) -> list[str]:
-    if not _text(getattr(request, "customer_profile", None)) or not _text(
-        getattr(request, "service", None)
-    ):
+    if not _text(getattr(request, "service", None)):
         return []
 
     filters = {
         "name": ["!=", request.name],
         "service": request.service,
-        "customer_profile": request.customer_profile,
         "status": ["!=", "Cancelled"],
         "request_state": ["not in", ["Cancelled", "Expired"]],
     }
+
+    erp_customer = _text(getattr(request, "erp_customer", None))
+    customer_profile = _text(getattr(request, "customer_profile", None))
+
+    if erp_customer:
+        filters["erp_customer"] = erp_customer
+    elif customer_profile:
+        filters["customer_profile"] = customer_profile
+    else:
+        return []
+
     if getattr(request, "creation", None):
         filters["creation"] = ["<", request.creation]
 
@@ -134,7 +142,6 @@ def _source_request_names(request) -> list[str]:
         order_by="creation desc, name desc",
         limit_page_length=1000,
     )
-
 
 def _source_documents(request) -> list:
     source_requests = _source_request_names(request)

@@ -59,6 +59,44 @@ def _authorized_context(user: str):
     return internal, capabilities
 
 
+def _customer_request_scope(customer: str) -> tuple[str, str]:
+    """Resolve an ERP Customer/Profile pair for document filtering.
+
+    Callers may pass either canonical ERP Customer or the legacy Profile name.
+    Ambiguous ERP-to-Profile relationships fail closed instead of guessing.
+    """
+    customer = _text(customer)
+    if not customer:
+        return "", ""
+
+    if frappe.db.exists("Customer", customer):
+        profiles = frappe.get_all(
+            "OMC Customer Profile",
+            filters={"linked_erpnext_customer": customer},
+            pluck="name",
+            limit_page_length=2,
+        )
+        if len(profiles) > 1:
+            frappe.throw(
+                "Customer document scope is ambiguous.",
+                frappe.ValidationError,
+            )
+        return customer, _text(profiles[0] if profiles else "")
+
+    if frappe.db.exists("OMC Customer Profile", customer):
+        erp_customer = _text(
+            frappe.db.get_value(
+                "OMC Customer Profile",
+                customer,
+                "linked_erpnext_customer",
+            )
+        )
+        return erp_customer, customer
+
+    # Preserve the old exact-profile filter behavior for an unknown selector;
+    # it will safely return no rows.
+    return "", customer
+
 def _document_names(
     user: str,
     *,
@@ -85,12 +123,31 @@ def _document_names(
 
     customer = _text(customer)
     if customer:
-        clauses.append(
-            "exists (select 1 from `tabOMC Service Request` sr_customer "
-            "where sr_customer.name = `tabOMC Service Document`.service_request "
-            "and sr_customer.customer_profile = %s)"
-        )
-        params.append(customer)
+        erp_customer, customer_profile = _customer_request_scope(customer)
+
+        if erp_customer and customer_profile:
+            clauses.append(
+                "exists (select 1 from `tabOMC Service Request` sr_customer "
+                "where sr_customer.name = `tabOMC Service Document`.service_request "
+                "and (sr_customer.erp_customer = %s "
+                "or (ifnull(sr_customer.erp_customer, '') = '' "
+                "and sr_customer.customer_profile = %s)))"
+            )
+            params.extend([erp_customer, customer_profile])
+        elif erp_customer:
+            clauses.append(
+                "exists (select 1 from `tabOMC Service Request` sr_customer "
+                "where sr_customer.name = `tabOMC Service Document`.service_request "
+                "and sr_customer.erp_customer = %s)"
+            )
+            params.append(erp_customer)
+        else:
+            clauses.append(
+                "exists (select 1 from `tabOMC Service Request` sr_customer "
+                "where sr_customer.name = `tabOMC Service Document`.service_request "
+                "and sr_customer.customer_profile = %s)"
+            )
+            params.append(customer_profile)
 
     statuses, queue_archive = _queue_status(queue, status)
     if statuses:
