@@ -180,10 +180,12 @@ class TestPhase7PayLater(FrappeTestCase):
     @patch.object(pay_later, "_approval_capabilities")
     @patch.object(pay_later, "_current_user", return_value="finance@example.com")
     @patch.object(pay_later.frappe.db, "savepoint")
+    @patch.object(pay_later.payments, "_assert_service_request_payment_access")
     @patch.object(pay_later, "_load_payment_request")
     def test_reason_is_required(
         self,
         load_pair,
+        _scope,
         _savepoint,
         _user,
         _capabilities,
@@ -368,13 +370,20 @@ class TestPhase7PayLater(FrappeTestCase):
         self,
         get_value,
     ):
-        payment = OMCServicePayment(
-            {
-                "doctype": "OMC Service Payment",
-                "service_request": "OMC-SR-PAY-LATER",
-                "status": "Deferred",
-                "amount": 30000,
-            }
+        payment = SimpleNamespace(
+            service_request="OMC-SR-PAY-LATER",
         )
-        payment._assert_deferred_authorization()
-        get_value.assert_called_once()
+
+        OMCServicePayment._assert_deferred_authorization(payment)
+
+        get_value.assert_called_once_with(
+            "OMC Service Request",
+            "OMC-SR-PAY-LATER",
+            [
+                "payment_execution_mode",
+                "post_paid_approved_by",
+                "post_paid_approved_at",
+                "pay_later_reason",
+            ],
+            as_dict=True,
+        )
