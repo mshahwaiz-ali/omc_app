@@ -1082,7 +1082,11 @@ def _create_request(**kwargs):
         visible_to_customer=1,
     )
 
+    from omc_app.api import payment_opening
+
+    payment_id = payment_opening.ensure_service_payment(doc.name)
     response = _request_response(doc)
+    response["payment_id"] = _text(payment_id)
     response["assigned_staff"] = doc.assigned_staff or ""
     response["assignment_todo"] = None
     response["erp_sync_status"] = "Not Started"

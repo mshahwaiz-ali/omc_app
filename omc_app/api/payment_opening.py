@@ -114,9 +114,10 @@ def ensure_service_payment(request_name: str):
         return None
     if _text(request.discount_status) == "Pending Approval":
         return None
+    # Reuse any valid existing documents, but document completion is independent
+    # from payment opening. Required-document checks remain authoritative for
+    # downstream service processing.
     service_document_reuse.ensure_reusable_documents(request)
-    if not _required_documents_uploaded(request):
-        return None
 
     policy = _text(request.payment_policy_snapshot) or "Full Settlement"
     amount = flt(request.payable_amount or 0, 6)

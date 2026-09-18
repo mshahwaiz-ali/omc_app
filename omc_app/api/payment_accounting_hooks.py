@@ -30,24 +30,33 @@ def project_request_payment_state(request_name: str) -> dict:
     result = accounting_reconciliation.reconcile_request(request_name)
     state = str(result.get("accounting_status") or "").strip()
 
-    # Installment rows are projected by accounting_reconciliation from their
-    # own linked Payment Entry. The request-level state below is only used for
-    # activation/completion orchestration.
-    if state in {"Partially Settled", "Settled"}:
-        bridge_outbox.enqueue_if_eligible(request_name)
+    # accounting_reconciliation.reconcile_request is the canonical owner of
+    # activation enqueueing. Keeping that ownership there ensures Payment
+    # Entry hooks, explicit reconciliation, and scheduled recovery all use the
+    # same durable path without submitting duplicate bridge jobs.
     if state == "Settled":
         completion_recheck.recheck_completed_task(request_name)
     return result
 
 
+def _post_reconciliation_orchestration(request_name: str) -> None:
+    """Run orchestration that must happen after accounting is already refreshed."""
+    state = str(
+        bridge_outbox._accounting_status(request_name) or ""
+    ).strip()
+    if state == "Settled":
+        completion_recheck.recheck_completed_task(request_name)
+
+
 def payment_entry_submitted(doc, method=None):
+    request_names = _request_names(doc)
     accounting_reconciliation.payment_entry_submitted(doc, method)
-    for request_name in sorted(_request_names(doc)):
-        project_request_payment_state(request_name)
+    for request_name in sorted(request_names):
+        _post_reconciliation_orchestration(request_name)
 
 
 def payment_entry_cancelled(doc, method=None):
     request_names = _request_names(doc)
     accounting_reconciliation.payment_entry_cancelled(doc, method)
     for request_name in sorted(request_names):
-        project_request_payment_state(request_name)
+        _post_reconciliation_orchestration(request_name)

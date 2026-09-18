@@ -240,11 +240,13 @@ def _assert_payment_customer_access(payment):
 
 def _payment_support_payload(payment=None, service_case=None):
     account = _first_payment_account()
+    configured_title = _clean_text(getattr(account, "title", "")) if account else ""
     account_title = _clean_text(getattr(account, "account_title", "")) if account else ""
     bank_name = _clean_text(getattr(account, "bank_name", "")) if account else ""
     account_number = _clean_text(getattr(account, "account_number", "")) if account else ""
     iban = _clean_text(getattr(account, "iban", "")) if account else ""
     branch = _clean_text(getattr(account, "branch", "")) if account else ""
+    account_currency = _clean_text(getattr(account, "currency", "")) if account else ""
     whatsapp_number = _clean_text(getattr(account, "whatsapp_number", "")) if account else ""
     instructions = _clean_text(getattr(account, "instructions", "")) if account else ""
 
@@ -262,6 +264,8 @@ def _payment_support_payload(payment=None, service_case=None):
         bank_lines.append(f"IBAN: {iban}")
     if branch:
         bank_lines.append(f"Branch: {branch}")
+    if account_currency:
+        bank_lines.append(f"Currency: {account_currency}")
 
     if not instructions:
         instructions = (
@@ -293,6 +297,15 @@ def _payment_support_payload(payment=None, service_case=None):
     return {
         "payment_instructions": instructions,
         "bank_account_details": "\n".join(bank_lines),
+        "bank_account": {
+            "title": configured_title,
+            "bank_name": bank_name,
+            "account_title": account_title,
+            "account_number": account_number,
+            "iban": iban,
+            "branch": branch,
+            "currency": account_currency,
+        } if account else None,
         # Compatibility: existing mobile clients read payment_url/payment_link.
         # This URL opens WhatsApp support; it is not an online gateway checkout.
         "payment_url": whatsapp_url,
@@ -503,9 +516,6 @@ def _ensure_payment_for_case(service_case):
     if existing:
         return existing[0].name
 
-    if not _uploaded_required_documents(service_case):
-        return None
-
     if getattr(service_case, "discount_status", None) == "Pending Approval":
         return None
 
@@ -555,7 +565,7 @@ def _ensure_payment_for_case(service_case):
     )
     payment.status = "Pending"
     payment.visible_to_customer = 1
-    payment.remarks = "Payment opened after required documents were approved."
+    payment.remarks = "Payment opened from the finalized service pricing."
     payment.insert(ignore_permissions=True)
 
     if _clean_text(getattr(service_case, "request_state", None)) == "Draft":
@@ -567,8 +577,8 @@ def _ensure_payment_for_case(service_case):
         )
 
     message = (
-        f"Your required documents are approved. Payment of "
-        f"{payment.currency} {payment.amount:g} is now available."
+        f"Payment of {payment.currency} {payment.amount:g} is now available for "
+        "this service request. Required documents can be completed independently."
     )
     mobile._create_service_timeline_entry(
         service_request=service_case.name,

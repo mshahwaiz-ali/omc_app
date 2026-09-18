@@ -417,6 +417,12 @@ def finalize_cancelled_case(
 ):
     """Finalize one cancellation consistently without committing the transaction."""
 
+    # Every cancellation entry point, including ERP Task cancellation,
+    # converges here. Child payment cleanup must therefore live here too.
+    from omc_app.api import request_lifecycle
+
+    request_lifecycle._cancel_open_payments(service_case.name)
+
     if sync_erp:
         from omc_app.api import erp_task_status_sync
 

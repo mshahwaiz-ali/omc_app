@@ -224,11 +224,21 @@ class TestPaymentReadGuard(FrappeTestCase):
         payment_access.assert_called_once()
 
     def test_submitted_invoice_payment_total_counts_only_submitted_entries(self):
+        calls = []
+
+        def fake_sql(query, params):
+            calls.append((query, params))
+            return [(1500,)]
+
+        fake_frappe = SimpleNamespace(
+            db=SimpleNamespace(sql=fake_sql),
+        )
+
         with patch.object(
-            payment_read_guard.frappe.db,
-            "sql",
-            return_value=[(1500,)],
-        ) as sql:
+            payment_read_guard,
+            "frappe",
+            fake_frappe,
+        ):
             result = (
                 payment_read_guard._submitted_invoice_payment_total(
                     "SINV-O-03060"
@@ -236,9 +246,10 @@ class TestPaymentReadGuard(FrappeTestCase):
             )
 
         self.assertEqual(result, 1500)
+        self.assertEqual(len(calls), 1)
 
-        query = " ".join(sql.call_args.args[0].split())
-        params = sql.call_args.args[1]
+        query = " ".join(calls[0][0].split())
+        params = calls[0][1]
 
         self.assertIn(
             "ref.reference_doctype = 'Sales Invoice'",

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from frappe.tests.utils import FrappeTestCase
 
-from omc_app.api import document_upload, mobile, payments, secured_mobile
+from omc_app.api import document_upload, mobile, payment_opening, payments, secured_mobile
 
 
 class TestRequiredDocumentCompletion(FrappeTestCase):
@@ -647,6 +647,47 @@ class TestRequiredDocumentCompletion(FrappeTestCase):
             result["document"]["status"],
             "Uploaded",
         )
+
+    def test_payment_opening_is_independent_of_required_documents(self):
+        request = SimpleNamespace(
+            name="OMC-SR-PAYMENT-FIRST",
+            request_state="Pending Payment",
+            discount_status="",
+            payment_policy_snapshot="Full Settlement",
+            payable_amount=2500,
+            pricing_currency="PKR",
+            pricing_version_snapshot="pricing-v1",
+            service_title="Test Service",
+            title="Test Service",
+            customer_profile="OMC-CUST-TEST",
+        )
+        payment = MagicMock()
+        payment.name = "OMC-PAY-PAYMENT-FIRST"
+
+        with (
+            patch.object(payment_opening.frappe.db, "get_value", return_value=request.name),
+            patch.object(payment_opening.frappe, "get_doc", return_value=request),
+            patch.object(payment_opening.service_document_reuse, "ensure_reusable_documents"),
+            patch.object(
+                payment_opening,
+                "_required_documents_uploaded",
+                side_effect=AssertionError("document gate must not be consulted"),
+            ) as document_gate,
+            patch.object(
+                payment_opening,
+                "flt",
+                side_effect=lambda value, *args, **kwargs: float(value or 0),
+            ),
+            patch.object(payment_opening.frappe, "get_all", return_value=[]),
+            patch.object(payment_opening.frappe, "new_doc", return_value=payment),
+            patch.object(payment_opening.security, "audit_event"),
+            patch.object(payment_opening, "_notify_payment_opened"),
+        ):
+            result = payment_opening.ensure_service_payment(request.name)
+
+        document_gate.assert_not_called()
+        payment.insert.assert_called_once_with(ignore_permissions=True)
+        self.assertEqual(result, payment.name)
 
     @patch.object(payments.frappe, "get_all")
     @patch.object(payments.mobile, "_service_required_documents")
