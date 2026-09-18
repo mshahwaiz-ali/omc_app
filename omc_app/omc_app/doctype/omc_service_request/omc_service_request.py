@@ -101,10 +101,31 @@ class OMCServiceRequest(Document):
                 profile_name,
             )
 
-        return customer_authority.enforce_request_customer(
+        customer = customer_authority.enforce_request_customer(
             self,
             profile=profile,
         )
+
+        # Future operational requests must always carry the canonical business
+        # identity. Historical imports remain readable without forcing a
+        # destructive migration during normal saves.
+        if self.is_new() and getattr(self, "request_state", None) != "Historical":
+            if not profile:
+                frappe.throw(
+                    "OMC Customer Profile is required for a new service request.",
+                    frappe.ValidationError,
+                )
+            if not customer:
+                frappe.throw(
+                    "ERP Customer is required for a new service request.",
+                    frappe.ValidationError,
+                )
+
+            # Persist the canonical projection even while older authority
+            # implementations are still being upgraded in-place.
+            self.erp_customer = customer
+
+        return customer
 
     def _validate_request_state(self, previous):
         if not previous or previous.request_state == self.request_state:
