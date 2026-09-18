@@ -253,7 +253,7 @@ def _ai_review_state(payment, receipt, *, currency: str, remaining_amount: float
         if detected_raw in (None, "")
         else _amount(detected_raw)
     )
-    confidence = min(max(flt(summary.get("confidence") or 0, 6), 0), 1)
+    confidence = min(max(round(flt(summary.get("confidence") or 0), 6), 0), 1)
     status = _text(summary.get("status")) or "Not Requested"
     expected_currency = _text(currency).upper()
     detected_currency = _text(summary.get("detected_currency")).upper()

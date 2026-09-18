@@ -318,7 +318,7 @@ def _clean_nullable_text(value):
 def _normalise_extraction(data: dict) -> dict:
     amount = data.get("amount")
     try:
-        amount = flt(amount, 6) if amount is not None else None
+        amount = round(flt(amount), 6) if amount is not None else None
     except (TypeError, ValueError):
         amount = None
 
@@ -452,7 +452,7 @@ def _build_warnings(
 ) -> list[dict]:
     warnings = []
     detected_amount = extraction.get("amount")
-    expected_amount = max(flt(expected_amount or 0, 6), 0)
+    expected_amount = max(round(flt(expected_amount or 0), 6), 0)
     expected_currency = _text(expected_currency).upper()
 
     if detected_amount is not None and detected_amount > 0 and expected_amount > 0:
@@ -545,7 +545,7 @@ def _analysis_context(receipt):
     return {
         "payment": payment,
         "request": request,
-        "expected_amount": max(flt(payment.amount or 0, 6), 0),
+        "expected_amount": max(round(flt(payment.amount or 0), 6), 0),
         "currency": currency,
         "payment_accounts": _active_payment_accounts(currency),
     }
@@ -677,7 +677,7 @@ def analysis_summary(receipt) -> dict:
         "receipt_url": receipt.receipt_attachment or "",
         "status": _text(getattr(receipt, "ai_status", None)) or "Not Requested",
         "model": _text(getattr(receipt, "ai_model", None)),
-        "confidence": flt(getattr(receipt, "ai_confidence", 0) or 0, 6),
+        "confidence": round(flt(getattr(receipt, "ai_confidence", 0) or 0), 6),
         "detected_amount": getattr(receipt, "ai_detected_amount", None),
         "detected_currency": _text(getattr(receipt, "ai_detected_currency", None)),
         "detected_reference": _text(getattr(receipt, "ai_detected_reference", None)),
