@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 
 import frappe
-from frappe.utils import add_to_date, cint, now_datetime
+from frappe.utils import add_to_date, cint, flt, now_datetime
 
 from omc_app.api import (
     capabilities,
@@ -52,18 +52,37 @@ def _accounting_status(request_name: str) -> str:
     return ""
 
 
+def _accounted_amount(request_name: str) -> float:
+    allocations = frappe.get_all(
+        "OMC Accounting Link",
+        filters={
+            "service_request": request_name,
+            "payment_entry": ["is", "set"],
+            "payment_docstatus": 1,
+            "accounting_status": ["in", ["Partially Settled", "Settled"]],
+        },
+        pluck="allocated_amount",
+        limit_page_length=1000,
+    )
+    return max(flt(sum(flt(value) for value in allocations or []), 6), 0)
+
+
 def _payment_evidence(request) -> dict:
     policy = _text(request.payment_policy_snapshot) or "Full Settlement"
     accounting_status = _accounting_status(request.name)
     if policy in {"Verified Payment", "Full Settlement"}:
-        # Verified Payment is retained as a legacy snapshot value, but the
-        # current OMC operating policy requires full ERP settlement before
-        # activation. A future deposit policy must define an explicit
-        # threshold rather than treating any positive payment as sufficient.
-        valid = accounting_status == "Settled"
+        accounted_amount = _accounted_amount(request.name)
+        valid = (
+            accounting_status in {"Partially Settled", "Settled"}
+            and accounted_amount > 0
+        )
         return {
             "valid": valid,
-            "reason": "Full ERP settlement is required." if not valid else "",
+            "reason": (
+                "A positive ERP-reconciled customer payment is required."
+                if not valid
+                else ""
+            ),
         }
     return {"valid": True, "reason": ""}
 

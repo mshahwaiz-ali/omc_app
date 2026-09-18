@@ -1,3 +1,42 @@
+class PaymentBankAccount {
+  const PaymentBankAccount({
+    required this.title,
+    required this.bankName,
+    required this.accountTitle,
+    required this.accountNumber,
+    required this.iban,
+    required this.branch,
+    required this.currency,
+  });
+
+  final String title;
+  final String bankName;
+  final String accountTitle;
+  final String accountNumber;
+  final String iban;
+  final String branch;
+  final String currency;
+
+  bool get hasDetails =>
+      bankName.isNotEmpty ||
+      accountTitle.isNotEmpty ||
+      accountNumber.isNotEmpty ||
+      iban.isNotEmpty ||
+      branch.isNotEmpty;
+
+  String get displayDetails {
+    final lines = <String>[
+      if (bankName.isNotEmpty) 'Bank: $bankName',
+      if (accountTitle.isNotEmpty) 'Account title: $accountTitle',
+      if (accountNumber.isNotEmpty) 'Account number: $accountNumber',
+      if (iban.isNotEmpty) 'IBAN: $iban',
+      if (branch.isNotEmpty) 'Branch: $branch',
+      if (currency.isNotEmpty) 'Currency: $currency',
+    ];
+    return lines.join('\n');
+  }
+}
+
 enum PaymentStatus {
   pending,
   receiptSubmitted,
@@ -27,6 +66,7 @@ class PaymentItem {
     this.onlineGatewayAvailable = false,
     this.paymentInstructions,
     this.bankAccountDetails,
+    this.bankAccount,
     this.dueDateLabel,
     this.paidDateLabel,
     this.serviceReference,
@@ -52,6 +92,7 @@ class PaymentItem {
   final bool onlineGatewayAvailable;
   final String? paymentInstructions;
   final String? bankAccountDetails;
+  final PaymentBankAccount? bankAccount;
   final String? dueDateLabel;
   final String? paidDateLabel;
   final String? serviceReference;

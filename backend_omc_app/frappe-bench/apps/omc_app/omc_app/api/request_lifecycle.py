@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import frappe
-from frappe.utils import now_datetime
+from frappe.utils import cint, flt, now_datetime
 
 from omc_app.api import security
 
@@ -98,16 +98,105 @@ def _close_todos(reference_type: str, reference_names, status: str) -> None:
         frappe.db.set_value("ToDo", todo_name, "status", status, update_modified=False)
 
 
-def _cancel_open_payments(request_name: str) -> None:
-    rows = frappe.get_all(
-        "OMC Service Payment",
-        filters={"service_request": request_name, "status": ["not in", ["Paid", "Cancelled"]]},
-        fields=["name", "linked_payment_entry", "accounting_status"],
+def _submitted_accounting_payment_entries(request_name: str) -> set[str]:
+    """Return submitted ERP payments that are positively allocated to this request."""
+
+    links = frappe.get_all(
+        "OMC Accounting Link",
+        filters={"service_request": request_name},
+        fields=["payment_entry", "payment_docstatus", "allocated_amount"],
         limit_page_length=100,
     )
-    for row in rows:
-        if _text(row.linked_payment_entry) or _text(row.accounting_status) == "Settled":
+    submitted_entries: set[str] = set()
+    for link in links:
+        payment_entry = _text(getattr(link, "payment_entry", None))
+        if not payment_entry:
             continue
+        if cint(getattr(link, "payment_docstatus", 0)) != 1:
+            continue
+        if flt(getattr(link, "allocated_amount", 0)) <= 0:
+            continue
+
+        # ERPNext is the accounting authority. Do not trust a stale OMC
+        # projection when the real Payment Entry is not submitted.
+        if cint(frappe.db.get_value("Payment Entry", payment_entry, "docstatus")) != 1:
+            continue
+        submitted_entries.add(payment_entry)
+
+    return submitted_entries
+
+
+def _cancel_open_payments(request_name: str) -> None:
+    """Cancel only operational child payments that have no accounting evidence."""
+
+    rows = frappe.get_all(
+        "OMC Service Payment",
+        filters={
+            "service_request": request_name,
+            "status": ["!=", "Cancelled"],
+        },
+        fields=[
+            "name",
+            "status",
+            "linked_payment_entry",
+            "accounting_status",
+            "accounted_amount",
+        ],
+        limit_page_length=100,
+    )
+    if not rows:
+        return
+
+    explicitly_linked_entries: set[str] = set()
+    cancel_candidates = []
+
+    for row in rows:
+        linked_payment_entry = _text(
+            getattr(row, "linked_payment_entry", None)
+        )
+
+        # All non-cancelled children participate in accounting attribution.
+        # A Paid sibling may own one of the request-level Accounting Links
+        # even though it can never itself be a cancellation candidate.
+        if linked_payment_entry:
+            explicitly_linked_entries.add(linked_payment_entry)
+
+        if _text(getattr(row, "status", None)) == "Paid":
+            continue
+
+        if linked_payment_entry:
+            continue
+
+        if _text(getattr(row, "accounting_status", None)) in {
+            "Partially Settled",
+            "Settled",
+        }:
+            continue
+
+        if flt(getattr(row, "accounted_amount", 0)) > 0:
+            continue
+
+        cancel_candidates.append(row)
+
+    if not cancel_candidates:
+        return
+
+    submitted_entries = _submitted_accounting_payment_entries(request_name)
+
+    # OMC Accounting Link is request-level and has no OMC Service Payment
+    # foreign key. We can consume request-level evidence only when its
+    # Payment Entry exactly matches a child's linked_payment_entry.
+    #
+    # Any submitted entry left over is therefore genuinely ambiguous:
+    # one of the unlinked children may already be accounted while its
+    # child projection is stale. Fail closed instead of hiding accounting.
+    unclaimed_submitted_entries = (
+        submitted_entries - explicitly_linked_entries
+    )
+    if unclaimed_submitted_entries:
+        return
+
+    for row in cancel_candidates:
         frappe.db.set_value(
             "OMC Service Payment",
             row.name,
@@ -174,7 +263,9 @@ def _terminal_cleanup(request, *, target_state: str, reason: str, customer_cance
     from omc_app.api import review_routing
 
     review_routing.close_parent_review_todos(request.name, cancelled=True)
-    _cancel_open_payments(request.name)
+    if target_state != "Cancelled":
+        # Expiry has no cancellation finalizer, so it owns this cleanup here.
+        _cancel_open_payments(request.name)
     _cancel_bridge_operations(request.name)
     _archive_documents(request.name, "Cancelled" if target_state == "Cancelled" else "Expired")
 

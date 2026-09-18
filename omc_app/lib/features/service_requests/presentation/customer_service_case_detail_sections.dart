@@ -15,7 +15,8 @@ class _ServiceHero extends StatelessWidget {
         children: [
           LayoutBuilder(
             builder: (context, constraints) {
-              final stacked = constraints.maxWidth < 330 ||
+              final stacked =
+                  constraints.maxWidth < 330 ||
                   MediaQuery.textScalerOf(context).scale(1) >= 1.5;
               final identity = Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,17 +197,8 @@ class _LifecycleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final waitingForRequiredDocuments =
-        detail.documentsNeedingUpload > 0 &&
-        detail.paymentId.isEmpty &&
-        !detail.isTerminal &&
-        !detail.isCompleted;
-    final progress = waitingForRequiredDocuments
-        ? detail.progressPercent.clamp(0, 25).toInt()
-        : detail.progressPercent.clamp(0, 100).toInt();
-    final currentStage = waitingForRequiredDocuments
-        ? 'Documents'
-        : detail.currentStage.isEmpty
+    final progress = detail.progressPercent.clamp(0, 100).toInt();
+    final currentStage = detail.currentStage.isEmpty
         ? 'Current status'
         : detail.currentStage;
     final theme = Theme.of(context);
@@ -395,39 +387,9 @@ class _NextStepCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final waitingForRequiredDocuments =
-        detail.documentsNeedingUpload > 0 &&
-        detail.paymentId.isEmpty &&
-        !detail.isTerminal &&
-        !detail.isCompleted;
-    final waitingForPaymentOpening =
-        detail.requestState.trim().toLowerCase() == 'pending payment' &&
-        detail.paymentId.isEmpty &&
-        detail.documentsNeedingUpload == 0 &&
-        !detail.isTerminal &&
-        !detail.isCompleted;
-
-    final action = waitingForRequiredDocuments
-        ? const CustomerServiceCaseAction(
-            type: 'upload_document',
-            title: 'Documents need your attention',
-            subtitle:
-                'Upload the required documents first. Payment becomes available after the required uploads are complete.',
-            route: '/documents',
-            buttonLabel: 'Open documents',
-            required: true,
-          )
-        : waitingForPaymentOpening
-        ? const CustomerServiceCaseAction(
-            type: 'await_payment_opening',
-            title: 'Payment details are being prepared',
-            subtitle:
-                'Your required documents are complete. OMC is preparing the payment step for this request.',
-            route: '',
-            buttonLabel: '',
-            required: false,
-          )
-        : detail.nextAction;
+    // The server contract owns next-action policy. Documents and payment are
+    // independent requirements, so Flutter must not reintroduce a docs-first gate.
+    final action = detail.nextAction;
 
     if (action == null) return const SizedBox.shrink();
 

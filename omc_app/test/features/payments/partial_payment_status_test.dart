@@ -26,4 +26,30 @@ void main() {
     expect(payment.effectiveInvoiceNumbers, hasLength(2));
     expect(payment.effectivePaymentProofUrls, hasLength(2));
   });
+
+  test(
+    'Desk bank account details remain readable as structured payment data',
+    () {
+      const account = PaymentBankAccount(
+        title: 'Primary PKR Account',
+        bankName: 'Meezan Bank',
+        accountTitle: 'OMC House',
+        accountNumber: '1234567890',
+        iban: 'PK00MEZN0000001234567890',
+        branch: 'Main Branch',
+        currency: 'PKR',
+      );
+
+      expect(account.hasDetails, isTrue);
+      expect(account.displayDetails, contains('Bank: Meezan Bank'));
+      expect(account.displayDetails, contains('Account title: OMC House'));
+      expect(account.displayDetails, contains('Account number: 1234567890'));
+      expect(
+        account.displayDetails,
+        contains('IBAN: PK00MEZN0000001234567890'),
+      );
+      expect(account.displayDetails, contains('Branch: Main Branch'));
+      expect(account.displayDetails, contains('Currency: PKR'));
+    },
+  );
 }

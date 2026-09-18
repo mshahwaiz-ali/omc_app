@@ -158,6 +158,7 @@ class TestWorkflowCompletion(TestCase):
         timeline.assert_called_once()
         notification.assert_called_once()
 
+    @patch("omc_app.api.request_lifecycle._cancel_open_payments")
     @patch("omc_app.api.erp_task_status_sync.cancel_linked_erp_records")
     @patch.object(workflow_automation.mobile, "_create_customer_notification")
     @patch.object(workflow_automation.mobile, "_create_service_timeline_entry")
@@ -168,6 +169,7 @@ class TestWorkflowCompletion(TestCase):
         timeline,
         notification,
         cancel_erp,
+        cancel_payments,
     ):
         service_case = self._case()
         service_case.erp_task = "TASK-1"
@@ -180,6 +182,7 @@ class TestWorkflowCompletion(TestCase):
             cancelled_by_customer=True,
         )
 
+        cancel_payments.assert_called_once_with(service_case.name)
         cancel_erp.assert_called_once_with(service_case)
         self.assertEqual(set_value.call_count, 2)
         timeline.assert_called_once()

@@ -593,7 +593,7 @@ def _apply_accounting_lifecycle(
     if current in {"Cancelled", "Expired"} or _text(request.status) == "Completed":
         return
 
-    if accounting_status == "Settled":
+    if accounting_status in {"Partially Settled", "Settled"}:
         target = ""
         if current == "Financial Hold":
             target = (
@@ -604,13 +604,19 @@ def _apply_accounting_lifecycle(
         elif current in {"Pending Payment", "Payment Not Required", "Activation Failed"}:
             target = "Ready for Activation"
         if target:
+            if accounting_status == "Settled":
+                reason = "ERP accounting settlement verified."
+                idempotency_key = f"accounting:settled:{request.name}"
+            else:
+                reason = "ERP-reconciled partial customer payment verified."
+                idempotency_key = f"accounting:partial_verified:{request.name}"
             request_lifecycle.transition_request_state(
                 request.name,
                 target,
-                reason="ERP accounting settlement verified.",
+                reason=reason,
                 actor=frappe.session.user,
                 capability="can_reconcile_settlement",
-                idempotency_key=f"accounting:settled:{request.name}",
+                idempotency_key=idempotency_key,
             )
             request.request_state = target
             _clear_hold_reason(request)
@@ -817,7 +823,7 @@ def reconcile_request(request_name: str) -> dict:
     _project_receipt_compatibility(request.name, state, latest_payment)
     _apply_accounting_lifecycle(request, state, reason)
 
-    if state == "Settled":
+    if state in {"Partially Settled", "Settled"}:
         from omc_app.api.bridge_outbox import enqueue_if_eligible
 
         enqueue_if_eligible(request.name)

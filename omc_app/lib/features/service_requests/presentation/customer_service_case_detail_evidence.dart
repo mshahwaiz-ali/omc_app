@@ -449,12 +449,6 @@ class _PaymentCard extends StatelessWidget {
           'OMC is reviewing your submitted payment proof. Do not submit another payment or receipt unless OMC asks for a correction.';
       icon = Icons.hourglass_top_rounded;
       showAction = canViewPayments && detail.paymentId.isNotEmpty;
-    } else if (detail.paymentId.isEmpty && detail.documentsNeedingUpload > 0) {
-      title = 'Complete required documents first';
-      message =
-          'Payment will become available after all required documents are uploaded for this request.';
-      icon = Icons.description_outlined;
-      showAction = false;
     } else if (detail.paymentId.isEmpty && detail.payableAmount > 0) {
       title = 'Payment is being prepared';
       message =

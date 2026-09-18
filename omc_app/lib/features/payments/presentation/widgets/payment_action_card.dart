@@ -45,7 +45,11 @@ class PaymentActionCard extends StatelessWidget {
     final canUploadReceipt =
         !payment.isSettlementEvidenceLocked && onUploadReceipt != null;
     final instructions = payment.paymentInstructions?.trim();
-    final bankDetails = payment.bankAccountDetails?.trim();
+    final structuredBankDetails =
+        payment.bankAccount?.displayDetails.trim() ?? '';
+    final bankDetails = structuredBankDetails.isNotEmpty
+        ? structuredBankDetails
+        : payment.bankAccountDetails?.trim();
     final serviceRequest = payment.serviceReference?.trim() ?? '';
     final showRequestAccounting =
         payment.isOwnPayment && serviceRequest.isNotEmpty;

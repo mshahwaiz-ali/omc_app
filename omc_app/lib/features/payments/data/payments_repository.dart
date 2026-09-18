@@ -442,6 +442,7 @@ class PaymentsRepository {
             json['bank_details'] ??
             json['deposit_account'],
       ),
+      bankAccount: _paymentBankAccount(json['bank_account']),
       dueDateLabel: _nullableString(
         json['due_date_label'] ??
             json['due_date'] ??
@@ -466,6 +467,21 @@ class PaymentsRepository {
       customerProfile: _nullableString(json['customer_profile']),
       scopeType: _nullableString(json['scope_type']),
     );
+  }
+
+  PaymentBankAccount? _paymentBankAccount(dynamic value) {
+    if (value is! Map) return null;
+    final map = Map<String, dynamic>.from(value);
+    final account = PaymentBankAccount(
+      title: _nullableString(map['title']) ?? '',
+      bankName: _nullableString(map['bank_name']) ?? '',
+      accountTitle: _nullableString(map['account_title']) ?? '',
+      accountNumber: _nullableString(map['account_number']) ?? '',
+      iban: _nullableString(map['iban']) ?? '',
+      branch: _nullableString(map['branch']) ?? '',
+      currency: _nullableString(map['currency']) ?? '',
+    );
+    return account.hasDetails ? account : null;
   }
 
   List<String> _stringList(dynamic value) {
