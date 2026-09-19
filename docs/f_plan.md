@@ -1137,5 +1137,8 @@ Final local release validation is complete.
   configuration/reporting, and Mobile Settings ownership hardening; the final
   full-suite correction batch changed tests only.
 
-**Release sequence remaining:** final complete-diff sanity review -> commit ->
-push `main`.
+**Release sequence completed:** final complete-diff sanity review, focused/full regression, ERP acceptance evidence review, commit, and push to `main` are complete.
+
+- Final release commit: `ff60fc41af68f5efa5032d0b46b5e5d1418644e8`
+- Commit message: `Phase 10 harden reconciliation and deployment validation`
+- GitHub `main` was verified at the same commit after push.
