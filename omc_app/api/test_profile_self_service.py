@@ -123,7 +123,9 @@ class TestProfileSelfService(FrappeTestCase):
                 ignore_permissions=True,
             )
 
-        frappe.db.rollback()
+        # update_profile commits by contract, so test fixtures may already
+        # be durable. Commit explicit cleanup instead of rolling it back.
+        frappe.db.commit()
         frappe.set_user(self.previous_user)
         super().tearDown()
 
@@ -318,7 +320,9 @@ class TestInternalProfileSelfService(FrappeTestCase):
 
         if frappe.db.exists("User", self.user):
             frappe.delete_doc("User", self.user, force=True, ignore_permissions=True)
-        frappe.db.rollback()
+        # update_profile commits by contract, so test fixtures may already
+        # be durable. Commit explicit cleanup instead of rolling it back.
+        frappe.db.commit()
         frappe.set_user(self.previous_user)
         super().tearDown()
 

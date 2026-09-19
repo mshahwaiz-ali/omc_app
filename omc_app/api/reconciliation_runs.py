@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import re
 import uuid
 
@@ -28,6 +29,72 @@ def _checkpoint_key(job_key: str, domain: str) -> str:
 def _triggered_by() -> str:
     user = _text(getattr(getattr(frappe, "session", None), "user", None))
     return user if user and user != "Guest" else "scheduler"
+
+
+
+def _job_lock_name(*, job_key: str, domain: str) -> str:
+    raw = (
+        f"{_safe_code(domain)}:"
+        f"{_safe_code(job_key)}"
+    )
+    digest = hashlib.sha256(
+        raw.encode("utf-8")
+    ).hexdigest()[:40]
+    return f"omc_recon_{digest}"
+
+
+def acquire_job_lock(
+    *,
+    job_key: str,
+    domain: str,
+    timeout: int = 0,
+) -> bool:
+    """Acquire a DB-session advisory lock for one reconciliation job."""
+
+    timeout = max(
+        0,
+        min(cint(timeout or 0), 60),
+    )
+
+    result = frappe.db.sql(
+        "SELECT GET_LOCK(%s, %s)",
+        (
+            _job_lock_name(
+                job_key=job_key,
+                domain=domain,
+            ),
+            timeout,
+        ),
+    )
+
+    return bool(
+        result
+        and cint(result[0][0]) == 1
+    )
+
+
+def release_job_lock(
+    *,
+    job_key: str,
+    domain: str,
+) -> None:
+    """Release the reconciliation advisory lock without masking work."""
+
+    try:
+        frappe.db.sql(
+            "SELECT RELEASE_LOCK(%s)",
+            (
+                _job_lock_name(
+                    job_key=job_key,
+                    domain=domain,
+                ),
+            ),
+        )
+    except Exception:
+        frappe.log_error(
+            frappe.get_traceback(),
+            "OMC reconciliation lock release failed",
+        )
 
 
 def get_or_create_checkpoint(*, job_key: str, domain: str):

@@ -4,47 +4,53 @@ from typing import Any
 
 import frappe
 
+from omc_app.api.mobile_release_controls import (
+    validate_release_controls,
+)
+
 
 SETTINGS_DOCTYPE = "OMC Mobile Settings"
 
-MANAGED_VALUES = {
-    "integration_mode": "ERPNext Hybrid",
-    "erpnext_integration_enabled": 1,
-}
 
-
-def _text(value: Any) -> str:
-    return str(value or "").strip()
-
-
-def _number(value: Any) -> float:
+def _release_controls(
+    settings,
+) -> dict[str, Any]:
     try:
-        return float(value or 0)
-    except (TypeError, ValueError):
-        return 0.0
+        controls = validate_release_controls(
+            settings.get("minimum_app_version"),
+            settings.get("force_update"),
+            settings.get("maintenance_mode"),
+        )
+    except ValueError as error:
+        return {
+            "valid": False,
+            "controls": {},
+            "errors": [str(error)],
+        }
 
-
-def _same(fieldname: str, current: Any, desired: Any) -> bool:
-    if fieldname == "erpnext_integration_enabled":
-        return _number(current) == _number(desired)
-
-    return _text(current) == _text(desired)
-
-
-def _mapping_report(settings) -> dict[str, Any]:
-    return settings.validate_erpnext_mapping(
-        update_doc=False,
-    )
+    return {
+        "valid": True,
+        "controls": controls,
+        "errors": [],
+    }
 
 
 def preview_mobile_settings() -> dict[str, Any]:
+    """Validate the current Mobile Settings contract without owning it.
+
+    ERP mapping mode/field controls were removed from OMC Mobile Settings.
+    Remaining feature, pricing, legal and release-control values are
+    site/client-managed and must not be overwritten by app defaults.
+    """
+
     if not frappe.db.exists(
         "DocType",
         SETTINGS_DOCTYPE,
     ):
         return {
             "changes": {},
-            "mapping": {},
+            "release_controls": {},
+            "ownership": "client_managed",
             "blockers": [
                 {
                     "type": "missing_doctype",
@@ -59,45 +65,26 @@ def preview_mobile_settings() -> dict[str, Any]:
         SETTINGS_DOCTYPE
     )
 
-    changes = {}
-
-    for fieldname, desired in MANAGED_VALUES.items():
-        current = settings.get(fieldname)
-
-        if _same(
-            fieldname,
-            current,
-            desired,
-        ):
-            continue
-
-        changes[fieldname] = {
-            "current": current,
-            "desired": desired,
-        }
-
-    mapping = _mapping_report(settings)
+    release = _release_controls(settings)
     blockers = []
 
-    if mapping.get("errors"):
+    if not release["valid"]:
         blockers.append(
             {
-                "type": "invalid_erpnext_mapping",
-                "errors": mapping.get("errors"),
+                "type": "invalid_release_controls",
+                "errors": release["errors"],
             }
         )
 
     safe_to_sync = not blockers
 
     return {
-        "changes": changes,
-        "mapping": mapping,
+        "changes": {},
+        "release_controls": release["controls"],
+        "ownership": "client_managed",
         "blockers": blockers,
         "safe_to_sync": safe_to_sync,
-        "converged": (
-            safe_to_sync
-            and not changes
-        ),
+        "converged": safe_to_sync,
     }
 
 
@@ -111,14 +98,12 @@ def validate_mobile_settings() -> dict[str, Any]:
         "safe_to_sync": bool(
             preview.get("safe_to_sync")
         ),
-        "changes": preview.get(
-            "changes",
+        "changes": {},
+        "release_controls": preview.get(
+            "release_controls",
             {},
         ),
-        "mapping": preview.get(
-            "mapping",
-            {},
-        ),
+        "ownership": "client_managed",
         "blockers": preview.get(
             "blockers",
             [],
@@ -130,49 +115,16 @@ def sync_mobile_settings(
     *,
     commit: bool = True,
 ) -> dict[str, Any]:
+    """Validate Mobile Settings without mutating client-managed values."""
+
     preview = preview_mobile_settings()
 
     if not preview.get("safe_to_sync"):
         frappe.throw(
-            "Mobile Settings synchronization "
-            "is blocked: "
+            "Mobile Settings validation is blocked: "
             + frappe.as_json(
                 preview.get("blockers", [])
             ),
-            frappe.ValidationError,
-        )
-
-    settings = frappe.get_single(
-        SETTINGS_DOCTYPE
-    )
-
-    changed_fields = []
-
-    for fieldname, desired in MANAGED_VALUES.items():
-        if _same(
-            fieldname,
-            settings.get(fieldname),
-            desired,
-        ):
-            continue
-
-        settings.set(
-            fieldname,
-            desired,
-        )
-        changed_fields.append(fieldname)
-
-    if changed_fields:
-        settings.save(
-            ignore_permissions=True
-        )
-
-    report = settings.validate_mobile_backend()
-
-    if report.get("errors"):
-        frappe.throw(
-            "Mobile backend validation failed: "
-            + frappe.as_json(report),
             frappe.ValidationError,
         )
 
@@ -180,17 +132,18 @@ def sync_mobile_settings(
 
     if not validation["valid"]:
         frappe.throw(
-            "Mobile Settings failed post-sync "
-            "validation: "
+            "Mobile Settings failed validation: "
             + frappe.as_json(validation),
             frappe.ValidationError,
         )
 
-    if commit:
-        frappe.db.commit()
-
     return {
-        "changed_fields": changed_fields,
+        "changed_fields": [],
+        "committed": False,
+        "ownership": "client_managed",
+        "release_controls": validation.get(
+            "release_controls",
+            {},
+        ),
         "validation": validation,
-        "backend_validation": report,
     }

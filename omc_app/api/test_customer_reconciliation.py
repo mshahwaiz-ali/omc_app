@@ -350,3 +350,76 @@ class TestBusinessOnlyCustomerReconciliation(FrappeTestCase):
         ensure_account.assert_not_called()
         quarantine.assert_not_called()
         resolve_queues.assert_called_once()
+
+
+class TestCustomerReconciliationLock(FrappeTestCase):
+    def test_busy_reconciliation_skips_worker(self):
+        with (
+            patch.object(
+                customer_reconciliation.reconciliation_runs,
+                "acquire_job_lock",
+                return_value=False,
+            ) as acquire,
+            patch.object(
+                customer_reconciliation,
+                "_run_customer_account_reconciliation_unlocked",
+            ) as worker,
+            patch.object(
+                customer_reconciliation.reconciliation_runs,
+                "release_job_lock",
+            ) as release,
+        ):
+            result = (
+                customer_reconciliation
+                .run_customer_account_reconciliation(
+                    batch_size=500,
+                    lock_timeout=30,
+                )
+            )
+
+        self.assertEqual(
+            result["status"],
+            "SkippedLocked",
+        )
+        self.assertEqual(
+            result["safe_error_code"],
+            "reconciliation_already_running",
+        )
+        worker.assert_not_called()
+        release.assert_not_called()
+
+        acquire.assert_called_once_with(
+            job_key=customer_reconciliation.JOB_KEY,
+            domain=customer_reconciliation.DOMAIN,
+            timeout=30,
+        )
+
+    def test_reconciliation_lock_released_on_worker_failure(self):
+        with (
+            patch.object(
+                customer_reconciliation.reconciliation_runs,
+                "acquire_job_lock",
+                return_value=True,
+            ),
+            patch.object(
+                customer_reconciliation,
+                "_run_customer_account_reconciliation_unlocked",
+                side_effect=RuntimeError("test failure"),
+            ),
+            patch.object(
+                customer_reconciliation.reconciliation_runs,
+                "release_job_lock",
+            ) as release,
+        ):
+            with self.assertRaises(RuntimeError):
+                (
+                    customer_reconciliation
+                    .run_customer_account_reconciliation(
+                        batch_size=500,
+                    )
+                )
+
+        release.assert_called_once_with(
+            job_key=customer_reconciliation.JOB_KEY,
+            domain=customer_reconciliation.DOMAIN,
+        )

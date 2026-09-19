@@ -3,7 +3,7 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 umask 077
 
-SCRIPT_VERSION="1.3.0"
+SCRIPT_VERSION="1.4.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEFAULT_BENCH_DIR="$(cd "$APP_ROOT/../.." 2>/dev/null && pwd || true)"
@@ -43,7 +43,7 @@ Environment alternatives:
   SITE_NAME=your.site.name
 
 The script is safe to rerun. It uses OMC's idempotent migration, catalogue and
-app-ready-default operations and stops on failed compatibility, migration,
+app-ready-default operations and stops on failed compatibility, migration, reconciliation,
 catalogue, presentation or app-default validation.
 
 Service catalogue synchronization atomically applies the managed service rows,
@@ -478,6 +478,199 @@ capture_json "05-customer-preflight-after" "migration_preflight" \
 POST_USER_ACCOUNTS="$(json_value "$POST_MIGRATION" "user_accounts_to_create")"
 [[ "$POST_USER_ACCOUNTS" == "0" ]] ||
     fail "Post-migration preflight reports unexpected User creation: $POST_USER_ACCOUNTS"
+
+step "Capture customer reconciliation baseline"
+RECON_BEFORE="$EVIDENCE_DIR/05a-customer-reconciliation-before.json"
+capture_json "05a-customer-reconciliation-before" \
+    "customer_reconciliation_status" \
+    "$BENCH_CMD" --site "$SITE" execute \
+    omc_app.api.customer_reconciliation.get_customer_account_reconciliation_status
+
+RECON_USERS_BEFORE="$(
+    json_value "$RECON_BEFORE" "users"
+)"
+RECON_PROFILE_COUNT="$(
+    json_value "$RECON_BEFORE" "customer_profiles"
+)"
+
+[[ "$RECON_PROFILE_COUNT" =~ ^[0-9]+$ ]] ||
+    fail         "Invalid customer profile count: $RECON_PROFILE_COUNT"
+
+RECON_BATCH_SIZE=500
+
+RECON_BATCHES_PER_CYCLE=$((
+    (
+        RECON_PROFILE_COUNT
+        + RECON_BATCH_SIZE
+        - 1
+    )
+    / RECON_BATCH_SIZE
+))
+
+if (( RECON_BATCHES_PER_CYCLE < 1 )); then
+    RECON_BATCHES_PER_CYCLE=1
+fi
+
+RECON_CYCLE_BEFORE="$(
+    json_value "$RECON_BEFORE" "checkpoint.cycle_count"
+)"
+RECON_INITIAL_CURSOR="$(
+    json_value "$RECON_BEFORE" "checkpoint.cursor_value"
+)"
+
+RECON_TARGET_COMPLETIONS=1
+if [[ -n "$RECON_INITIAL_CURSOR" ]]; then
+    # Finish the interrupted/partial cycle first, then prove one complete
+    # fresh cycle from the beginning.
+    RECON_TARGET_COMPLETIONS=2
+fi
+
+# Bound the loop from the observed dataset size. One additional complete
+# cycle plus two batches are reserved for safe scheduler/interleaving
+# tolerance or small profile growth during configuration.
+RECON_MAX_RUNS=$((
+    (RECON_TARGET_COMPLETIONS + 1)
+    * RECON_BATCHES_PER_CYCLE
+    + 2
+))
+
+step "Checkpoint-aware customer identity reconciliation"
+printf 'Initial cursor:       %s\n' \
+    "${RECON_INITIAL_CURSOR:-<start>}"
+printf 'Target completions:   %s\n' \
+    "$RECON_TARGET_COMPLETIONS"
+printf 'Customer profiles:    %s\n' \
+    "$RECON_PROFILE_COUNT"
+printf 'Batches per cycle:    %s\n' \
+    "$RECON_BATCHES_PER_CYCLE"
+printf 'Maximum run attempts: %s\n' \
+    "$RECON_MAX_RUNS"
+
+RECON_COMPLETED_CYCLES=0
+RECON_RUN_INDEX=0
+
+while (( RECON_COMPLETED_CYCLES < RECON_TARGET_COMPLETIONS )); do
+    if (( RECON_RUN_INDEX >= RECON_MAX_RUNS )); then
+        fail             "Customer reconciliation exceeded bounded run limit: $RECON_MAX_RUNS"
+    fi
+
+    RECON_RUN_INDEX=$((RECON_RUN_INDEX + 1))
+
+    RECON_KEY="$(
+        printf \
+            '05b-customer-reconciliation-run-%03d' \
+            "$RECON_RUN_INDEX"
+    )"
+
+    RECON_FILE="$EVIDENCE_DIR/${RECON_KEY}.json"
+
+    "$BENCH_CMD" --site "$SITE" execute \
+        omc_app.api.customer_reconciliation.run_customer_account_reconciliation \
+        --kwargs '{"batch_size":500,"lock_timeout":30}' \
+        >"$RECON_FILE"
+
+    "$BENCH_PYTHON" "$REPORTER" \
+        "customer_reconciliation_run" \
+        "$RECON_FILE"
+
+    RECON_RUN_STATUS="$(
+        json_value "$RECON_FILE" "status"
+    )"
+
+    RECON_RUN_FAILED="$(
+        json_value "$RECON_FILE" "failed"
+    )"
+
+    RECON_CYCLE_COMPLETED="$(
+        json_value "$RECON_FILE" "cycle_completed"
+    )"
+
+    [[ "$RECON_RUN_STATUS" == "Completed" ]] ||
+        fail             "Customer reconciliation did not complete: $RECON_RUN_STATUS"
+
+    [[ "$RECON_RUN_FAILED" == "0" ]] ||
+        fail \
+            "Customer reconciliation reported failed rows: $RECON_RUN_FAILED"
+
+    if [[ "$RECON_CYCLE_COMPLETED" == "true" ]]; then
+        RECON_COMPLETED_CYCLES=$((RECON_COMPLETED_CYCLES + 1))
+
+        printf \
+            'Completed reconciliation cycle %s of %s\n' \
+            "$RECON_COMPLETED_CYCLES" \
+            "$RECON_TARGET_COMPLETIONS"
+    fi
+done
+
+step "Verify customer reconciliation convergence"
+RECON_AFTER="$EVIDENCE_DIR/05c-customer-reconciliation-after.json"
+capture_json "05c-customer-reconciliation-after" \
+    "customer_reconciliation_status" \
+    "$BENCH_CMD" --site "$SITE" execute \
+    omc_app.api.customer_reconciliation.get_customer_account_reconciliation_status
+
+RECON_USERS_AFTER="$(
+    json_value "$RECON_AFTER" "users"
+)"
+RECON_CYCLE_AFTER="$(
+    json_value "$RECON_AFTER" "checkpoint.cycle_count"
+)"
+RECON_CURSOR_AFTER="$(
+    json_value "$RECON_AFTER" "checkpoint.cursor_value"
+)"
+RECON_OPEN_QUARANTINES="$(
+    json_value \
+        "$RECON_AFTER" \
+        "open_identity_quarantines"
+)"
+RECON_LEGACY_MISSING="$(
+    json_value \
+        "$RECON_AFTER" \
+        "legacy_user_missing_open"
+)"
+RECON_UNEXPECTED_REVIEWS="$(
+    json_value \
+        "$RECON_AFTER" \
+        "unexpected_open_review_reason_counts"
+)"
+
+EXPECTED_RECON_CYCLE=$((RECON_CYCLE_BEFORE + RECON_TARGET_COMPLETIONS))
+
+[[ "$RECON_USERS_AFTER" == "$RECON_USERS_BEFORE" ]] ||
+    fail \
+        "Customer reconciliation changed User count: $RECON_USERS_BEFORE -> $RECON_USERS_AFTER"
+
+[[ -z "$RECON_CURSOR_AFTER" ]] ||
+    fail \
+        "Customer reconciliation did not finish on a clean cycle boundary."
+
+((RECON_CYCLE_AFTER >= EXPECTED_RECON_CYCLE)) ||
+    fail \
+        "Customer reconciliation did not complete the required fresh cycle."
+
+[[ "$RECON_OPEN_QUARANTINES" == "0" ]] ||
+    fail \
+        "Open Identity quarantines remain after reconciliation: $RECON_OPEN_QUARANTINES"
+
+[[ "$RECON_LEGACY_MISSING" == "0" ]] ||
+    fail \
+        "legacy_user_missing quarantines remain open: $RECON_LEGACY_MISSING"
+
+[[ "$RECON_UNEXPECTED_REVIEWS" == "{}" ]] ||
+    fail \
+        "Unexpected Identity review reasons remain: $RECON_UNEXPECTED_REVIEWS"
+
+printf '\nCustomer reconciliation convergence: PASS\n'
+printf 'Users:       %s -> %s\n' \
+    "$RECON_USERS_BEFORE" \
+    "$RECON_USERS_AFTER"
+printf 'Cycle count: %s -> %s\n' \
+    "$RECON_CYCLE_BEFORE" \
+    "$RECON_CYCLE_AFTER"
+printf 'Open Identity quarantines: %s\n' \
+    "$RECON_OPEN_QUARANTINES"
+printf \
+    'Expected fail-closed human reviews remain permitted for manual resolution.\n'
 
 step "Preview production service catalogue"
 CATALOGUE_PREVIEW="$EVIDENCE_DIR/06-catalogue-preview.json"

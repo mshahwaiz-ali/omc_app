@@ -40,6 +40,7 @@ class _Customer:
 class TestERPNewCustomerReferralBridge(FrappeTestCase):
     def _profile(self, **values):
         base = {
+            "name": "OMC-CUST-REFERRAL-TEST",
             "full_name": "Referral Customer",
             "phone": "",
             "email": "customer@example.com",
