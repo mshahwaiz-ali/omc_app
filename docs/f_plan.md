@@ -1019,6 +1019,26 @@ PHASE 10
 Migration/reconciliation
 + full local regression/integration testing
 
+Phase 10 migration/reconciliation/configuration hardening status:
+
+- implemented and locally proven on `omc-prod.local`;
+- `configuration.sh` is now `v1.4.0`;
+- customer identity reconciliation is durable and checkpoint-aware;
+- production reconciliation runs in bounded batches with a maximum batch size of `500`;
+- blank initial checkpoint requires one complete cycle; interrupted/non-blank checkpoint requires completion of that cycle plus one fresh complete cycle;
+- MariaDB advisory locking prevents concurrent reconciliation ownership; competing work returns `SkippedLocked` / `reconciliation_already_running` with zero reconciliation work;
+- convergence fails closed on non-blank final cursor, User-count drift, open Identity quarantines, open `legacy_user_missing`, or unexpected review reasons;
+- expected manual-review reasons remain limited to `erp_customer_missing`, `erp_customer_ambiguous`, and `canonical_account_conflict`;
+- `OMC Mobile Settings` remains client/site-managed; app-default synchronization does not overwrite it and validates only current release controls (`minimum_app_version`, `force_update`, `maintenance_mode`);
+- full production-style `configuration.sh v1.4.0` rehearsal passed, including backup, migrate, ERP contract, initialization, migration, reconciliation, catalogue/default validation, scheduler enablement, asset build, cache clear and final verification;
+- final targeted Phase 10 regression passed: `110 tests` across reconciliation, queues, customer migration, historical service migration, scheduler jobs and Mobile Settings;
+- identity state remained stable after regression: Customer Profiles `3241 -> 3241`, Users `321 -> 321`, Customer Accounts `7 -> 7`, open reviews `7 -> 7` (`erp_customer_missing=7`), Identity quarantines `0 -> 0`;
+- scheduler was restored and verified enabled after the targeted regression;
+- no identity fixture leakage was detected;
+- observed production-like historical service data changed from `74 -> 75` services and `5 -> 6` conflicts during rehearsal; migration still explicitly reported `STATUS: SAFE TO CONTINUE`, so this is retained as observed data rather than hidden or treated as an implementation failure.
+
+This records the locally proven Phase 10 migration/reconciliation/configuration hardening work. It does not remove the remaining plan-wide final release gates below.
+
 Only after all relevant flows pass locally:
 
 review complete diff
@@ -1080,3 +1100,42 @@ reused only            existing ERP Task flow
                    │
                 ERPNext
              remains authority
+
+<!-- PHASE 10 FINAL VALIDATION CLOSURE - 2026-09-19 -->
+### Phase 10 final validation closure — 2026-09-19
+
+Final local release validation is complete.
+
+- Full OMC regression: **1,330 tests passed** (`OK`) in 135.475s.
+- Scheduler was disabled for the suite and restored successfully afterward.
+- Identity state was exactly invariant across the final full-suite run:
+  - OMC Customer Profiles: **3,248 -> 3,248**
+  - Users: **319 -> 319**
+  - OMC Customer Accounts: **7 -> 7**
+  - `@qa.omc.test` Users/Profiles: **0 -> 0**
+  - fixed self-service test Users/Profiles: **0 -> 0**
+  - open identity reviews: **7 -> 7**, all `erp_customer_missing`
+  - unexpected review reasons: **0**
+  - open identity quarantines: **0**
+  - `legacy_user_missing`: **0**
+  - reconciliation checkpoint stayed unchanged during the isolated suite:
+    cursor `OMC-CUST-260823-00200`, cycle `15`, last run
+    `79d382e398ab4a239a62638b30d34b54`.
+- Focused regression for the stale/leaky test corrections: **58 tests passed**.
+  Those corrections were test-only; no activation/payment production logic was
+  weakened to make the suite pass.
+- Existing real-DB ERP acceptance evidence is retained instead of creating new
+  accounting records only for release testing:
+  - partial-payment activation proof on `OMC-SR-260917-00001` used real local
+    database state with rollback protection; exactly one durable activation
+    bridge operation and one queue submission were observed while the ERP
+    Payment Entry remained unchanged;
+  - the persisted ERP chain for `OMC-SR-260911-00001` already proved native
+    Sales Invoice / Payment Entry / GL accounting followed by ERP Service
+    `SERV0093`, Task `TASK-2026-02835`, and automatic assignment.
+- The later Phase 10 production changes are customer reconciliation,
+  configuration/reporting, and Mobile Settings ownership hardening; the final
+  full-suite correction batch changed tests only.
+
+**Release sequence remaining:** final complete-diff sanity review -> commit ->
+push `main`.

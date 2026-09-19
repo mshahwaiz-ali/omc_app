@@ -92,7 +92,7 @@ apps/omc_app/scripts/configuration.sh
 Current script version at this documentation cross-check:
 
 ```text
-1.3.0
+1.4.0
 ```
 
 Preferred invocation:
@@ -233,7 +233,58 @@ user_accounts_created = 0
 
 The migration preflight runs again to confirm the reconciled state remains safe and rerunnable.
 
-## 5.10 Service-catalogue preview
+## 5.10 Checkpoint-aware customer identity reconciliation
+
+After post-migration verification and before catalogue publication, the script captures a customer-reconciliation baseline and runs durable checkpointed reconciliation batches.
+
+The reconciliation entry point is:
+
+```bash
+bench --site <site> execute \
+  omc_app.api.customer_reconciliation.run_customer_account_reconciliation \
+  --kwargs '{"batch_size":500}'
+```
+
+Production configuration uses a reconciliation batch size of `500`.
+
+The reconciliation checkpoint persists across invocations. The configuration script derives a bounded maximum number of reconciliation attempts from the observed Customer Profile count; it does not use an unbounded convergence loop.
+
+The required cycle proof depends on the checkpoint state at the start of configuration:
+
+- blank initial checkpoint cursor: prove at least one complete reconciliation cycle;
+- non-blank initial checkpoint cursor: finish the interrupted cycle and then prove one fresh complete cycle.
+
+Before configuration can continue to catalogue publication, reconciliation must converge with all of these conditions:
+
+- the final checkpoint cursor is blank;
+- the required fresh reconciliation cycle has completed;
+- the total `User` count remains unchanged, enforcing Customer User-count invariance during reconciliation;
+- open Identity quarantines are `0`;
+- open `legacy_user_missing` cases are `0`;
+- unexpected open human-review reasons are `0`.
+
+The human-review reasons intentionally allowed to remain open for manual resolution are:
+
+```text
+erp_customer_missing
+erp_customer_ambiguous
+canonical_account_conflict
+```
+
+Any other open review reason fails the production gate.
+
+Reconciliation is protected by a MariaDB advisory lock so two workers cannot reconcile the same identity domain concurrently.
+
+A competing invocation performs zero reconciliation work and returns:
+
+```text
+status = SkippedLocked
+safe_error_code = reconciliation_already_running
+```
+
+`SkippedLocked` is not successful convergence. The active lock owner must finish, after which the guarded reconciliation/configuration flow can be rerun safely.
+
+## 5.11 Service-catalogue preview
 
 ```bash
 bench --site <site> execute \
@@ -257,7 +308,7 @@ ready_to_sync = true
 
 No fuzzy ERP Task Type matching or silent Task Type creation is allowed.
 
-## 5.11 Atomic service-catalogue synchronization
+## 5.12 Atomic service-catalogue synchronization
 
 ```bash
 bench --site <site> execute \
@@ -268,7 +319,7 @@ The managed service layer includes service configuration plus customer-facing pr
 
 Catalogue publishing is explicit. Normal `bench migrate` is not the catalogue publisher.
 
-## 5.12 Catalogue validation
+## 5.13 Catalogue validation
 
 ```bash
 bench --site <site> execute \
@@ -277,7 +328,7 @@ bench --site <site> execute \
 
 The run stops unless the catalogue converges to a valid state.
 
-## 5.13 Service presentation validation
+## 5.14 Service presentation validation
 
 ```bash
 bench --site <site> execute \
@@ -286,7 +337,7 @@ bench --site <site> execute \
 
 The managed customer-facing presentation and assignment defaults must validate.
 
-## 5.14 App-ready defaults preview
+## 5.15 App-ready defaults preview
 
 The current configuration script also manages source-controlled app-ready defaults:
 
@@ -301,7 +352,17 @@ App-ready defaults cover source-controlled application configuration such as sup
 
 Client/runtime-owned secrets, users, payment/bank details and transaction records are intentionally outside this ownership boundary.
 
-## 5.15 App-ready defaults synchronization
+`OMC Mobile Settings` is intentionally client/site-managed. App-default synchronization does not overwrite Mobile Settings values. Its Mobile Settings component is validation-only for the current release controls:
+
+```text
+minimum_app_version
+force_update
+maintenance_mode
+```
+
+Removed ERP mapping controls such as `integration_mode`, `erpnext_integration_enabled` and configurable ERP mapping fields are not restored or managed by app-default synchronization.
+
+## 5.16 App-ready defaults synchronization
 
 ```bash
 bench --site <site> execute \
@@ -310,7 +371,7 @@ bench --site <site> execute \
 
 The synchronization must validate successfully.
 
-## 5.16 App-ready defaults validation
+## 5.17 App-ready defaults validation
 
 ```bash
 bench --site <site> execute \
@@ -319,7 +380,7 @@ bench --site <site> execute \
 
 The run stops if managed defaults do not converge.
 
-## 5.17 Optional legacy-app retirement
+## 5.18 Optional legacy-app retirement
 
 Legacy app retirement is optional and occurs only after OMC migration/catalogue/default reconciliation.
 
@@ -335,20 +396,20 @@ If a legacy app is explicitly selected, the script takes another backup before u
 
 The legacy source folder is not deleted automatically because another Bench site may still depend on it.
 
-## 5.18 Scheduler
+## 5.19 Scheduler
 
 ```bash
 bench --site <site> enable-scheduler
 ```
 
-## 5.19 Asset build and cache clear
+## 5.20 Asset build and cache clear
 
 ```bash
 bench build --app omc_app
 bench --site <site> clear-cache
 ```
 
-## 5.20 Runtime restart
+## 5.21 Runtime restart
 
 If Supervisor production configuration is detected, the script can run:
 
@@ -360,7 +421,7 @@ Otherwise it warns the operator to restart using the client's actual process man
 
 `--no-restart` is for controlled rehearsal only; production traffic must not continue indefinitely on stale runtime processes.
 
-## 5.21 Final verification
+## 5.22 Final verification
 
 The script performs final application/site validation and preserves command evidence for audit/debugging.
 
@@ -380,7 +441,9 @@ It also creates a restricted raw evidence directory:
 frappe-bench/logs/omc-configuration-<site>-<timestamp>-evidence/
 ```
 
-The raw evidence contains complete command outputs used for migration/catalogue/default validation.
+The raw evidence contains complete command outputs used for migration, customer reconciliation, catalogue and app-default validation.
+
+Customer-reconciliation evidence includes the pre-run baseline, checkpointed reconciliation run outputs and final convergence/status evidence so cycle progression, review/quarantine state and User-count invariance can be audited.
 
 Treat this directory as operationally sensitive because migration evidence can contain customer/staff identifiers.
 
@@ -515,6 +578,18 @@ bench --site "$SITE" execute \
   omc_app.api.customer_migration.preflight
 
 bench --site "$SITE" execute \
+  omc_app.api.customer_reconciliation.get_customer_account_reconciliation_status
+
+# Run checkpointed reconciliation in bounded batches. Repeat only as required
+# by section 5.10 until the required fresh cycle is proved and the cursor is blank.
+bench --site "$SITE" execute \
+  omc_app.api.customer_reconciliation.run_customer_account_reconciliation \
+  --kwargs '{"batch_size":500}'
+
+bench --site "$SITE" execute \
+  omc_app.api.customer_reconciliation.get_customer_account_reconciliation_status
+
+bench --site "$SITE" execute \
   omc_app.setup.operations.preview_service_catalogue
 
 bench --site "$SITE" execute \
@@ -541,6 +616,8 @@ bench --site "$SITE" clear-cache
 ```
 
 Restart the production runtime using the correct process-manager procedure for the host.
+
+For manual fallback, a single 500-row reconciliation batch is not proof of convergence. Do not continue to catalogue publication until the bounded reconciliation procedure in section 5.10 has proved the required cycle, returned to a blank checkpoint cursor and passed all reconciliation convergence gates.
 
 Do not use manual fallback to bypass a blocker reported by the guarded script.
 
@@ -574,6 +651,13 @@ Stop and investigate if any of the following occurs:
 - migration failure;
 - ERP compatibility failure;
 - customer migration proposes/creates unexpected login Users;
+- customer reconciliation changes the `User` count;
+- reconciliation cannot prove the required fresh complete cycle;
+- reconciliation finishes with a non-blank checkpoint cursor;
+- reconciliation reports open Identity quarantines;
+- reconciliation reports open `legacy_user_missing` cases;
+- reconciliation reports unexpected human-review reasons;
+- reconciliation reports `SkippedLocked` because another reconciliation owner is active;
 - catalogue preview is not safe to sync;
 - catalogue sync/validation failure;
 - presentation validation failure;
@@ -594,9 +678,16 @@ Stop and investigate if any of the following occurs:
 - [ ] ERP contract validates;
 - [ ] OMC initialization completes;
 - [ ] customer/staff migration converges without bulk login-user creation;
+- [ ] checkpoint-aware customer reconciliation completes the required fresh cycle;
+- [ ] reconciliation finishes on a blank checkpoint cursor;
+- [ ] `User` count remains unchanged across reconciliation;
+- [ ] Identity quarantines are `0`;
+- [ ] `legacy_user_missing` cases are `0`;
+- [ ] only expected manual-review reasons remain open;
 - [ ] service catalogue preview/sync/validation succeeds;
 - [ ] service presentation validation succeeds;
 - [ ] app-ready defaults preview/sync/validation succeeds;
+- [ ] client/site-managed `OMC Mobile Settings` values remain preserved and current release controls validate;
 - [ ] scheduler enabled;
 - [ ] assets built;
 - [ ] production runtime restarted/reloaded;
@@ -620,9 +711,36 @@ Stop and investigate if any of the following occurs:
 Backup
   -> install/update omc_app
   -> run configuration.sh
-  -> review guarded migration/catalogue/app-default results
+  -> review guarded migration/reconciliation/catalogue/app-default results
   -> restart runtime
   -> smoke-test production
 ```
 
 Do not replace this with ad-hoc database edits, ERPNext core changes, or a shortened sequence that skips backups, preflight or validation.
+
+
+<!-- PHASE 10 FINAL VALIDATION CLOSURE - 2026-09-19 -->
+## Final local validation evidence — 2026-09-19
+
+The final local acceptance gate completed successfully before release:
+
+- `bench --site omc-prod.local run-tests --app omc_app --skip-test-records`
+  completed with **1,330 tests passed** and `OK`.
+- Scheduler isolation was restored successfully.
+- Customer Profiles, Users, Customer Accounts, review/quarantine state and the
+  durable reconciliation checkpoint were unchanged across the suite.
+- No `@qa.omc.test` identity fixture remained after the run.
+- Final counts were 3,248 Customer Profiles, 319 Users and 7 Customer Accounts.
+- Open identity reviews remained 7, all `erp_customer_missing`; identity
+  quarantines and `legacy_user_missing` remained zero.
+
+Release acceptance also relies on the already-proven real-DB ERP workflow
+evidence rather than creating or deleting accounting records only for testing:
+partial-payment activation was exercised against real local database state with
+rollback protection, and an earlier persisted native ERP chain proved Sales
+Invoice / Payment Entry / GL settlement through ERP Service, Task creation and
+assignment.
+
+No release operator should fabricate accounting state to repeat this proof.
+ERPNext remains authoritative for invoice, Payment Entry, outstanding balance,
+GL and settlement.

@@ -113,21 +113,35 @@ class TestCustomerActivation(FrappeTestCase):
         }).insert(ignore_permissions=True)
         self.created_customers.append(customer.name)
 
+        # Customer.after_insert is authoritative for creating the
+        # business-only OMC projection. Reuse that profile rather than
+        # inserting a duplicate profile for the same ERP Customer.
+        profile_names = frappe.get_all(
+            "OMC Customer Profile",
+            filters={"linked_erpnext_customer": customer.name},
+            pluck="name",
+            limit_page_length=2,
+        )
+        self.assertEqual(
+            len(profile_names),
+            1,
+            "Customer hook must create exactly one OMC Customer Profile",
+        )
+
         profile = frappe.get_doc(
-            {
-                "doctype": "OMC Customer Profile",
-                "full_name": "Imported Customer",
-                "email": email,
-                "customer_status": "Active",
-                "approval_status": "Approved",
-                "is_active": 1,
-                "customer_origin": "Imported",
-                "manual_customer_status": "Unregistered",
-                "register_as": "Customer",
-                "customer_type": "Customer",
-                "linked_erpnext_customer": customer.name,
-            }
-        ).insert(ignore_permissions=True)
+            "OMC Customer Profile",
+            profile_names[0],
+        )
+        profile.full_name = "Imported Customer"
+        profile.email = email
+        profile.customer_status = "Active"
+        profile.approval_status = "Approved"
+        profile.is_active = 1
+        profile.customer_origin = "Imported"
+        profile.manual_customer_status = "Unregistered"
+        profile.register_as = "Customer"
+        profile.customer_type = "Customer"
+        profile.save(ignore_permissions=True)
 
         return profile
 

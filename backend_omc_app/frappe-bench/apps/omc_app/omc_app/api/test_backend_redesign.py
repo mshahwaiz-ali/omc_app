@@ -261,7 +261,7 @@ class TestBackendRedesignFinance(TestCase):
         self.assertEqual(issue["kind"], "human")
         self.assertEqual(issue["code"], "payment_party_mismatch")
 
-    def test_no_charge_and_full_settlement_activation_gates(self):
+    def test_no_charge_and_positive_reconciled_payment_activation_gates(self):
         free = SimpleNamespace(
             name="OMC-SR-FREE", request_state="Payment Not Required",
             payment_policy_snapshot="No Charge", payable_amount=0,
@@ -271,10 +271,40 @@ class TestBackendRedesignFinance(TestCase):
             payment_policy_snapshot="Full Settlement", payable_amount=100,
         )
         self.assertTrue(bridge_outbox.eligibility(free)["eligible"])
-        with patch.object(bridge_outbox.frappe.db, "exists", return_value=False):
-            self.assertFalse(bridge_outbox.eligibility(paid)["eligible"])
-        with patch.object(bridge_outbox.frappe.db, "exists", return_value=True):
-            self.assertTrue(bridge_outbox.eligibility(paid)["eligible"])
+
+        with (
+            patch.object(
+                bridge_outbox,
+                "_accounting_status",
+                return_value="",
+            ),
+            patch.object(
+                bridge_outbox,
+                "_accounted_amount",
+                return_value=0,
+            ),
+        ):
+            self.assertFalse(
+                bridge_outbox.eligibility(paid)["eligible"]
+            )
+
+        # Operational activation requires positive ERP-reconciled payment
+        # evidence; full invoice settlement is not required to start work.
+        with (
+            patch.object(
+                bridge_outbox,
+                "_accounting_status",
+                return_value="Partially Settled",
+            ),
+            patch.object(
+                bridge_outbox,
+                "_accounted_amount",
+                return_value=50,
+            ),
+        ):
+            self.assertTrue(
+                bridge_outbox.eligibility(paid)["eligible"]
+            )
 
     def test_bridge_failure_rolls_back_partial_operational_graph(self):
         source = Path(bridge_outbox.__file__).read_text(encoding="utf-8")

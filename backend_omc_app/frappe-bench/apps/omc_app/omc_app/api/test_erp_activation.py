@@ -45,8 +45,20 @@ class TestErpActivation(TestCase):
         service = self._service()
 
         with (
-            patch.object(bridge_outbox.frappe.db, "exists", return_value=False),
-            patch.object(bridge_outbox, "enqueue_if_eligible") as enqueue,
+            patch.object(
+                bridge_outbox,
+                "_accounting_status",
+                return_value="",
+            ),
+            patch.object(
+                bridge_outbox,
+                "_accounted_amount",
+                return_value=0,
+            ),
+            patch.object(
+                bridge_outbox,
+                "enqueue_if_eligible",
+            ) as enqueue,
         ):
             result = erp_activation.activate_request(
                 request,
@@ -56,7 +68,10 @@ class TestErpActivation(TestCase):
         self.assertEqual(result["status"], "Not Started")
         self.assertFalse(result["eligible"])
         self.assertFalse(result["created"])
-        self.assertIn("settlement", result["reason"].lower())
+        self.assertIn(
+            "positive erp-reconciled customer payment",
+            result["reason"].lower(),
+        )
         enqueue.assert_not_called()
 
     def test_paid_service_activates_after_payment_confirmation(self):
@@ -65,9 +80,20 @@ class TestErpActivation(TestCase):
         profile = SimpleNamespace(name="PROFILE-1")
 
         with (
-            patch.object(bridge_outbox.frappe.db, "exists", return_value=True),
             patch.object(
-                bridge_outbox, "enqueue_if_eligible", return_value="BRIDGE-OP-1"
+                bridge_outbox,
+                "_accounting_status",
+                return_value="Partially Settled",
+            ),
+            patch.object(
+                bridge_outbox,
+                "_accounted_amount",
+                return_value=100,
+            ),
+            patch.object(
+                bridge_outbox,
+                "enqueue_if_eligible",
+                return_value="BRIDGE-OP-1",
             ) as enqueue,
         ):
             result = erp_activation.activate_request(

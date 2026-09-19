@@ -268,7 +268,106 @@ def _batch(cursor: str, batch_size: int):
     )
 
 
-def run_customer_account_reconciliation(batch_size: int = 200) -> dict:
+
+def get_customer_account_reconciliation_status() -> dict:
+    """Return read-only operational status for production convergence gates."""
+
+    checkpoint = frappe.db.get_value(
+        "OMC Reconciliation Checkpoint",
+        {
+            "job_key": JOB_KEY,
+            "domain": DOMAIN,
+        },
+        [
+            "cursor_value",
+            "cycle_count",
+            "last_run_id",
+        ],
+        as_dict=True,
+    ) or {}
+
+    review_rows = frappe.get_all(
+        "OMC Reconciliation Review",
+        filters={
+            "domain": DOMAIN,
+            "status": "Open",
+        },
+        fields=["reason_code"],
+        limit_page_length=0,
+    )
+
+    quarantine_rows = frappe.get_all(
+        "OMC Technical Quarantine",
+        filters={
+            "domain": DOMAIN,
+            "status": [
+                "in",
+                ["Open", "Retrying"],
+            ],
+        },
+        fields=["failure_code"],
+        limit_page_length=0,
+    )
+
+    review_counts = {}
+    for row in review_rows:
+        code = _text(row.get("reason_code"))
+        review_counts[code] = review_counts.get(code, 0) + 1
+
+    quarantine_counts = {}
+    for row in quarantine_rows:
+        code = _text(row.get("failure_code"))
+        quarantine_counts[code] = (
+            quarantine_counts.get(code, 0) + 1
+        )
+
+    unexpected_reviews = {
+        code: count
+        for code, count in review_counts.items()
+        if code not in REVIEW_CODES
+    }
+
+    return {
+        "job_key": JOB_KEY,
+        "domain": DOMAIN,
+        "checkpoint": {
+            "cursor_value": _text(
+                checkpoint.get("cursor_value")
+            ),
+            "cycle_count": cint(
+                checkpoint.get("cycle_count")
+            ),
+            "last_run_id": _text(
+                checkpoint.get("last_run_id")
+            ),
+        },
+        "customer_profiles": frappe.db.count(
+            "OMC Customer Profile"
+        ),
+        "users": frappe.db.count("User"),
+        "customer_accounts": frappe.db.count(
+            "OMC Customer Account"
+        ),
+        "open_reviews": len(review_rows),
+        "open_review_reason_counts": review_counts,
+        "expected_review_reason_codes": sorted(
+            REVIEW_CODES
+        ),
+        "unexpected_open_review_reason_counts":
+            unexpected_reviews,
+        "open_identity_quarantines":
+            len(quarantine_rows),
+        "open_quarantine_failure_counts":
+            quarantine_counts,
+        "legacy_user_missing_open":
+            quarantine_counts.get(
+                "legacy_user_missing",
+                0,
+            ),
+    }
+
+
+def _run_customer_account_reconciliation_unlocked(batch_size: int = 200) -> dict:
     batch_size = max(1, min(cint(batch_size or 200), 500))
     run, checkpoint = reconciliation_runs.start_run(
         job_key=JOB_KEY,
@@ -339,4 +438,48 @@ def run_customer_account_reconciliation(batch_size: int = 200) -> dict:
             run,
             error_code=type(exc).__name__,
             counters=counters,
+        )
+
+def run_customer_account_reconciliation(
+    batch_size: int = 200,
+    lock_timeout: int = 0,
+) -> dict:
+    """Run one checkpointed batch with exclusive job ownership."""
+
+    timeout = max(
+        0,
+        min(cint(lock_timeout or 0), 60),
+    )
+
+    acquired = reconciliation_runs.acquire_job_lock(
+        job_key=JOB_KEY,
+        domain=DOMAIN,
+        timeout=timeout,
+    )
+
+    if not acquired:
+        return {
+            "run_id": "",
+            "status": "SkippedLocked",
+            "safe_error_code":
+                "reconciliation_already_running",
+            "cursor_start": "",
+            "cursor_end": "",
+            "next_cursor": "",
+            "cycle_completed": False,
+            "scanned": 0,
+            "changed": 0,
+            "review": 0,
+            "quarantine": 0,
+            "failed": 0,
+        }
+
+    try:
+        return _run_customer_account_reconciliation_unlocked(
+            batch_size=batch_size,
+        )
+    finally:
+        reconciliation_runs.release_job_lock(
+            job_key=JOB_KEY,
+            domain=DOMAIN,
         )

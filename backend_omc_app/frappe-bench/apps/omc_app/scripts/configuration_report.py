@@ -192,6 +192,119 @@ def migration_apply(data: dict[str, Any]) -> None:
     status("APPLIED SAFELY" if safe else "STOP - CUSTOMER USERS WERE CREATED")
 
 
+
+def customer_reconciliation_run(
+    data: dict[str, Any],
+) -> None:
+    heading("Customer reconciliation run")
+    row("Run ID", data.get("run_id"))
+    row("Status", data.get("status"))
+    row("Cursor start", data.get("cursor_start"))
+    row("Cursor end", data.get("cursor_end"))
+    row("Next cursor", data.get("next_cursor"))
+    row("Cycle completed", data.get("cycle_completed"))
+    row("Scanned", data.get("scanned"))
+    row("Changed", data.get("changed"))
+    row("Human review", data.get("review"))
+    row("Quarantine", data.get("quarantine"))
+    row("Failed", data.get("failed"))
+
+    run_status = data.get("status")
+
+    if run_status == "SkippedLocked":
+        status("BUSY - RECONCILIATION ALREADY RUNNING")
+        return
+
+    healthy = (
+        run_status == "Completed"
+        and int(data.get("failed") or 0) == 0
+    )
+    status("HEALTHY" if healthy else "STOP - RECONCILIATION FAILED")
+
+
+def customer_reconciliation_status(
+    data: dict[str, Any],
+) -> None:
+    heading("Customer reconciliation status")
+
+    checkpoint = data.get("checkpoint") or {}
+
+    row(
+        "Checkpoint cursor",
+        checkpoint.get("cursor_value"),
+    )
+    row(
+        "Completed cycles",
+        checkpoint.get("cycle_count"),
+    )
+    row(
+        "Last run ID",
+        checkpoint.get("last_run_id"),
+    )
+
+    row(
+        "Customer Profiles",
+        data.get("customer_profiles"),
+    )
+    row("Users", data.get("users"))
+    row(
+        "Customer Accounts",
+        data.get("customer_accounts"),
+    )
+    row(
+        "Open human reviews",
+        data.get("open_reviews"),
+    )
+    row(
+        "Review reasons",
+        data.get("open_review_reason_counts"),
+    )
+    row(
+        "Unexpected review reasons",
+        data.get(
+            "unexpected_open_review_reason_counts"
+        ),
+    )
+    row(
+        "Open Identity quarantines",
+        data.get("open_identity_quarantines"),
+    )
+    row(
+        "Quarantine reasons",
+        data.get(
+            "open_quarantine_failure_counts"
+        ),
+    )
+    row(
+        "legacy_user_missing open",
+        data.get("legacy_user_missing_open"),
+    )
+
+    healthy = (
+        int(
+            data.get(
+                "open_identity_quarantines"
+            ) or 0
+        )
+        == 0
+        and int(
+            data.get(
+                "legacy_user_missing_open"
+            ) or 0
+        )
+        == 0
+        and not data.get(
+            "unexpected_open_review_reason_counts"
+        )
+    )
+
+    status(
+        "FAIL-CLOSED / HEALTHY"
+        if healthy
+        else "REVIEW REQUIRED"
+    )
+
+
 def catalogue_preview(data: dict[str, Any]) -> None:
     heading("Production service catalogue preview")
     row("Ready to sync", data.get("ready_to_sync"))
@@ -325,6 +438,8 @@ REPORTERS = {
     "initialize": initialize,
     "migration_preflight": migration_preflight,
     "migration_apply": migration_apply,
+    "customer_reconciliation_run": customer_reconciliation_run,
+    "customer_reconciliation_status": customer_reconciliation_status,
     "catalogue_preview": catalogue_preview,
     "catalogue_sync": catalogue_sync,
     "catalogue_validate": catalogue_validate,
