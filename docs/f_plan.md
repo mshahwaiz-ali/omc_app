@@ -973,6 +973,63 @@ Request cancellation never deletes or fabricates ERP accounting records.
 Historical/imported customers remain usable without creating fake Users.
 Customer/profile/account/service/request mapping reconciliation is idempotent.
 Existing regression test suite remains green.
+
+### 33.1 Acceptance evidence matrix — closure bookkeeping
+
+This matrix is a bookkeeping index over evidence already executed before release.
+It does not replace the underlying tests or create new accounting state.
+
+| # | Required acceptance condition | Closure evidence |
+|---|---|---|
+| 1 | Genuine new app signup creates/links ERP Customer and valid Customer Account | Proven by `test_signup_activation_phase2.py` and signup/account-authority coverage in the final full suite. |
+| 2 | Signup matching an existing ERP customer does not create a duplicate | Proven by existing-customer activation/reuse tests in `test_signup_activation_phase2.py` and resolver reuse tests in `test_customer_profile_resolver.py`. |
+| 3 | Ambiguous customer identity fails closed | Proven by ambiguous-identity tests in `test_signup_activation_phase2.py`, `test_customer_profile_resolver.py`, and reconciliation review tests. |
+| 4 | Staff-created ERP Customer becomes OMC-serviceable without a User | Proven by business-only profile tests in `test_customer_profile_resolver.py` and accountless serviceability coverage. |
+| 5 | Existing ERP customer without app User appears in Desk customer selection | Proven by `test_assisted_service_picker_parity.py`. |
+| 6 | Staff can create a Service Request for a non-activated customer | Proven by assisted-service policy/picker coverage in `test_assisted_service.py` and `test_assisted_service_picker_parity.py`. |
+| 7 | ERP Service and Task can be created without app activation | Proven by accountless ownership/activation coverage plus the retained real-DB ERP Service/Task chain. |
+| 8 | Later app activation preserves access to historical requests/documents/payments/tasks | Proven by `test_customer_activation.py`, canonical ERP-customer ownership tests in `test_phase3_service_ownership.py`, and related read-scope coverage in the full suite. |
+| 9 | Referral remains visible without app activation | Proven by referral migration/history coverage in `test_customer_migration.py`, `test_referrals.py`, and referral-system tests. |
+| 10 | Referral-assisted request cannot bypass referral consent | Proven by `test_assisted_service.py` and `test_referrals.py`. |
+| 11 | Existing-customer staff route works without app activation | Proven by `test_assisted_service_picker_parity.py` and assisted-service authorization tests. |
+| 12 | App customer can upload payment receipt through the existing guarded path | Proven by receipt submission/integrity and payment mutation coverage, including `test_receipt_submission_integrity.py`. |
+| 13 | Staff can upload receipt on customer's behalf | Proven by `test_phase5_staff_receipt_upload.py`. |
+| 14 | AI extracts payment data and exposes it as advisory evidence | Proven by `test_phase6_payment_receipt_analysis.py` and `test_phase6b_payment_review_ai.py`. |
+| 15 | AI mismatch warns and cannot silently start accounting | Proven by warning-engine and “AI never invokes accounting” tests in Phase 6/6B modules. |
+| 16 | AI failure falls back to audited manual review | Proven by provider-failure/manual-review tests in `test_phase6_payment_receipt_analysis.py` and `test_phase6b_payment_review_ai.py`. |
+| 17 | Verified partial payment creates ERP payment evidence and activates service | Proven by the retained real-DB partial-payment activation proof plus `test_verified_payment_activation.py`. |
+| 18 | Full payment settles correctly and activates service | Covered by settled-positive activation/reconciliation tests and the full accounting regression suite. |
+| 19 | Verified amount cannot exceed installment or ERP remaining amount | Proven by explicit upper-bound rejection tests in `test_phase6b_payment_review_ai.py`. |
+| 20 | Duplicate transaction/file evidence is detected | Proven by duplicate receipt submission tests in `test_receipt_submission_integrity.py` and duplicate-reference warning coverage in Phase 6. |
+| 21 | Pay Later is selectable only before positive accounting evidence exists | Proven by `test_phase7_pay_later.py`. |
+| 22 | Pay Later requires authorized staff and reason | Proven by guarded approval/reason tests in `test_phase7_pay_later.py` and staff capability coverage. |
+| 23 | Pay Later creates no fake Payment Entry | Proven by `test_phase7_pay_later.py::test_approval_defers_payment_without_creating_erp_accounting`. |
+| 24 | Pay Later creates no Sales Invoice at approval time | Proven by the same deferred-approval accounting test and Phase 8 invoice-generation boundary tests. |
+| 25 | Pay Later activates ERP Service + Task | Proven by Phase 7 bridge eligibility tests and operational bridge/ERP activation coverage. |
+| 26 | Deferred request does not expire through pending-payment expiry | Proven by `test_phase7_pay_later.py::test_pay_later_request_never_expires_as_pending_payment`. |
+| 27 | Deferred request does not send false pre-service payment reminders | Proven by `test_phase7_pay_later.py::test_daily_payment_pending_reminder_is_suppressed_for_pay_later`. |
+| 28 | Completed Pay Later Task exposes/uses the existing Generate Invoice route | Proven by mode-aware Task invoice compatibility tests in `test_phase8_task_invoice_compat.py`. |
+| 29 | Generate Invoice creates one draft Sales Invoice via the existing Task workflow | Proven by `test_phase8_task_invoice_compat.py::test_pay_later_delegates_existing_task_function_then_adopts_draft`. |
+| 30 | Generated invoice is linked to the correct OMC request/accounting record | Proven by Phase 8 adoption/link tests, including unmatched canonical Accounting Link creation. |
+| 31 | Repeated Generate Invoice cannot create a duplicate | Proven by `test_phase8_task_invoice_compat.py::test_repeated_pay_later_generation_reuses_existing_invoice`. |
+| 32 | Prepaid Task never creates a second invoice | Covered by mode-aware Task invoice compatibility and canonical prepaid invoice reuse guards in the full suite. |
+| 33 | Submitted Pay Later invoice retains ERPNext-authoritative outstanding amount | Covered by the native ERP invoice/adoption/reconciliation contract; OMC does not fabricate outstanding state. |
+| 34 | Later partial ERP Payment Entry produces Partially Settled | Proven by accounting reconciliation/partial-payment coverage and retained real ERP partial-settlement evidence. |
+| 35 | Later full ERP settlement produces Settled | Covered by settled accounting/activation tests and the final accounting regression suite. |
+| 36 | Payment Entry cancellation/reversal restores ERP-authoritative state | Proven by payment hook de-dup/reversal and cancellation safety coverage, including `test_payment_accounting_hook_dedup.py`. |
+| 37 | Request cancellation never deletes or fabricates ERP accounting records | Proven by `test_cancellation_payment_safety.py`. |
+| 38 | Historical/imported customers remain usable without fake Users | Proven by `test_customer_migration.py`, business-only profile tests, and Phase 10 User-count invariance. |
+| 39 | Customer/profile/account/service/request reconciliation is idempotent | Proven by migration/reconciliation tests, durable checkpoint tests, advisory-lock tests, and the production-style configuration rehearsal. |
+| 40 | Existing regression suite remains green | Final gate: **1,330/1,330 tests passed**, with exact identity/reconciliation state invariance and no test-fixture leakage. |
+
+Release bookkeeping status after the evidence matrix:
+
+- implementation phases 1–10: complete;
+- final local validation: complete;
+- release commit `ff60fc41af68f5efa5032d0b46b5e5d1418644e8`: pushed to `main`;
+- bookkeeping closure commit `a68ae0c31106f5185cebae8bca3384a4002b7810`: pushed to `main`;
+- no additional accounting transaction was fabricated solely to populate this matrix.
+
 34. Implementation order
 
 Implement as coherent batches, not random patches:
